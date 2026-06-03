@@ -861,6 +861,17 @@
         }
       }
 
+      // Sumar riego registrado de eventos con eficiencia del equipo
+      // (debe calcularse ANTES de usar eficienciaRiego/riegoEfectivo en balanceLluvia, para evitar TDZ)
+      const eficienciaRiego = getEficienciaEquipo(contexto.equipo);
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const hace7dias = new Date(); hace7dias.setDate(hace7dias.getDate() - 7);
+      let riegoEfectivo = 0;
+      if (contexto.equipo) {
+        eventos.filter(ev => ev.equipoId === contexto.equipo.id && ev.tipo === 'riego' && new Date(ev.fecha) >= hace7dias)
+          .forEach(ev => { riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficienciaRiego; });
+      }
+
       // Mostrar la lluvia efectiva (no la bruta) para que el balance sea agronómicamente correcto
       const perdidoEscorrentia = lluviaTotal - lluviaEfectiva;
       const detalleEscorrentia = perdidoEscorrentia > 0.1
@@ -874,16 +885,6 @@
       document.getElementById('balanceETLabel').textContent = mostrarPro
         ? `${contexto.kcDef.emoji || '🌽'} ETc acumulada (consumo del cultivo)`
         : `☀️ ETo acumulada (referencia)`;
-
-      // Sumar riego registrado de eventos con eficiencia del equipo
-      const eficienciaRiego = getEficienciaEquipo(contexto.equipo);
-      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
-      const hace7dias = new Date(); hace7dias.setDate(hace7dias.getDate() - 7);
-      let riegoEfectivo = 0;
-      if (contexto.equipo) {
-        eventos.filter(ev => ev.equipoId === contexto.equipo.id && ev.tipo === 'riego' && new Date(ev.fecha) >= hace7dias)
-          .forEach(ev => { riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficienciaRiego; });
-      }
 
       const balance = lluviaEfectiva + riegoEfectivo - etTotal;
       const balanceEl = document.getElementById('balanceResultado');
