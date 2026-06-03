@@ -984,9 +984,14 @@
           `&past_days=7&forecast_days=4&timezone=auto`;
 
         const respuesta = await fetch(url);
-        if (!respuesta.ok) throw new Error('http_' + respuesta.status);
+        if (!respuesta.ok) {
+          // Open-Meteo devuelve {"error":true,"reason":"..."} cuando algo falla
+          let motivo = '';
+          try { const errJson = await respuesta.clone().json(); if (errJson && errJson.reason) motivo = errJson.reason; } catch (_) {}
+          throw new Error('HTTP ' + respuesta.status + (motivo ? ' — ' + motivo : ''));
+        }
         const datos = await respuesta.json();
-        if (!datos || !datos.daily) throw new Error('sin_datos_clima');
+        if (!datos || !datos.daily) throw new Error('Respuesta sin "daily"' + (datos && datos.reason ? ' — ' + datos.reason : ''));
 
         let etTotal = 0;
         let lluviaTotal = 0;
@@ -1036,7 +1041,7 @@
         return parseFloat(equipo.eficiencia) / 100;
       return EFICIENCIA_RIEGO[equipo.tipo] || 0.80;
     }
-        const eficiencia = getEficienciaEquipo(equipoSeleccionado);
+        const eficiencia = getEficienciaEquipo(equipo);
         let riegoEfectivo = 0;
 
         eventos.forEach(ev => {
@@ -1085,6 +1090,8 @@
         }
 
       } catch (error) {
+        // Diagnóstico para consola (no cambia lo que ve el usuario)
+        console.error('[SAFIA] Recomendación de clima (operador) falló:', error && error.message ? error.message : error, error);
         // "Sin internet" SOLO para fallos reales de conexión (fetch lanza TypeError sin red).
         if (error instanceof TypeError) {
           icono.textContent = '📡';
