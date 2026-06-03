@@ -1493,7 +1493,7 @@
 
       // ---- CAMPAÑAS ACTIVAS ----
       if (activas.length > 0) {
-        lista.innerHTML += `<div class="section-title" style="margin-top:0;">🟢 Campañas activas</div>`;
+        lista.innerHTML += `<div class="section-title" style="margin-top:0;"><svg class="ic-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#22A93A"/></svg> Campañas activas</div>`;
         const filasAct = activas.map(campana => {
           const equipo = equipos.find(e => e.id === campana.equipoId);
           const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
@@ -1522,7 +1522,7 @@
 
       // ---- CAMPAÑAS CERRADAS ----
       if (cerradas.length > 0) {
-        lista.innerHTML += `<div class="lista-titulo" style="margin-top:20px;">⚫ Campañas cerradas</div>`;
+        lista.innerHTML += `<div class="lista-titulo" style="margin-top:20px;"><svg class="ic-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#8C9196"/></svg> Campañas cerradas</div>`;
         cerradas.forEach(campana => {
           const equipo = equipos.find(e => e.id === campana.equipoId);
           const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
