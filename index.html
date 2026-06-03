@@ -598,7 +598,7 @@
       if (primerCritico) {
         return {
           tipo: 'urgente',
-          icono: '🚨',
+          icono: '<svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>',
           titulo: 'Riego URGENTE recomendado',
           detalle: `<strong>${formatearFecha(primerCritico.fecha)}</strong> — humedad bajando a ${primerCritico.porcentaje}%. Programar riego cuanto antes.`
         };
@@ -606,14 +606,14 @@
       if (primerAtencion) {
         return {
           tipo: 'atencion',
-          icono: '⚠️',
+          icono: '<svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>',
           titulo: 'Atención esta semana',
           detalle: `<strong>${formatearFecha(primerAtencion.fecha)}</strong> — humedad bajando a ${primerAtencion.porcentaje}%. Prepará el equipo para regar.`
         };
       }
       return {
         tipo: 'ok',
-        icono: '✅',
+        icono: '<svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.5A10 10 0 1 1 12 2"/><path d="m8 12 3 3 9-9"/></svg>',
         titulo: 'Semana tranquila',
         detalle: `Todos los días por encima del umbral crítico. No se prevé riego en los próximos 7 días.`
       };
@@ -639,38 +639,38 @@
     function renderBienvenida() {
       const html = `
         <div class="bienvenida">
-          <div style="font-size: 56px; margin-bottom: 12px;">🌱</div>
+          <div style="font-size: 56px; margin-bottom: 12px;"><svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg></div>
           <h2>¡Bienvenido a SAFIA!</h2>
           <p>Tu plataforma de inteligencia agrícola está lista. Para ver el dashboard en vivo,<br>cargá tus datos en este orden:</p>
 
           <div class="bienvenida-pasos">
             <div class="paso">
               <div class="paso-num">1</div>
-              <div class="paso-titulo">👤 Clientes</div>
+              <div class="paso-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg> Clientes</div>
               <div class="paso-desc">Productores que usan la plataforma</div>
               <a href="mis-clientes.html">Cargar →</a>
             </div>
             <div class="paso">
               <div class="paso-num">2</div>
-              <div class="paso-titulo">🌾 Campos</div>
+              <div class="paso-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg> Campos</div>
               <div class="paso-desc">Lotes con GPS y tipo de suelo</div>
               <a href="mis-campos.html">Cargar →</a>
             </div>
             <div class="paso">
               <div class="paso-num">3</div>
-              <div class="paso-titulo">💧 Equipos</div>
+              <div class="paso-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg> Equipos</div>
               <div class="paso-desc">Pivotes, goteo, cañones</div>
               <a href="mis-equipos.html">Cargar →</a>
             </div>
             <div class="paso">
               <div class="paso-num">4</div>
-              <div class="paso-titulo">🌱 Cultivos</div>
+              <div class="paso-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg> Cultivos</div>
               <div class="paso-desc">22 cultivos FAO + tus propios</div>
               <a href="mis-cultivos.html">Cargar →</a>
             </div>
             <div class="paso">
               <div class="paso-num">5</div>
-              <div class="paso-titulo">📋 Campañas</div>
+              <div class="paso-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg> Campañas</div>
               <div class="paso-desc">Cultivos sembrados por equipo</div>
               <a href="mis-campanas.html">Cargar →</a>
             </div>
@@ -764,7 +764,7 @@
       return `
         <div class="card">
           <div class="card-header">
-            <div class="card-titulo">📈 Predicción 7 días — ${ctx.equipo.nombre}</div>
+            <div class="card-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="7"/><rect x="10.5" y="6" width="3" height="12"/><rect x="16" y="13" width="3" height="5"/></svg> Predicción 7 días — ${ctx.equipo.nombre}</div>
             <a href="prediccion.html" class="card-link">Ver detalle →</a>
           </div>
           <div class="pred-barras">${barras}</div>
@@ -807,7 +807,7 @@
       return `
         <div class="card">
           <div class="card-header">
-            <div class="card-titulo">🌡️ Clima ahora</div>
+            <div class="card-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg> Clima ahora</div>
             <a href="clima.html" class="card-link">Detalle →</a>
           </div>
           <div class="clima-principal">
@@ -863,7 +863,7 @@
       return `
         <div class="card">
           <div class="card-header">
-            <div class="card-titulo">📋 Últimos eventos</div>
+            <div class="card-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg> Últimos eventos</div>
             <a href="eventos.html" class="card-link">Ver todos →</a>
           </div>
           ${listaHTML}
@@ -876,7 +876,7 @@
         return `
           <div class="card">
             <div class="card-header">
-              <div class="card-titulo">🌽 Campaña activa</div>
+              <div class="card-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg> Campaña activa</div>
               <a href="mis-campanas.html" class="card-link">Cargar →</a>
             </div>
             <div class="evento-vacio">No hay campañas activas con cultivos válidos.</div>
@@ -902,7 +902,7 @@
           <div class="campana-cultivo">${ctx.kcDef.emoji || '🌱'} ${ctx.cultivo.cultivo}${ctx.cultivo.variedad ? ' · ' + ctx.cultivo.variedad : ''}</div>
           <div class="campana-sub">${ctx.campo.nombre} · ${ctx.cultivo.superficie || '—'} ha · sembrado ${fechaSiembra} · ${dias}</div>
           <div class="campana-etapa">
-            <div class="campana-etapa-nombre">📊 Etapa ${kcInfo.etapa}</div>
+            <div class="campana-etapa-nombre"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="7"/><rect x="10.5" y="6" width="3" height="12"/><rect x="16" y="13" width="3" height="5"/></svg> Etapa ${kcInfo.etapa}</div>
             <div>${descEtapa} · Kc ${kcInfo.kc.toFixed(2)}</div>
           </div>
         </div>
@@ -949,7 +949,7 @@
       const tituloColor = vencidos.length > 0 ? 'var(--rojo)' : '#8B6F00';
       return `<div class="card" style="border-left:4px solid ${tituloColor};margin-bottom:14px;">
         <div class="card-header">
-          <div class="card-titulo" style="color:${tituloColor};">🔧 Mantenimiento — ${total} tarea${total>1?'s':''} pendiente${total>1?'s':''}</div>
+          <div class="card-titulo" style="color:${tituloColor};"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 6.4a3.8 3.8 0 0 0-5 4.9L4 17l3 3 5.7-5.6a3.8 3.8 0 0 0 4.9-5l-2.4 2.4-2.1-2.1z"/></svg> Mantenimiento — ${total} tarea${total>1?'s':''} pendiente${total>1?'s':''}</div>
           <a href="mis-equipos.html" class="card-link">Ver equipos →</a>
         </div>
         ${items}
@@ -986,7 +986,7 @@
 
       return `<div class="card" style="border-left:4px solid var(--rojo);margin-bottom:14px;">
         <div class="card-header">
-          <div class="card-titulo" style="color:var(--rojo);">⚠️ Alertas climáticas</div>
+          <div class="card-titulo" style="color:var(--rojo);"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg> Alertas climáticas</div>
           <a href="prediccion.html" class="card-link">Ver predicción →</a>
         </div>
         ${items}
@@ -1036,7 +1036,7 @@
 
       return `<div class="card" style="margin-bottom:14px;">
         <div class="card-header">
-          <div class="card-titulo">📋 Todas las campañas activas (${activas.length})</div>
+          <div class="card-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg> Todas las campañas activas (${activas.length})</div>
           <a href="mis-campanas.html" class="card-link">Ver todas →</a>
         </div>
         ${items}
@@ -1062,7 +1062,7 @@
               <div class="estado-titulo" style="color: var(--gris-texto);">Sin campaña activa</div>
               <div class="estado-detalle">Cargá una campaña activa con un cultivo del catálogo para ver el dashboard inteligente.</div>
             </div>
-            <div class="estado-icono">🌱</div>
+            <div class="estado-icono"><svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#8C9196" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg></div>
           </div>
           ${renderKPIs(null)}
           <div class="grid-2col-igual">
@@ -1081,7 +1081,7 @@
             <div class="estado-titulo">Calculando...</div>
             <div class="estado-detalle">Consultando clima y simulando humedad del suelo...</div>
           </div>
-          <div class="estado-icono">⏳</div>
+          <div class="estado-icono"><svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#8C9196" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
         </div>
         ${renderKPIs(ctx)}
       `;
@@ -1121,7 +1121,7 @@
                 <div class="estado-titulo" style="color: var(--gris-texto);">Sin conexión</div>
                 <div class="estado-detalle">No se pudo conectar con Open-Meteo. Verificá tu internet y refrescá.</div>
               </div>
-              <div class="estado-icono">📡</div>
+              <div class="estado-icono"><svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#8C9196" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M3 3l18 18"/></svg></div>
             </div>
             ${renderKPIs(ctx)}
             <div class="grid-2col-igual">
@@ -1139,7 +1139,7 @@
               <div class="estado-titulo" style="color: var(--gris-texto);">Falta GPS del campo</div>
               <div class="estado-detalle">Cargá las coordenadas de <strong>${ctx.campo.nombre}</strong> para activar la inteligencia climática.</div>
             </div>
-            <div class="estado-icono">🛰️</div>
+            <div class="estado-icono"><svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#8C9196" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg></div>
           </div>
           ${renderKPIs(ctx)}
           <div class="grid-2col-igual">
