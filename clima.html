@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Clima y ETo/ETc</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FAF6EC;
+      color: #1A1A1A;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .volver {
+      display: inline-block;
+      color: #0F3D14;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: #fff;
+      border-radius: 100px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .volver:hover { background: #f0ead8; }
+
+    .contenedor { max-width: 1000px; margin: 0 auto; }
+
+    .titulo-principal { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    .subtitulo-principal { font-size: 15px; color: #6B6356; margin-bottom: 32px; }
+
+    .modo-tabs {
+      display: flex; gap: 8px; margin-bottom: 16px;
+      background: #fff; padding: 6px;
+      border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .modo-tab {
+      flex: 1; padding: 12px 16px;
+      border: none; background: transparent;
+      border-radius: 10px; font-family: inherit;
+      font-size: 14px; font-weight: 600;
+      color: #6B6356; cursor: pointer;
+    }
+
+    .modo-tab.activo { background: #0F3D14; color: #FAF6EC; }
+    .modo-tab:not(.activo):hover { background: rgba(15, 61, 20, 0.08); }
+
+    .modo-tab .badge-pro {
+      display: inline-block;
+      background: #D4A24C; color: #fff;
+      font-size: 9px; padding: 2px 6px;
+      border-radius: 100px; margin-left: 4px; font-weight: 700;
+    }
+
+    .selector-campo {
+      background: #fff; border-radius: 18px; padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+
+    .selector-titulo {
+      font-size: 13px; text-transform: uppercase;
+      letter-spacing: 0.1em; color: #6B6356;
+      font-weight: 700; margin-bottom: 12px;
+    }
+
+    .selector-campo select {
+      width: 100%; padding: 16px 18px;
+      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
+      font-size: 16px; font-family: inherit;
+      background: #FAF6EC; color: #1A1A1A;
+    }
+
+    .alerta {
+      background: rgba(181, 55, 28, 0.1);
+      border: 1.5px solid rgba(181, 55, 28, 0.3);
+      color: #B5371C; padding: 16px 20px;
+      border-radius: 12px; margin-bottom: 20px; font-size: 14px;
+    }
+    .alerta a { color: #B5371C; font-weight: 700; text-decoration: underline; }
+
+    .loading { text-align: center; padding: 60px 20px; color: #6B6356; }
+
+    .loading-icon {
+      font-size: 48px;
+      animation: spin 2s linear infinite;
+      display: inline-block; margin-bottom: 14px;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .dashboard { display: none; }
+
+    .dash-header {
+      background: linear-gradient(135deg, #0F3D14, #1B5E20);
+      color: #FAF6EC; padding: 28px;
+      border-radius: 18px; margin-bottom: 20px;
+    }
+
+    .dash-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+
+    .dash-header .ubicacion {
+      font-size: 13px; opacity: 0.85;
+      display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;
+    }
+
+    .dash-suelo {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(212, 162, 76, 0.25);
+      border-radius: 100px;
+      font-size: 13px;
+      display: inline-block;
+    }
+    .dash-suelo strong { font-weight: 700; }
+
+    .campana-info {
+      background: linear-gradient(135deg, #D4A24C, #B88A3D);
+      color: #fff; padding: 24px 28px;
+      border-radius: 18px; margin-bottom: 20px; display: none;
+    }
+
+    .campana-info h3 { font-size: 16px; font-weight: 600; opacity: 0.9; margin-bottom: 6px; }
+
+    .campana-cultivo { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+
+    .campana-detalles {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; margin-top: 16px;
+    }
+
+    .campana-detalle {
+      background: rgba(255,255,255,0.2);
+      padding: 12px; border-radius: 10px;
+    }
+
+    .campana-detalle-label {
+      font-size: 11px; opacity: 0.85;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
+    }
+
+    .campana-detalle-valor { font-size: 18px; font-weight: 700; }
+
+    .badge-fuente {
+      display: inline-block; font-size: 10px;
+      padding: 3px 8px; border-radius: 100px;
+      font-weight: 700; margin-left: 8px;
+      background: rgba(255,255,255,0.25);
+    }
+
+    .etapa-card {
+      background: #fff; border-radius: 18px; padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+      display: none;
+    }
+
+    .etapa-titulo {
+      font-size: 13px; text-transform: uppercase;
+      letter-spacing: 0.1em; color: #6B6356;
+      font-weight: 700; margin-bottom: 12px;
+    }
+
+    .etapa-actual { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .etapa-icono { font-size: 36px; }
+    .etapa-nombre { font-size: 22px; font-weight: 700; color: #0F3D14; }
+    .etapa-desc { font-size: 13px; color: #6B6356; margin-top: 2px; }
+
+    .kc-grafico {
+      width: 100%; height: 180px; margin-top: 20px;
+      background: #FAF6EC; border-radius: 12px;
+      padding: 12px; position: relative;
+    }
+    .kc-grafico svg { width: 100%; height: 100%; }
+
+    .kc-leyenda {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      margin-top: 10px; font-size: 11px; color: #6B6356;
+    }
+    .kc-leyenda-item { display: flex; align-items: center; gap: 4px; }
+    .kc-leyenda-color { width: 12px; height: 12px; border-radius: 3px; }
+
+    .recomendacion {
+      background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+      border-left: 6px solid #2E7D32;
+    }
+    .recomendacion.regar { border-left-color: #1565C0; }
+    .recomendacion.no-regar { border-left-color: #2E7D32; }
+    .recomendacion.urgente { border-left-color: #B5371C; }
+
+    .reco-icono { font-size: 48px; margin-bottom: 8px; }
+    .reco-titulo { font-size: 22px; font-weight: 700; color: #0F3D14; margin-bottom: 6px; }
+    .reco-detalle { font-size: 14px; color: #6B6356; line-height: 1.5; }
+
+    .kpis {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px; margin-bottom: 20px;
+    }
+
+    .kpi {
+      background: #fff; border-radius: 14px; padding: 18px;
+      text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .kpi.kpi-destacado {
+      background: linear-gradient(135deg, #0F3D14, #1B5E20);
+      color: #FAF6EC;
+    }
+
+    .kpi-icono { font-size: 28px; margin-bottom: 6px; }
+
+    .kpi-valor { font-size: 24px; font-weight: 700; color: #0F3D14; line-height: 1; }
+    .kpi.kpi-destacado .kpi-valor { color: #FAF6EC; }
+
+    .kpi-unidad { font-size: 14px; color: #6B6356; font-weight: 500; }
+    .kpi.kpi-destacado .kpi-unidad { color: #FAF6EC; opacity: 0.85; }
+
+    .kpi-label {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #6B6356;
+      margin-top: 6px; font-weight: 600;
+    }
+    .kpi.kpi-destacado .kpi-label { color: #FAF6EC; opacity: 0.9; }
+
+    .kpi-formula {
+      font-size: 11px; color: #6B6356;
+      margin-top: 4px; font-style: italic;
+    }
+    .kpi.kpi-destacado .kpi-formula { color: #FAF6EC; opacity: 0.8; }
+
+    .seccion-pronostico {
+      background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+
+    .seccion-titulo { font-size: 16px; font-weight: 700; color: #0F3D14; margin-bottom: 16px; }
+    .seccion-sub { font-size: 13px; color: #6B6356; margin-bottom: 16px; margin-top: -10px; }
+
+    .pronostico-dias {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;
+    }
+
+    .dia {
+      background: #FAF6EC; border-radius: 12px; padding: 14px 8px;
+      text-align: center; border: 1.5px solid transparent;
+    }
+    .dia.hoy { background: rgba(15, 61, 20, 0.08); border-color: #0F3D14; }
+
+    .dia-fecha { font-size: 11px; color: #6B6356; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .dia-icono { font-size: 28px; margin: 6px 0; }
+    .dia-temps { font-size: 13px; font-weight: 600; color: #1A1A1A; margin-bottom: 4px; }
+    .dia-temp-min { color: #6B6356; font-weight: 400; }
+    .dia-lluvia { font-size: 11px; color: #1565C0; font-weight: 600; margin-top: 4px; }
+    .dia-eto { font-size: 11px; color: #8B6F00; font-weight: 600; margin-top: 2px; }
+    .dia-etc { font-size: 11px; color: #2E7D32; font-weight: 700; margin-top: 2px; }
+
+    .balance {
+      background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+
+    .balance-fila {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .balance-fila:last-of-type { border-bottom: none; }
+
+    .balance-label { font-size: 14px; color: #1A1A1A; font-weight: 500; }
+
+    .balance-valor { font-size: 16px; font-weight: 700; }
+    .balance-valor.entrada { color: #2E7D32; }
+    .balance-valor.salida { color: #B5371C; }
+
+    .balance-resultado {
+      margin-top: 16px; padding: 16px 20px;
+      background: #FAF6EC; border-radius: 12px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    .balance-resultado-label { font-size: 14px; font-weight: 700; color: #0F3D14; }
+    .balance-resultado-valor { font-size: 24px; font-weight: 700; }
+    .balance-resultado-valor.deficit { color: #B5371C; }
+    .balance-resultado-valor.surplus { color: #2E7D32; }
+
+    .fuente-datos {
+      text-align: center; padding: 16px;
+      font-size: 11px; color: #6B6356; opacity: 0.8;
+    }
+    .fuente-datos a { color: #0F3D14; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="contenedor">
+
+    <a href="index.html" class="volver">← Volver al menú</a>
+    <a href="backup.html" class="volver" style="margin-left:8px;">💾 Respaldo</a>
+
+    <h1 class="titulo-principal">🧠 Inteligencia Climática</h1>
+    <p class="subtitulo-principal">Open-Meteo + cálculo de evapotranspiración (ETo/ETc) según FAO Penman-Monteith.</p>
+
+    <div class="modo-tabs">
+      <button class="modo-tab activo" id="tabCampo" onclick="cambiarModo('campo')">
+        🛰️ Por Campo (ETo)
+      </button>
+      <button class="modo-tab" id="tabCampana" onclick="cambiarModo('campana')">
+        🌱 Por Campaña (ETc) <span class="badge-pro">Pro</span>
+      </button>
+    </div>
+
+    <div class="alerta" id="alertaSinGPS" style="display:none;">
+      ⚠️ No tenés ningún campo con coordenadas GPS cargadas.
+      <br><br>
+      <a href="mis-campos.html">→ Ir a cargar GPS en mis campos</a>
+    </div>
+
+    <div class="alerta" id="alertaSinCampanas" style="display:none;">
+      ⚠️ No tenés campañas activas con cultivos válidos. Cargá una campaña con un cultivo del catálogo.
+      <br><br>
+      <a href="mis-campanas.html">→ Ir a cargar campañas</a>
+    </div>
+
+    <div class="selector-campo" id="selectorContainer">
+      <div class="selector-titulo" id="selectorLabel">📍 Elegí un campo para ver su clima</div>
+      <select id="selector" onchange="cargarClima()">
+        <option value="">Seleccionar...</option>
+      </select>
+    </div>
+
+    <div class="loading" id="loading" style="display:none;">
+      <div class="loading-icon">🌡️</div>
+      <div>Consultando datos meteorológicos...</div>
+    </div>
+
+    <div class="dashboard" id="dashboard">
+
+      <div class="dash-header">
+        <h2 id="dashCampoNombre">—</h2>
+        <div class="ubicacion">
+          <div>👤 <span id="dashCliente">—</span></div>
+          <div>🛰️ <span id="dashGPS">—</span></div>
+          <div>📅 <span id="dashFecha">—</span></div>
+        </div>
+        <div class="dash-suelo" id="dashSuelo" style="display:none;"></div>
+      </div>
+
+      <div class="campana-info" id="campanaInfo">
+        <h3>🌱 Campaña activa <span class="badge-fuente" id="badgeFuente"></span></h3>
+        <div class="campana-cultivo" id="campanaCultivo">—</div>
+        <div class="campana-detalles">
+          <div class="campana-detalle">
+            <div class="campana-detalle-label">Variedad</div>
+            <div class="campana-detalle-valor" id="campanaVariedad">—</div>
+          </div>
+          <div class="campana-detalle">
+            <div class="campana-detalle-label">Sembrado</div>
+            <div class="campana-detalle-valor" id="campanaFecha">—</div>
+          </div>
+          <div class="campana-detalle">
+            <div class="campana-detalle-label">Días desde siembra</div>
+            <div class="campana-detalle-valor" id="campanaDias">—</div>
+          </div>
+          <div class="campana-detalle">
+            <div class="campana-detalle-label">Superficie</div>
+            <div class="campana-detalle-valor" id="campanaSup">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="etapa-card" id="etapaCard">
+        <div class="etapa-titulo">📊 Etapa fenológica actual</div>
+        <div class="etapa-actual">
+          <div class="etapa-icono" id="etapaIcono">🌱</div>
+          <div>
+            <div class="etapa-nombre" id="etapaNombre">—</div>
+            <div class="etapa-desc" id="etapaDesc">—</div>
+          </div>
+        </div>
+
+        <div class="kc-grafico" id="kcGrafico"></div>
+
+        <div class="kc-leyenda" id="kcLeyenda"></div>
+      </div>
+
+      <div class="recomendacion" id="recomendacion">
+        <div class="reco-icono" id="recoIcono">💧</div>
+        <div class="reco-titulo" id="recoTitulo">—</div>
+        <div class="reco-detalle" id="recoDetalle">—</div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-icono">🌡️</div>
+          <div><span class="kpi-valor" id="kpiTemp">—</span><span class="kpi-unidad">°C</span></div>
+          <div class="kpi-label">Temperatura</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icono">💧</div>
+          <div><span class="kpi-valor" id="kpiHumedad">—</span><span class="kpi-unidad">%</span></div>
+          <div class="kpi-label">Humedad</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icono">💨</div>
+          <div><span class="kpi-valor" id="kpiViento">—</span><span class="kpi-unidad">km/h</span></div>
+          <div class="kpi-label">Viento</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-icono">☀️</div>
+          <div><span class="kpi-valor" id="kpiETo">—</span><span class="kpi-unidad">mm</span></div>
+          <div class="kpi-label">ETo Hoy</div>
+        </div>
+        <div class="kpi kpi-destacado" id="kpiETcCard" style="display:none;">
+          <div class="kpi-icono" id="kpiETcIcono">🌽</div>
+          <div><span class="kpi-valor" id="kpiETc">—</span><span class="kpi-unidad">mm</span></div>
+          <div class="kpi-label">ETc Hoy</div>
+          <div class="kpi-formula" id="kpiETcFormula">ETo × Kc</div>
+        </div>
+      </div>
+
+      <div class="seccion-pronostico">
+        <div class="seccion-titulo">📅 Pronóstico próximos 7 días</div>
+        <div class="seccion-sub" id="pronosticoSub">Lluvia esperada y evapotranspiración estimada</div>
+        <div class="pronostico-dias" id="pronosticoFuturo"></div>
+      </div>
+
+      <div class="seccion-pronostico">
+        <div class="seccion-titulo">📊 Últimos 7 días</div>
+        <div class="seccion-sub">Lluvia caída y evapotranspiración registrada</div>
+        <div class="pronostico-dias" id="pronosticoPasado"></div>
+      </div>
+
+      <div class="balance">
+        <div class="seccion-titulo">💧 Balance hídrico semanal</div>
+        <div class="seccion-sub" id="balanceSub">Últimos 7 días</div>
+
+        <div class="balance-fila">
+          <div class="balance-label">🌧️ Lluvia aprovechada (entrada)</div>
+          <div class="balance-valor entrada" id="balanceLluvia">— mm</div>
+        </div>
+        <div class="balance-fila">
+          <div class="balance-label" id="balanceETLabel">☀️ ETo acumulada</div>
+          <div class="balance-valor salida" id="balanceET">— mm</div>
+        </div>
+
+        <div class="balance-resultado">
+          <div class="balance-resultado-label">Balance hídrico</div>
+          <div class="balance-resultado-valor" id="balanceResultado">— mm</div>
+        </div>
+      </div>
+
+      <div class="fuente-datos">
+        Fuente: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> · Modelo ECMWF/GFS · ETo: FAO Penman-Monteith · Kc: FAO 56
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    let modoActual = 'campo';
+
+    // ============ CONSTANTES TIPOS DE SUELO ============
+    // Valores agronómicos para 40 cm de profundidad efectiva
+    // CC: Capacidad de campo | PMP: Punto de marchitez | AAU: Agua aprovechable útil
+    // coefLluvia: % de lluvia que efectivamente queda disponible (resto se escurre/percola)
+    const TIPOS_SUELO = {
+      arenoso: {
+        nombre: 'Arenoso', emoji: '🏖️',
+        CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95
+      },
+      franco_arenoso: {
+        nombre: 'Franco arenoso', emoji: '🌾',
+        CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90
+      },
+      franco: {
+        nombre: 'Franco', emoji: '🌱',
+        CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85
+      },
+      franco_arcilloso: {
+        nombre: 'Franco arcilloso', emoji: '🟫',
+        CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75
+      },
+      arcilloso: {
+        nombre: 'Arcilloso', emoji: '🧱',
+        CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65
+      }
+    };
+
+    // Devuelve los valores del suelo del campo, con fallback a "franco" si no está clasificado
+    function obtenerSueloCampo(campo) {
+      const tipo = (campo && campo.tipoSuelo && TIPOS_SUELO[campo.tipoSuelo])
+        ? campo.tipoSuelo
+        : 'franco';
+      return { ...TIPOS_SUELO[tipo], tipo };
+    }
+
+    window.onload = function() {
+      cargarSelector();
+    };
+
+    // ============ CARGAR TABLA Kc COMPLETA (FAO + CUSTOM) ============
+    function obtenerCultivoKc(nombreCultivo) {
+      const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+
+      // Buscar primero en FAO
+      let cultivo = fao.find(c => c.nombre === nombreCultivo);
+      if (cultivo) return { ...cultivo, fuente: 'FAO' };
+
+      // Después en custom
+      cultivo = custom.find(c => c.nombre === nombreCultivo);
+      if (cultivo) return { ...cultivo, fuente: 'CUSTOM' };
+
+      return null;
+    }
+
+    function cambiarModo(modo) {
+      modoActual = modo;
+      document.getElementById('tabCampo').classList.toggle('activo', modo === 'campo');
+      document.getElementById('tabCampana').classList.toggle('activo', modo === 'campana');
+      document.getElementById('alertaSinGPS').style.display = 'none';
+      document.getElementById('alertaSinCampanas').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'none';
+      cargarSelector();
+    }
+
+    function cargarSelector() {
+      const selector = document.getElementById('selector');
+      const label = document.getElementById('selectorLabel');
+      const container = document.getElementById('selectorContainer');
+
+      selector.innerHTML = '<option value="">Seleccionar...</option>';
+
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+
+      if (modoActual === 'campo') {
+        label.textContent = '📍 Elegí un campo para ver su clima (ETo genérica)';
+        const camposConGPS = campos.filter(c => c.latitud && c.longitud);
+
+        if (camposConGPS.length === 0) {
+          document.getElementById('alertaSinGPS').style.display = 'block';
+          container.style.display = 'none';
+          return;
+        }
+
+        container.style.display = 'block';
+
+        camposConGPS.forEach(campo => {
+          const cliente = clientes.find(c => c.id === campo.clienteId);
+          const option = document.createElement('option');
+          option.value = 'campo:' + campo.id;
+          option.textContent = `${campo.nombre} (${cliente ? cliente.nombre : '?'})`;
+          selector.appendChild(option);
+        });
+
+      } else {
+        label.textContent = '🌱 Elegí una campaña para ver el consumo real del cultivo (ETc)';
+
+        const campanasValidas = [];
+        campanas.forEach(c => {
+          if (c.estado !== 'Activa') return;
+          if (!c.cultivos || c.cultivos.length === 0) return;
+
+          const equipo = equipos.find(e => e.id === c.equipoId);
+          if (!equipo) return;
+
+          const campo = campos.find(f => f.id === equipo.campoId);
+          if (!campo || !campo.latitud || !campo.longitud) return;
+
+          c.cultivos.forEach((cul, idx) => {
+            const kcInfo = obtenerCultivoKc(cul.cultivo);
+            if (kcInfo && cul.fechaSiembra) {
+              const cliente = clientes.find(cl => cl.id === campo.clienteId);
+              campanasValidas.push({
+                campanaId: c.id, cultivoIdx: idx, cultivo: cul,
+                campana: c, equipo, campo, cliente,
+                kcDef: kcInfo
+              });
+            }
+          });
+        });
+
+        if (campanasValidas.length === 0) {
+          document.getElementById('alertaSinCampanas').style.display = 'block';
+          container.style.display = 'none';
+          return;
+        }
+
+        container.style.display = 'block';
+
+        campanasValidas.forEach((cv, i) => {
+          const option = document.createElement('option');
+          option.value = 'campana:' + i;
+          option.textContent = `${cv.kcDef.emoji || '🌱'} ${cv.cultivo.cultivo} ${cv.cultivo.variedad ? '(' + cv.cultivo.variedad + ')' : ''} → ${cv.equipo.nombre} → ${cv.campo.nombre}`;
+          selector.appendChild(option);
+        });
+
+        window.__campanasValidas = campanasValidas;
+      }
+    }
+
+    async function cargarClima() {
+      const valor = document.getElementById('selector').value;
+      if (!valor) {
+        document.getElementById('dashboard').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('dashboard').style.display = 'none';
+
+      let lat, lon, contexto;
+
+      if (valor.startsWith('campo:')) {
+        const campoId = parseInt(valor.split(':')[1]);
+        const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+        const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+        const campo = campos.find(c => c.id === campoId);
+        const cliente = clientes.find(c => c.id === campo.clienteId);
+        lat = parseFloat(campo.latitud);
+        lon = parseFloat(campo.longitud);
+        contexto = { tipo: 'campo', campo, cliente };
+      } else {
+        const idx = parseInt(valor.split(':')[1]);
+        const cv = window.__campanasValidas[idx];
+        lat = parseFloat(cv.campo.latitud);
+        lon = parseFloat(cv.campo.longitud);
+        contexto = { tipo: 'campana', ...cv };
+      }
+
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?` +
+          `latitude=${lat}&longitude=${lon}` +
+          `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation` +
+          `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code` +
+          `&past_days=7&forecast_days=7&timezone=auto`;
+
+        const respuesta = await fetch(url);
+        if (!respuesta.ok) throw new Error('No se pudo conectar con Open-Meteo');
+        const datos = await respuesta.json();
+
+        mostrarDashboard(contexto, datos);
+
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        alert('Error al consultar el clima: ' + error.message + '\n\nVerificá que tengas internet.');
+      }
+    }
+
+    // ============ CALCULAR Kc DEL DÍA SEGÚN ETAPA O ESTACIÓN ============
+    function calcularKc(kcDef, fechaCalculo, fechaSiembra) {
+      if (!kcDef) return { kc: 1.0, etapa: 'Desconocida', etapaIdx: -1 };
+
+      // Cultivos PERENNES → Kc por estación del año
+      if (kcDef.tipo === 'perenne') {
+        const mes = new Date(fechaCalculo).getMonth() + 1; // 1-12
+        // Hemisferio Sur (Paraguay, Argentina, Brasil, Uruguay, Chile, sur de Bolivia)
+        // Primavera: Sep-Nov | Verano: Dic-Feb | Otoño: Mar-May | Invierno: Jun-Ago
+        let kc, etapa, etapaIdx;
+        if ([9, 10, 11].includes(mes)) {
+          kc = kcDef.kc_pri; etapa = 'Primavera'; etapaIdx = 0;
+        } else if ([12, 1, 2].includes(mes)) {
+          kc = kcDef.kc_ver; etapa = 'Verano'; etapaIdx = 1;
+        } else if ([3, 4, 5].includes(mes)) {
+          kc = kcDef.kc_oto; etapa = 'Otoño'; etapaIdx = 2;
+        } else {
+          kc = kcDef.kc_inv; etapa = 'Invierno'; etapaIdx = 3;
+        }
+        return { kc, etapa, etapaIdx, esPerennne: true, kcDef };
+      }
+
+      // Cultivos ANUALES → Kc por etapa fenológica
+      const fechaSi = new Date(fechaSiembra);
+      const fechaCalc = new Date(fechaCalculo);
+      const dias = Math.floor((fechaCalc - fechaSi) / (1000 * 60 * 60 * 24));
+      const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
+      const totalDias = L_ini + L_des + L_med + L_fin;
+
+      let kc, etapa, etapaIdx;
+
+      if (dias < 0) {
+        return { kc: 0, etapa: 'Pre-siembra', etapaIdx: -1, totalDias, kcDef };
+      } else if (dias <= L_ini) {
+        kc = kc_ini; etapa = 'Inicial'; etapaIdx = 0;
+      } else if (dias <= L_ini + L_des) {
+        const progreso = (dias - L_ini) / L_des;
+        kc = kc_ini + progreso * (kc_med - kc_ini);
+        etapa = 'Desarrollo'; etapaIdx = 1;
+      } else if (dias <= L_ini + L_des + L_med) {
+        kc = kc_med; etapa = 'Media'; etapaIdx = 2;
+      } else if (dias <= totalDias) {
+        const progreso = (dias - L_ini - L_des - L_med) / L_fin;
+        kc = kc_med + progreso * (kc_fin - kc_med);
+        etapa = 'Final'; etapaIdx = 3;
+      } else {
+        kc = kc_fin; etapa = 'Post-cosecha'; etapaIdx = 4;
+      }
+
+      return { kc, etapa, etapaIdx, totalDias, kcDef, dias };
+    }
+
+
+    // ===== EFICIENCIA DE RIEGO POR TIPO DE EQUIPO =====
+    const EFICIENCIA_RIEGO = {
+      pivote:         0.85,
+      goteo:          0.92,
+      microaspersion: 0.88,
+      aspersion:      0.78,
+      canon:          0.70,
+      superficie:     0.50,
+      otro:           0.80,
+    };
+    function getEficienciaEquipo(equipo) {
+      if (!equipo) return 0.80;
+      if (equipo.eficiencia && parseFloat(equipo.eficiencia) > 0)
+        return parseFloat(equipo.eficiencia) / 100;
+      return EFICIENCIA_RIEGO[equipo.tipo] || 0.80;
+    }
+
+    function mostrarDashboard(contexto, datos) {
+      const campo = contexto.campo;
+      const cliente = contexto.cliente;
+      const suelo = obtenerSueloCampo(campo);
+
+      document.getElementById('dashCampoNombre').textContent = campo.nombre;
+      document.getElementById('dashCliente').textContent = cliente ? cliente.nombre : '?';
+      document.getElementById('dashGPS').textContent = `${campo.latitud}, ${campo.longitud}`;
+      document.getElementById('dashFecha').textContent = new Date().toLocaleString('es-PY', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      // Mostrar tipo de suelo del campo
+      const dashSuelo = document.getElementById('dashSuelo');
+      dashSuelo.innerHTML = `${suelo.emoji} <strong>Suelo ${suelo.nombre}</strong> · ${suelo.CC}mm CC · ${(suelo.coefLluvia * 100).toFixed(0)}% aprovecha lluvia`;
+      dashSuelo.style.display = 'inline-block';
+
+      const actual = datos.current;
+      document.getElementById('kpiTemp').textContent = Math.round(actual.temperature_2m);
+      document.getElementById('kpiHumedad').textContent = Math.round(actual.relative_humidity_2m);
+      document.getElementById('kpiViento').textContent = Math.round(actual.wind_speed_10m);
+
+      const etoHoy = datos.daily.et0_fao_evapotranspiration[7] || 0;
+      document.getElementById('kpiETo').textContent = etoHoy.toFixed(1);
+
+      let kcInfo = null;
+      let mostrarPro = false;
+
+      if (contexto.tipo === 'campana') {
+        mostrarPro = true;
+        const cultivo = contexto.cultivo;
+        const kcDef = contexto.kcDef;
+        const hoy = new Date();
+        kcInfo = calcularKc(kcDef, hoy, cultivo.fechaSiembra);
+
+        document.getElementById('campanaInfo').style.display = 'block';
+        document.getElementById('campanaCultivo').textContent = `${kcDef.emoji || '🌱'} ${cultivo.cultivo}`;
+
+        // Badge fuente
+        const badge = document.getElementById('badgeFuente');
+        badge.textContent = kcDef.fuente === 'FAO' ? '📚 FAO 56' : '✏️ Personalizado';
+
+        document.getElementById('campanaVariedad').textContent = cultivo.variedad || '—';
+
+        const fechaSiembraDate = new Date(cultivo.fechaSiembra);
+        document.getElementById('campanaFecha').textContent = fechaSiembraDate.toLocaleDateString('es-PY');
+
+        const dias = Math.floor((new Date() - fechaSiembraDate) / (1000 * 60 * 60 * 24));
+        document.getElementById('campanaDias').textContent = kcDef.tipo === 'perenne' ? 'Perenne' : dias + ' días';
+        document.getElementById('campanaSup').textContent = (cultivo.superficie || '—') + ' ha';
+
+        document.getElementById('etapaCard').style.display = 'block';
+
+        // Iconos y descripciones según tipo
+        if (kcDef.tipo === 'perenne') {
+          const iconosPerenne = ['🌸', '☀️', '🍂', '❄️'];
+          const descPerenne = [
+            'Primavera: brotación, despertar del cultivo',
+            'Verano: máxima demanda hídrica',
+            'Otoño: post-fructificación',
+            'Invierno: reposo vegetativo'
+          ];
+          document.getElementById('etapaIcono').textContent = iconosPerenne[kcInfo.etapaIdx];
+          document.getElementById('etapaNombre').textContent = kcInfo.etapa;
+          document.getElementById('etapaDesc').textContent = descPerenne[kcInfo.etapaIdx];
+        } else {
+          const iconosAnual = ['🌱', '🌿', '🌾', '🍂', '✂️'];
+          const descAnual = [
+            'Cobertura del suelo creciendo (germinación, primeras hojas)',
+            'Expansión vegetativa, cubriendo el suelo',
+            'Floración, llenado de grano (consumo MÁXIMO de agua)',
+            'Madurez, secado, próximo a cosecha',
+            'Cultivo cosechado'
+          ];
+          document.getElementById('etapaIcono').textContent = iconosAnual[kcInfo.etapaIdx] || '🌱';
+          document.getElementById('etapaNombre').textContent = kcInfo.etapa;
+          document.getElementById('etapaDesc').textContent = descAnual[kcInfo.etapaIdx] || '—';
+        }
+
+        dibujarCurvaKc(kcInfo, kcDef, cultivo.fechaSiembra);
+
+        const etcHoy = etoHoy * kcInfo.kc;
+        document.getElementById('kpiETcCard').style.display = 'block';
+        document.getElementById('kpiETcIcono').textContent = kcDef.emoji || '🌽';
+        document.getElementById('kpiETc').textContent = etcHoy.toFixed(1);
+        document.getElementById('kpiETcFormula').textContent = `ETo ${etoHoy.toFixed(1)} × Kc ${kcInfo.kc.toFixed(2)}`;
+
+      } else {
+        document.getElementById('campanaInfo').style.display = 'none';
+        document.getElementById('etapaCard').style.display = 'none';
+        document.getElementById('kpiETcCard').style.display = 'none';
+      }
+
+      // Pronóstico futuro
+      const pronosticoFuturo = document.getElementById('pronosticoFuturo');
+      pronosticoFuturo.innerHTML = '';
+      for (let i = 7; i < 14; i++) {
+        pronosticoFuturo.innerHTML += generarDiaCard(datos.daily, i, i === 7, contexto);
+      }
+
+      // Histórico
+      const pronosticoPasado = document.getElementById('pronosticoPasado');
+      pronosticoPasado.innerHTML = '';
+      for (let i = 0; i < 7; i++) {
+        pronosticoPasado.innerHTML += generarDiaCard(datos.daily, i, false, contexto);
+      }
+
+      // Balance hídrico — aplicando coef. de aprovechamiento del suelo
+      let lluviaTotal = 0;       // Lluvia bruta caída
+      let lluviaEfectiva = 0;    // Lluvia que realmente aprovecha la planta (descuenta escorrentía)
+      let etTotal = 0;
+
+      for (let i = 0; i < 7; i++) {
+        const lluviaDia = datos.daily.precipitation_sum[i] || 0;
+        lluviaTotal += lluviaDia;
+        lluviaEfectiva += lluviaDia * suelo.coefLluvia;
+
+        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
+
+        if (mostrarPro && contexto.kcDef) {
+          const fechaDia = new Date(datos.daily.time[i]);
+          const kcDia = calcularKc(contexto.kcDef, fechaDia, contexto.cultivo.fechaSiembra);
+          etTotal += etoDia * kcDia.kc;
+        } else {
+          etTotal += etoDia;
+        }
+      }
+
+      // Mostrar la lluvia efectiva (no la bruta) para que el balance sea agronómicamente correcto
+      const perdidoEscorrentia = lluviaTotal - lluviaEfectiva;
+      const detalleEscorrentia = perdidoEscorrentia > 0.1
+        ? ` <small style="opacity:0.7;font-weight:400;">(de ${lluviaTotal.toFixed(1)} mm caídos, ${perdidoEscorrentia.toFixed(1)} mm se escurren)</small>`
+        : '';
+      const riegoLabel = riegoEfectivo > 0
+        ? ` + 💧 ${riegoEfectivo.toFixed(1)} mm riego (ef. ${Math.round(eficienciaRiego*100)}%)`
+        : '';
+      document.getElementById('balanceLluvia').innerHTML = `+${lluviaEfectiva.toFixed(1)} mm${detalleEscorrentia}${riegoLabel}`;
+      document.getElementById('balanceET').textContent = `-${etTotal.toFixed(1)} mm`;
+      document.getElementById('balanceETLabel').textContent = mostrarPro
+        ? `${contexto.kcDef.emoji || '🌽'} ETc acumulada (consumo del cultivo)`
+        : `☀️ ETo acumulada (referencia)`;
+
+      // Sumar riego registrado de eventos con eficiencia del equipo
+      const eficienciaRiego = getEficienciaEquipo(contexto.equipo);
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const hace7dias = new Date(); hace7dias.setDate(hace7dias.getDate() - 7);
+      let riegoEfectivo = 0;
+      if (contexto.equipo) {
+        eventos.filter(ev => ev.equipoId === contexto.equipo.id && ev.tipo === 'riego' && new Date(ev.fecha) >= hace7dias)
+          .forEach(ev => { riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficienciaRiego; });
+      }
+
+      const balance = lluviaEfectiva + riegoEfectivo - etTotal;
+      const balanceEl = document.getElementById('balanceResultado');
+      balanceEl.textContent = `${balance >= 0 ? '+' : ''}${balance.toFixed(1)} mm`;
+      balanceEl.className = 'balance-resultado-valor ' + (balance >= 0 ? 'surplus' : 'deficit');
+
+      document.getElementById('balanceSub').textContent = mostrarPro
+        ? `Personalizado para ${contexto.cultivo.cultivo}${kcInfo ? ' en etapa ' + kcInfo.etapa : ''}`
+        : 'Últimos 7 días';
+
+      generarRecomendacion(datos, balance, contexto, kcInfo);
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+    }
+
+    function generarDiaCard(daily, index, esHoy, contexto) {
+      const fecha = new Date(daily.time[index]);
+      const opciones = { weekday: 'short', day: '2-digit', month: '2-digit' };
+      const fechaStr = fecha.toLocaleDateString('es-PY', opciones);
+
+      const tMax = Math.round(daily.temperature_2m_max[index]);
+      const tMin = Math.round(daily.temperature_2m_min[index]);
+      const lluvia = (daily.precipitation_sum[index] || 0).toFixed(1);
+      const eto = (daily.et0_fao_evapotranspiration[index] || 0).toFixed(1);
+      const wmoCode = daily.weather_code[index];
+      const icono = iconoClima(wmoCode);
+
+      let etcLine = '';
+      if (contexto.tipo === 'campana' && contexto.kcDef) {
+        const fechaDia = new Date(daily.time[index]);
+        const kcDia = calcularKc(contexto.kcDef, fechaDia, contexto.cultivo.fechaSiembra);
+        const etcDia = (parseFloat(eto) * kcDia.kc).toFixed(1);
+        etcLine = `<div class="dia-etc">${contexto.kcDef.emoji || '🌽'} ${etcDia} mm</div>`;
+      }
+
+      return `
+        <div class="dia ${esHoy ? 'hoy' : ''}">
+          <div class="dia-fecha">${esHoy ? 'HOY' : fechaStr}</div>
+          <div class="dia-icono">${icono}</div>
+          <div class="dia-temps">${tMax}° <span class="dia-temp-min">${tMin}°</span></div>
+          <div class="dia-lluvia">🌧️ ${lluvia} mm</div>
+          <div class="dia-eto">☀️ ${eto} mm</div>
+          ${etcLine}
+        </div>
+      `;
+    }
+
+    function iconoClima(code) {
+      if (code === 0) return '☀️';
+      if (code <= 3) return '⛅';
+      if (code <= 48) return '☁️';
+      if (code <= 57) return '🌦️';
+      if (code <= 67) return '🌧️';
+      if (code <= 77) return '❄️';
+      if (code <= 82) return '🌧️';
+      if (code <= 99) return '⛈️';
+      return '🌡️';
+    }
+
+    function dibujarCurvaKc(kcInfo, kcDef, fechaSiembra) {
+      // Cultivos perennes: gráfico estacional (4 trimestres)
+      if (kcDef.tipo === 'perenne') {
+        dibujarCurvaPerenne(kcInfo, kcDef);
+        return;
+      }
+
+      // Cultivos anuales: curva de etapas
+      const { totalDias } = kcInfo;
+      const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
+
+      const W = 800, H = 160;
+      const padX = 40, padY = 20;
+      const innerW = W - 2 * padX;
+      const innerH = H - 2 * padY;
+
+      const xPos = (dia) => padX + (dia / totalDias) * innerW;
+      const yPos = (kc) => padY + innerH - (kc / 1.3) * innerH;
+
+      const p0 = { x: xPos(0), y: yPos(kc_ini) };
+      const p1 = { x: xPos(L_ini), y: yPos(kc_ini) };
+      const p2 = { x: xPos(L_ini + L_des), y: yPos(kc_med) };
+      const p3 = { x: xPos(L_ini + L_des + L_med), y: yPos(kc_med) };
+      const p4 = { x: xPos(totalDias), y: yPos(kc_fin) };
+
+      const dias = kcInfo.dias || 0;
+      const xActual = xPos(Math.min(dias, totalDias));
+      const yActual = yPos(kcInfo.kc);
+
+      const svg = `
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="${padX}" y1="${yPos(0)}" x2="${W - padX}" y2="${yPos(0)}" stroke="#ddd" stroke-width="0.5"/>
+          <line x1="${padX}" y1="${yPos(0.5)}" x2="${W - padX}" y2="${yPos(0.5)}" stroke="#eee" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <line x1="${padX}" y1="${yPos(1.0)}" x2="${W - padX}" y2="${yPos(1.0)}" stroke="#eee" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <line x1="${padX}" y1="${yPos(1.3)}" x2="${W - padX}" y2="${yPos(1.3)}" stroke="#eee" stroke-width="0.5" stroke-dasharray="2,2"/>
+
+          <text x="${padX - 8}" y="${yPos(0)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">0</text>
+          <text x="${padX - 8}" y="${yPos(0.5)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">0.5</text>
+          <text x="${padX - 8}" y="${yPos(1.0)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">1.0</text>
+          <text x="${padX - 8}" y="${yPos(1.3)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">1.3</text>
+
+          <rect x="${xPos(0)}" y="${padY}" width="${xPos(L_ini) - xPos(0)}" height="${innerH}" fill="#43A047" opacity="0.08"/>
+          <rect x="${xPos(L_ini)}" y="${padY}" width="${xPos(L_ini + L_des) - xPos(L_ini)}" height="${innerH}" fill="#D4A24C" opacity="0.08"/>
+          <rect x="${xPos(L_ini + L_des)}" y="${padY}" width="${xPos(L_ini + L_des + L_med) - xPos(L_ini + L_des)}" height="${innerH}" fill="#B5371C" opacity="0.08"/>
+          <rect x="${xPos(L_ini + L_des + L_med)}" y="${padY}" width="${xPos(totalDias) - xPos(L_ini + L_des + L_med)}" height="${innerH}" fill="#7B1FA2" opacity="0.08"/>
+
+          <polyline points="${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}"
+                    fill="none" stroke="#0F3D14" stroke-width="2.5" stroke-linejoin="round"/>
+
+          <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#0F3D14" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+
+          <circle cx="${xActual}" cy="${yActual}" r="7" fill="#D4A24C" stroke="#0F3D14" stroke-width="2"/>
+          <text x="${xActual}" y="${yActual - 12}" font-size="12" font-weight="700" fill="#0F3D14" text-anchor="middle">★ Hoy (Kc ${kcInfo.kc.toFixed(2)})</text>
+
+          <text x="${xPos(0)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">0d</text>
+          <text x="${xPos(L_ini)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">${L_ini}d</text>
+          <text x="${xPos(L_ini + L_des)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">${L_ini + L_des}d</text>
+          <text x="${xPos(L_ini + L_des + L_med)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">${L_ini + L_des + L_med}d</text>
+          <text x="${xPos(totalDias)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">${totalDias}d</text>
+        </svg>
+      `;
+
+      document.getElementById('kcGrafico').innerHTML = svg;
+
+      document.getElementById('kcLeyenda').innerHTML = `
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#43A047;"></div> Inicial</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#D4A24C;"></div> Desarrollo</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B5371C;"></div> Media (máx)</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#7B1FA2;"></div> Final</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#0F3D14;"></div> ★ Hoy</div>
+      `;
+    }
+
+    function dibujarCurvaPerenne(kcInfo, kcDef) {
+      const W = 800, H = 160;
+      const padX = 40, padY = 20;
+      const innerW = W - 2 * padX;
+      const innerH = H - 2 * padY;
+
+      const estaciones = [
+        { nombre: 'Pri', kc: kcDef.kc_pri, color: '#E91E63' },
+        { nombre: 'Ver', kc: kcDef.kc_ver, color: '#FF9800' },
+        { nombre: 'Oto', kc: kcDef.kc_oto, color: '#8B6F00' },
+        { nombre: 'Inv', kc: kcDef.kc_inv, color: '#1565C0' }
+      ];
+
+      const xPos = (i) => padX + (i / 4) * innerW + (innerW / 8);
+      const yPos = (kc) => padY + innerH - (kc / 1.3) * innerH;
+
+      let polyline = estaciones.map((e, i) => `${xPos(i)},${yPos(e.kc)}`).join(' ');
+
+      // Punto actual
+      const xActual = xPos(kcInfo.etapaIdx);
+      const yActual = yPos(kcInfo.kc);
+
+      const svg = `
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="${padX}" y1="${yPos(0)}" x2="${W - padX}" y2="${yPos(0)}" stroke="#ddd" stroke-width="0.5"/>
+          <line x1="${padX}" y1="${yPos(0.5)}" x2="${W - padX}" y2="${yPos(0.5)}" stroke="#eee" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <line x1="${padX}" y1="${yPos(1.0)}" x2="${W - padX}" y2="${yPos(1.0)}" stroke="#eee" stroke-width="0.5" stroke-dasharray="2,2"/>
+          <line x1="${padX}" y1="${yPos(1.3)}" x2="${W - padX}" y2="${yPos(1.3)}" stroke="#eee" stroke-width="0.5" stroke-dasharray="2,2"/>
+
+          <text x="${padX - 8}" y="${yPos(0)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">0</text>
+          <text x="${padX - 8}" y="${yPos(0.5)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">0.5</text>
+          <text x="${padX - 8}" y="${yPos(1.0)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">1.0</text>
+          <text x="${padX - 8}" y="${yPos(1.3)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">1.3</text>
+
+          ${estaciones.map((e, i) => `
+            <rect x="${padX + (i / 4) * innerW}" y="${padY}" width="${innerW / 4}" height="${innerH}" fill="${e.color}" opacity="0.08"/>
+            <text x="${xPos(i)}" y="${H - 4}" font-size="10" fill="#666" text-anchor="middle" font-weight="600">${e.nombre} (${e.kc})</text>
+          `).join('')}
+
+          <polyline points="${polyline}" fill="none" stroke="#0F3D14" stroke-width="2.5" stroke-linejoin="round"/>
+
+          ${estaciones.map((e, i) => `
+            <circle cx="${xPos(i)}" cy="${yPos(e.kc)}" r="4" fill="${e.color}"/>
+          `).join('')}
+
+          <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#0F3D14" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+          <circle cx="${xActual}" cy="${yActual}" r="8" fill="#D4A24C" stroke="#0F3D14" stroke-width="2"/>
+          <text x="${xActual}" y="${yActual - 14}" font-size="12" font-weight="700" fill="#0F3D14" text-anchor="middle">★ Hoy</text>
+        </svg>
+      `;
+
+      document.getElementById('kcGrafico').innerHTML = svg;
+
+      document.getElementById('kcLeyenda').innerHTML = `
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#E91E63;"></div> Primavera</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#FF9800;"></div> Verano</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#8B6F00;"></div> Otoño</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#1565C0;"></div> Invierno</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#0F3D14;"></div> ★ Hoy</div>
+      `;
+    }
+
+    function generarRecomendacion(datos, balanceSemanal, contexto, kcInfo) {
+      const reco = document.getElementById('recomendacion');
+      const icono = document.getElementById('recoIcono');
+      const titulo = document.getElementById('recoTitulo');
+      const detalle = document.getElementById('recoDetalle');
+
+      let lluviaProxima = 0;
+      for (let i = 7; i < 10; i++) {
+        lluviaProxima += datos.daily.precipitation_sum[i] || 0;
+      }
+
+      reco.className = 'recomendacion';
+
+      const esCampana = contexto.tipo === 'campana' && kcInfo;
+      const cultivoNombre = esCampana ? contexto.cultivo.cultivo : '';
+      const etapa = esCampana ? kcInfo.etapa : '';
+
+      if (esCampana && (kcInfo.etapa === 'Pre-siembra' || kcInfo.etapa === 'Post-cosecha')) {
+        icono.textContent = '⏸️';
+        titulo.textContent = 'Cultivo fuera de ciclo activo';
+        detalle.innerHTML = kcInfo.etapa === 'Pre-siembra'
+          ? `La fecha de siembra cargada es <strong>en el futuro</strong>. Verificá la fecha.`
+          : `El cultivo ya superó su ciclo. Verificá si fue cosechado.`;
+        return;
+      }
+
+      if (lluviaProxima >= 15) {
+        icono.textContent = '🌧️';
+        titulo.textContent = 'No regar — viene lluvia';
+        detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(1)} mm</strong> en los próximos 3 días.${esCampana ? ` Tu ${cultivoNombre} en <strong>${etapa}</strong> tendrá agua suficiente.` : ''}`;
+        reco.classList.add('no-regar');
+      } else if (balanceSemanal < -25) {
+        icono.textContent = '⚠️';
+        titulo.textContent = 'Riego URGENTE recomendado';
+        const cantidad = Math.min(25, Math.abs(balanceSemanal));
+        detalle.innerHTML = `Déficit de <strong>${Math.abs(balanceSemanal).toFixed(1)} mm</strong>.${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está bajo estrés hídrico fuerte. ` : ' '}Regar al menos <strong>${cantidad.toFixed(0)} mm</strong> hoy o mañana.`;
+        reco.classList.add('urgente');
+      } else if (balanceSemanal < -10) {
+        icono.textContent = '💧';
+        titulo.textContent = 'Programar riego pronto';
+        const cantidad = Math.min(15, Math.abs(balanceSemanal));
+        detalle.innerHTML = `Déficit de <strong>${Math.abs(balanceSemanal).toFixed(1)} mm</strong>.${esCampana ? ` ${cultivoNombre} en <strong>${etapa}</strong>. ` : ' '}Regar <strong>${cantidad.toFixed(0)} mm</strong> en 24-48 hs.`;
+        reco.classList.add('regar');
+      } else if (balanceSemanal >= 0) {
+        icono.textContent = '✅';
+        titulo.textContent = 'Sin necesidad de riego';
+        detalle.innerHTML = `Balance positivo (<strong>+${balanceSemanal.toFixed(1)} mm</strong>).${esCampana ? ` ${cultivoNombre} con agua suficiente.` : ''}`;
+        reco.classList.add('no-regar');
+      } else {
+        icono.textContent = '👀';
+        titulo.textContent = 'Monitorear de cerca';
+        detalle.innerHTML = `Déficit leve de <strong>${Math.abs(balanceSemanal).toFixed(1)} mm</strong>. Por ahora no regar.`;
+        reco.classList.add('regar');
+      }
+    }
+  </script>
+
+</body>
+</html>

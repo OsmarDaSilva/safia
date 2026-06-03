@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Clientes</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --verde: #0F3D14;
+      --verde-claro: #1B5E20;
+      --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D;
+      --crema: #FAF6EC;
+      --crema-oscuro: #f0ead8;
+      --rojo: #B5371C;
+      --gris-texto: #6B6356;
+      --negro: #1A1A1A;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--crema);
+      color: var(--negro);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--verde);
+      color: var(--crema);
+      padding: 24px 14px 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
+      margin-bottom: 18px;
+    }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+
+    .sidebar-grupo {
+      font-size: 10px; opacity: 0.55;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 18px 8px 6px; font-weight: 600;
+    }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      color: var(--crema); text-decoration: none;
+      font-size: 13px; margin-bottom: 1px;
+      transition: background 0.15s;
+    }
+    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
+    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
+
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: 24px; padding: 14px 10px 4px;
+      border-top: 1px solid rgba(212, 162, 76, 0.25);
+      font-size: 10px; opacity: 0.6; line-height: 1.5;
+    }
+
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+
+    .topbar {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
+    }
+    .topbar-saludo {
+      font-size: 11px; color: var(--gris-texto);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 4px; font-weight: 600;
+    }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
+    .topbar-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--ambar); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px;
+    }
+
+    .contenedor { max-width: 760px; margin: 0 auto; }
+
+    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
+
+    .tarjeta {
+      background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+      transition: border-color 0.3s;
+    }
+    .tarjeta.editando {
+      border: 2px solid #D4A24C;
+      box-shadow: 0 4px 20px rgba(212, 162, 76, 0.3);
+    }
+    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
+    .tarjeta-titulo.editando { color: #D4A24C; }
+    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
+
+    .campo { margin-bottom: 18px; }
+    .campo label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: #6B6356; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .campo input, .campo select {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
+      font-size: 15px; font-family: inherit;
+      background: #FAF6EC; color: #1A1A1A;
+    }
+    .campo input:focus, .campo select:focus {
+      outline: none; border-color: #0F3D14; background: #fff;
+    }
+
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .botones-form { display: flex; gap: 10px; margin-top: 8px; }
+
+    .boton-guardar {
+      flex: 1; padding: 18px;
+      background: #0F3D14; color: #FAF6EC;
+      border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .boton-guardar:hover { background: #1B5E20; }
+    .boton-guardar.editando { background: #D4A24C; }
+    .boton-guardar.editando:hover { background: #B88A3D; }
+
+    .boton-cancelar {
+      padding: 18px 24px;
+      background: rgba(0,0,0,0.06); color: #6B6356;
+      border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      display: none;
+    }
+    .boton-cancelar.visible { display: block; }
+    .boton-cancelar:hover { background: rgba(0,0,0,0.1); }
+
+    .lista-titulo {
+      font-size: 12px; font-weight: 600; color: #6B6356;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 12px; padding: 0 4px;
+    }
+
+    .item {
+      background: #fff; border-radius: 16px; padding: 18px 20px;
+      margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex; gap: 16px; align-items: center;
+      transition: all 0.2s;
+    }
+    .item.editando {
+      background: rgba(212, 162, 76, 0.1);
+      border: 2px solid #D4A24C;
+    }
+
+    .item-icono {
+      width: 50px; height: 50px;
+      background: rgba(46, 125, 50, 0.15);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; flex-shrink: 0;
+    }
+    .item-info { flex: 1; }
+    .item-nombre { font-size: 16px; font-weight: 700; color: #1A1A1A; }
+    .item-detalles { font-size: 13px; color: #6B6356; margin-top: 3px; }
+
+    .item-acciones { display: flex; gap: 8px; flex-shrink: 0; }
+    .item-boton {
+      border: none; width: 36px; height: 36px;
+      border-radius: 50%; cursor: pointer;
+      font-size: 16px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .item-editar { background: rgba(15, 61, 20, 0.1); color: #0F3D14; }
+    .item-editar:hover { background: rgba(15, 61, 20, 0.2); }
+    .item-borrar { background: rgba(181, 55, 28, 0.1); color: #B5371C; }
+    .item-borrar:hover { background: rgba(181, 55, 28, 0.2); }
+
+    .vacio {
+      text-align: center; padding: 40px 20px; color: #6B6356;
+      background: #fff; border-radius: 16px;
+      border: 2px dashed rgba(0,0,0,0.1);
+    }
+    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .vacio-texto { font-size: 14px; }
+
+    .alerta-edicion {
+      background: rgba(212, 162, 76, 0.15);
+      border-left: 4px solid #D4A24C;
+      padding: 14px 18px; border-radius: 8px;
+      margin-bottom: 20px; font-size: 14px;
+      color: #8B6F00; display: none;
+    }
+    .alerta-edicion.visible { display: block; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+    }
+
+    @media (max-width: 500px) {
+      .main { padding: 16px; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .fila { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
+          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
+          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+        </svg>
+        <div class="sidebar-logo-textos">
+          <div class="sidebar-logo-titulo">SAFIA</div>
+          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+        </div>
+      </div>
+
+      <div class="sidebar-grupo">Inicio</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-grupo">Datos</div>
+      <a href="mis-clientes.html" class="sidebar-link activo">
+        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
+      </a>
+      <a href="mis-campos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
+      </a>
+      <a href="mis-equipos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
+      </a>
+      <a href="mis-cultivos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
+      </a>
+      <a href="mis-campanas.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
+      </a>
+      <a href="analisis.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span>
+      </a>
+
+      <div class="sidebar-grupo">Inteligencia</div>
+      <a href="clima.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
+      </a>
+      <a href="prediccion.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
+      </a>
+
+      <div class="sidebar-grupo">Operación</div>
+      <a href="operador.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
+      </a>
+      <a href="eventos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
+      </a>
+      <a href="encargado.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
+      </a>
+      <a href="propietario.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
+      </a>
+      <a href="voz.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
+      </a>
+
+      <div class="sidebar-grupo">Sistema</div>
+      <a href="backup.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
+      </a>
+
+      <div class="sidebar-footer">
+        SAFIA v1.0<br>
+        Herramienta para productores
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div>
+          <div class="topbar-saludo">Datos</div>
+          <div class="topbar-titulo">👤 Clientes</div>
+        </div>
+        <div class="topbar-derecha">
+          <div class="topbar-fecha" id="topbarFecha">—</div>
+          <div class="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <div class="contenedor">
+
+        <p class="subtitulo-pagina">Cargá los productores que usan la plataforma. Cada cliente puede tener varios campos.</p>
+
+        <div class="alerta-edicion" id="alertaEdicion">
+          ✏️ <strong>Modo edición activo:</strong> estás editando un cliente. Hacé clic en "Actualizar" para guardar los cambios o "Cancelar" para descartar.
+        </div>
+
+        <div class="tarjeta" id="tarjetaForm">
+          <div class="tarjeta-titulo" id="tituloForm">+ Agregar un cliente</div>
+          <div class="tarjeta-sub">Completá los datos del productor.</div>
+
+          <div class="campo">
+            <label>Nombre completo o razón social</label>
+            <input type="text" id="nombre" placeholder="Ej: Juan Pérez / Cooperativa Agrícola del Norte">
+          </div>
+
+          <div class="fila">
+            <div class="campo">
+              <label>Tipo</label>
+              <select id="tipo">
+                <option value="">Seleccionar...</option>
+                <option value="Persona física">Persona física</option>
+                <option value="Empresa / Sociedad">Empresa / Sociedad</option>
+                <option value="Cooperativa">Cooperativa</option>
+                <option value="Asesor agrónomo">Asesor agrónomo</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label>Documento / RUC</label>
+              <input type="text" id="documento" placeholder="Ej: 1234567-8">
+            </div>
+          </div>
+
+          <div class="fila">
+            <div class="campo">
+              <label>Teléfono / WhatsApp</label>
+              <input type="text" id="telefono" placeholder="Ej: +595 981 234567">
+            </div>
+
+            <div class="campo">
+              <label>Email</label>
+              <input type="email" id="email" placeholder="Ej: juan@gmail.com">
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>Localidad / Departamento</label>
+            <input type="text" id="localidad" placeholder="Ej: Katueté, Canindeyú">
+          </div>
+
+          <div class="botones-form">
+            <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">
+              ✓ Guardar cliente
+            </button>
+            <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">
+              ✕ Cancelar
+            </button>
+          </div>
+        </div>
+
+        <div class="lista-titulo">Clientes cargados</div>
+        <div id="listaClientes"></div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script>
+    // Setear fecha en el topbar
+    document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    let editandoId = null;
+
+    function obtenerClientes() {
+      return JSON.parse(localStorage.getItem('clientes') || '[]');
+    }
+
+    function guardarClientes(clientes) {
+      localStorage.setItem('clientes', JSON.stringify(clientes));
+    }
+
+    function guardarOActualizar() {
+      const nombre = document.getElementById('nombre').value.trim();
+      const tipo = document.getElementById('tipo').value;
+      const documento = document.getElementById('documento').value.trim();
+      const telefono = document.getElementById('telefono').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const localidad = document.getElementById('localidad').value.trim();
+
+      if (!nombre) {
+        alert('⚠️ El nombre es obligatorio');
+        return;
+      }
+
+      const clientes = obtenerClientes();
+
+      if (editandoId !== null) {
+        const idx = clientes.findIndex(c => c.id === editandoId);
+        if (idx !== -1) {
+          clientes[idx] = {
+            ...clientes[idx],
+            nombre, tipo, documento, telefono, email, localidad
+          };
+          guardarClientes(clientes);
+        }
+      } else {
+        const nuevoCliente = {
+          id: Date.now(),
+          nombre, tipo, documento, telefono, email, localidad,
+          fechaCreacion: new Date().toISOString()
+        };
+        clientes.push(nuevoCliente);
+        guardarClientes(clientes);
+      }
+
+      limpiarFormulario();
+      mostrarClientes();
+    }
+
+    function editarCliente(id) {
+      const clientes = obtenerClientes();
+      const cliente = clientes.find(c => c.id === id);
+      if (!cliente) return;
+
+      editandoId = id;
+
+      document.getElementById('nombre').value = cliente.nombre || '';
+      document.getElementById('tipo').value = cliente.tipo || '';
+      document.getElementById('documento').value = cliente.documento || '';
+      document.getElementById('telefono').value = cliente.telefono || '';
+      document.getElementById('email').value = cliente.email || '';
+      document.getElementById('localidad').value = cliente.localidad || '';
+
+      document.getElementById('tarjetaForm').classList.add('editando');
+      document.getElementById('tituloForm').classList.add('editando');
+      document.getElementById('tituloForm').textContent = '✏️ Editando: ' + cliente.nombre;
+      document.getElementById('botonGuardar').classList.add('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Actualizar cliente';
+      document.getElementById('botonCancelar').classList.add('visible');
+      document.getElementById('alertaEdicion').classList.add('visible');
+
+      document.getElementById('tarjetaForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      mostrarClientes();
+    }
+
+    function cancelarEdicion() {
+      limpiarFormulario();
+      mostrarClientes();
+    }
+
+    function limpiarFormulario() {
+      editandoId = null;
+      document.getElementById('nombre').value = '';
+      document.getElementById('tipo').value = '';
+      document.getElementById('documento').value = '';
+      document.getElementById('telefono').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('localidad').value = '';
+
+      document.getElementById('tarjetaForm').classList.remove('editando');
+      document.getElementById('tituloForm').classList.remove('editando');
+      document.getElementById('tituloForm').textContent = '+ Agregar un cliente';
+      document.getElementById('botonGuardar').classList.remove('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Guardar cliente';
+      document.getElementById('botonCancelar').classList.remove('visible');
+      document.getElementById('alertaEdicion').classList.remove('visible');
+    }
+
+    function borrarCliente(id) {
+      if (!confirm('¿Borrar este cliente? Esta acción no se puede deshacer.')) return;
+
+      if (editandoId === id) {
+        limpiarFormulario();
+      }
+
+      const clientes = obtenerClientes().filter(c => c.id !== id);
+      guardarClientes(clientes);
+      mostrarClientes();
+    }
+
+    function mostrarClientes() {
+      const clientes = obtenerClientes();
+      const lista = document.getElementById('listaClientes');
+
+      if (clientes.length === 0) {
+        lista.innerHTML = `
+          <div class="vacio">
+            <div class="vacio-icono">👥</div>
+            <div class="vacio-texto">Todavía no cargaste ningún cliente.<br>Empezá agregando el primero arriba 👆</div>
+          </div>
+        `;
+        return;
+      }
+
+      lista.innerHTML = clientes.map(c => {
+        const detalles = [c.tipo, c.localidad].filter(x => x).join(' · ') || 'Sin detalles';
+        const esEditando = editandoId === c.id;
+        return `
+          <div class="item ${esEditando ? 'editando' : ''}">
+            <div class="item-icono">👤</div>
+            <div class="item-info">
+              <div class="item-nombre">${c.nombre}</div>
+              <div class="item-detalles">${detalles}</div>
+            </div>
+            <div class="item-acciones">
+              <button class="item-boton item-editar" onclick="editarCliente(${c.id})" title="Editar">✏️</button>
+              <button class="item-boton item-borrar" onclick="borrarCliente(${c.id})" title="Borrar">×</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    mostrarClientes();
+  </script>
+
+</body>
+</html>

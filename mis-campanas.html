@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Campañas</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --verde: #0F3D14;
+      --verde-claro: #1B5E20;
+      --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D;
+      --crema: #FAF6EC;
+      --crema-oscuro: #f0ead8;
+      --rojo: #B5371C;
+      --gris-texto: #6B6356;
+      --negro: #1A1A1A;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--crema);
+      color: var(--negro);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--verde);
+      color: var(--crema);
+      padding: 24px 14px 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
+      margin-bottom: 18px;
+    }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+
+    .sidebar-grupo {
+      font-size: 10px; opacity: 0.55;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 18px 8px 6px; font-weight: 600;
+    }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      color: var(--crema); text-decoration: none;
+      font-size: 13px; margin-bottom: 1px;
+      transition: background 0.15s;
+    }
+    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
+    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
+
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: 24px; padding: 14px 10px 4px;
+      border-top: 1px solid rgba(212, 162, 76, 0.25);
+      font-size: 10px; opacity: 0.6; line-height: 1.5;
+    }
+
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+
+    .topbar {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
+    }
+    .topbar-saludo {
+      font-size: 11px; color: var(--gris-texto);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 4px; font-weight: 600;
+    }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
+    .topbar-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--ambar); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px;
+    }
+
+    .contenedor { max-width: 800px; margin: 0 auto; }
+
+    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
+
+    .tarjeta {
+      background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+      transition: border-color 0.3s;
+    }
+    .tarjeta.editando {
+      border: 2px solid #D4A24C;
+      box-shadow: 0 4px 20px rgba(212, 162, 76, 0.3);
+    }
+
+    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
+    .tarjeta-titulo.editando { color: #D4A24C; }
+    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
+
+    .seccion {
+      border-top: 1px solid rgba(0,0,0,0.08);
+      padding-top: 20px; margin-top: 20px;
+    }
+    .seccion-titulo {
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
+      color: #0F3D14; font-weight: 700; margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .campo { margin-bottom: 18px; }
+    .campo label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: #6B6356; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .campo label .opcional {
+      color: #aaa; font-weight: 400; text-transform: none;
+      letter-spacing: 0; font-size: 11px; margin-left: 4px;
+    }
+    .campo input, .campo select, .campo textarea {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
+      font-size: 15px; font-family: inherit;
+      background: #FAF6EC; color: #1A1A1A;
+    }
+    .campo textarea { min-height: 70px; resize: vertical; }
+    .campo input:focus, .campo select:focus, .campo textarea:focus {
+      outline: none; border-color: #0F3D14; background: #fff;
+    }
+
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .cultivo-bloque {
+      background: rgba(76, 175, 80, 0.06);
+      border-left: 4px solid #43A047;
+      padding: 18px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+
+    .cultivo-bloque-titulo {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0F3D14;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .boton-quitar-cultivo {
+      background: rgba(181, 55, 28, 0.1);
+      color: #B5371C;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .boton-agregar-cultivo {
+      background: rgba(15, 61, 20, 0.06);
+      color: #0F3D14;
+      border: 1.5px dashed #0F3D14;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      font-family: inherit;
+      margin-top: 4px;
+    }
+    .boton-agregar-cultivo:hover { background: rgba(15, 61, 20, 0.1); }
+    .boton-agregar-cultivo:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .botones-form {
+      display: flex; gap: 10px; margin-top: 24px;
+    }
+
+    .boton-guardar {
+      flex: 1; padding: 18px;
+      background: #0F3D14; color: #FAF6EC;
+      border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .boton-guardar:hover { background: #1B5E20; }
+    .boton-guardar.editando { background: #D4A24C; }
+
+    .boton-cancelar {
+      padding: 18px 24px;
+      background: rgba(0,0,0,0.06); color: #6B6356;
+      border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      display: none;
+    }
+    .boton-cancelar.visible { display: block; }
+
+    .lista-titulo {
+      font-size: 12px; font-weight: 600; color: #6B6356;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 12px; padding: 0 4px;
+    }
+
+    .item {
+      background: #fff; border-radius: 16px; padding: 18px 20px;
+      margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex; gap: 16px; align-items: center;
+    }
+    .item.editando {
+      background: rgba(212, 162, 76, 0.1);
+      border: 2px solid #D4A24C;
+    }
+
+    .item-icono {
+      width: 50px; height: 50px;
+      background: rgba(76, 175, 80, 0.15);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; flex-shrink: 0;
+    }
+    .item-info { flex: 1; min-width: 0; }
+    .item-nombre {
+      font-size: 16px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .item-detalles {
+      font-size: 12px; color: #6B6356; margin-top: 4px;
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+
+    .badge-estado {
+      font-size: 10px; padding: 3px 10px; border-radius: 100px;
+      font-weight: 700; text-transform: uppercase;
+    }
+    .badge-activa { background: rgba(46, 125, 50, 0.15); color: #2E7D32; }
+    .badge-cerrada { background: rgba(107, 99, 86, 0.15); color: #6B6356; }
+
+    .badge-cultivos {
+      font-size: 11px; color: #0F3D14;
+      background: rgba(15, 61, 20, 0.08);
+      padding: 3px 10px; border-radius: 100px;
+      display: inline-block; font-weight: 600;
+    }
+
+    .item-acciones { display: flex; gap: 8px; flex-shrink: 0; }
+
+    .item-boton {
+      border: none; width: 36px; height: 36px;
+      border-radius: 50%; cursor: pointer;
+      font-size: 16px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .item-editar { background: rgba(15, 61, 20, 0.1); color: #0F3D14; }
+    .item-borrar { background: rgba(181, 55, 28, 0.1); color: #B5371C; }
+
+    .vacio {
+      text-align: center; padding: 40px 20px; color: #6B6356;
+      background: #fff; border-radius: 16px;
+      border: 2px dashed rgba(0,0,0,0.1);
+    }
+    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .vacio-texto { font-size: 14px; }
+
+    .alerta {
+      background: rgba(181, 55, 28, 0.1);
+      border: 1.5px solid rgba(181, 55, 28, 0.3);
+      color: #B5371C;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    .alerta.visible { display: block; }
+    .alerta a { color: #B5371C; font-weight: 700; text-decoration: underline; }
+
+    .alerta-edicion {
+      background: rgba(212, 162, 76, 0.15);
+      border-left: 4px solid #D4A24C;
+      padding: 14px 18px; border-radius: 8px;
+      margin-bottom: 20px; font-size: 14px;
+      color: #8B6F00; display: none;
+    }
+    .alerta-edicion.visible { display: block; }
+
+    .campo select optgroup {
+      font-weight: 700;
+      color: #0F3D14;
+      background: #FAF6EC;
+    }
+    .campo select option {
+      font-weight: normal;
+      padding: 4px;
+    }
+
+    /* ===== BOTÓN COSECHAR ===== */
+    .item-cosechar {
+      background: rgba(212, 162, 76, 0.15);
+      color: #8B6F00;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .item-cosechar:hover { background: rgba(212, 162, 76, 0.3); }
+
+    /* ===== TARJETA DE CAMPAÑA CERRADA ===== */
+    .item-cerrada {
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border-left: 5px solid #6B6356;
+    }
+
+    .cierre-header {
+      display: flex; gap: 14px; align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .cierre-icono {
+      width: 50px; height: 50px;
+      background: rgba(107, 99, 86, 0.1);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; flex-shrink: 0;
+    }
+    .cierre-titulo {
+      font-size: 16px; font-weight: 700;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .cierre-sub {
+      font-size: 12px; color: #6B6356; margin-top: 4px;
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+
+    .cierre-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px; margin-bottom: 12px;
+    }
+    .cierre-kpi {
+      background: #FAF6EC; border-radius: 10px;
+      padding: 10px 12px; text-align: center;
+    }
+    .cierre-kpi-valor {
+      font-size: 18px; font-weight: 700; color: #0F3D14; line-height: 1;
+    }
+    .cierre-kpi-valor.excelente { color: #2E7D32; }
+    .cierre-kpi-valor.bueno { color: #0F3D14; }
+    .cierre-kpi-valor.regular { color: #D4A24C; }
+    .cierre-kpi-label {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #6B6356;
+      margin-top: 4px; font-weight: 600;
+    }
+
+    .cierre-barra-container { margin-bottom: 10px; }
+    .cierre-barra-label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: #6B6356; margin-bottom: 4px;
+    }
+    .cierre-barra-fondo {
+      height: 10px; background: rgba(0,0,0,0.05);
+      border-radius: 100px; overflow: hidden;
+    }
+    .cierre-barra-llena {
+      height: 100%; border-radius: 100px;
+    }
+    .barra-excelente { background: linear-gradient(90deg, #4CAF50, #2E7D32); }
+    .barra-buena { background: linear-gradient(90deg, #8BC34A, #558B2F); }
+    .barra-regular { background: linear-gradient(90deg, #FFC107, #F57C00); }
+    .barra-baja { background: linear-gradient(90deg, #FF7043, #B5371C); }
+
+    .cierre-acciones {
+      display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
+    }
+
+    /* ===== MODAL COSECHA ===== */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000; padding: 16px;
+    }
+    .modal-overlay.visible { display: flex; }
+
+    .modal {
+      background: #fff; border-radius: 20px; padding: 28px;
+      max-width: 560px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
+    }
+
+    .modal-titulo {
+      font-size: 22px; font-weight: 700;
+      margin-bottom: 6px; color: #0F3D14;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-sub {
+      font-size: 13px; color: #6B6356;
+      margin-bottom: 22px; line-height: 1.4;
+    }
+
+    .modal-kpi-preview {
+      background: linear-gradient(135deg, #0F3D14, #1B5E20);
+      color: #FAF6EC; border-radius: 14px;
+      padding: 16px 20px; margin-bottom: 20px;
+      display: none;
+    }
+    .modal-kpi-preview.visible { display: block; }
+    .modal-kpi-rinde {
+      font-size: 32px; font-weight: 700; line-height: 1;
+    }
+    .modal-kpi-label {
+      font-size: 12px; opacity: 0.85; margin-top: 4px;
+    }
+    .modal-kpi-vs {
+      font-size: 12px; opacity: 0.75; margin-top: 6px;
+    }
+
+    .modal-botones {
+      display: flex; gap: 10px; margin-top: 24px;
+    }
+    .boton-confirmar-cosecha {
+      flex: 1; padding: 16px;
+      background: #D4A24C; color: #fff;
+      border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .boton-confirmar-cosecha:hover { background: #B88A3D; }
+    .boton-cancelar-modal {
+      padding: 16px 20px;
+      background: rgba(0,0,0,0.06); color: #6B6356;
+      border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0F3D14; color: #FAF6EC;
+      padding: 14px 24px; border-radius: 100px;
+      font-weight: 600; font-size: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      transition: transform 0.3s; z-index: 2000;
+    }
+    .toast.visible { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+    }
+
+    @media (max-width: 600px) {
+      .fila { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 500px) {
+      .main { padding: 16px; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
+          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
+          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+        </svg>
+        <div class="sidebar-logo-textos">
+          <div class="sidebar-logo-titulo">SAFIA</div>
+          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+        </div>
+      </div>
+
+      <div class="sidebar-grupo">Inicio</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-grupo">Datos</div>
+      <a href="mis-clientes.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
+      </a>
+      <a href="mis-campos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
+      </a>
+      <a href="mis-equipos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
+      </a>
+      <a href="mis-cultivos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
+      </a>
+      <a href="mis-campanas.html" class="sidebar-link activo">
+        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
+      </a>
+
+      <div class="sidebar-grupo">Inteligencia</div>
+      <a href="clima.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
+      </a>
+      <a href="prediccion.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
+      </a>
+
+      <div class="sidebar-grupo">Operación</div>
+      <a href="operador.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
+      </a>
+      <a href="eventos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
+      </a>
+      <a href="encargado.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
+      </a>
+      <a href="propietario.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
+      </a>
+      <a href="voz.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
+      </a>
+
+      <div class="sidebar-grupo">Sistema</div>
+      <a href="backup.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
+      </a>
+
+      <div class="sidebar-footer">
+        SAFIA v1.0<br>
+        Herramienta para productores
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div>
+          <div class="topbar-saludo">Datos</div>
+          <div class="topbar-titulo">📋 Campañas</div>
+        </div>
+        <div class="topbar-derecha">
+          <div class="topbar-fecha" id="topbarFecha">—</div>
+          <div class="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <div class="contenedor">
+
+        <p class="subtitulo-pagina">Cargá los cultivos sembrados en cada equipo. Una campaña puede tener 1 o 2 cultivos (mixto).</p>
+
+        <div class="alerta" id="alertaSinEquipos">
+          ⚠️ No tenés equipos cargados todavía. Antes de crear una campaña necesitás al menos un equipo.
+          <br><br>
+          <a href="mis-equipos.html">→ Ir a cargar equipos</a>
+        </div>
+
+        <div class="alerta-edicion" id="alertaEdicion">
+          ✏️ <strong>Modo edición activo:</strong> estás editando una campaña.
+        </div>
+
+        <div class="tarjeta" id="tarjetaForm">
+          <div class="tarjeta-titulo" id="tituloForm">+ Crear nueva campaña</div>
+          <div class="tarjeta-sub">Asociá uno o más cultivos a un equipo de riego en una temporada.</div>
+
+          <div class="campo">
+            <label>Equipo de riego</label>
+            <select id="equipo">
+              <option value="">Seleccionar equipo...</option>
+            </select>
+          </div>
+
+          <div class="fila">
+            <div class="campo">
+              <label>Nombre de la campaña</label>
+              <input type="text" id="nombre" placeholder="Ej: Zafra 2025/26">
+            </div>
+
+            <div class="campo">
+              <label>Estado</label>
+              <select id="estado">
+                <option value="Activa">🟢 Activa</option>
+                <option value="Cerrada">⚫ Cerrada</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="seccion">
+            <div class="seccion-titulo">
+              🌱 Cultivos sembrados
+              <a href="mis-cultivos.html" style="font-size: 11px; color: #1565C0; text-decoration: none; font-weight: 600;">+ Gestionar cultivos</a>
+            </div>
+
+            <div id="cultivosContainer"></div>
+
+            <button class="boton-agregar-cultivo" id="botonAgregarCultivo" onclick="agregarCultivo()">
+              ➕ Agregar otro cultivo (mixto)
+            </button>
+          </div>
+
+          <div class="botones-form">
+            <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">
+              ✓ Guardar campaña
+            </button>
+            <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">
+              ✕ Cancelar
+            </button>
+          </div>
+        </div>
+
+        <div class="lista-titulo">Campañas cargadas</div>
+        <div id="listaCampanas"></div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- ===== MODAL REGISTRO DE COSECHA ===== -->
+  <!-- MODAL BALANCE NPK -->
+  <div class="modal-overlay" id="modalNPKOverlay" onclick="cerrarNPKSiClickFuera(event)">
+    <div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
+      <div style="font-size:20px;font-weight:700;color:#0F3D14;margin-bottom:4px;" id="npkTitulo">🧪 Balance N/P/K</div>
+      <div id="npkCuerpo" style="margin-bottom:8px;"></div>
+      <button class="boton-cancelar-modal" onclick="cerrarModalNPK()" style="width:100%;margin-top:16px;">✓ Cerrar</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalCosechaOverlay" onclick="cerrarModalSiClickFuera(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-titulo">🌾 Registrar cosecha</div>
+      <div class="modal-sub" id="modalCosechaSub">—</div>
+
+      <div class="modal-kpi-preview" id="kpiPreview">
+        <div class="modal-kpi-rinde" id="kpiRinde">— kg/ha</div>
+        <div class="modal-kpi-label">Rendimiento neto calculado</div>
+        <div class="modal-kpi-vs" id="kpiVsObj">—</div>
+      </div>
+
+      <div class="fila">
+        <div class="campo">
+          <label>📅 Fecha de cosecha</label>
+          <input type="date" id="cosechaFecha">
+        </div>
+        <div class="campo">
+          <label>📐 Superficie cosechada (ha)</label>
+          <input type="number" id="cosechaSuperficie" placeholder="Ej: 60" step="0.1" oninput="calcularRendimiento()">
+        </div>
+      </div>
+
+      <div class="fila">
+        <div class="campo">
+          <label>⚖️ Producción neta en silo (kg)</label>
+          <input type="number" id="cosechaProduccion" placeholder="Del ticket de báscula" oninput="calcularRendimiento()">
+        </div>
+        <div class="campo">
+          <label>💧 Humedad de cosecha (%)</label>
+          <input type="number" id="cosechaHumedad" placeholder="Ej: 14" step="0.1" min="0" max="40">
+        </div>
+      </div>
+
+      <div class="campo">
+        <label>🚛 Destino del grano</label>
+        <select id="cosechaDestino">
+          <option value="cooperativa">Cooperativa / Acopio</option>
+          <option value="silo_propio">Silo propio</option>
+          <option value="venta_directa">Venta directa</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label>📝 Observaciones <span class="opcional">(opcional)</span></label>
+        <textarea id="cosechaObs" placeholder="Condiciones de cosecha, calidad, incidentes..."></textarea>
+      </div>
+
+      <div class="modal-botones">
+        <button class="boton-cancelar-modal" onclick="cerrarModalCosecha()">Cancelar</button>
+        <button class="boton-confirmar-cosecha" onclick="guardarCosecha()">🌾 Confirmar y cerrar campaña</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    let editandoId = null;
+    let cultivosTemp = [];
+    let cosechandoCampanaId = null;
+    let npkCampanaId = null;
+
+    // ===== TABLA DE EXTRACCIÓN NPK POR CULTIVO =====
+    // Fuente: FAO 56, INTA, Embrapa — kg de nutriente por tonelada de producto cosechado
+    const EXTRACCION_NPK = {
+      'Maíz':       { N: 14,  P: 5.5, K: 4,   ref: 'kg/ton grano' },
+      'Soja':       { N: 53,  P: 7,   K: 20,  ref: 'kg/ton grano' },
+      'Trigo':      { N: 20,  P: 4,   K: 5,   ref: 'kg/ton grano' },
+      'Sorgo':      { N: 15,  P: 5,   K: 4,   ref: 'kg/ton grano' },
+      'Arroz':      { N: 18,  P: 3.5, K: 3,   ref: 'kg/ton grano' },
+      'Girasol':    { N: 30,  P: 12,  K: 10,  ref: 'kg/ton semilla' },
+      'Canola':     { N: 35,  P: 12,  K: 10,  ref: 'kg/ton semilla' },
+      'Cebada':     { N: 18,  P: 3.5, K: 4,   ref: 'kg/ton grano' },
+      'Avena':      { N: 15,  P: 3,   K: 4,   ref: 'kg/ton grano' },
+      'Maní':       { N: 50,  P: 6,   K: 14,  ref: 'kg/ton' },
+      'Papa':       { N: 3,   P: 0.7, K: 5,   ref: 'kg/ton tubérculo' },
+      'Tomate':     { N: 2.5, P: 0.5, K: 3.5, ref: 'kg/ton fruto' },
+      'Algodón':    { N: 30,  P: 10,  K: 15,  ref: 'kg/ton' },
+      'Alfalfa':    { N: 28,  P: 3,   K: 23,  ref: 'kg/ton MS' },
+      'Caña de azúcar': { N: 1.5, P: 0.6, K: 1.5, ref: 'kg/ton tallo' },
+    };
+
+    // ===== FUNCIONES DE BALANCE NPK =====
+
+    function abrirModalNPK(campanaId) {
+      npkCampanaId = campanaId;
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const campana = campanas.find(c => c.id === campanaId);
+      if (!campana) return;
+
+      const cultivo = campana.cultivos && campana.cultivos[0];
+      const cultivoNombre = cultivo ? cultivo.cultivo : '?';
+      const rendObj = cultivo && cultivo.rendimientoObj ? parseFloat(cultivo.rendimientoObj) : 0;
+      const sup = cultivo && cultivo.superficie ? parseFloat(cultivo.superficie) : 0;
+
+      // Buscar extracción para este cultivo
+      // Intenta match parcial (ej: "Maíz Pioner" → "Maíz")
+      let ext = null;
+      for (const key of Object.keys(EXTRACCION_NPK)) {
+        if (cultivoNombre.toLowerCase().startsWith(key.toLowerCase())) {
+          ext = EXTRACCION_NPK[key];
+          break;
+        }
+      }
+
+      // Calcular demanda total
+      let demandaN = 0, demandaP = 0, demandaK = 0;
+      const rendTon = rendObj / 1000;
+      if (ext && rendTon > 0) {
+        demandaN = rendTon * ext.N;
+        demandaP = rendTon * ext.P;
+        demandaK = rendTon * ext.K;
+      }
+
+      // Calcular aplicado desde eventos
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const equipo = equipos.find(e => e.id === campana.equipoId);
+
+      let aplicadoN = 0, aplicadoP = 0, aplicadoK = 0;
+      const aplicaciones = [];
+
+      eventos.forEach(ev => {
+        if (ev.equipoId !== campana.equipoId) return;
+        if (ev.tipo !== 'aplicacion') return;
+        if (ev.n_kg_ha || ev.p_kg_ha || ev.k_kg_ha) {
+          aplicadoN += ev.n_kg_ha || 0;
+          aplicadoP += ev.p_kg_ha || 0;
+          aplicadoK += ev.k_kg_ha || 0;
+          aplicaciones.push(ev);
+        }
+      });
+
+      // Renderizar modal
+      const titulo = document.getElementById('npkTitulo');
+      const cuerpo = document.getElementById('npkCuerpo');
+      titulo.textContent = `🧪 Balance N/P/K — ${campana.nombre}`;
+
+      let html = '';
+
+      // Info cultivo
+      html += `<div style="font-size:13px;color:#6B6356;margin-bottom:16px;">
+        ${cultivoNombre}${cultivo && cultivo.variedad ? ' (' + cultivo.variedad + ')' : ''}
+        · ${sup > 0 ? sup + ' ha' : '? ha'}
+        · Objetivo: ${rendObj > 0 ? rendObj.toLocaleString('es-PY') + ' kg/ha' : 'no definido'}
+      </div>`;
+
+      if (!ext) {
+        html += `<div style="background:rgba(212,162,76,0.12);border-radius:10px;padding:14px;font-size:13px;color:#8B6F00;margin-bottom:16px;">
+          ⚠️ No hay tabla de extracción registrada para <strong>${cultivoNombre}</strong>.
+          La demanda N/P/K no puede calcularse automáticamente para este cultivo.
+        </div>`;
+      } else if (rendObj === 0) {
+        html += `<div style="background:rgba(212,162,76,0.12);border-radius:10px;padding:14px;font-size:13px;color:#8B6F00;margin-bottom:16px;">
+          ⚠️ Cargá el <strong>rendimiento objetivo</strong> en la campaña para calcular la demanda.
+        </div>`;
+      }
+
+      if (ext && rendObj > 0) {
+        // Barras NPK
+        html += renderBarraNPK('N — Nitrógeno', aplicadoN, demandaN, '#1565C0', sup);
+        html += renderBarraNPK('P — Fósforo', aplicadoP, demandaP, '#2E7D32', sup);
+        html += renderBarraNPK('K — Potasio', aplicadoK, demandaK, '#D4A24C', sup);
+
+        html += `<div style="font-size:11px;color:#6B6356;margin-top:8px;font-style:italic;">
+          Fuente extracción: FAO/INTA · ${ext.ref} · Kc: ${ext.N}N / ${ext.P}P / ${ext.K}K por tonelada
+        </div>`;
+      }
+
+      // Tabla de aplicaciones con NPK
+      if (aplicaciones.length > 0) {
+        html += `<div style="margin-top:20px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6B6356;margin-bottom:10px;">Aplicaciones con datos N/P/K</div>`;
+        aplicaciones.forEach(ev => {
+          const fecha = new Date(ev.fecha + 'T12:00:00').toLocaleDateString('es-PY', {day:'2-digit',month:'2-digit'});
+          html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FAF6EC;border-radius:8px;margin-bottom:6px;font-size:12px;">
+            <span style="flex:1;font-weight:600;">${ev.producto}</span>
+            <span style="color:#6B6356;">${ev.dosis} ${ev.unidad}</span>
+            <span style="color:#1565C0;">N: ${ev.n_kg_ha || 0}</span>
+            <span style="color:#2E7D32;">P: ${ev.p_kg_ha || 0}</span>
+            <span style="color:#D4A24C;">K: ${ev.k_kg_ha || 0}</span>
+            <span style="color:#6B6356;">${fecha}</span>
+          </div>`;
+        });
+        html += '</div>';
+      } else {
+        html += `<div style="margin-top:16px;background:#FAF6EC;border-radius:10px;padding:14px;font-size:13px;color:#6B6356;text-align:center;">
+          💡 Aún no hay aplicaciones con datos N/P/K registrados.
+          Al cargar una aplicación en <strong>Operador</strong>, seleccioná el producto del catálogo para que se registre el aporte de nutrientes.
+        </div>`;
+      }
+
+      cuerpo.innerHTML = html;
+      document.getElementById('modalNPKOverlay').classList.add('visible');
+    }
+
+    function renderBarraNPK(label, aplicado, demanda, color, sup) {
+      const pct = demanda > 0 ? Math.min(130, Math.round((aplicado / demanda) * 100)) : 0;
+      const anchoBarra = Math.min(100, pct);
+      let claseColor = 'barra-excelente';
+      if (pct < 50) claseColor = 'barra-baja';
+      else if (pct < 80) claseColor = 'barra-regular';
+      else if (pct <= 100) claseColor = 'barra-buena';
+      else claseColor = 'barra-excelente';
+
+      const estado = pct === 0 ? '—' : pct >= 100 ? '✅ Completo' : `${pct}% cubierto`;
+      const falta = demanda > 0 && aplicado < demanda ? `Faltan: ${(demanda - aplicado).toFixed(1)} kg/ha` : '';
+
+      return `<div style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:4px;">
+          <span style="color:${color};">${label}</span>
+          <span style="color:#1A1A1A;">${aplicado.toFixed(1)} / ${demanda.toFixed(1)} kg/ha</span>
+        </div>
+        <div style="height:10px;background:rgba(0,0,0,0.06);border-radius:100px;overflow:hidden;margin-bottom:4px;">
+          <div style="height:100%;width:${anchoBarra}%;background:${color};border-radius:100px;opacity:0.85;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#6B6356;">
+          <span>${estado}</span>
+          <span>${falta}</span>
+        </div>
+      </div>`;
+    }
+
+    function cerrarModalNPK() {
+      document.getElementById('modalNPKOverlay').classList.remove('visible');
+      npkCampanaId = null;
+    }
+
+    function cerrarNPKSiClickFuera(e) {
+      if (e.target.id === 'modalNPKOverlay') cerrarModalNPK();
+    } // ID de la campaña que se está cosechando
+
+    // ===== FUNCIONES DE COSECHA =====
+
+    function abrirModalCosecha(campanaId) {
+      cosechandoCampanaId = campanaId;
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const campana = campanas.find(c => c.id === campanaId);
+      if (!campana) return;
+
+      const cultivo = campana.cultivos[0];
+      const cultivoNombre = cultivo ? `${cultivo.cultivo}${cultivo.variedad ? ' ' + cultivo.variedad : ''}` : '?';
+
+      // Calcular días de campaña
+      let diasCampana = '';
+      if (cultivo && cultivo.fechaSiembra) {
+        const dias = Math.floor((new Date() - new Date(cultivo.fechaSiembra)) / 86400000);
+        diasCampana = ` · ${dias} días desde siembra`;
+      }
+
+      document.getElementById('modalCosechaSub').textContent =
+        `${campana.nombre} · ${cultivoNombre}${diasCampana}`;
+
+      // Pre-llenar superficie del cultivo
+      const sup = cultivo && cultivo.superficie ? cultivo.superficie : '';
+      document.getElementById('cosechaSuperficie').value = sup;
+      document.getElementById('cosechaFecha').valueAsDate = new Date();
+      document.getElementById('cosechaProduccion').value = '';
+      document.getElementById('cosechaHumedad').value = '14';
+      document.getElementById('cosechaObs').value = '';
+      document.getElementById('kpiPreview').classList.remove('visible');
+
+      // Guardar rendimiento objetivo para comparación
+      window._rendimientoObj = cultivo && cultivo.rendimientoObj ? parseFloat(cultivo.rendimientoObj) : null;
+
+      document.getElementById('modalCosechaOverlay').classList.add('visible');
+    }
+
+    function calcularRendimiento() {
+      const prod = parseFloat(document.getElementById('cosechaProduccion').value) || 0;
+      const sup = parseFloat(document.getElementById('cosechaSuperficie').value) || 0;
+
+      if (prod > 0 && sup > 0) {
+        const rinde = Math.round(prod / sup);
+        document.getElementById('kpiRinde').textContent = rinde.toLocaleString('es-PY') + ' kg/ha';
+
+        // Comparar con objetivo si existe
+        const obj = window._rendimientoObj;
+        if (obj && obj > 0) {
+          const pct = Math.round((rinde / obj) * 100);
+          let emoji = pct >= 100 ? '🏆' : pct >= 85 ? '✅' : pct >= 70 ? '🟡' : '⚠️';
+          document.getElementById('kpiVsObj').textContent =
+            `${emoji} ${pct}% del objetivo (${obj.toLocaleString('es-PY')} kg/ha)`;
+        } else {
+          document.getElementById('kpiVsObj').textContent = '';
+        }
+
+        document.getElementById('kpiPreview').classList.add('visible');
+      } else {
+        document.getElementById('kpiPreview').classList.remove('visible');
+      }
+    }
+
+    function guardarCosecha() {
+      const fecha = document.getElementById('cosechaFecha').value;
+      const superficie = parseFloat(document.getElementById('cosechaSuperficie').value);
+      const produccion = parseFloat(document.getElementById('cosechaProduccion').value);
+      const humedad = parseFloat(document.getElementById('cosechaHumedad').value);
+      const destino = document.getElementById('cosechaDestino').value;
+      const obs = document.getElementById('cosechaObs').value.trim();
+
+      if (!fecha) { alert('Cargá la fecha de cosecha.'); return; }
+      if (!superficie || superficie <= 0) { alert('Cargá la superficie cosechada.'); return; }
+      if (!produccion || produccion <= 0) { alert('Cargá la producción en kg.'); return; }
+
+      const rendimientoNeto = Math.round(produccion / superficie);
+
+      const cosecha = {
+        fecha,
+        superficie,
+        produccionKg: produccion,
+        humedad: humedad || 14,
+        rendimientoNeto,
+        destino,
+        observaciones: obs,
+        fechaRegistro: new Date().toISOString()
+      };
+
+      let campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const idx = campanas.findIndex(c => c.id === cosechandoCampanaId);
+      if (idx !== -1) {
+        campanas[idx].cosecha = cosecha;
+        campanas[idx].estado = 'Cerrada';
+        campanas[idx].fechaCierre = new Date().toISOString();
+        // Guardar rendimiento real en el cultivo también
+        if (campanas[idx].cultivos && campanas[idx].cultivos[0]) {
+          campanas[idx].cultivos[0].rendimientoReal = rendimientoNeto;
+          campanas[idx].cultivos[0].fechaCosecha = fecha;
+        }
+        localStorage.setItem('campanas', JSON.stringify(campanas));
+      }
+
+      cerrarModalCosecha();
+      mostrarCampanas();
+      mostrarToast('🌾 ¡Cosecha registrada! Campaña cerrada.');
+    }
+
+    function cerrarModalCosecha() {
+      document.getElementById('modalCosechaOverlay').classList.remove('visible');
+      cosechandoCampanaId = null;
+    }
+
+    function cerrarModalSiClickFuera(event) {
+      if (event.target.id === 'modalCosechaOverlay') cerrarModalCosecha();
+    }
+
+    function mostrarToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('visible');
+      setTimeout(() => t.classList.remove('visible'), 3000);
+    }
+
+    window.onload = function() {
+      verificarEquipos();
+      cargarSelectorEquipos();
+      mostrarCampanas();
+      agregarCultivo();
+    };
+
+    function verificarEquipos() {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      if (equipos.length === 0) {
+        document.getElementById('alertaSinEquipos').classList.add('visible');
+        document.getElementById('tarjetaForm').style.display = 'none';
+      }
+    }
+
+    function cargarSelectorEquipos() {
+      const select = document.getElementById('equipo');
+      while (select.options.length > 1) select.remove(1);
+
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+      equipos.forEach(equipo => {
+        const campo = campos.find(c => c.id === equipo.campoId);
+        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+        const option = document.createElement('option');
+        option.value = equipo.id;
+        option.textContent = `${equipo.nombre} (${campo ? campo.nombre : '?'} - ${cliente ? cliente.nombre : '?'})`;
+        select.appendChild(option);
+      });
+    }
+
+    function obtenerListaCultivos() {
+      const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      return { fao, custom };
+    }
+
+    function agregarCultivo(datos = null) {
+      if (cultivosTemp.length >= 2) {
+        alert('Por ahora soportamos máximo 2 cultivos por campaña (mixto).');
+        return;
+      }
+
+      const id = Date.now() + Math.random();
+      const cultivo = datos || {
+        idTemp: id,
+        cultivo: '',
+        variedad: '',
+        fechaSiembra: '',
+        fechaCosecha: '',
+        superficie: '',
+        densidad: '',
+        espaciamiento: '',
+        rendimientoObj: '',
+        rendimientoReal: ''
+      };
+      if (!cultivo.idTemp) cultivo.idTemp = id;
+      cultivosTemp.push(cultivo);
+
+      renderizarCultivos();
+    }
+
+    function quitarCultivo(idTemp) {
+      if (cultivosTemp.length <= 1) {
+        alert('Una campaña debe tener al menos 1 cultivo.');
+        return;
+      }
+      cultivosTemp = cultivosTemp.filter(c => c.idTemp !== idTemp);
+      renderizarCultivos();
+    }
+
+    function actualizarCultivoTemp(idTemp, campo, valor) {
+      const c = cultivosTemp.find(c => c.idTemp === idTemp);
+      if (c) c[campo] = valor;
+    }
+
+    function renderizarCultivos() {
+      const container = document.getElementById('cultivosContainer');
+      const { fao, custom } = obtenerListaCultivos();
+
+      let optionsHTML = '<option value="">Seleccionar cultivo...</option>';
+
+      const anualesFAO = fao.filter(c => c.tipo === 'anual');
+      const perennesFAO = fao.filter(c => c.tipo === 'perenne');
+
+      if (anualesFAO.length > 0) {
+        optionsHTML += '<optgroup label="🌾 Cultivos anuales (FAO)">';
+        anualesFAO.forEach(c => {
+          optionsHTML += `<option value="${c.nombre}">${c.emoji} ${c.nombre}</option>`;
+        });
+        optionsHTML += '</optgroup>';
+      }
+
+      if (perennesFAO.length > 0) {
+        optionsHTML += '<optgroup label="🌳 Cultivos perennes (FAO)">';
+        perennesFAO.forEach(c => {
+          optionsHTML += `<option value="${c.nombre}">${c.emoji} ${c.nombre}</option>`;
+        });
+        optionsHTML += '</optgroup>';
+      }
+
+      if (custom.length > 0) {
+        optionsHTML += '<optgroup label="✏️ Mis cultivos personalizados">';
+        custom.forEach(c => {
+          optionsHTML += `<option value="${c.nombre}">${c.emoji || '🌱'} ${c.nombre}</option>`;
+        });
+        optionsHTML += '</optgroup>';
+      }
+
+      container.innerHTML = '';
+      cultivosTemp.forEach((cultivo, index) => {
+        const numero = index + 1;
+        const puedeQuitar = cultivosTemp.length > 1;
+
+        const html = `
+          <div class="cultivo-bloque">
+            <div class="cultivo-bloque-titulo">
+              🌱 Cultivo ${numero}${cultivosTemp.length > 1 ? ' de ' + cultivosTemp.length : ''}
+              ${puedeQuitar ? `<button class="boton-quitar-cultivo" onclick="quitarCultivo(${cultivo.idTemp})">× Quitar</button>` : ''}
+            </div>
+
+            <div class="campo">
+              <label>Cultivo</label>
+              <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'cultivo', this.value)">
+                ${optionsHTML.replace(`value="${cultivo.cultivo}"`, `value="${cultivo.cultivo}" selected`)}
+              </select>
+            </div>
+
+            <div class="fila">
+              <div class="campo">
+                <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
+                <input type="text" placeholder="Ej: P3110, DM 53i54" value="${cultivo.variedad || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+              </div>
+
+              <div class="campo">
+                <label>Superficie (ha)</label>
+                <input type="number" placeholder="Ej: 100" value="${cultivo.superficie || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'superficie', this.value)">
+              </div>
+            </div>
+
+            <div class="fila">
+              <div class="campo">
+                <label>Fecha de siembra</label>
+                <input type="date" value="${cultivo.fechaSiembra || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaSiembra', this.value)">
+              </div>
+
+              <div class="campo">
+                <label>Fecha estimada cosecha <span class="opcional">(opcional)</span></label>
+                <input type="date" value="${cultivo.fechaCosecha || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaCosecha', this.value)">
+              </div>
+            </div>
+
+            <div class="fila">
+              <div class="campo">
+                <label>Densidad (pl/ha) <span class="opcional">(opcional)</span></label>
+                <input type="number" placeholder="Ej: 75000" value="${cultivo.densidad || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'densidad', this.value)">
+              </div>
+
+              <div class="campo">
+                <label>Espaciamiento (cm) <span class="opcional">(opcional)</span></label>
+                <input type="number" placeholder="Ej: 70" value="${cultivo.espaciamiento || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'espaciamiento', this.value)">
+              </div>
+            </div>
+
+            <div class="fila">
+              <div class="campo">
+                <label>Rendimiento objetivo (kg/ha) <span class="opcional">(opcional)</span></label>
+                <input type="number" placeholder="Ej: 12000" value="${cultivo.rendimientoObj || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'rendimientoObj', this.value)">
+              </div>
+
+              <div class="campo">
+                <label>Rendimiento real <span class="opcional">(al final)</span></label>
+                <input type="number" placeholder="Cargar al cosechar" value="${cultivo.rendimientoReal || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'rendimientoReal', this.value)">
+              </div>
+            </div>
+          </div>
+        `;
+        container.innerHTML += html;
+      });
+
+      const boton = document.getElementById('botonAgregarCultivo');
+      if (cultivosTemp.length >= 2) {
+        boton.disabled = true;
+        boton.textContent = '✓ Máximo 2 cultivos por campaña';
+      } else {
+        boton.disabled = false;
+        boton.textContent = '➕ Agregar otro cultivo (mixto)';
+      }
+    }
+
+    function guardarOActualizar() {
+      const equipoId = document.getElementById('equipo').value;
+      const nombre = document.getElementById('nombre').value.trim();
+      const estado = document.getElementById('estado').value;
+
+      if (!equipoId || !nombre) {
+        alert('Por favor completá el equipo y el nombre de la campaña.');
+        return;
+      }
+
+      const cultivosValidos = cultivosTemp.filter(c => c.cultivo && c.fechaSiembra);
+
+      if (cultivosValidos.length === 0) {
+        alert('Cargá al menos un cultivo con su fecha de siembra.');
+        return;
+      }
+
+      let campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+
+      if (editandoId) {
+        const index = campanas.findIndex(c => c.id === editandoId);
+        if (index !== -1) {
+          campanas[index] = {
+            ...campanas[index],
+            equipoId: parseInt(equipoId),
+            nombre: nombre,
+            estado: estado,
+            cultivos: cultivosValidos.map(c => ({
+              cultivo: c.cultivo,
+              variedad: c.variedad || '',
+              superficie: c.superficie || '',
+              fechaSiembra: c.fechaSiembra,
+              fechaCosecha: c.fechaCosecha || '',
+              densidad: c.densidad || '',
+              espaciamiento: c.espaciamiento || '',
+              rendimientoObj: c.rendimientoObj || '',
+              rendimientoReal: c.rendimientoReal || ''
+            })),
+            fechaModificacion: new Date().toISOString()
+          };
+          localStorage.setItem('campanas', JSON.stringify(campanas));
+          alert('¡Campaña actualizada!');
+          cancelarEdicion();
+        }
+      } else {
+        if (estado === 'Activa') {
+          const existeActiva = campanas.find(c =>
+            c.equipoId === parseInt(equipoId) && c.estado === 'Activa'
+          );
+          if (existeActiva) {
+            alert(`Este equipo ya tiene una campaña activa: "${existeActiva.nombre}". Cerrala primero o editala.`);
+            return;
+          }
+        }
+
+        const campana = {
+          id: Date.now(),
+          equipoId: parseInt(equipoId),
+          nombre: nombre,
+          estado: estado,
+          cultivos: cultivosValidos.map(c => ({
+            cultivo: c.cultivo,
+            variedad: c.variedad || '',
+            superficie: c.superficie || '',
+            fechaSiembra: c.fechaSiembra,
+            fechaCosecha: c.fechaCosecha || '',
+            densidad: c.densidad || '',
+            espaciamiento: c.espaciamiento || '',
+            rendimientoObj: c.rendimientoObj || '',
+            rendimientoReal: c.rendimientoReal || ''
+          })),
+          fechaCreacion: new Date().toISOString()
+        };
+
+        campanas.push(campana);
+        localStorage.setItem('campanas', JSON.stringify(campanas));
+        alert('¡Campaña guardada!');
+        limpiarFormulario();
+      }
+
+      mostrarCampanas();
+    }
+
+    function editarCampana(id) {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const campana = campanas.find(c => c.id === id);
+      if (!campana) return;
+
+      document.getElementById('equipo').value = campana.equipoId || '';
+      document.getElementById('nombre').value = campana.nombre || '';
+      document.getElementById('estado').value = campana.estado || 'Activa';
+
+      cultivosTemp = (campana.cultivos || []).map(c => ({
+        ...c,
+        idTemp: Date.now() + Math.random()
+      }));
+
+      if (cultivosTemp.length === 0) {
+        agregarCultivo();
+      } else {
+        renderizarCultivos();
+      }
+
+      editandoId = id;
+      document.getElementById('tarjetaForm').classList.add('editando');
+      document.getElementById('tituloForm').classList.add('editando');
+      document.getElementById('tituloForm').textContent = '✏️ Editando campaña';
+      document.getElementById('botonGuardar').classList.add('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Actualizar campaña';
+      document.getElementById('botonCancelar').classList.add('visible');
+      document.getElementById('alertaEdicion').classList.add('visible');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      mostrarCampanas();
+    }
+
+    function cancelarEdicion() {
+      editandoId = null;
+      limpiarFormulario();
+      document.getElementById('tarjetaForm').classList.remove('editando');
+      document.getElementById('tituloForm').classList.remove('editando');
+      document.getElementById('tituloForm').textContent = '+ Crear nueva campaña';
+      document.getElementById('botonGuardar').classList.remove('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Guardar campaña';
+      document.getElementById('botonCancelar').classList.remove('visible');
+      document.getElementById('alertaEdicion').classList.remove('visible');
+      mostrarCampanas();
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('equipo').value = '';
+      document.getElementById('nombre').value = '';
+      document.getElementById('estado').value = 'Activa';
+      cultivosTemp = [];
+      agregarCultivo();
+    }
+
+    function mostrarCampanas() {
+      const lista = document.getElementById('listaCampanas');
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+
+      if (campanas.length === 0) {
+        lista.innerHTML = `
+          <div class="vacio">
+            <div class="vacio-icono">🌿</div>
+            <div class="vacio-texto">Todavía no cargaste ninguna campaña.<br>Creá la primera arriba.</div>
+          </div>
+        `;
+        return;
+      }
+
+      lista.innerHTML = '';
+
+      // Separar activas y cerradas
+      const activas = campanas.filter(c => c.estado === 'Activa');
+      const cerradas = campanas.filter(c => c.estado === 'Cerrada');
+
+      // ---- CAMPAÑAS ACTIVAS ----
+      if (activas.length > 0) {
+        lista.innerHTML += `<div class="lista-titulo" style="margin-top:0;">🟢 Campañas activas</div>`;
+        activas.forEach(campana => {
+          const equipo = equipos.find(e => e.id === campana.equipoId);
+          const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
+          const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+
+          const cultivosTexto = (campana.cultivos || [])
+            .map(c => `${c.cultivo}${c.variedad ? ' (' + c.variedad + ')' : ''}`)
+            .join(' + ');
+
+          const claseEditando = (campana.id === editandoId) ? 'editando' : '';
+
+          lista.innerHTML += `
+            <div class="item ${claseEditando}">
+              <div class="item-icono">🌿</div>
+              <div class="item-info">
+                <div class="item-nombre">
+                  ${campana.nombre}
+                  <span class="badge-estado badge-activa">🟢 Activa</span>
+                </div>
+                <div class="item-detalles">
+                  <span class="badge-cultivos">${cultivosTexto || 'Sin cultivos'}</span>
+                  <span>💧 ${equipo ? equipo.nombre : '?'}</span>
+                  <span>🌾 ${campo ? campo.nombre : '?'}</span>
+                  <span>👤 ${cliente ? cliente.nombre : '?'}</span>
+                </div>
+              </div>
+              <div class="item-acciones">
+                <button class="item-cosechar" style="background:rgba(21,101,192,0.12);color:#0D47A1;" onclick="abrirModalNPK(${campana.id})">🧪 N/P/K</button>
+                <button class="item-cosechar" onclick="abrirModalCosecha(${campana.id})">🌾 Cosechar</button>
+                <button class="item-boton item-editar" onclick="editarCampana(${campana.id})" title="Editar">✏️</button>
+                <button class="item-boton item-borrar" onclick="borrarCampana(${campana.id})" title="Borrar">×</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      // ---- CAMPAÑAS CERRADAS ----
+      if (cerradas.length > 0) {
+        lista.innerHTML += `<div class="lista-titulo" style="margin-top:20px;">⚫ Campañas cerradas</div>`;
+        cerradas.forEach(campana => {
+          const equipo = equipos.find(e => e.id === campana.equipoId);
+          const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
+          const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+          const cultivo = campana.cultivos && campana.cultivos[0] ? campana.cultivos[0] : null;
+          const cosecha = campana.cosecha;
+
+          const cultivoNombre = cultivo
+            ? `${cultivo.cultivo}${cultivo.variedad ? ' (' + cultivo.variedad + ')' : ''}`
+            : 'Sin cultivo';
+
+          // Calcular días de campaña
+          let diasCampana = '—';
+          if (cultivo && cultivo.fechaSiembra && cosecha && cosecha.fecha) {
+            const dias = Math.floor((new Date(cosecha.fecha) - new Date(cultivo.fechaSiembra)) / 86400000);
+            diasCampana = dias + ' días';
+          }
+
+          // Estadísticas de eventos de este equipo durante la campaña
+          const eventsEquipo = eventos.filter(e => e.equipoId === campana.equipoId);
+          const totalRiegoMM = eventsEquipo
+            .filter(e => e.tipo === 'riego')
+            .reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
+          const totalLluviaMM = eventsEquipo
+            .filter(e => e.tipo === 'lluvia')
+            .reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
+          const totalAplicaciones = eventsEquipo.filter(e => e.tipo === 'aplicacion').length;
+
+          // Rendimiento vs objetivo
+          let barraHTML = '';
+          let rendimientoHTML = cosecha ? cosecha.rendimientoNeto.toLocaleString('es-PY') + ' kg/ha' : '—';
+          let claseBarra = 'barra-buena';
+          let claseValor = 'bueno';
+
+          if (cosecha && cultivo && cultivo.rendimientoObj) {
+            const obj = parseFloat(cultivo.rendimientoObj);
+            const real = cosecha.rendimientoNeto;
+            const pct = Math.round((real / obj) * 100);
+            const anchoBarra = Math.min(100, pct);
+
+            if (pct >= 100) { claseBarra = 'barra-excelente'; claseValor = 'excelente'; }
+            else if (pct >= 85) { claseBarra = 'barra-buena'; claseValor = 'bueno'; }
+            else if (pct >= 70) { claseBarra = 'barra-regular'; claseValor = 'regular'; }
+            else { claseBarra = 'barra-baja'; claseValor = 'regular'; }
+
+            barraHTML = `
+              <div class="cierre-barra-container">
+                <div class="cierre-barra-label">
+                  <span>Rendimiento vs objetivo</span>
+                  <strong>${pct}% — ${real.toLocaleString('es-PY')} de ${obj.toLocaleString('es-PY')} kg/ha</strong>
+                </div>
+                <div class="cierre-barra-fondo">
+                  <div class="cierre-barra-llena ${claseBarra}" style="width:${anchoBarra}%;"></div>
+                </div>
+              </div>
+            `;
+          }
+
+          const destinoLabel = {
+            cooperativa: 'Cooperativa / Acopio',
+            silo_propio: 'Silo propio',
+            venta_directa: 'Venta directa',
+            otro: 'Otro'
+          };
+
+          lista.innerHTML += `
+            <div class="item-cerrada">
+              <div class="cierre-header">
+                <div class="cierre-icono">🏆</div>
+                <div style="flex:1; min-width:0;">
+                  <div class="cierre-titulo">
+                    ${campana.nombre}
+                    <span class="badge-estado badge-cerrada">⚫ Cerrada</span>
+                  </div>
+                  <div class="cierre-sub">
+                    <span>${cultivoNombre}</span>
+                    <span>💧 ${equipo ? equipo.nombre : '?'}</span>
+                    <span>👤 ${cliente ? cliente.nombre : '?'}</span>
+                    ${cosecha ? `<span>📅 Cosecha: ${new Date(cosecha.fecha + 'T12:00:00').toLocaleDateString('es-PY', {day:'2-digit',month:'2-digit',year:'numeric'})}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div class="cierre-kpis">
+                <div class="cierre-kpi">
+                  <div class="cierre-kpi-valor ${claseValor}">${rendimientoHTML}</div>
+                  <div class="cierre-kpi-label">Rendimiento real</div>
+                </div>
+                <div class="cierre-kpi">
+                  <div class="cierre-kpi-valor">${diasCampana}</div>
+                  <div class="cierre-kpi-label">Duración ciclo</div>
+                </div>
+                <div class="cierre-kpi">
+                  <div class="cierre-kpi-valor">${totalRiegoMM.toFixed(0)} mm</div>
+                  <div class="cierre-kpi-label">Riego total</div>
+                </div>
+                <div class="cierre-kpi">
+                  <div class="cierre-kpi-valor">${totalLluviaMM.toFixed(0)} mm</div>
+                  <div class="cierre-kpi-label">Lluvia registrada</div>
+                </div>
+              </div>
+
+              ${barraHTML}
+
+              ${cosecha && cosecha.observaciones ? `
+                <div style="font-size:12px; color:#6B6356; padding: 8px 12px; background:#FAF6EC; border-radius:8px; margin-bottom:8px;">
+                  📝 ${cosecha.observaciones}
+                </div>
+              ` : ''}
+
+              ${cosecha ? `
+                <div style="font-size:11px; color:#6B6356; display:flex; gap:14px; flex-wrap:wrap;">
+                  <span>⚖️ ${(cosecha.produccionKg/1000).toFixed(1)} ton netas</span>
+                  <span>💧 ${cosecha.humedad}% humedad</span>
+                  <span>🚛 ${destinoLabel[cosecha.destino] || cosecha.destino}</span>
+                  <span>🧪 ${totalAplicaciones} aplicaciones</span>
+                </div>
+              ` : ''}
+
+              <div class="cierre-acciones">
+                <button class="item-boton item-borrar" onclick="borrarCampana(${campana.id})" title="Borrar campaña">×</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+    }
+
+    function borrarCampana(id) {
+      if (!confirm('¿Seguro que querés borrar esta campaña? Se perderán los datos de los cultivos.')) {
+        return;
+      }
+      if (editandoId === id) cancelarEdicion();
+
+      let campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      campanas = campanas.filter(c => c.id !== id);
+      localStorage.setItem('campanas', JSON.stringify(campanas));
+      mostrarCampanas();
+    }
+  </script>
+
+</body>
+</html>

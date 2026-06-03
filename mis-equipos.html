@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Equipos</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --verde: #0F3D14; --verde-claro: #1B5E20; --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D; --crema: #FAF6EC; --crema-oscuro: #f0ead8;
+      --rojo: #B5371C; --gris-texto: #6B6356; --negro: #1A1A1A;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--crema); color: var(--negro); min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    .sidebar { background: var(--verde); color: var(--crema); padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--crema); text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
+    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
+    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+    .topbar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(15,61,20,0.08); }
+    .topbar-saludo { font-size: 11px; color: var(--gris-texto); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 600; }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
+    .topbar-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--ambar); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+    .contenedor { max-width: 800px; margin: 0 auto; }
+    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
+    .tarjeta { background: #fff; border-radius: 18px; padding: 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; transition: border-color 0.3s; }
+    .tarjeta.editando { border: 2px solid #D4A24C; box-shadow: 0 4px 20px rgba(212,162,76,0.3); }
+    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
+    .tarjeta-titulo.editando { color: #D4A24C; }
+    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
+    .seccion { border-top: 1px solid rgba(0,0,0,0.08); padding-top: 24px; margin-top: 24px; }
+    .seccion-titulo { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: #0F3D14; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+    .seccion-titulo .badge { background: rgba(15,61,20,0.08); color: #0F3D14; font-size: 10px; padding: 3px 10px; border-radius: 100px; font-weight: 600; }
+    .campo { margin-bottom: 18px; }
+    .campo label { display: block; font-size: 12px; font-weight: 600; color: #6B6356; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .campo label .opcional { color: #aaa; font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px; margin-left: 4px; }
+    .campo input, .campo select, .campo textarea { width: 100%; padding: 14px 16px; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px; font-size: 15px; font-family: inherit; background: #FAF6EC; color: #1A1A1A; }
+    .campo textarea { min-height: 70px; resize: vertical; }
+    .campo input:focus, .campo select:focus, .campo textarea:focus { outline: none; border-color: #0F3D14; background: #fff; }
+    .campo .ayuda { font-size: 11px; color: #6B6356; margin-top: 4px; font-style: italic; }
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .fila-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .seccion-tipo { display: none; }
+    .seccion-tipo.visible { display: block; }
+    .botones-form { display: flex; gap: 10px; margin-top: 24px; }
+    .boton-guardar { flex: 1; padding: 18px; background: #0F3D14; color: #FAF6EC; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .boton-guardar:hover { background: #1B5E20; }
+    .boton-guardar.editando { background: #D4A24C; }
+    .boton-guardar.editando:hover { background: #B88A3D; }
+    .boton-cancelar { padding: 18px 24px; background: rgba(0,0,0,0.06); color: #6B6356; border: none; border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; display: none; }
+    .boton-cancelar.visible { display: block; }
+    .lista-titulo { font-size: 12px; font-weight: 600; color: #6B6356; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; padding: 0 4px; }
+    .item { background: #fff; border-radius: 16px; padding: 18px 20px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 16px; align-items: center; transition: all 0.2s; }
+    .item.editando { background: rgba(212,162,76,0.1); border: 2px solid #D4A24C; }
+    .item-icono { width: 50px; height: 50px; background: rgba(15,61,20,0.1); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+    .item-info { flex: 1; }
+    .item-nombre { font-size: 16px; font-weight: 700; color: #1A1A1A; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .item-detalles { font-size: 13px; color: #6B6356; margin-top: 3px; }
+    .item-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+    .tag { font-size: 11px; padding: 2px 8px; border-radius: 100px; font-weight: 600; }
+    .tag-cliente { color: #0F3D14; background: rgba(15,61,20,0.08); }
+    .tag-campo { color: #8B6F00; background: rgba(212,162,76,0.2); }
+    .item-acciones { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+    .item-boton { border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .item-editar { background: rgba(15,61,20,0.1); color: #0F3D14; }
+    .item-borrar { background: rgba(181,55,28,0.1); color: #B5371C; }
+    .vacio { text-align: center; padding: 40px 20px; color: #6B6356; background: #fff; border-radius: 16px; border: 2px dashed rgba(0,0,0,0.1); }
+    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .alerta { background: rgba(181,55,28,0.1); border: 1.5px solid rgba(181,55,28,0.3); color: #B5371C; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; display: none; }
+    .alerta.visible { display: block; }
+    .alerta a { color: #B5371C; font-weight: 700; text-decoration: underline; }
+    .alerta-edicion { background: rgba(212,162,76,0.15); border-left: 4px solid #D4A24C; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #8B6F00; display: none; }
+    .alerta-edicion.visible { display: block; }
+    .info-box { background: rgba(15,61,20,0.05); border-left: 3px solid #0F3D14; padding: 12px 16px; border-radius: 8px; margin-top: 16px; font-size: 13px; color: #0F3D14; }
+
+    /* ===== MANTENIMIENTO ===== */
+    .item-mant-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; white-space: nowrap; }
+    .mant-ok       { background: rgba(46,125,50,0.12);  color: #2E7D32; }
+    .mant-atencion { background: rgba(212,162,76,0.2);   color: #8B6F00; }
+    .mant-vencido  { background: rgba(181,55,28,0.15);   color: #B5371C; }
+    .mant-sin-plan { background: rgba(107,99,86,0.12);   color: #6B6356; }
+    .item-mant-btn { background: rgba(15,61,20,0.08); color: #0F3D14; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .item-mant-btn:hover { background: rgba(15,61,20,0.18); }
+    .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 16px; overflow-y: auto; }
+    .modal-overlay.visible { display: flex; }
+    .modal-mant { background: #fff; border-radius: 20px; padding: 28px; max-width: 620px; width: 100%; margin: auto; }
+    .modal-mant-titulo { font-size: 20px; font-weight: 700; color: #0F3D14; margin-bottom: 4px; }
+    .modal-mant-sub { font-size: 13px; color: #6B6356; margin-bottom: 20px; }
+    .horas-bloque { background: #FAF6EC; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .horas-label { font-size: 13px; font-weight: 600; color: #0F3D14; flex-shrink:0; }
+    .horas-input { width: 110px; padding: 8px 12px; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 10px; font-size: 16px; font-family: inherit; font-weight: 700; background: #fff; }
+    .horas-btn { background: #0F3D14; color: #FAF6EC; border: none; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .horas-estimado { font-size: 11px; color: #6B6356; font-style: italic; }
+    .tarea-card { border: 1px solid rgba(0,0,0,0.07); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+    .tarea-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+    .tarea-componente { font-size: 10px; text-transform: uppercase; letter-spacing:.08em; color: #6B6356; font-weight:700; }
+    .tarea-nombre { font-size: 14px; font-weight: 700; color: #1A1A1A; }
+    .tarea-intervalo { font-size: 11px; color: #6B6356; margin-top: 2px; }
+    .tarea-barra-label { display: flex; justify-content: space-between; font-size: 11px; color: #6B6356; margin-bottom: 3px; }
+    .tarea-barra-fondo { height: 8px; background: rgba(0,0,0,0.05); border-radius: 100px; overflow: hidden; margin-bottom: 6px; }
+    .tarea-barra-llena { height: 100%; border-radius: 100px; }
+    .tb-verde { background: linear-gradient(90deg,#4CAF50,#2E7D32); }
+    .tb-ambar { background: linear-gradient(90deg,#FFC107,#F57C00); }
+    .tb-rojo  { background: linear-gradient(90deg,#F44336,#B5371C); }
+    .tarea-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .tarea-ultima { font-size: 11px; color: #6B6356; }
+    .btn-registrar { background: rgba(15,61,20,0.08); color: #0F3D14; border: none; padding: 5px 12px; border-radius: 100px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-registrar:hover { background: rgba(15,61,20,0.18); }
+    .btn-registrar.vencido { background: rgba(181,55,28,0.12); color: #B5371C; }
+    .registro-inline { background: #FAF6EC; border-radius: 10px; padding: 12px 14px; margin-top: 10px; display: none; }
+    .registro-inline.visible { display: block; }
+    .reg-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+    .reg-campo label { display:block; font-size:11px; font-weight:700; color:#6B6356; text-transform:uppercase; margin-bottom:4px; }
+    .reg-campo input, .reg-campo textarea { width:100%; padding:8px 10px; border:1.5px solid rgba(0,0,0,0.1); border-radius:8px; font-size:14px; font-family:inherit; background:#fff; }
+    .reg-campo textarea { min-height:50px; resize:vertical; }
+    .btn-confirmar-reg { background: #0F3D14; color: #FAF6EC; border: none; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-cancelar-reg { background: rgba(0,0,0,0.06); color: #6B6356; border: none; padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-agregar-tarea { background: transparent; color: #0F3D14; border: 1.5px dashed #0F3D14; padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; width: 100%; font-family: inherit; margin-top: 14px; }
+    .agregar-tarea-form { background: #FAF6EC; border-radius: 12px; padding: 16px; margin-top: 10px; display: none; }
+    .agregar-tarea-form.visible { display: block; }
+    .modal-mant-close { background: rgba(0,0,0,0.06); color: #6B6356; border: none; padding: 12px 24px; border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 20px; width: 100%; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: #0F3D14; color: #FAF6EC; padding: 14px 24px; border-radius: 100px; font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: transform 0.3s; z-index: 2000; }
+    .toast.visible { transform: translateX(-50%) translateY(0); }
+
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } }
+    @media (max-width: 500px) { .main { padding: 16px; } .topbar { flex-direction: column; align-items: flex-start; gap: 8px; } .fila, .fila-3 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+          <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+          <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+        </svg>
+        <div class="sidebar-logo-textos">
+          <div class="sidebar-logo-titulo">SAFIA</div>
+          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+        </div>
+      </div>
+      <div class="sidebar-grupo">Inicio</div>
+      <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
+      <div class="sidebar-grupo">Datos</div>
+      <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
+      <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
+      <a href="mis-equipos.html" class="sidebar-link activo"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
+      <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
+      <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
+      <div class="sidebar-grupo">Inteligencia</div>
+      <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
+      <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
+      <div class="sidebar-grupo">Operación</div>
+      <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
+      <a href="eventos.html" class="sidebar-link"><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
+      <a href="encargado.html" class="sidebar-link"><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
+      <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
+      <a href="voz.html" class="sidebar-link"><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
+      <div class="sidebar-grupo">Sistema</div>
+      <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
+      <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <div class="topbar-saludo">Datos</div>
+          <div class="topbar-titulo">💧 Equipos</div>
+        </div>
+        <div class="topbar-derecha">
+          <div class="topbar-fecha" id="topbarFecha">—</div>
+          <div class="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <div class="contenedor">
+        <p class="subtitulo-pagina">Cargá los datos del equipo (el "fierro"). El cultivo se carga aparte en cada campaña.</p>
+
+        <div class="alerta" id="alertaSinCampos">
+          ⚠️ No tenés campos cargados todavía. Antes de crear un equipo necesitás al menos un campo.
+          <br><br><a href="mis-campos.html">→ Ir a cargar campos</a>
+        </div>
+
+        <div class="alerta-edicion" id="alertaEdicion">
+          ✏️ <strong>Modo edición activo:</strong> estás editando un equipo. Hacé clic en "Actualizar" para guardar los cambios o "Cancelar" para descartar.
+        </div>
+
+        <div class="tarjeta" id="tarjetaForm">
+          <div class="tarjeta-titulo" id="tituloForm">+ Agregar un equipo de riego</div>
+          <div class="tarjeta-sub">Solo los datos del equipo en sí. El cultivo y la siembra se cargan en "Campañas".</div>
+
+          <div class="seccion-titulo">📋 Identificación <span class="badge">Obligatorio</span></div>
+
+          <div class="campo">
+            <label>Campo / Estancia</label>
+            <select id="campo" onchange="actualizarClienteMostrado()">
+              <option value="">Seleccionar campo...</option>
+            </select>
+            <div id="clienteMostrado" style="font-size:12px;color:#6B6356;margin-top:6px;display:none;">
+              👤 Cliente: <span id="clienteNombre"></span>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>Tipo de equipo</label>
+            <select id="tipo" onchange="mostrarSeccionTipo()">
+              <option value="">Seleccionar tipo...</option>
+              <optgroup label="Aspersión presurizada">
+                <option value="pivote">Pivote central / Lateral / Frontal</option>
+                <option value="canon">Cañón viajero / Enrollador</option>
+                <option value="aspersion">Aspersión fija / móvil</option>
+              </optgroup>
+              <optgroup label="Riego localizado">
+                <option value="goteo">Goteo (superficial / subterráneo / cinta)</option>
+                <option value="microaspersion">Microaspersión</option>
+              </optgroup>
+              <optgroup label="Riego por superficie">
+                <option value="superficie">Superficie (surcos / inundación / bordes / mantos)</option>
+              </optgroup>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label>Nombre / identificación del equipo</label>
+            <input type="text" id="nombre" placeholder="Ej: Pivote Norte / Pivote 1 / Goteo Tomate">
+          </div>
+
+          <div class="fila">
+            <div class="campo">
+              <label>Marca</label>
+              <select id="marca">
+                <option value="">Seleccionar...</option>
+                <optgroup label="Internacionales">
+                  <option>Lindsay / Zimmatic</option><option>Valley</option><option>Reinke</option>
+                  <option>Bauer</option><option>T-L Irrigation</option><option>Pierce</option>
+                </optgroup>
+                <optgroup label="Sudamericanas">
+                  <option>Krebs</option><option>Carborundum</option><option>Fockink</option>
+                  <option>Pierobon</option><option>Irrigabras</option><option>Ferla</option>
+                </optgroup>
+                <optgroup label="Goteo">
+                  <option>Netafim</option><option>Naandanjain</option><option>Rivulis</option>
+                  <option>Toro</option><option>Eurodrip</option>
+                </optgroup>
+                <option value="Otra">Otra</option>
+              </select>
+            </div>
+            <div class="campo">
+              <label>Modelo <span class="opcional">(opcional)</span></label>
+              <input type="text" id="modelo" placeholder="Ej: Zimmatic 8500">
+            </div>
+          </div>
+
+          <div class="fila">
+            <div class="campo">
+              <label>Número de serie <span class="opcional">(opcional)</span></label>
+              <input type="text" id="numeroSerie" placeholder="Ej: ZM-2018-A12345">
+            </div>
+            <div class="campo">
+              <label>Año de instalación <span class="opcional">(opcional)</span></label>
+              <input type="number" id="anio" placeholder="Ej: 2018" min="1980" max="2030">
+            </div>
+          </div>
+
+          <div class="seccion">
+            <div class="seccion-titulo">📍 Ubicación y superficie</div>
+            <div class="fila">
+              <div class="campo">
+                <label>Superficie regada (ha)</label>
+                <input type="number" id="superficie" placeholder="Ej: 60" step="0.1">
+                <div class="ayuda">Hectáreas que cubre el equipo</div>
+              </div>
+              <div class="campo">
+                <label>Coordenadas GPS <span class="opcional">(opcional)</span></label>
+                <input type="text" id="gps" placeholder="Ej: -24.3572, -54.4869">
+              </div>
+            </div>
+          </div>
+
+          <div class="seccion">
+            <div class="seccion-titulo">⚡ Energía y agua</div>
+            <div class="fila">
+              <div class="campo">
+                <label>Fuente de energía <span class="opcional">(opcional)</span></label>
+                <select id="energia">
+                  <option value="">Seleccionar...</option>
+                  <option>Eléctrica (red)</option><option>Diésel</option><option>Solar</option><option>Mixta</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Fuente de agua <span class="opcional">(opcional)</span></label>
+                <select id="fuenteAgua">
+                  <option value="">Seleccionar...</option>
+                  <option>Pozo profundo</option><option>Pozo somero</option><option>Río / arroyo</option>
+                  <option>Reservorio / tajamar</option><option>Naciente / vertiente</option>
+                  <option>Canal de irrigación</option><option>Lluvia colectada</option>
+                </select>
+              </div>
+            </div>
+            <div class="campo">
+              <label>Eficiencia teórica del sistema (%) <span class="opcional">(opcional)</span></label>
+              <input type="number" id="eficiencia" placeholder="Ej: 85" min="0" max="100">
+              <div class="ayuda">Pivote típico: 85% · Goteo: 90% · Cañón: 70% · Inundación: 50%</div>
+            </div>
+          </div>
+
+          <div class="seccion seccion-tipo" id="seccion-pivote">
+            <div class="seccion-titulo">🌀 Datos técnicos del pivote <span class="badge">Recomendado</span></div>
+            <div class="fila-3">
+              <div class="campo"><label>Caudal (m³/h)</label><input type="number" id="pivote-caudal" placeholder="Ej: 180" step="0.1"></div>
+              <div class="campo"><label>Presión (bar)</label><input type="number" id="pivote-presion" placeholder="Ej: 2.5" step="0.1"></div>
+              <div class="campo"><label>Lámina al 100% (mm)</label><input type="number" id="pivote-lamina100" placeholder="Ej: 4" step="0.1"><div class="ayuda">mm a velocidad máxima</div></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Tiempo de vuelta al 100% (h)</label><input type="number" id="pivote-vuelta100" placeholder="Ej: 15" step="0.1"></div>
+              <div class="campo"><label>Capacidad máx. diaria (mm/24h)</label><input type="number" id="pivote-capacidad" placeholder="Ej: 6.4" step="0.1"></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>Largo (m)</label><input type="number" id="pivote-largo" placeholder="Ej: 450"></div>
+              <div class="campo"><label>Torres</label><input type="number" id="pivote-torres" placeholder="Ej: 7"></div>
+              <div class="campo"><label>Ángulo (°)</label><input type="number" id="pivote-angulo" placeholder="Ej: 360" max="360"></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Corner extensible</label><select id="pivote-corner"><option>No</option><option>Sí</option></select></div>
+              <div class="campo"><label>Tipo aspersores</label><select id="pivote-aspersores"><option value="">Seleccionar...</option><option>Impacto</option><option>Rotator</option><option>Spray</option><option>LDN</option><option>Mixto</option></select></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Altura aspersores</label><select id="pivote-altura"><option value="">Seleccionar...</option><option>Sobre dosel</option><option>Bajo dosel (paddle)</option></select></div>
+              <div class="campo"><label>Controlador inteligente</label><select id="pivote-controlador"><option value="No">No tiene</option><option>FieldNET (Lindsay)</option><option>AgSense (Valley)</option><option>ICON (Valley)</option><option>RPM Connect (Reinke)</option><option>SmartTouch (Bauer)</option><option>Otro</option></select></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>VRI</label><select id="pivote-vri"><option>No</option><option>Sí</option></select></div>
+              <div class="campo"><label>Fertirrigación</label><select id="pivote-fertirrigacion"><option>No</option><option>Sí</option></select></div>
+              <div class="campo"><label>Telemetría / GPS</label><select id="pivote-telemetria"><option>No</option><option>Sí</option></select></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>Marca bomba</label><input type="text" id="pivote-bomba-marca" placeholder="Ej: KSB"></div>
+              <div class="campo"><label>Potencia motor (HP)</label><input type="number" id="pivote-bomba-potencia" placeholder="Ej: 75"></div>
+              <div class="campo"><label>Tipo de bomba</label><select id="pivote-bomba-tipo"><option value="">Seleccionar...</option><option>Centrífuga</option><option>Sumergible</option><option>Turbina vertical</option></select></div>
+            </div>
+          </div>
+
+          <div class="seccion seccion-tipo" id="seccion-goteo">
+            <div class="seccion-titulo">💧 Datos técnicos del goteo <span class="badge">Recomendado</span></div>
+            <div class="fila-3">
+              <div class="campo"><label>Caudal/gotero (L/h)</label><input type="number" id="goteo-caudalGotero" placeholder="Ej: 1.6" step="0.1"></div>
+              <div class="campo"><label>Espaciado goteros (cm)</label><input type="number" id="goteo-espGoteros" placeholder="Ej: 30"></div>
+              <div class="campo"><label>Espaciado líneas (cm)</label><input type="number" id="goteo-espLineas" placeholder="Ej: 50"></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>Presión (bar)</label><input type="number" id="goteo-presion" placeholder="Ej: 1.0" step="0.1"></div>
+              <div class="campo"><label>Caudal total (m³/h)</label><input type="number" id="goteo-caudalTotal" placeholder="Ej: 25" step="0.1"></div>
+              <div class="campo"><label>Cant. líneas</label><input type="number" id="goteo-cantLineas" placeholder="Ej: 200"></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Largo por línea (m)</label><input type="number" id="goteo-largoLinea" placeholder="Ej: 100"></div>
+              <div class="campo"><label>Profundidad si SDI (cm)</label><input type="number" id="goteo-profundidad" placeholder="Ej: 30"></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Tipo filtro</label><select id="goteo-tipoFiltro"><option value="">Seleccionar...</option><option>Anillas</option><option>Arena</option><option>Malla</option><option>Hidrociclón</option><option>Combinado</option></select></div>
+              <div class="campo"><label>Filtrado (micrones)</label><input type="number" id="goteo-micrones" placeholder="Ej: 130"></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Fertirrigación</label><select id="goteo-fertirrigacion"><option>No</option><option>Sí</option></select></div>
+              <div class="campo"><label>Tipo cabezal fertirriego</label><select id="goteo-tipoFertirrigacion"><option value="">No aplica</option><option>Venturi</option><option>Inyectora hidráulica</option><option>Inyectora eléctrica</option><option>Dosificadora</option></select></div>
+            </div>
+          </div>
+
+          <div class="seccion seccion-tipo" id="seccion-canon">
+            <div class="seccion-titulo">💦 Datos técnicos del cañón <span class="badge">Recomendado</span></div>
+            <div class="fila-3">
+              <div class="campo"><label>Caudal (m³/h)</label><input type="number" id="canon-caudal" placeholder="Ej: 60" step="0.1"></div>
+              <div class="campo"><label>Presión (bar)</label><input type="number" id="canon-presion" placeholder="Ej: 6" step="0.1"></div>
+              <div class="campo"><label>Alcance (m)</label><input type="number" id="canon-alcance" placeholder="Ej: 50"></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>Lámina/pasada (mm)</label><input type="number" id="canon-lamina" placeholder="Ej: 25" step="0.1"></div>
+              <div class="campo"><label>Largo manguera (m)</label><input type="number" id="canon-manguera" placeholder="Ej: 350"></div>
+              <div class="campo"><label>Ancho pasada (m)</label><input type="number" id="canon-ancho" placeholder="Ej: 70"></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Velocidad retracción (m/h)</label><input type="number" id="canon-velocidad" placeholder="Ej: 30" step="0.1"></div>
+              <div class="campo"><label>Tiempo por pasada (h)</label><input type="number" id="canon-tiempo" placeholder="Ej: 12" step="0.1"></div>
+            </div>
+          </div>
+
+          <div class="seccion seccion-tipo" id="seccion-aspersion">
+            <div class="seccion-titulo">🚿 Datos técnicos de la aspersión <span class="badge">Recomendado</span></div>
+            <div class="fila-3">
+              <div class="campo"><label>Caudal/aspersor (L/h)</label><input type="number" id="aspersion-caudalAspersor" placeholder="Ej: 1500" step="0.1"></div>
+              <div class="campo"><label>Presión (bar)</label><input type="number" id="aspersion-presion" placeholder="Ej: 3" step="0.1"></div>
+              <div class="campo"><label>Cant. aspersores</label><input type="number" id="aspersion-cantidad" placeholder="Ej: 50"></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>Espaciado (m x m)</label><input type="text" id="aspersion-espaciado" placeholder="Ej: 18x18"></div>
+              <div class="campo"><label>Lámina/turno (mm)</label><input type="number" id="aspersion-lamina" placeholder="Ej: 12" step="0.1"></div>
+              <div class="campo"><label>Duración turno (h)</label><input type="number" id="aspersion-duracion" placeholder="Ej: 4" step="0.1"></div>
+            </div>
+            <div class="fila">
+              <div class="campo"><label>Cant. turnos</label><input type="number" id="aspersion-turnos" placeholder="Ej: 6"></div>
+              <div class="campo"><label>Tipo aspersor</label><select id="aspersion-tipo"><option value="">Seleccionar...</option><option>Impacto</option><option>Rotator</option><option>Spray</option><option>Otro</option></select></div>
+            </div>
+          </div>
+
+          <div class="seccion seccion-tipo" id="seccion-superficie">
+            <div class="seccion-titulo">🌊 Datos técnicos del riego por superficie <span class="badge">Recomendado</span></div>
+            <div class="fila-3">
+              <div class="campo"><label>Caudal canal (L/s)</label><input type="number" id="superficie-caudal" placeholder="Ej: 80" step="0.1"></div>
+              <div class="campo"><label>Tiempo aplicación (h)</label><input type="number" id="superficie-tiempo" placeholder="Ej: 8" step="0.1"></div>
+              <div class="campo"><label>Lámina aplicada (mm)</label><input type="number" id="superficie-lamina" placeholder="Ej: 100" step="0.1"></div>
+            </div>
+            <div class="fila-3">
+              <div class="campo"><label>Cant. melgas/surcos</label><input type="number" id="superficie-cantidad" placeholder="Ej: 20"></div>
+              <div class="campo"><label>Largo promedio (m)</label><input type="number" id="superficie-largo" placeholder="Ej: 200"></div>
+              <div class="campo"><label>Pendiente (%)</label><input type="number" id="superficie-pendiente" placeholder="Ej: 0.5" step="0.1"></div>
+            </div>
+            <div class="campo">
+              <label>Sistema de control</label>
+              <select id="superficie-control"><option value="">Seleccionar...</option><option>Compuertas</option><option>Sifones</option><option>Válvulas</option><option>Manual</option></select>
+            </div>
+          </div>
+
+          <div class="seccion">
+            <div class="seccion-titulo">📝 Notas adicionales</div>
+            <div class="campo">
+              <label>Observaciones <span class="opcional">(opcional)</span></label>
+              <textarea id="observaciones" placeholder="Cualquier dato adicional sobre el equipo..."></textarea>
+            </div>
+            <div class="info-box">ℹ️ <strong>Importante:</strong> los datos de cultivo, fecha de siembra, variedad, rendimiento, etc. se cargan en la pantalla <strong>"Campañas"</strong>.</div>
+          </div>
+
+          <div class="botones-form">
+            <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">✓ Guardar equipo</button>
+            <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">✕ Cancelar</button>
+          </div>
+        </div>
+
+        <div class="lista-titulo">Equipos cargados</div>
+        <div id="listaEquipos"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL MANTENIMIENTO -->
+  <div class="modal-overlay" id="modalMantOverlay" onclick="cerrarMantSiClickFuera(event)">
+    <div class="modal-mant" onclick="event.stopPropagation()">
+      <div class="modal-mant-titulo">🔧 Mantenimiento preventivo</div>
+      <div class="modal-mant-sub" id="mantSub">—</div>
+
+      <div class="horas-bloque">
+        <span class="horas-label">⏱️ Horas del equipo:</span>
+        <input type="number" class="horas-input" id="mantHoras" placeholder="0" min="0">
+        <button class="horas-btn" onclick="guardarHoras()">Guardar</button>
+        <span class="horas-estimado" id="mantHorasEstimado"></span>
+      </div>
+
+      <div id="mantTareas"></div>
+
+      <button class="btn-agregar-tarea" onclick="toggleAgregarTarea()">➕ Agregar tarea personalizada</button>
+      <div class="agregar-tarea-form" id="agregarTareaForm">
+        <div class="reg-fila">
+          <div class="reg-campo"><label>Componente</label><input type="text" id="ntComponente" placeholder="Ej: Torres"></div>
+          <div class="reg-campo"><label>Intervalo (horas)</label><input type="number" id="ntIntervalo" placeholder="Ej: 250"></div>
+        </div>
+        <div class="reg-campo" style="margin-bottom:10px;">
+          <label>Tarea</label>
+          <input type="text" id="ntTarea" placeholder="Ej: Engrasado motorreductores">
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-confirmar-reg" onclick="guardarNuevaTarea()">✓ Agregar</button>
+          <button class="btn-cancelar-reg" onclick="toggleAgregarTarea()">Cancelar</button>
+        </div>
+      </div>
+
+      <button class="modal-mant-close" onclick="cerrarModalMant()">✓ Cerrar</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    let editandoId = null;
+    let mantEquipoId = null;
+
+    // ===== TEMPLATES MANTENIMIENTO =====
+    const TEMPLATES_MANT = {
+      pivote: [
+        {componente:'Centro de pivote', tarea:'Engrasado pivote central',       intervalo:200},
+        {componente:'Centro de pivote', tarea:'Cambio de aceite reductor',       intervalo:1000},
+        {componente:'Centro de pivote', tarea:'Inspección anillos colectores',   intervalo:500},
+        {componente:'Torres',           tarea:'Engrasado motorreductores',        intervalo:250},
+        {componente:'Torres',           tarea:'Cambio de aceite reductores',      intervalo:2000},
+        {componente:'Vano / tubería',   tarea:'Inspección visual aspersores',     intervalo:100},
+        {componente:'Vano / tubería',   tarea:'Limpieza de filtros principales',  intervalo:200},
+        {componente:'Bomba',            tarea:'Engrasado bomba',                  intervalo:100},
+        {componente:'Bomba',            tarea:'Cambio de aceite bomba',           intervalo:1500},
+        {componente:'Motor',            tarea:'Mantenimiento general motor',      intervalo:500},
+      ],
+      goteo: [
+        {componente:'Filtros',  tarea:'Limpieza de filtros',             intervalo:100},
+        {componente:'Líneas',   tarea:'Inspección de goteros',           intervalo:200},
+        {componente:'Cabezal',  tarea:'Revisión válvulas y reguladores', intervalo:300},
+        {componente:'Bomba',    tarea:'Engrasado bomba',                 intervalo:100},
+        {componente:'Bomba',    tarea:'Cambio de aceite bomba',          intervalo:1500},
+      ],
+      canon: [
+        {componente:'Carrete',  tarea:'Engrasado carrete',             intervalo:50},
+        {componente:'Cañón',    tarea:'Inspección boquilla y juntas',  intervalo:100},
+        {componente:'Manguera', tarea:'Inspección manguera',           intervalo:100},
+        {componente:'Bomba',    tarea:'Engrasado bomba',               intervalo:100},
+        {componente:'Bomba',    tarea:'Cambio de aceite bomba',        intervalo:500},
+      ],
+      aspersion: [
+        {componente:'Aspersores',tarea:'Inspección aspersores',        intervalo:200},
+        {componente:'Filtros',   tarea:'Limpieza de filtros',          intervalo:100},
+        {componente:'Bomba',     tarea:'Engrasado bomba',              intervalo:100},
+        {componente:'Bomba',     tarea:'Cambio de aceite bomba',       intervalo:1500},
+      ],
+      superficie: [
+        {componente:'Bomba',      tarea:'Engrasado bomba',             intervalo:100},
+        {componente:'Bomba',      tarea:'Cambio de aceite bomba',      intervalo:1500},
+        {componente:'Compuertas', tarea:'Inspección y lubricación',    intervalo:200},
+      ],
+    };
+    TEMPLATES_MANT.microaspersion = TEMPLATES_MANT.goteo;
+    TEMPLATES_MANT.otro = TEMPLATES_MANT.aspersion;
+
+    // ===== FUNCIONES MANTENIMIENTO =====
+    function calcularEstadoMant(equipo) {
+      const plan = equipo.planMantenimiento;
+      if (!plan || plan.length === 0) return 'sin-plan';
+      const horas = parseFloat(equipo.horasAcumuladas) || 0;
+      let peor = 'ok';
+      plan.forEach(t => {
+        const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
+        const pct = (desde / t.intervalo) * 100;
+        if (pct >= 100) peor = 'vencido';
+        else if (pct >= 80 && peor === 'ok') peor = 'atencion';
+      });
+      return peor;
+    }
+
+    function badgeMant(estado) {
+      if (estado === 'vencido')  return `<span class="item-mant-badge mant-vencido">🔴 Mant. vencido</span>`;
+      if (estado === 'atencion') return `<span class="item-mant-badge mant-atencion">🟡 Revisar pronto</span>`;
+      if (estado === 'ok')       return `<span class="item-mant-badge mant-ok">🟢 Al día</span>`;
+      return `<span class="item-mant-badge mant-sin-plan">🔧 Sin plan</span>`;
+    }
+
+    function abrirModalMant(equipoId) {
+      mantEquipoId = equipoId;
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      let equipo = equipos.find(e => e.id === equipoId);
+      if (!equipo) return;
+
+      if (!equipo.planMantenimiento) {
+        const tpl = TEMPLATES_MANT[equipo.tipo] || TEMPLATES_MANT.aspersion;
+        equipo.planMantenimiento = tpl.map(t => ({
+          id: Date.now() + Math.random(),
+          componente: t.componente, tarea: t.tarea, intervalo: t.intervalo,
+          ultimasHorasHechas: 0, ultimaFechaHecha: null, historial: []
+        }));
+        equipo.horasAcumuladas = 0;
+        const idx = equipos.findIndex(e => e.id === equipoId);
+        equipos[idx] = equipo;
+        localStorage.setItem('equipos', JSON.stringify(equipos));
+      }
+
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const riegos = eventos.filter(e => e.equipoId === equipoId && e.tipo === 'riego');
+      const horasEst = riegos.length * 4;
+
+      document.getElementById('mantSub').textContent = `${equipo.nombre} · ${equipo.tipo || '?'}${equipo.marca ? ' · ' + equipo.marca : ''}`;
+      document.getElementById('mantHoras').value = equipo.horasAcumuladas || 0;
+      document.getElementById('mantHorasEstimado').textContent = horasEst > 0
+        ? `(estimado: ~${horasEst}h basado en ${riegos.length} riegos cargados)` : '';
+
+      renderizarTareas(equipo);
+      document.getElementById('modalMantOverlay').classList.add('visible');
+    }
+
+    function renderizarTareas(equipo) {
+      const horas = parseFloat(equipo.horasAcumuladas) || 0;
+      const container = document.getElementById('mantTareas');
+      container.innerHTML = '';
+
+      if (!equipo.planMantenimiento || equipo.planMantenimiento.length === 0) {
+        container.innerHTML = '<p style="color:#6B6356;font-size:13px;text-align:center;padding:20px;">Sin tareas en el plan. Agregá una abajo.</p>';
+        return;
+      }
+
+      equipo.planMantenimiento.forEach(t => {
+        const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
+        const pct = Math.min(120, Math.round((desde / t.intervalo) * 100));
+        const faltan = Math.max(0, t.intervalo - desde);
+
+        let claseB = 'tb-verde', badge = '', label = '';
+        if (pct >= 100) {
+          claseB = 'tb-rojo';
+          badge = `<span class="item-mant-badge mant-vencido" style="font-size:10px;">🔴 VENCIDO</span>`;
+          label = `Pasado por ${Math.round(desde - t.intervalo)}h`;
+        } else if (pct >= 80) {
+          claseB = 'tb-ambar';
+          badge = `<span class="item-mant-badge mant-atencion" style="font-size:10px;">🟡 ATENCIÓN</span>`;
+          label = `Faltan ~${Math.round(faltan)}h`;
+        } else {
+          badge = `<span class="item-mant-badge mant-ok" style="font-size:10px;">🟢 OK</span>`;
+          label = `Faltan ~${Math.round(faltan)}h`;
+        }
+
+        const ultima = t.ultimaFechaHecha
+          ? `Última: ${new Date(t.ultimaFechaHecha + 'T12:00:00').toLocaleDateString('es-PY')} · ${t.ultimasHorasHechas}h`
+          : 'Nunca realizada';
+
+        const claseBtn = pct >= 100 ? 'btn-registrar vencido' : 'btn-registrar';
+
+        container.innerHTML += `
+          <div class="tarea-card" id="tarea-${t.id}">
+            <div class="tarea-header">
+              <div>
+                <div class="tarea-componente">${t.componente}</div>
+                <div class="tarea-nombre">${t.tarea}</div>
+                <div class="tarea-intervalo">Cada ${t.intervalo}h</div>
+              </div>
+              ${badge}
+            </div>
+            <div class="tarea-barra-label">
+              <span>${Math.round(desde)}h desde última vez</span>
+              <span>${pct}%</span>
+            </div>
+            <div class="tarea-barra-fondo">
+              <div class="tarea-barra-llena ${claseB}" style="width:${Math.min(100,pct)}%;"></div>
+            </div>
+            <div class="tarea-footer">
+              <span class="tarea-ultima">📅 ${ultima} · ${label}</span>
+              <button class="${claseBtn}" onclick="toggleRegistro('${t.id}')">✓ Registrar tarea</button>
+            </div>
+            <div class="registro-inline" id="reg-${t.id}">
+              <div class="reg-fila">
+                <div class="reg-campo"><label>📅 Fecha realizada</label><input type="date" id="regFecha-${t.id}" value="${new Date().toISOString().split('T')[0]}"></div>
+                <div class="reg-campo"><label>⏱️ Horas del equipo</label><input type="number" id="regHoras-${t.id}" value="${horas}" placeholder="${horas}"></div>
+              </div>
+              <div class="reg-fila">
+                <div class="reg-campo"><label>💰 Costo (opcional)</label><input type="number" id="regCosto-${t.id}" placeholder="Ej: 50000"></div>
+                <div class="reg-campo"><label>👤 Realizado por</label><input type="text" id="regPor-${t.id}" placeholder="Ej: Juan"></div>
+              </div>
+              <div class="reg-campo" style="margin-bottom:10px;">
+                <label>📝 Observaciones</label>
+                <textarea id="regObs-${t.id}" placeholder="Ej: Se usó aceite 20W-50"></textarea>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-confirmar-reg" onclick="confirmarRegistro('${t.id}')">✓ Confirmar</button>
+                <button class="btn-cancelar-reg" onclick="toggleRegistro('${t.id}')">Cancelar</button>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+
+    function toggleRegistro(tareaId) {
+      document.getElementById('reg-' + tareaId).classList.toggle('visible');
+    }
+
+    function guardarHoras() {
+      const horas = parseFloat(document.getElementById('mantHoras').value) || 0;
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const idx = equipos.findIndex(e => e.id === mantEquipoId);
+      if (idx !== -1) {
+        equipos[idx].horasAcumuladas = horas;
+        localStorage.setItem('equipos', JSON.stringify(equipos));
+        renderizarTareas(equipos[idx]);
+        mostrarToast('⏱️ Horas guardadas');
+        mostrarEquipos();
+      }
+    }
+
+    function confirmarRegistro(tareaId) {
+      const fecha = document.getElementById('regFecha-' + tareaId).value;
+      const horasReg = parseFloat(document.getElementById('regHoras-' + tareaId).value) || 0;
+      const costo = document.getElementById('regCosto-' + tareaId).value;
+      const por = document.getElementById('regPor-' + tareaId).value.trim();
+      const obs = document.getElementById('regObs-' + tareaId).value.trim();
+
+      if (!fecha) { alert('Cargá la fecha.'); return; }
+
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const idx = equipos.findIndex(e => e.id === mantEquipoId);
+      if (idx === -1) return;
+
+      const tIdx = equipos[idx].planMantenimiento.findIndex(t => String(t.id) === String(tareaId));
+      if (tIdx === -1) return;
+
+      equipos[idx].planMantenimiento[tIdx].ultimaFechaHecha = fecha;
+      equipos[idx].planMantenimiento[tIdx].ultimasHorasHechas = horasReg;
+      if (!equipos[idx].planMantenimiento[tIdx].historial) equipos[idx].planMantenimiento[tIdx].historial = [];
+      equipos[idx].planMantenimiento[tIdx].historial.push({
+        fecha, horas: horasReg, costo: costo || null,
+        realizadoPor: por || null, observaciones: obs || null,
+        fechaRegistro: new Date().toISOString()
+      });
+
+      localStorage.setItem('equipos', JSON.stringify(equipos));
+      renderizarTareas(equipos[idx]);
+      mostrarToast('✓ Tarea registrada');
+      mostrarEquipos();
+    }
+
+    function toggleAgregarTarea() {
+      document.getElementById('agregarTareaForm').classList.toggle('visible');
+    }
+
+    function guardarNuevaTarea() {
+      const comp = document.getElementById('ntComponente').value.trim();
+      const tar = document.getElementById('ntTarea').value.trim();
+      const intv = parseFloat(document.getElementById('ntIntervalo').value);
+      if (!comp || !tar || !intv) { alert('Completá todos los campos.'); return; }
+
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const idx = equipos.findIndex(e => e.id === mantEquipoId);
+      if (idx === -1) return;
+
+      if (!equipos[idx].planMantenimiento) equipos[idx].planMantenimiento = [];
+      equipos[idx].planMantenimiento.push({
+        id: Date.now() + Math.random(), componente: comp, tarea: tar, intervalo: intv,
+        ultimasHorasHechas: 0, ultimaFechaHecha: null, historial: []
+      });
+
+      localStorage.setItem('equipos', JSON.stringify(equipos));
+      document.getElementById('ntComponente').value = '';
+      document.getElementById('ntTarea').value = '';
+      document.getElementById('ntIntervalo').value = '';
+      document.getElementById('agregarTareaForm').classList.remove('visible');
+      renderizarTareas(equipos[idx]);
+      mostrarToast('✓ Tarea agregada al plan');
+    }
+
+    function cerrarModalMant() {
+      document.getElementById('modalMantOverlay').classList.remove('visible');
+      mantEquipoId = null;
+    }
+
+    function cerrarMantSiClickFuera(e) {
+      if (e.target.id === 'modalMantOverlay') cerrarModalMant();
+    }
+
+    function mostrarToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('visible');
+      setTimeout(() => t.classList.remove('visible'), 3000);
+    }
+
+    // ===== LÓGICA EXISTENTE =====
+    const camposPorTipo = {
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-potencia','bomba-tipo'],
+      goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
+      microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
+      canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],
+      aspersion: ['caudalAspersor','presion','cantidad','espaciado','lamina','duracion','turnos','tipo'],
+      superficie: ['caudal','tiempo','lamina','cantidad','largo','pendiente','control']
+    };
+
+    function prefijoSeccion(tipo) {
+      if (tipo === 'microaspersion') return 'goteo';
+      return tipo;
+    }
+
+    window.onload = function() {
+      verificarCampos();
+      cargarSelectorCampos();
+      mostrarEquipos();
+    };
+
+    function verificarCampos() {
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      if (campos.length === 0) {
+        document.getElementById('alertaSinCampos').classList.add('visible');
+        document.getElementById('tarjetaForm').style.display = 'none';
+      }
+    }
+
+    function cargarSelectorCampos() {
+      const select = document.getElementById('campo');
+      while (select.options.length > 1) select.remove(1);
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      campos.forEach(campo => {
+        const cliente = clientes.find(c => c.id === campo.clienteId);
+        const opt = document.createElement('option');
+        opt.value = campo.id;
+        opt.textContent = `${campo.nombre} (${cliente ? cliente.nombre : 'Sin cliente'})`;
+        select.appendChild(opt);
+      });
+    }
+
+    function actualizarClienteMostrado() {
+      const campoId = document.getElementById('campo').value;
+      const div = document.getElementById('clienteMostrado');
+      if (!campoId) { div.style.display = 'none'; return; }
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const campo = campos.find(c => c.id === parseInt(campoId));
+      const cliente = clientes.find(c => c.id === campo.clienteId);
+      if (cliente) { document.getElementById('clienteNombre').textContent = cliente.nombre; div.style.display = 'block'; }
+    }
+
+    function mostrarSeccionTipo() {
+      const tipo = document.getElementById('tipo').value;
+      document.querySelectorAll('.seccion-tipo').forEach(s => s.classList.remove('visible'));
+      if (tipo === 'pivote') document.getElementById('seccion-pivote').classList.add('visible');
+      else if (tipo === 'goteo' || tipo === 'microaspersion') document.getElementById('seccion-goteo').classList.add('visible');
+      else if (tipo === 'canon') document.getElementById('seccion-canon').classList.add('visible');
+      else if (tipo === 'aspersion') document.getElementById('seccion-aspersion').classList.add('visible');
+      else if (tipo === 'superficie') document.getElementById('seccion-superficie').classList.add('visible');
+    }
+
+    function guardarOActualizar() {
+      const campoId = document.getElementById('campo').value;
+      const tipo = document.getElementById('tipo').value;
+      const nombre = document.getElementById('nombre').value.trim();
+      if (!campoId || !tipo || !nombre) { alert('Completá campo, tipo y nombre del equipo.'); return; }
+
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+
+      if (editandoId) {
+        const existe = equipos.find(e => e.id !== editandoId && e.campoId === parseInt(campoId) && e.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existe) { alert('Este campo ya tiene OTRO equipo con ese nombre.'); return; }
+        const index = equipos.findIndex(e => e.id === editandoId);
+        if (index !== -1) {
+          equipos[index] = { ...equipos[index], campoId: parseInt(campoId), tipo, nombre,
+            marca: document.getElementById('marca').value,
+            modelo: document.getElementById('modelo').value.trim(),
+            numeroSerie: document.getElementById('numeroSerie').value.trim(),
+            anio: document.getElementById('anio').value,
+            superficie: document.getElementById('superficie').value,
+            gps: document.getElementById('gps').value.trim(),
+            energia: document.getElementById('energia').value,
+            fuenteAgua: document.getElementById('fuenteAgua').value,
+            eficiencia: document.getElementById('eficiencia').value,
+            observaciones: document.getElementById('observaciones').value.trim(),
+            datosTecnicos: recolectarDatosTecnicos(tipo),
+            fechaModificacion: new Date().toISOString() };
+          localStorage.setItem('equipos', JSON.stringify(equipos));
+          alert('¡Equipo actualizado!');
+          cancelarEdicion();
+        }
+      } else {
+        const existe = equipos.find(e => e.campoId === parseInt(campoId) && e.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existe) { alert('Este campo ya tiene un equipo con ese nombre.'); return; }
+        equipos.push({ id: Date.now(), campoId: parseInt(campoId), tipo, nombre,
+          marca: document.getElementById('marca').value,
+          modelo: document.getElementById('modelo').value.trim(),
+          numeroSerie: document.getElementById('numeroSerie').value.trim(),
+          anio: document.getElementById('anio').value,
+          superficie: document.getElementById('superficie').value,
+          gps: document.getElementById('gps').value.trim(),
+          energia: document.getElementById('energia').value,
+          fuenteAgua: document.getElementById('fuenteAgua').value,
+          eficiencia: document.getElementById('eficiencia').value,
+          observaciones: document.getElementById('observaciones').value.trim(),
+          datosTecnicos: recolectarDatosTecnicos(tipo),
+          fechaCreacion: new Date().toISOString() });
+        localStorage.setItem('equipos', JSON.stringify(equipos));
+        alert('¡Equipo guardado!');
+        limpiarFormulario();
+      }
+      mostrarEquipos();
+    }
+
+    function recolectarDatosTecnicos(tipo) {
+      const datos = {};
+      const prefijo = prefijoSeccion(tipo);
+      const lista = camposPorTipo[tipo];
+      if (!lista) return datos;
+      lista.forEach(k => {
+        const el = document.getElementById(prefijo + '-' + k);
+        if (el) datos[k] = el.value;
+      });
+      return datos;
+    }
+
+    function editarEquipo(id) {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const equipo = equipos.find(e => e.id === id);
+      if (!equipo) return;
+      document.getElementById('campo').value = equipo.campoId || '';
+      document.getElementById('tipo').value = equipo.tipo || '';
+      document.getElementById('nombre').value = equipo.nombre || '';
+      document.getElementById('marca').value = equipo.marca || '';
+      document.getElementById('modelo').value = equipo.modelo || '';
+      document.getElementById('numeroSerie').value = equipo.numeroSerie || '';
+      document.getElementById('anio').value = equipo.anio || '';
+      document.getElementById('superficie').value = equipo.superficie || '';
+      document.getElementById('gps').value = equipo.gps || '';
+      document.getElementById('energia').value = equipo.energia || '';
+      document.getElementById('fuenteAgua').value = equipo.fuenteAgua || '';
+      document.getElementById('eficiencia').value = equipo.eficiencia || '';
+      document.getElementById('observaciones').value = equipo.observaciones || '';
+      actualizarClienteMostrado();
+      mostrarSeccionTipo();
+      if (equipo.datosTecnicos && equipo.tipo) {
+        const prefijo = prefijoSeccion(equipo.tipo);
+        const lista = camposPorTipo[equipo.tipo];
+        if (lista) lista.forEach(k => {
+          const el = document.getElementById(prefijo + '-' + k);
+          if (el && equipo.datosTecnicos[k] !== undefined) el.value = equipo.datosTecnicos[k];
+        });
+      }
+      editandoId = id;
+      document.getElementById('tarjetaForm').classList.add('editando');
+      document.getElementById('tituloForm').classList.add('editando');
+      document.getElementById('tituloForm').textContent = '✏️ Editando equipo';
+      document.getElementById('botonGuardar').classList.add('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Actualizar equipo';
+      document.getElementById('botonCancelar').classList.add('visible');
+      document.getElementById('alertaEdicion').classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      mostrarEquipos();
+    }
+
+    function cancelarEdicion() {
+      editandoId = null;
+      limpiarFormulario();
+      document.getElementById('tarjetaForm').classList.remove('editando');
+      document.getElementById('tituloForm').classList.remove('editando');
+      document.getElementById('tituloForm').textContent = '+ Agregar un equipo de riego';
+      document.getElementById('botonGuardar').classList.remove('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Guardar equipo';
+      document.getElementById('botonCancelar').classList.remove('visible');
+      document.getElementById('alertaEdicion').classList.remove('visible');
+      mostrarEquipos();
+    }
+
+    function limpiarFormulario() {
+      document.querySelectorAll('#tarjetaForm input, #tarjetaForm select, #tarjetaForm textarea').forEach(el => el.value = '');
+      document.getElementById('clienteMostrado').style.display = 'none';
+      document.querySelectorAll('.seccion-tipo').forEach(s => s.classList.remove('visible'));
+    }
+
+    function iconoTipo(tipo) {
+      const iconos = { pivote:'🌀', canon:'💦', goteo:'💧', microaspersion:'💧', aspersion:'🚿', superficie:'🌊' };
+      return iconos[tipo] || '⚙️';
+    }
+
+    function nombreTipo(tipo) {
+      const nombres = { pivote:'Pivote', canon:'Cañón', goteo:'Goteo', microaspersion:'Microaspersión', aspersion:'Aspersión', superficie:'Superficie', otro:'Otro' };
+      return nombres[tipo] || tipo;
+    }
+
+    function mostrarEquipos() {
+      const lista = document.getElementById('listaEquipos');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+      if (equipos.length === 0) {
+        lista.innerHTML = `<div class="vacio"><div class="vacio-icono">💧</div><div>Todavía no cargaste ningún equipo.<br>Agregá el primero arriba.</div></div>`;
+        return;
+      }
+
+      lista.innerHTML = '';
+      equipos.forEach(equipo => {
+        const campo = campos.find(c => c.id === equipo.campoId);
+        const cliente = campo ? clientes.find(c => c.id === campo.clienteId) : null;
+        const nombreCampo = campo ? campo.nombre : 'Campo eliminado';
+        const nombreCliente = cliente ? cliente.nombre : 'Cliente eliminado';
+        const detalles = [nombreTipo(equipo.tipo)];
+        if (equipo.marca) detalles.push(equipo.marca);
+        if (equipo.superficie) detalles.push(equipo.superficie + ' ha');
+        const claseEditando = (equipo.id === editandoId) ? 'editando' : '';
+        const estadoMant = calcularEstadoMant(equipo);
+
+        lista.innerHTML += `
+          <div class="item ${claseEditando}">
+            <div class="item-icono">${iconoTipo(equipo.tipo)}</div>
+            <div class="item-info">
+              <div class="item-nombre">${equipo.nombre} ${badgeMant(estadoMant)}</div>
+              <div class="item-detalles">${detalles.join(' · ')}</div>
+              <div class="item-tags">
+                <span class="tag tag-cliente">👤 ${nombreCliente}</span>
+                <span class="tag tag-campo">🌾 ${nombreCampo}</span>
+              </div>
+            </div>
+            <div class="item-acciones">
+              <button class="item-mant-btn" onclick="abrirModalMant(${equipo.id})">🔧 Mant.</button>
+              <button class="item-boton item-editar" onclick="editarEquipo(${equipo.id})" title="Editar">✏️</button>
+              <button class="item-boton item-borrar" onclick="borrarEquipo(${equipo.id})" title="Borrar">×</button>
+            </div>
+          </div>`;
+      });
+    }
+
+    function borrarEquipo(id) {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      if (campanas.some(c => c.equipoId === id)) { alert('Este equipo tiene campañas asociadas. Borralas primero.'); return; }
+      if (!confirm('¿Seguro que querés borrar este equipo?')) return;
+      if (editandoId === id) cancelarEdicion();
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      equipos = equipos.filter(e => e.id !== id);
+      localStorage.setItem('equipos', JSON.stringify(equipos));
+      mostrarEquipos();
+    }
+  </script>
+</body>
+</html>

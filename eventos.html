@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Historial de Eventos</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <!-- SheetJS para exportar a Excel real -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FAF6EC;
+      color: #1A1A1A;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .volver {
+      display: inline-block;
+      color: #0F3D14;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: #fff;
+      border-radius: 100px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .contenedor { max-width: 1100px; margin: 0 auto; }
+
+    .header-eventos {
+      background: linear-gradient(135deg, #1565C0, #0D47A1);
+      color: #fff;
+      padding: 28px 24px;
+      border-radius: 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icono {
+      font-size: 44px;
+      width: 64px;
+      height: 64px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-eventos h1 { font-size: 24px; font-weight: 700; letter-spacing: 0.05em; }
+    .header-eventos p { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+
+    .kpis-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 700px) { .kpis-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      text-align: center;
+    }
+
+    .kpi-icono { font-size: 28px; margin-bottom: 6px; }
+    .kpi-valor { font-size: 26px; font-weight: 700; color: #0F3D14; line-height: 1; }
+    .kpi-unidad { font-size: 13px; color: #6B6356; }
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6B6356;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .filtros {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .filtros-grupo {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .filtros-grupo:last-child { margin-bottom: 0; }
+
+    .filtros-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6B6356;
+      font-weight: 700;
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .filtro-pill {
+      padding: 8px 14px;
+      border-radius: 100px;
+      background: #FAF6EC;
+      border: 1.5px solid transparent;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6B6356;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .filtro-pill.activo { background: #1565C0; color: #fff; }
+
+    .filtros-grupo select {
+      flex: 1;
+      max-width: 300px;
+      padding: 8px 12px;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #FAF6EC;
+      font-weight: 600;
+    }
+
+    .seccion-titulo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 24px 0 12px 4px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .seccion-titulo {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6356;
+    }
+
+    .botones-export {
+      display: flex;
+      gap: 8px;
+    }
+
+    .boton-export {
+      color: #fff;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .boton-export-excel { background: #1B5E20; }
+    .boton-export-excel:hover { background: #0F3D14; }
+
+    .boton-export-csv { background: #2E7D32; }
+    .boton-export-csv:hover { background: #1B5E20; }
+
+    .boton-export:disabled { background: #999; cursor: not-allowed; }
+
+    .evento {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: all 0.2s;
+    }
+
+    .evento:hover {
+      transform: translateX(2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .evento.editando {
+      border: 2px solid #D4A24C;
+      background: rgba(212, 162, 76, 0.05);
+    }
+
+    .evento-icono {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .evento-icono.tipo-riego { background: rgba(21, 101, 192, 0.12); }
+    .evento-icono.tipo-lluvia { background: rgba(0, 131, 143, 0.12); }
+    .evento-icono.tipo-aplicacion { background: rgba(123, 31, 162, 0.12); }
+
+    .evento-info { flex: 1; min-width: 0; }
+
+    .evento-titulo {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .evento-detalles {
+      font-size: 12px;
+      color: #6B6356;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .evento-obs {
+      font-size: 12px;
+      color: #6B6356;
+      margin-top: 6px;
+      font-style: italic;
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.03);
+      border-radius: 6px;
+    }
+
+    .badge-voz {
+      background: rgba(194, 24, 91, 0.12);
+      color: #C2185B;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-weight: 700;
+    }
+
+    .badge-manual {
+      background: rgba(107, 99, 86, 0.12);
+      color: #6B6356;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-weight: 700;
+    }
+
+    .evento-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .evento-boton {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .evento-editar { background: rgba(15, 61, 20, 0.1); color: #0F3D14; }
+    .evento-borrar { background: rgba(181, 55, 28, 0.1); color: #B5371C; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.visible { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-titulo {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #D4A24C;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .campo { margin-bottom: 16px; }
+
+    .campo label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #6B6356;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .campo input, .campo select, .campo textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      background: #FAF6EC;
+    }
+
+    .campo textarea { min-height: 60px; resize: vertical; }
+
+    .modal-botones { display: flex; gap: 10px; margin-top: 20px; }
+
+    .boton-confirmar {
+      flex: 1;
+      padding: 14px;
+      background: #D4A24C;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .boton-cancelar {
+      padding: 14px 20px;
+      background: rgba(0,0,0,0.06);
+      color: #6B6356;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .vacio {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6B6356;
+      background: #fff;
+      border-radius: 16px;
+      border: 2px dashed rgba(0,0,0,0.1);
+    }
+
+    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0F3D14;
+      color: #FAF6EC;
+      padding: 14px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      transition: transform 0.3s;
+      z-index: 2000;
+    }
+    .toast.visible { transform: translateX(-50%) translateY(0); }
+
+    .contador-eventos {
+      font-size: 12px;
+      color: #6B6356;
+      font-weight: 600;
+    }
+  
+    .sidebar { background: #0F3D14; color: #FAF6EC; padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: #FAF6EC; text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
+    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
+    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
+    </style>
+</head>
+<body>
+<div style="display:grid;grid-template-columns:240px 1fr;min-height:100vh;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+      </svg>
+      <div class="sidebar-logo-textos">
+        <div class="sidebar-logo-titulo">SAFIA</div>
+        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+      </div>
+    </div>
+    <div class="sidebar-grupo">Inicio</div>
+    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
+    <div class="sidebar-grupo">Datos</div>
+    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
+    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
+    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
+    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
+    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
+    <a href="analisis.html" class="sidebar-link"><span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span></a>
+    <div class="sidebar-grupo">Inteligencia</div>
+    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
+    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
+    <div class="sidebar-grupo">Operación</div>
+    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
+    <a href="eventos.html" class="sidebar-link activo"><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
+    <a href="encargado.html" class="sidebar-link "><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
+    <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
+    <a href="voz.html" class="sidebar-link "><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
+    <div class="sidebar-grupo">Sistema</div>
+    <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
+    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
+  </aside>
+
+  <div style="overflow-x:hidden;">
+  <div class="contenedor" style="padding:24px 32px 40px;">
+    <div class="header-eventos">
+      <div class="header-icono">📅</div>
+      <div>
+        <h1>HISTORIAL DE EVENTOS</h1>
+        <p>Todos los riegos, lluvias y aplicaciones cargados en SAFIA</p>
+      </div>
+    </div>
+
+    <div class="kpis-grid">
+      <div class="kpi">
+        <div class="kpi-icono">📊</div>
+        <div><span class="kpi-valor" id="kpiTotal">—</span></div>
+        <div class="kpi-label">Total eventos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icono">💧</div>
+        <div><span class="kpi-valor" id="kpiRiegoTotal">—</span><span class="kpi-unidad"> mm</span></div>
+        <div class="kpi-label">Riegos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icono">🌧️</div>
+        <div><span class="kpi-valor" id="kpiLluviaTotal">—</span><span class="kpi-unidad"> mm</span></div>
+        <div class="kpi-label">Lluvias</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-icono">🧪</div>
+        <div><span class="kpi-valor" id="kpiAplicaciones">—</span></div>
+        <div class="kpi-label">Aplicaciones</div>
+      </div>
+    </div>
+
+    <div class="filtros">
+
+      <div class="filtros-grupo">
+        <div class="filtros-label">Tipo:</div>
+        <button class="filtro-pill activo" onclick="filtrarTipo('todos', this)">Todos</button>
+        <button class="filtro-pill" onclick="filtrarTipo('riego', this)">💧 Riegos</button>
+        <button class="filtro-pill" onclick="filtrarTipo('lluvia', this)">🌧️ Lluvias</button>
+        <button class="filtro-pill" onclick="filtrarTipo('aplicacion', this)">🧪 Aplicaciones</button>
+      </div>
+
+      <div class="filtros-grupo">
+        <div class="filtros-label">Período:</div>
+        <button class="filtro-pill" onclick="filtrarPeriodo('hoy', this)">Hoy</button>
+        <button class="filtro-pill" onclick="filtrarPeriodo('7d', this)">7 días</button>
+        <button class="filtro-pill activo" onclick="filtrarPeriodo('30d', this)">30 días</button>
+        <button class="filtro-pill" onclick="filtrarPeriodo('todo', this)">Todo</button>
+      </div>
+
+      <div class="filtros-grupo">
+        <div class="filtros-label">Equipo:</div>
+        <select id="filtroEquipo" onchange="aplicarFiltros()">
+          <option value="">Todos los equipos</option>
+        </select>
+      </div>
+
+      <div class="filtros-grupo">
+        <div class="filtros-label">Origen:</div>
+        <button class="filtro-pill activo" onclick="filtrarOrigen('todos', this)">Todos</button>
+        <button class="filtro-pill" onclick="filtrarOrigen('manual', this)">⌨️ Manual</button>
+        <button class="filtro-pill" onclick="filtrarOrigen('voz', this)">🎤 Voz</button>
+      </div>
+
+    </div>
+
+    <div class="seccion-titulo-row">
+      <div class="seccion-titulo">
+        📋 Eventos <span class="contador-eventos" id="contadorEventos"></span>
+      </div>
+      <div class="botones-export">
+        <button class="boton-export boton-export-excel" onclick="exportarExcel()">📊 Excel (.xlsx)</button>
+        <button class="boton-export boton-export-csv" onclick="exportarCSV()">📄 CSV</button>
+      </div>
+    </div>
+
+    <div id="listaEventos"></div>
+
+  </div>
+
+  <!-- MODAL EDICIÓN -->
+  <div class="modal-overlay" id="modalOverlay" onclick="cerrarModalSiClickFuera(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-titulo">✏️ Editar evento</div>
+
+      <div class="campo">
+        <label>📅 Fecha</label>
+        <input type="date" id="editFecha">
+      </div>
+
+      <div class="campo">
+        <label>💧 Tipo</label>
+        <select id="editTipo" disabled>
+          <option value="riego">💧 Riego</option>
+          <option value="lluvia">🌧️ Lluvia</option>
+          <option value="aplicacion">🧪 Aplicación</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label>🚜 Equipo</label>
+        <select id="editEquipo"></select>
+      </div>
+
+      <div id="editCamposRiegoLluvia">
+        <div class="campo">
+          <label id="editLabelCantidad">💧 Cantidad (mm)</label>
+          <input type="number" step="0.1" id="editCantidad">
+        </div>
+      </div>
+
+      <div id="editCamposAplicacion" style="display:none;">
+        <div class="campo">
+          <label>🧪 Producto</label>
+          <input type="text" id="editProducto">
+        </div>
+        <div class="campo">
+          <label>📊 Dosis</label>
+          <input type="number" step="0.1" id="editDosis">
+        </div>
+        <div class="campo">
+          <label>📐 Unidad</label>
+          <select id="editUnidad">
+            <option value="L/ha">L/ha</option>
+            <option value="kg/ha">kg/ha</option>
+            <option value="g/ha">g/ha</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label>📝 Observaciones</label>
+        <textarea id="editObservaciones"></textarea>
+      </div>
+
+      <div class="modal-botones">
+        <button class="boton-cancelar" onclick="cerrarModal()">Cancelar</button>
+        <button class="boton-confirmar" onclick="guardarEdicion()">✓ Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let filtroTipo = 'todos';
+    let filtroPeriodo = '30d';
+    let filtroEquipo = '';
+    let filtroOrigen = 'todos';
+    let editandoId = null;
+
+    window.onload = function() {
+      cargarSelectorEquipos();
+      aplicarFiltros();
+    };
+
+    function cargarSelectorEquipos() {
+      const select = document.getElementById('filtroEquipo');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+      equipos.forEach(eq => {
+        const campo = campos.find(c => c.id === eq.campoId);
+        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+        const opt = document.createElement('option');
+        opt.value = eq.id;
+        opt.textContent = `${eq.nombre} (${campo ? campo.nombre : '?'} · ${cliente ? cliente.nombre : '?'})`;
+        select.appendChild(opt);
+      });
+    }
+
+    function filtrarTipo(tipo, boton) {
+      filtroTipo = tipo;
+      document.querySelectorAll('.filtros-grupo:nth-child(1) .filtro-pill').forEach(b => b.classList.remove('activo'));
+      boton.classList.add('activo');
+      aplicarFiltros();
+    }
+
+    function filtrarPeriodo(periodo, boton) {
+      filtroPeriodo = periodo;
+      document.querySelectorAll('.filtros-grupo:nth-child(2) .filtro-pill').forEach(b => b.classList.remove('activo'));
+      boton.classList.add('activo');
+      aplicarFiltros();
+    }
+
+    function filtrarOrigen(origen, boton) {
+      filtroOrigen = origen;
+      document.querySelectorAll('.filtros-grupo:nth-child(4) .filtro-pill').forEach(b => b.classList.remove('activo'));
+      boton.classList.add('activo');
+      aplicarFiltros();
+    }
+
+    function obtenerEventosFiltrados() {
+      filtroEquipo = document.getElementById('filtroEquipo').value;
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      let filtrados = eventos;
+
+      if (filtroTipo !== 'todos') filtrados = filtrados.filter(e => e.tipo === filtroTipo);
+      if (filtroEquipo) filtrados = filtrados.filter(e => e.equipoId === parseInt(filtroEquipo));
+      if (filtroOrigen !== 'todos') filtrados = filtrados.filter(e => e.cargadoPor === filtroOrigen);
+
+      if (filtroPeriodo !== 'todo') {
+        const desde = new Date();
+        if (filtroPeriodo === 'hoy') desde.setHours(0, 0, 0, 0);
+        else if (filtroPeriodo === '7d') desde.setDate(desde.getDate() - 7);
+        else if (filtroPeriodo === '30d') desde.setDate(desde.getDate() - 30);
+        filtrados = filtrados.filter(e => new Date(e.fecha) >= desde);
+      }
+
+      filtrados.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      return filtrados;
+    }
+
+    function aplicarFiltros() {
+      const filtrados = obtenerEventosFiltrados();
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+      const totalEventos = filtrados.length;
+      const totalRiego = filtrados.filter(e => e.tipo === 'riego').reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
+      const totalLluvia = filtrados.filter(e => e.tipo === 'lluvia').reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
+      const totalAplicaciones = filtrados.filter(e => e.tipo === 'aplicacion').length;
+
+      document.getElementById('kpiTotal').textContent = totalEventos;
+      document.getElementById('kpiRiegoTotal').textContent = totalRiego.toFixed(0);
+      document.getElementById('kpiLluviaTotal').textContent = totalLluvia.toFixed(0);
+      document.getElementById('kpiAplicaciones').textContent = totalAplicaciones;
+
+      const lista = document.getElementById('listaEventos');
+      const contador = document.getElementById('contadorEventos');
+      contador.textContent = `(${filtrados.length} resultados)`;
+
+      const botones = document.querySelectorAll('.boton-export');
+
+      if (filtrados.length === 0) {
+        lista.innerHTML = `<div class="vacio"><div class="vacio-icono">📭</div><div>No hay eventos con estos filtros.</div></div>`;
+        botones.forEach(b => b.disabled = true);
+        return;
+      }
+
+      botones.forEach(b => b.disabled = false);
+
+      lista.innerHTML = '';
+      filtrados.forEach(ev => {
+        const equipo = equipos.find(e => e.id === ev.equipoId);
+        const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
+        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+
+        const fecha = new Date(ev.fecha + 'T12:00:00');
+        const fechaStr = fecha.toLocaleDateString('es-PY', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        let icono, titulo;
+        if (ev.tipo === 'riego') { icono = '💧'; titulo = `Riego ${ev.cantidad} mm`; }
+        else if (ev.tipo === 'lluvia') { icono = '🌧️'; titulo = `Lluvia ${ev.cantidad} mm`; }
+        else { icono = '🧪'; titulo = `${ev.producto} ${ev.dosis} ${ev.unidad}`; }
+
+        const badgeOrigen = ev.cargadoPor === 'voz'
+          ? '<span class="badge-voz">🎤 VOZ</span>'
+          : '<span class="badge-manual">⌨️ MANUAL</span>';
+
+        const obsHTML = ev.observaciones && !ev.observaciones.startsWith('🎤')
+          ? `<div class="evento-obs">📝 ${ev.observaciones}</div>` : '';
+
+        const claseEditando = ev.id === editandoId ? 'editando' : '';
+
+        lista.innerHTML += `
+          <div class="evento ${claseEditando}">
+            <div class="evento-icono tipo-${ev.tipo}">${icono}</div>
+            <div class="evento-info">
+              <div class="evento-titulo">${titulo}${badgeOrigen}</div>
+              <div class="evento-detalles">
+                <span>📅 ${fechaStr}</span>
+                <span>🚜 ${equipo ? equipo.nombre : '?'}</span>
+                <span>🌾 ${campo ? campo.nombre : '?'}</span>
+                <span>👤 ${cliente ? cliente.nombre : '?'}</span>
+              </div>
+              ${obsHTML}
+            </div>
+            <div class="evento-acciones">
+              <button class="evento-boton evento-editar" onclick="editarEvento(${ev.id})" title="Editar">✏️</button>
+              <button class="evento-boton evento-borrar" onclick="borrarEvento(${ev.id})" title="Borrar">×</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // ============ EDITAR ============
+    function editarEvento(id) {
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const ev = eventos.find(e => e.id === id);
+      if (!ev) return;
+
+      editandoId = id;
+      document.getElementById('editFecha').value = ev.fecha;
+      document.getElementById('editTipo').value = ev.tipo;
+      document.getElementById('editObservaciones').value = ev.observaciones || '';
+
+      const selectEquipo = document.getElementById('editEquipo');
+      selectEquipo.innerHTML = '';
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      equipos.forEach(eq => {
+        const opt = document.createElement('option');
+        opt.value = eq.id;
+        opt.textContent = eq.nombre;
+        if (eq.id === ev.equipoId) opt.selected = true;
+        selectEquipo.appendChild(opt);
+      });
+
+      if (ev.tipo === 'aplicacion') {
+        document.getElementById('editCamposRiegoLluvia').style.display = 'none';
+        document.getElementById('editCamposAplicacion').style.display = 'block';
+        document.getElementById('editProducto').value = ev.producto || '';
+        document.getElementById('editDosis').value = ev.dosis || '';
+        document.getElementById('editUnidad').value = ev.unidad || 'L/ha';
+      } else {
+        document.getElementById('editCamposRiegoLluvia').style.display = 'block';
+        document.getElementById('editCamposAplicacion').style.display = 'none';
+        document.getElementById('editLabelCantidad').textContent = ev.tipo === 'riego' ? '💧 Cantidad regada (mm)' : '🌧️ Cantidad caída (mm)';
+        document.getElementById('editCantidad').value = ev.cantidad || '';
+      }
+
+      document.getElementById('modalOverlay').classList.add('visible');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalOverlay').classList.remove('visible');
+      editandoId = null;
+    }
+
+    function cerrarModalSiClickFuera(event) {
+      if (event.target.id === 'modalOverlay') cerrarModal();
+    }
+
+    function guardarEdicion() {
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const index = eventos.findIndex(e => e.id === editandoId);
+      if (index === -1) return;
+
+      const fecha = document.getElementById('editFecha').value;
+      const equipoId = parseInt(document.getElementById('editEquipo').value);
+      const observaciones = document.getElementById('editObservaciones').value.trim();
+
+      if (!fecha) { alert('Cargá la fecha.'); return; }
+
+      const ev = eventos[index];
+      ev.fecha = fecha;
+      ev.equipoId = equipoId;
+      ev.observaciones = observaciones;
+
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const ca = campanas.find(c => c.equipoId === equipoId && c.estado === 'Activa');
+      ev.campanaId = ca ? ca.id : null;
+
+      if (ev.tipo === 'aplicacion') {
+        const producto = document.getElementById('editProducto').value.trim();
+        const dosis = parseFloat(document.getElementById('editDosis').value);
+        const unidad = document.getElementById('editUnidad').value;
+        if (!producto || !dosis) { alert('Faltan producto/dosis.'); return; }
+        ev.producto = producto;
+        ev.dosis = dosis;
+        ev.unidad = unidad;
+      } else {
+        const cantidad = parseFloat(document.getElementById('editCantidad').value);
+        if (!cantidad || cantidad <= 0) { alert('Falta cantidad.'); return; }
+        ev.cantidad = cantidad;
+      }
+
+      ev.fechaModificacion = new Date().toISOString();
+      eventos[index] = ev;
+      localStorage.setItem('eventos', JSON.stringify(eventos));
+
+      cerrarModal();
+      mostrarToast('✓ Evento actualizado');
+      aplicarFiltros();
+    }
+
+    function borrarEvento(id) {
+      if (!confirm('¿Seguro que querés borrar este evento? No se puede deshacer.')) return;
+      let eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      eventos = eventos.filter(e => e.id !== id);
+      localStorage.setItem('eventos', JSON.stringify(eventos));
+      mostrarToast('✓ Evento borrado');
+      aplicarFiltros();
+    }
+
+    // ============ EXPORTAR — VERSIÓN MEJORADA ============
+    function prepararFilas() {
+      const filtrados = obtenerEventosFiltrados();
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+      return filtrados.map(ev => {
+        const equipo = equipos.find(e => e.id === ev.equipoId);
+        const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
+        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+
+        // Limpiar observaciones (sacar comillas y emojis problemáticos)
+        let obs = (ev.observaciones || '').replace(/"/g, "'");
+
+        return {
+          fecha: ev.fecha,
+          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : 'Aplicación',
+          cliente: cliente ? cliente.nombre : '',
+          campo: campo ? campo.nombre : '',
+          equipo: equipo ? equipo.nombre : '',
+          cantidad: ev.cantidad || '',
+          unidad: ev.unidad || (ev.cantidad ? 'mm' : ''),
+          producto: ev.producto || '',
+          dosis: ev.dosis || '',
+          origen: ev.cargadoPor === 'voz' ? 'Voz' : 'Manual',
+          observaciones: obs
+        };
+      });
+    }
+
+    // EXPORTAR A EXCEL NATIVO (.xlsx) — usa SheetJS
+    function exportarExcel() {
+      const filas = prepararFilas();
+      if (filas.length === 0) { alert('No hay eventos para exportar.'); return; }
+
+      // Convertir a array de arrays con encabezado
+      const headers = ['Fecha', 'Tipo', 'Cliente', 'Campo', 'Equipo', 'Cantidad', 'Unidad', 'Producto', 'Dosis', 'Origen', 'Observaciones'];
+      const datos = [headers, ...filas.map(f => [
+        f.fecha, f.tipo, f.cliente, f.campo, f.equipo,
+        f.cantidad, f.unidad, f.producto, f.dosis, f.origen, f.observaciones
+      ])];
+
+      // Crear workbook
+      const ws = XLSX.utils.aoa_to_sheet(datos);
+
+      // Anchos de columna automáticos
+      ws['!cols'] = [
+        { wch: 12 }, // Fecha
+        { wch: 12 }, // Tipo
+        { wch: 30 }, // Cliente
+        { wch: 25 }, // Campo
+        { wch: 18 }, // Equipo
+        { wch: 10 }, // Cantidad
+        { wch: 8 },  // Unidad
+        { wch: 15 }, // Producto
+        { wch: 8 },  // Dosis
+        { wch: 10 }, // Origen
+        { wch: 40 }  // Observaciones
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Eventos SAFIA');
+
+      const hoy = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `safia-eventos-${hoy}.xlsx`);
+
+      mostrarToast(`✓ ${filas.length} eventos exportados a Excel`);
+    }
+
+    // EXPORTAR A CSV — usa ; (punto y coma) para Excel español
+    function exportarCSV() {
+      const filas = prepararFilas();
+      if (filas.length === 0) { alert('No hay eventos para exportar.'); return; }
+
+      const headers = ['Fecha', 'Tipo', 'Cliente', 'Campo', 'Equipo', 'Cantidad', 'Unidad', 'Producto', 'Dosis', 'Origen', 'Observaciones'];
+
+      // Usar ; como separador (Excel español lo entiende)
+      let csv = headers.join(';') + '\n';
+      filas.forEach(f => {
+        csv += [
+          f.fecha, f.tipo, f.cliente, f.campo, f.equipo,
+          f.cantidad, f.unidad, f.producto, f.dosis, f.origen, f.observaciones
+        ].map(c => `"${c}"`).join(';') + '\n';
+      });
+
+      // Descargar con BOM UTF-8
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const hoy = new Date().toISOString().split('T')[0];
+      a.download = `safia-eventos-${hoy}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      mostrarToast(`✓ ${filas.length} eventos exportados a CSV`);
+    }
+
+    function mostrarToast(mensaje) {
+      const t = document.getElementById('toast');
+      t.textContent = mensaje;
+      t.classList.add('visible');
+      setTimeout(() => t.classList.remove('visible'), 2500);
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Respaldo de datos</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --verde: #0F3D14;
+      --verde-claro: #1B5E20;
+      --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D;
+      --crema: #FAF6EC;
+      --crema-oscuro: #f0ead8;
+      --rojo: #B5371C;
+      --gris-texto: #6B6356;
+      --negro: #1A1A1A;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--crema);
+      color: var(--negro);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--verde);
+      color: var(--crema);
+      padding: 24px 14px 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
+      margin-bottom: 18px;
+    }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+
+    .sidebar-grupo {
+      font-size: 10px; opacity: 0.55;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 18px 8px 6px; font-weight: 600;
+    }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      color: var(--crema); text-decoration: none;
+      font-size: 13px; margin-bottom: 1px;
+      transition: background 0.15s;
+    }
+    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
+    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
+
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: 24px; padding: 14px 10px 4px;
+      border-top: 1px solid rgba(212, 162, 76, 0.25);
+      font-size: 10px; opacity: 0.6; line-height: 1.5;
+    }
+
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+
+    .topbar {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
+    }
+    .topbar-saludo {
+      font-size: 11px; color: var(--gris-texto);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 4px; font-weight: 600;
+    }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
+    .topbar-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--ambar); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px;
+    }
+
+    .contenedor { max-width: 760px; margin: 0 auto; }
+
+    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
+
+    .tarjeta {
+      background: #fff; border-radius: 18px; padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
+    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
+
+    /* Resumen de registros */
+    .resumen-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px; margin-bottom: 8px;
+    }
+    .resumen-item {
+      background: var(--crema); border-radius: 14px; padding: 16px 18px;
+      border: 1.5px solid rgba(15, 61, 20, 0.08);
+    }
+    .resumen-item-clave {
+      font-size: 11px; font-weight: 600; color: var(--gris-texto);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      display: flex; align-items: center; gap: 7px;
+    }
+    .resumen-item-num { font-size: 28px; font-weight: 700; color: var(--verde); line-height: 1.1; margin-top: 6px; }
+    .resumen-item-num.cero { color: rgba(107, 99, 86, 0.45); }
+    .resumen-item-label { font-size: 11px; color: var(--gris-texto); margin-top: 2px; }
+
+    .resumen-total {
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px solid rgba(15, 61, 20, 0.1);
+      font-size: 14px; color: var(--gris-texto);
+    }
+    .resumen-total strong { color: var(--verde); }
+
+    /* Botones */
+    .boton-principal {
+      width: 100%; padding: 18px;
+      background: #0F3D14; color: #FAF6EC;
+      border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .boton-principal:hover { background: #1B5E20; }
+
+    .boton-ambar {
+      width: 100%; padding: 18px;
+      background: #D4A24C; color: #fff;
+      border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .boton-ambar:hover { background: #B88A3D; }
+    .boton-ambar:disabled { background: rgba(0,0,0,0.12); color: rgba(107,99,86,0.6); cursor: not-allowed; }
+
+    .input-file-wrap { position: relative; margin-bottom: 18px; }
+    .input-file-wrap input[type=file] { display: none; }
+    .input-file-label {
+      display: flex; align-items: center; gap: 12px;
+      padding: 18px 20px; border-radius: 12px;
+      border: 1.5px dashed rgba(15, 61, 20, 0.25);
+      background: var(--crema); color: var(--gris-texto);
+      font-size: 14px; cursor: pointer; font-weight: 600;
+      transition: all 0.2s;
+    }
+    .input-file-label:hover { border-color: var(--verde); background: #fff; }
+    .input-file-label .ico { font-size: 22px; }
+    .input-file-nombre { font-weight: 400; color: var(--negro); }
+
+    .alerta {
+      border-left: 4px solid var(--ambar);
+      background: rgba(212, 162, 76, 0.15);
+      padding: 14px 18px; border-radius: 8px;
+      margin-bottom: 20px; font-size: 13px;
+      color: #8B6F00; line-height: 1.5;
+    }
+    .alerta.peligro {
+      border-left-color: var(--rojo);
+      background: rgba(181, 55, 28, 0.1);
+      color: #8a2a14;
+    }
+
+    /* Vista previa de importación */
+    .preview-import { display: none; margin-top: 18px; }
+    .preview-import.visible { display: block; }
+    .preview-fila {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; font-size: 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .preview-fila:last-child { border-bottom: none; }
+    .preview-clave { color: var(--negro); font-weight: 600; }
+    .preview-cambio { font-size: 13px; color: var(--gris-texto); }
+    .preview-cambio .actual { color: var(--rojo); }
+    .preview-cambio .flecha { margin: 0 6px; opacity: 0.5; }
+    .preview-cambio .nuevo { color: var(--verde); font-weight: 700; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--verde); color: var(--crema);
+      padding: 14px 24px; border-radius: 12px;
+      font-size: 14px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 100;
+    }
+    .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: var(--rojo); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+    }
+    @media (max-width: 500px) {
+      .main { padding: 16px; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
+          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
+          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+        </svg>
+        <div class="sidebar-logo-textos">
+          <div class="sidebar-logo-titulo">SAFIA</div>
+          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+        </div>
+      </div>
+
+      <div class="sidebar-grupo">Inicio</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-grupo">Datos</div>
+      <a href="mis-clientes.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
+      </a>
+      <a href="mis-campos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
+      </a>
+      <a href="mis-equipos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
+      </a>
+      <a href="mis-cultivos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
+      </a>
+      <a href="mis-campanas.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
+      </a>
+      <a href="analisis.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span>
+      </a>
+
+      <div class="sidebar-grupo">Inteligencia</div>
+      <a href="clima.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
+      </a>
+      <a href="prediccion.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
+      </a>
+
+      <div class="sidebar-grupo">Operación</div>
+      <a href="operador.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
+      </a>
+      <a href="eventos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
+      </a>
+      <a href="encargado.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
+      </a>
+      <a href="propietario.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
+      </a>
+      <a href="voz.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
+      </a>
+
+      <div class="sidebar-grupo">Sistema</div>
+      <a href="backup.html" class="sidebar-link activo">
+        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
+      </a>
+
+      <div class="sidebar-footer">
+        SAFIA v1.0<br>
+        Herramienta para productores
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div>
+          <div class="topbar-saludo">Sistema</div>
+          <div class="topbar-titulo">💾 Respaldo de datos</div>
+        </div>
+        <div class="topbar-derecha">
+          <div class="topbar-fecha" id="topbarFecha">—</div>
+          <div class="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <div class="contenedor">
+
+        <p class="subtitulo-pagina">
+          Tus datos viven solo en este navegador. Descargá un respaldo cada cierto tiempo para no
+          perder nada si se borra el caché, cambiás de equipo o reinstalás. Guardá el archivo en un
+          lugar seguro (correo, pendrive o la nube).
+        </p>
+
+        <!-- 1 + 3: Resumen + Exportar -->
+        <div class="tarjeta">
+          <div class="tarjeta-titulo">📤 Exportar respaldo</div>
+          <div class="tarjeta-sub">Estos son los datos que se guardarán en el archivo JSON:</div>
+
+          <div class="resumen-grid" id="resumenGrid"></div>
+          <div class="resumen-total" id="resumenTotal"></div>
+
+          <div style="margin-top:22px;">
+            <button class="boton-principal" id="botonExportar" onclick="exportar()">
+              ⬇️ Descargar respaldo (.json)
+            </button>
+          </div>
+        </div>
+
+        <!-- 2: Importar -->
+        <div class="tarjeta">
+          <div class="tarjeta-titulo">📥 Importar / Restaurar respaldo</div>
+          <div class="tarjeta-sub">Seleccioná un archivo de respaldo SAFIA (.json) para restaurar tus datos.</div>
+
+          <div class="alerta peligro">
+            ⚠️ <strong>Atención:</strong> al restaurar se <strong>reemplazan</strong> todos los datos
+            actuales por los del archivo. Lo que tengas cargado ahora se perderá. Si tenés dudas,
+            descargá primero un respaldo del estado actual.
+          </div>
+
+          <div class="input-file-wrap">
+            <input type="file" id="archivoImport" accept="application/json,.json" onchange="archivoSeleccionado(event)">
+            <label for="archivoImport" class="input-file-label">
+              <span class="ico">📂</span>
+              <span>Elegir archivo de respaldo… <span class="input-file-nombre" id="nombreArchivo"></span></span>
+            </label>
+          </div>
+
+          <div class="preview-import" id="previewImport">
+            <div class="tarjeta-sub" style="margin-bottom:10px;">Vista previa de lo que se va a restaurar (actual → nuevo):</div>
+            <div id="previewFilas"></div>
+          </div>
+
+          <button class="boton-ambar" id="botonImportar" onclick="importar()" disabled>
+            ♻️ Restaurar estos datos
+          </button>
+        </div>
+
+        <div class="alerta">
+          ℹ️ <strong>Nota:</strong> el respaldo incluye clientes, campos, equipos, campañas, cultivos
+          y eventos. Los documentos y análisis con archivos adjuntos (PDF/imágenes) se guardan aparte
+          y no se incluyen en este respaldo.
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Claves de SAFIA a respaldar, con etiqueta amigable e ícono
+    const CLAVES = [
+      { clave: 'clientes',        label: 'Clientes',           icono: '👤' },
+      { clave: 'campos',          label: 'Campos',             icono: '🌾' },
+      { clave: 'equipos',         label: 'Equipos',            icono: '💧' },
+      { clave: 'campanas',        label: 'Campañas',           icono: '📋' },
+      { clave: 'cultivos_fao',    label: 'Cultivos FAO',       icono: '🌱' },
+      { clave: 'cultivos_custom', label: 'Cultivos propios',   icono: '🌿' },
+      { clave: 'eventos',         label: 'Eventos',            icono: '📅' },
+    ];
+
+    // Fecha en el topbar
+    document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    // --- Helpers ---
+    function leerClave(clave) {
+      try {
+        const dato = JSON.parse(localStorage.getItem(clave) || '[]');
+        return Array.isArray(dato) ? dato : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function contar(clave) {
+      return leerClave(clave).length;
+    }
+
+    function mostrarToast(mensaje, esError) {
+      const t = document.getElementById('toast');
+      t.textContent = mensaje;
+      t.className = 'toast visible' + (esError ? ' error' : '');
+      setTimeout(() => { t.className = 'toast'; }, 3500);
+    }
+
+    function fechaArchivo() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
+    }
+
+    // --- 1 + 3: Resumen de registros ---
+    function renderResumen() {
+      const grid = document.getElementById('resumenGrid');
+      let total = 0;
+      grid.innerHTML = CLAVES.map(c => {
+        const n = contar(c.clave);
+        total += n;
+        return `
+          <div class="resumen-item">
+            <div class="resumen-item-clave">${c.icono} ${c.label}</div>
+            <div class="resumen-item-num ${n === 0 ? 'cero' : ''}">${n}</div>
+            <div class="resumen-item-label">registro${n === 1 ? '' : 's'}</div>
+          </div>`;
+      }).join('');
+
+      const totalEl = document.getElementById('resumenTotal');
+      totalEl.innerHTML = `Total: <strong>${total}</strong> registro${total === 1 ? '' : 's'} en ${CLAVES.length} categorías.`;
+
+      document.getElementById('botonExportar').disabled = false; // siempre se puede exportar (incluso vacío)
+    }
+
+    // --- 1: Exportar ---
+    function exportar() {
+      const datos = {};
+      CLAVES.forEach(c => { datos[c.clave] = leerClave(c.clave); });
+
+      const backup = {
+        _app: 'SAFIA',
+        _tipo: 'backup',
+        _version: 1,
+        _fecha: new Date().toISOString(),
+        datos
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `safia-backup_${fechaArchivo()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      mostrarToast('✅ Respaldo descargado');
+    }
+
+    // --- 2: Importar ---
+    let backupCargado = null;
+
+    function archivoSeleccionado(event) {
+      const archivo = event.target.files[0];
+      const nombreEl = document.getElementById('nombreArchivo');
+      const preview = document.getElementById('previewImport');
+      const boton = document.getElementById('botonImportar');
+
+      backupCargado = null;
+      boton.disabled = true;
+      preview.classList.remove('visible');
+
+      if (!archivo) { nombreEl.textContent = ''; return; }
+      nombreEl.textContent = archivo.name;
+
+      const lector = new FileReader();
+      lector.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          // Acepta el formato con envoltorio {_app, datos} o un objeto plano con las claves
+          const datos = (parsed && parsed.datos) ? parsed.datos : parsed;
+
+          if (!datos || typeof datos !== 'object') {
+            throw new Error('formato');
+          }
+
+          // Validar que tenga al menos una clave conocida
+          const tieneAlguna = CLAVES.some(c => Array.isArray(datos[c.clave]));
+          if (!tieneAlguna) {
+            throw new Error('sin-claves');
+          }
+
+          backupCargado = datos;
+          renderPreview(datos);
+          preview.classList.add('visible');
+          boton.disabled = false;
+        } catch (err) {
+          mostrarToast('❌ El archivo no es un respaldo SAFIA válido', true);
+          nombreEl.textContent = '';
+        }
+      };
+      lector.onerror = () => mostrarToast('❌ No se pudo leer el archivo', true);
+      lector.readAsText(archivo);
+    }
+
+    function renderPreview(datos) {
+      const cont = document.getElementById('previewFilas');
+      cont.innerHTML = CLAVES.map(c => {
+        const actual = contar(c.clave);
+        const nuevoArr = Array.isArray(datos[c.clave]) ? datos[c.clave] : null;
+        const nuevoTxt = nuevoArr === null
+          ? '<span style="opacity:.5">(no incluido — se conserva)</span>'
+          : `${nuevoArr.length} registro${nuevoArr.length === 1 ? '' : 's'}`;
+        return `
+          <div class="preview-fila">
+            <span class="preview-clave">${c.icono} ${c.label}</span>
+            <span class="preview-cambio">
+              <span class="actual">${actual}</span>
+              <span class="flecha">→</span>
+              <span class="nuevo">${nuevoTxt}</span>
+            </span>
+          </div>`;
+      }).join('');
+    }
+
+    function importar() {
+      if (!backupCargado) return;
+      if (!confirm('¿Restaurar los datos del respaldo? Se reemplazarán todos los datos actuales. Esta acción no se puede deshacer.')) return;
+
+      let restauradas = 0;
+      CLAVES.forEach(c => {
+        if (Array.isArray(backupCargado[c.clave])) {
+          localStorage.setItem(c.clave, JSON.stringify(backupCargado[c.clave]));
+          restauradas++;
+        }
+      });
+
+      renderResumen();
+      mostrarToast(`✅ Datos restaurados (${restauradas} categorías)`);
+
+      // Limpiar el panel de importación
+      backupCargado = null;
+      document.getElementById('archivoImport').value = '';
+      document.getElementById('nombreArchivo').textContent = '';
+      document.getElementById('previewImport').classList.remove('visible');
+      document.getElementById('botonImportar').disabled = true;
+    }
+
+    // Init
+    renderResumen();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Cargar por Voz</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FAF6EC;
+      color: #1A1A1A;
+      min-height: 100vh;
+    }
+
+    .volver {
+      display: inline-block;
+      color: #0F3D14;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding: 8px 14px;
+      background: #fff;
+      border-radius: 100px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .contenedor { max-width: 600px; margin: 0 auto; }
+
+    .header-voz {
+      background: linear-gradient(135deg, #C2185B, #880E4F);
+      color: #fff;
+      padding: 24px 22px;
+      border-radius: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icono {
+      font-size: 42px;
+      width: 60px;
+      height: 60px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-textos h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.05em; }
+    .header-textos p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+
+    .config-row {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+
+    .config-row label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #6B6356;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    .config-row select {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #FAF6EC;
+      font-weight: 600;
+    }
+
+    .ayuda {
+      background: rgba(15, 61, 20, 0.05);
+      border-left: 4px solid #0F3D14;
+      padding: 14px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #0F3D14;
+      margin-bottom: 16px;
+    }
+
+    .ayuda-ejemplos {
+      margin-top: 8px;
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .ayuda-ejemplos div {
+      padding: 4px 0;
+      font-style: italic;
+    }
+
+    .ayuda-tip {
+      background: rgba(212, 162, 76, 0.15);
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #8B6F00;
+    }
+
+    .debug-panel {
+      background: #1a1a1a;
+      color: #00ff00;
+      font-family: 'Consolas', monospace;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      max-height: 150px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .debug-panel.visible { display: block; }
+    .debug-line { padding: 2px 0; border-bottom: 1px solid rgba(0, 255, 0, 0.1); }
+    .debug-line.error { color: #ff6b6b; }
+    .debug-line.warning { color: #ffd93d; }
+    .debug-line.success { color: #51cf66; }
+    .debug-line.info { color: #4dabf7; }
+
+    .alerta {
+      background: rgba(181, 55, 28, 0.08);
+      border: 1.5px solid rgba(181, 55, 28, 0.25);
+      color: #B5371C;
+      padding: 14px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .alerta.visible { display: block; }
+    .alerta a { color: #B5371C; font-weight: 700; }
+
+    .micro-container {
+      background: #fff;
+      border-radius: 24px;
+      padding: 32px 20px;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      margin-bottom: 14px;
+    }
+
+    .micro-boton {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #C2185B, #880E4F);
+      color: #fff;
+      border: none;
+      font-size: 60px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(194, 24, 91, 0.3);
+      transition: all 0.2s;
+    }
+
+    .micro-boton:hover { transform: scale(1.05); }
+    .micro-boton:active { transform: scale(0.95); }
+    .micro-boton:disabled { background: linear-gradient(135deg, #999, #666); cursor: not-allowed; }
+
+    .micro-boton.escuchando {
+      background: linear-gradient(135deg, #B5371C, #8B2C17);
+      animation: pulso 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulso {
+      0%, 100% { box-shadow: 0 8px 24px rgba(181, 55, 28, 0.3); transform: scale(1); }
+      50% { box-shadow: 0 12px 36px rgba(181, 55, 28, 0.6); transform: scale(1.05); }
+    }
+
+    .micro-status {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #6B6356;
+      font-weight: 600;
+    }
+
+    .micro-status.escuchando { color: #B5371C; }
+
+    .boton-test, .boton-debug {
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 12px;
+    }
+
+    .boton-test { background: #1565C0; color: #fff; }
+    .boton-debug { background: rgba(0,0,0,0.06); color: #6B6356; padding: 6px 12px; font-size: 11px; }
+
+    .transcripcion {
+      background: rgba(15, 61, 20, 0.06);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .transcripcion.visible { display: block; }
+    .transcripcion-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6B6356;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .transcripcion-texto {
+      font-size: 16px;
+      color: #1A1A1A;
+      font-style: italic;
+      line-height: 1.5;
+    }
+    .transcripcion-texto::before { content: '"'; }
+    .transcripcion-texto::after { content: '"'; }
+
+    .interpretacion {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      margin-bottom: 14px;
+      display: none;
+    }
+    .interpretacion.visible { display: block; }
+    .interp-titulo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0F3D14;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .interp-confianza {
+      display: inline-block;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      font-weight: 700;
+      margin-left: auto;
+    }
+    .confianza-alta { background: rgba(46, 125, 50, 0.15); color: #2E7D32; }
+    .confianza-media { background: rgba(212, 162, 76, 0.2); color: #8B6F00; }
+    .confianza-baja { background: rgba(181, 55, 28, 0.15); color: #B5371C; }
+
+    .campo-detectado {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      gap: 12px;
+    }
+    .campo-detectado:last-child { border-bottom: none; }
+    .campo-detectado-info { flex: 1; min-width: 0; }
+    .campo-detectado-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #6B6356;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .campo-detectado select,
+    .campo-detectado input {
+      flex: 1;
+      max-width: 200px;
+      padding: 10px 12px;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      background: #FAF6EC;
+    }
+
+    .botones-accion {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .boton-accion {
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .boton-confirmar { background: #0F3D14; color: #FAF6EC; }
+    .boton-confirmar:hover { background: #1B5E20; }
+    .boton-repetir { background: rgba(0,0,0,0.06); color: #6B6356; }
+
+    .seccion-titulo {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6356;
+      margin: 24px 0 12px 4px;
+    }
+
+    .evento {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .evento-icono {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .evento-icono.tipo-riego { background: rgba(21, 101, 192, 0.12); }
+    .evento-icono.tipo-lluvia { background: rgba(0, 131, 143, 0.12); }
+    .evento-icono.tipo-aplicacion { background: rgba(123, 31, 162, 0.12); }
+
+    .evento-info { flex: 1; min-width: 0; }
+    .evento-titulo-evt { font-size: 14px; font-weight: 700; }
+    .evento-detalle { font-size: 12px; color: #6B6356; margin-top: 2px; }
+
+    .badge-voz {
+      background: rgba(194, 24, 91, 0.12);
+      color: #C2185B;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 100px;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    .vacio {
+      text-align: center;
+      padding: 30px 20px;
+      color: #6B6356;
+      background: #fff;
+      border-radius: 14px;
+      border: 2px dashed rgba(0,0,0,0.1);
+      font-size: 13px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0F3D14;
+      color: #FAF6EC;
+      padding: 14px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      transition: transform 0.3s;
+      z-index: 2000;
+    }
+    .toast.visible { transform: translateX(-50%) translateY(0); }
+  
+    .sidebar { background: #0F3D14; color: #FAF6EC; padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: #FAF6EC; text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
+    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
+    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
+    </style>
+</head>
+<body>
+<div style="display:grid;grid-template-columns:240px 1fr;min-height:100vh;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+      </svg>
+      <div class="sidebar-logo-textos">
+        <div class="sidebar-logo-titulo">SAFIA</div>
+        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+      </div>
+    </div>
+    <div class="sidebar-grupo">Inicio</div>
+    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
+    <div class="sidebar-grupo">Datos</div>
+    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
+    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
+    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
+    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
+    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
+    <a href="analisis.html" class="sidebar-link"><span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span></a>
+    <div class="sidebar-grupo">Inteligencia</div>
+    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
+    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
+    <div class="sidebar-grupo">Operación</div>
+    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
+    <a href="eventos.html" class="sidebar-link "><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
+    <a href="encargado.html" class="sidebar-link "><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
+    <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
+    <a href="voz.html" class="sidebar-link activo"><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
+    <div class="sidebar-grupo">Sistema</div>
+    <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
+    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
+  </aside>
+
+  <div style="overflow-x:hidden;">
+  <div class="contenedor" style="padding:24px 32px 40px;">
+    <div class="header-voz">
+      <div class="header-icono">🎤</div>
+      <div class="header-textos">
+        <h1>CARGAR POR VOZ</h1>
+        <p>Hablá natural y SAFIA registra el evento</p>
+      </div>
+    </div>
+
+    <div class="config-row">
+      <label>🌎 Idioma:</label>
+      <select id="selectorIdioma" onchange="cambiarIdioma(this.value)">
+        <option value="es-MX">Español (México) ⭐</option>
+        <option value="es-AR">Español (Argentina)</option>
+        <option value="es-419">Español Latinoamérica</option>
+        <option value="es-PY">Español (Paraguay)</option>
+        <option value="es-ES">Español (España)</option>
+        <option value="es-US">Español (USA)</option>
+      </select>
+    </div>
+
+    <div class="alerta" id="alertaSinSoporte">
+      ⚠️ Tu navegador no soporta voz. Probá con Chrome.
+    </div>
+
+    <div class="alerta" id="alertaSinEquipos">
+      ⚠️ No hay equipos cargados. <a href="mis-equipos.html">Cargar equipos</a>
+    </div>
+
+    <div class="ayuda">
+      💡 <strong>Tocá el micrófono y hablá natural.</strong>
+      <div class="ayuda-ejemplos">
+        <div>"Riego de 20 mm en pivote 1"</div>
+        <div>"Llovieron 25 mm en pivote 2"</div>
+        <div>"Apliqué glifosato 2.5 litros por hectárea en pivote 1"</div>
+      </div>
+      <div class="ayuda-tip">
+        💪 <strong>Tip:</strong> Hablá claro y usá la palabra "riego" (no "regué"), funciona mejor.
+      </div>
+    </div>
+
+    <div class="micro-container">
+      <button class="micro-boton" id="microBoton" onclick="toggleEscucha()">🎤</button>
+      <div class="micro-status" id="microStatus">Tocá para empezar</div>
+      <div>
+        <button class="boton-test" onclick="testMicrofono()">🧪 Probar micrófono</button>
+      </div>
+      <div>
+        <button class="boton-debug" onclick="toggleDebug()">🐛 Mostrar consola técnica</button>
+      </div>
+    </div>
+
+    <div class="debug-panel" id="debugPanel">
+      <div class="debug-line info">[DEBUG] SAFIA Voz inicializado</div>
+    </div>
+
+    <div class="transcripcion" id="transcripcion">
+      <div class="transcripcion-label">📝 Lo que escuché</div>
+      <div class="transcripcion-texto" id="transcripcionTexto">—</div>
+    </div>
+
+    <div class="interpretacion" id="interpretacion">
+      <div class="interp-titulo">
+        🤖 SAFIA entendió:
+        <span class="interp-confianza" id="confianzaBadge"></span>
+      </div>
+      <div id="camposDetectados"></div>
+      <div class="botones-accion" style="margin-top: 16px;">
+        <button class="boton-repetir" onclick="repetir()">🎤 Repetir</button>
+        <button class="boton-confirmar" onclick="confirmar()">✓ Confirmar y guardar</button>
+      </div>
+    </div>
+
+    <div class="seccion-titulo">📅 Últimos cargados por voz</div>
+    <div id="listaEventosVoz">
+      <div class="vacio">Todavía no cargaste eventos por voz.</div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let recognition = null;
+    let escuchando = false;
+    let interpretacionActual = null;
+    let idiomaActual = 'es-MX';
+    let intentosRestantes = 2;
+
+    function log(mensaje, tipo = 'info') {
+      const panel = document.getElementById('debugPanel');
+      const linea = document.createElement('div');
+      linea.className = 'debug-line ' + tipo;
+      const tiempo = new Date().toLocaleTimeString();
+      linea.textContent = `[${tiempo}] ${mensaje}`;
+      panel.appendChild(linea);
+      panel.scrollTop = panel.scrollHeight;
+      console.log(`[SAFIA Voz] ${mensaje}`);
+    }
+
+    function toggleDebug() {
+      document.getElementById('debugPanel').classList.toggle('visible');
+    }
+
+    async function testMicrofono() {
+      log('🧪 Iniciando test...', 'info');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        log('✅ Mic accesible', 'success');
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        let maxVol = 0;
+        log('🎤 Hablá durante 3 segundos...', 'warning');
+        const startTime = Date.now();
+        const interval = setInterval(() => {
+          analyser.getByteFrequencyData(data);
+          const vol = data.reduce((a, b) => a + b, 0) / data.length;
+          maxVol = Math.max(maxVol, vol);
+          if (Date.now() - startTime > 3000) {
+            clearInterval(interval);
+            stream.getTracks().forEach(t => t.stop());
+            audioContext.close();
+            if (maxVol > 5) {
+              log(`✅ Audio OK (vol: ${maxVol.toFixed(1)})`, 'success');
+              mostrarToast('✅ Tu micrófono funciona perfecto');
+            } else {
+              log(`⚠️ Audio bajo (vol: ${maxVol.toFixed(1)})`, 'warning');
+              mostrarToast('⚠️ No se detectó audio claro');
+            }
+          }
+        }, 100);
+      } catch (err) {
+        log(`❌ ${err.message}`, 'error');
+        mostrarToast('❌ Error: ' + err.message);
+      }
+    }
+
+    function cambiarIdioma(lang) {
+      idiomaActual = lang;
+      if (recognition) recognition.lang = lang;
+      log(`🌎 Idioma: ${lang}`, 'info');
+    }
+
+    window.onload = function() {
+      log('🚀 SAFIA Voz iniciado', 'info');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      if (equipos.length === 0) {
+        document.getElementById('alertaSinEquipos').classList.add('visible');
+        document.getElementById('microBoton').disabled = true;
+        return;
+      }
+      log(`✅ ${equipos.length} equipo(s)`, 'success');
+
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        document.getElementById('alertaSinSoporte').classList.add('visible');
+        document.getElementById('microBoton').disabled = true;
+        return;
+      }
+      inicializarRecognition();
+      mostrarEventosVoz();
+    };
+
+    function inicializarRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SR();
+      recognition.lang = idiomaActual;
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 3;
+
+      recognition.onstart = () => log('🎤 Iniciado', 'success');
+      recognition.onspeechstart = () => log('🗣️ Voz detectada', 'success');
+
+      recognition.onresult = (event) => {
+        const texto = event.results[0][0].transcript;
+        log(`✅ "${texto}"`, 'success');
+        intentosRestantes = 2;
+        procesarTranscripcion(texto);
+      };
+
+      recognition.onerror = (event) => {
+        log(`❌ ${event.error}`, 'error');
+        detenerEscucha();
+        if (event.error === 'network' && intentosRestantes > 0) {
+          intentosRestantes--;
+          mostrarToast('🔄 Reintentando...');
+          setTimeout(() => iniciarEscucha(), 1500);
+          return;
+        }
+        const msgs = {
+          'network': '🌐 Error de red',
+          'not-allowed': '🔒 Permiso denegado',
+          'no-speech': '🤐 No escuché nada',
+          'audio-capture': '🎤 Sin micrófono'
+        };
+        mostrarToast(msgs[event.error] || `❌ ${event.error}`);
+      };
+
+      recognition.onend = () => detenerEscucha();
+    }
+
+    function toggleEscucha() {
+      if (escuchando) {
+        try { recognition.stop(); } catch(e) {}
+        detenerEscucha();
+      } else {
+        iniciarEscucha();
+      }
+    }
+
+    function iniciarEscucha() {
+      if (!recognition) return;
+      try {
+        try { recognition.abort(); } catch(e) {}
+        recognition.lang = idiomaActual;
+        recognition.start();
+        escuchando = true;
+        document.getElementById('microBoton').classList.add('escuchando');
+        document.getElementById('microBoton').textContent = '🔴';
+        document.getElementById('microStatus').textContent = 'Escuchando... hablá';
+        document.getElementById('microStatus').classList.add('escuchando');
+        document.getElementById('transcripcion').classList.remove('visible');
+        document.getElementById('interpretacion').classList.remove('visible');
+      } catch (e) {
+        log(`❌ ${e.message}`, 'error');
+        detenerEscucha();
+      }
+    }
+
+    function detenerEscucha() {
+      escuchando = false;
+      document.getElementById('microBoton').classList.remove('escuchando');
+      document.getElementById('microBoton').textContent = '🎤';
+      document.getElementById('microStatus').textContent = 'Tocá para empezar';
+      document.getElementById('microStatus').classList.remove('escuchando');
+    }
+
+    function procesarTranscripcion(texto) {
+      document.getElementById('transcripcionTexto').textContent = texto;
+      document.getElementById('transcripcion').classList.add('visible');
+      const interp = interpretarTexto(texto);
+      interpretacionActual = interp;
+      mostrarInterpretacion(interp);
+    }
+
+    // ============ INTERPRETACIÓN MEJORADA v2 ============
+    function interpretarTexto(texto) {
+      const t = texto.toLowerCase().trim();
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      let tipo = null, equipoId = null, cantidad = null;
+      let producto = null, dosis = null, unidad = 'mm', confianza = 0;
+
+      log(`🔍 Interpretando: "${t}"`, 'info');
+
+      // ===== TIPO con MUCHAS MÁS variantes =====
+      // APLICACIÓN
+      if (/\b(apliqu|fumig|pulveriz|tir(é|e|amos)|echamos|aplicamos|aplicaci[oó]n|aplicado|tirar)\b/i.test(t) ||
+          /\b(glifosato|atrazina|urea|herbicida|insecticida|fungicida|fertilizante|abono|veneno|producto)\b/i.test(t)) {
+        tipo = 'aplicacion'; confianza += 30;
+        log(`✓ Tipo: aplicación`, 'success');
+      }
+      // LLUVIA
+      else if (/\b(lluvia|lluvi(a|ó|o)|llov(i[óo]|i[oó])|llover|cay[oó]\s+agua|agua\s+ca[íi]da|precipit|llovi[oó]|llovieron)\b/i.test(t)) {
+        tipo = 'lluvia'; confianza += 30;
+        log(`✓ Tipo: lluvia`, 'success');
+      }
+      // RIEGO - MUCHAS VARIANTES (incluyendo errores de transcripción)
+      else if (/\b(riego|reg(ué|amos|aron|ué|ar|a|amos)|reg[oóó]|riegu(é|e)|riegue|irrigaci[oó]n|irrigamos|regar|regue|regó|rego|regue|regué|reggae|raggae)\b/i.test(t)) {
+        tipo = 'riego'; confianza += 30;
+        log(`✓ Tipo: riego`, 'success');
+      }
+
+      // ===== EQUIPO con MUCHAS variantes =====
+      let equipoMatch = null;
+
+      // Buscar primero por nombre completo
+      equipos.forEach(eq => {
+        if (t.includes(eq.nombre.toLowerCase())) equipoMatch = eq;
+      });
+
+      // Si no, buscar por número (acepta "pivote", "pivot", "pívot", "pivó", "pibote", etc.)
+      if (!equipoMatch) {
+        const numerosTexto = {
+          'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5,
+          'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10
+        };
+
+        // Regex mejorada para "pivote", "pivot", "pívot", "pibote", "pivó", "piboté"
+        const matchPivot = t.match(/\b(p[íi]?v[oó]?t?[eé]?)\s+(\d+|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/i);
+        if (matchPivot) {
+          let numero = matchPivot[2];
+          if (numerosTexto[numero.toLowerCase()]) numero = numerosTexto[numero.toLowerCase()];
+          numero = parseInt(numero);
+          log(`🔢 Detecté pivot número ${numero}`, 'info');
+          equipoMatch = equipos.find(eq => eq.nombre.toLowerCase().includes(numero.toString()));
+        }
+      }
+
+      if (equipoMatch) {
+        equipoId = equipoMatch.id;
+        confianza += 25;
+        log(`✓ Equipo: ${equipoMatch.nombre}`, 'success');
+      } else {
+        log(`⚠️ Equipo no detectado`, 'warning');
+      }
+
+      // ===== CANTIDAD - Ignorando el número del equipo =====
+      let textoNum = t;
+
+      // Convertir números escritos
+      const numerosEscritos = {
+        'cero':'0','uno':'1','dos':'2','tres':'3','cuatro':'4','cinco':'5','seis':'6','siete':'7','ocho':'8','nueve':'9',
+        'diez':'10','once':'11','doce':'12','trece':'13','catorce':'14','quince':'15','dieciséis':'16','dieciseis':'16',
+        'diecisiete':'17','dieciocho':'18','diecinueve':'19','veinte':'20','veintiuno':'21','veintidós':'22','veintidos':'22',
+        'veintitrés':'23','veintitres':'23','veinticuatro':'24','veinticinco':'25','veintiséis':'26','veintiseis':'26',
+        'veintisiete':'27','veintiocho':'28','veintinueve':'29','treinta':'30','cuarenta':'40','cincuenta':'50',
+        'sesenta':'60','setenta':'70','ochenta':'80','noventa':'90','cien':'100'
+      };
+      Object.keys(numerosEscritos).forEach(p => {
+        textoNum = textoNum.replace(new RegExp('\\b' + p + '\\b', 'gi'), numerosEscritos[p]);
+      });
+      textoNum = textoNum.replace(/(\d+)\s+coma\s+(\d+)/gi, '$1.$2').replace(/(\d+),(\d+)/g, '$1.$2');
+
+      // SACAR el número del equipo del texto antes de buscar la cantidad
+      // Ej: "riego de 20 mm en pivote 1" → "riego de 20 mm en pivote"
+      let textoSinEquipo = textoNum;
+      const matchPivotConNum = textoSinEquipo.match(/\b(p[íi]?v[oó]?t?[eé]?)\s+(\d+)\b/i);
+      if (matchPivotConNum) {
+        textoSinEquipo = textoSinEquipo.replace(matchPivotConNum[0], matchPivotConNum[1]);
+        log(`🔢 Quité número del equipo: "${textoSinEquipo}"`, 'info');
+      }
+
+      // Ahora buscar el primer número que queda (que es la cantidad real)
+      const matchNum = textoSinEquipo.match(/\b(\d+(?:\.\d+)?)\b/);
+      if (matchNum) {
+        cantidad = parseFloat(matchNum[1]);
+        confianza += 25;
+        log(`✓ Cantidad: ${cantidad}`, 'success');
+      } else {
+        log(`⚠️ Cantidad no detectada`, 'warning');
+      }
+
+      // APLICACIÓN
+      if (tipo === 'aplicacion') {
+        const productos = ['glifosato','atrazina','urea','herbicida','insecticida','fungicida','fertilizante','abono'];
+        productos.forEach(p => { if (t.includes(p)) producto = p.charAt(0).toUpperCase() + p.slice(1); });
+
+        if (/litros?\s+por\s+hect[aá]rea|l\/ha/i.test(t)) unidad = 'L/ha';
+        else if (/kilos?\s+por\s+hect[aá]rea|kg\/ha/i.test(t)) unidad = 'kg/ha';
+        else unidad = 'L/ha';
+
+        if (cantidad !== null) { dosis = cantidad; cantidad = null; }
+        if (producto) confianza += 10;
+      }
+
+      // FECHA
+      let fecha = new Date();
+      if (/\bayer\b/i.test(t)) fecha.setDate(fecha.getDate() - 1);
+      else if (/\banteayer\b/i.test(t)) fecha.setDate(fecha.getDate() - 2);
+
+      log(`📊 Confianza final: ${confianza}%`, 'info');
+
+      return {
+        textoOriginal: texto, tipo, equipoId,
+        cantidad, producto, dosis, unidad,
+        fecha: fecha.toISOString().split('T')[0],
+        confianza: Math.min(100, confianza)
+      };
+    }
+
+    function mostrarInterpretacion(interp) {
+      const card = document.getElementById('interpretacion');
+      const camposDiv = document.getElementById('camposDetectados');
+      const badge = document.getElementById('confianzaBadge');
+
+      let nivel = 'baja', texto = '';
+      if (interp.confianza >= 70) { nivel = 'alta'; texto = '✓ Alta'; }
+      else if (interp.confianza >= 40) { nivel = 'media'; texto = '⚠️ Media'; }
+      else { nivel = 'baja'; texto = '❌ Baja'; }
+      badge.textContent = texto;
+      badge.className = 'interp-confianza confianza-' + nivel;
+
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      let html = '';
+
+      html += `<div class="campo-detectado">
+        <div class="campo-detectado-info"><div class="campo-detectado-label">Tipo</div></div>
+        <select onchange="interpretacionActual.tipo=this.value">
+          <option value="">— Elegir —</option>
+          <option value="riego" ${interp.tipo === 'riego' ? 'selected' : ''}>💧 Riego</option>
+          <option value="lluvia" ${interp.tipo === 'lluvia' ? 'selected' : ''}>🌧️ Lluvia</option>
+          <option value="aplicacion" ${interp.tipo === 'aplicacion' ? 'selected' : ''}>🧪 Aplicación</option>
+        </select>
+      </div>`;
+
+      let opts = '<option value="">— Elegir —</option>';
+      equipos.forEach(eq => { opts += `<option value="${eq.id}" ${eq.id === interp.equipoId ? 'selected' : ''}>${eq.nombre}</option>`; });
+      html += `<div class="campo-detectado">
+        <div class="campo-detectado-info"><div class="campo-detectado-label">Equipo</div></div>
+        <select onchange="interpretacionActual.equipoId=parseInt(this.value)">${opts}</select>
+      </div>`;
+
+      html += `<div class="campo-detectado">
+        <div class="campo-detectado-info"><div class="campo-detectado-label">Fecha</div></div>
+        <input type="date" value="${interp.fecha}" onchange="interpretacionActual.fecha=this.value">
+      </div>`;
+
+      if (interp.tipo === 'aplicacion') {
+        html += `<div class="campo-detectado">
+          <div class="campo-detectado-info"><div class="campo-detectado-label">Producto</div></div>
+          <input type="text" value="${interp.producto || ''}" oninput="interpretacionActual.producto=this.value">
+        </div>
+        <div class="campo-detectado">
+          <div class="campo-detectado-info"><div class="campo-detectado-label">Dosis</div></div>
+          <input type="number" step="0.1" value="${interp.dosis || ''}" oninput="interpretacionActual.dosis=parseFloat(this.value)">
+        </div>`;
+      } else {
+        html += `<div class="campo-detectado">
+          <div class="campo-detectado-info"><div class="campo-detectado-label">Cantidad (mm)</div></div>
+          <input type="number" step="0.1" value="${interp.cantidad || ''}" oninput="interpretacionActual.cantidad=parseFloat(this.value)">
+        </div>`;
+      }
+
+      camposDiv.innerHTML = html;
+      card.classList.add('visible');
+    }
+
+    function repetir() {
+      document.getElementById('interpretacion').classList.remove('visible');
+      document.getElementById('transcripcion').classList.remove('visible');
+      iniciarEscucha();
+    }
+
+    function confirmar() {
+      const i = interpretacionActual;
+      if (!i.tipo || !i.equipoId || !i.fecha) { alert('Faltan datos.'); return; }
+      if (i.tipo === 'aplicacion' && (!i.producto || !i.dosis)) { alert('Faltan producto/dosis.'); return; }
+      if (i.tipo !== 'aplicacion' && (!i.cantidad || i.cantidad <= 0)) { alert('Falta cantidad.'); return; }
+
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const ca = campanas.find(c => c.equipoId === i.equipoId && c.estado === 'Activa');
+
+      const evento = {
+        id: Date.now(), fecha: i.fecha, equipoId: i.equipoId,
+        campanaId: ca ? ca.id : null, tipo: i.tipo,
+        observaciones: '🎤 Voz: "' + i.textoOriginal + '"',
+        cargadoPor: 'voz', fechaCreacion: new Date().toISOString()
+      };
+      if (i.tipo === 'aplicacion') {
+        evento.producto = i.producto; evento.dosis = i.dosis; evento.unidad = i.unidad;
+      } else {
+        evento.cantidad = i.cantidad; evento.unidad = 'mm';
+      }
+
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      eventos.push(evento);
+      localStorage.setItem('eventos', JSON.stringify(eventos));
+
+      document.getElementById('interpretacion').classList.remove('visible');
+      document.getElementById('transcripcion').classList.remove('visible');
+      interpretacionActual = null;
+      mostrarToast('✓ Evento guardado por voz');
+      mostrarEventosVoz();
+      log('💾 Guardado', 'success');
+    }
+
+    function mostrarEventosVoz() {
+      const lista = document.getElementById('listaEventosVoz');
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const ev = eventos.filter(e => e.cargadoPor === 'voz')
+        .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).slice(0, 5);
+
+      if (ev.length === 0) { lista.innerHTML = `<div class="vacio">Todavía no cargaste eventos por voz.</div>`; return; }
+
+      lista.innerHTML = '';
+      ev.forEach(e => {
+        const eq = equipos.find(x => x.id === e.equipoId);
+        const f = new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' });
+        let icono, titulo;
+        if (e.tipo === 'riego') { icono = '💧'; titulo = `Riego ${e.cantidad} mm`; }
+        else if (e.tipo === 'lluvia') { icono = '🌧️'; titulo = `Lluvia ${e.cantidad} mm`; }
+        else { icono = '🧪'; titulo = `${e.producto} ${e.dosis} ${e.unidad}`; }
+
+        lista.innerHTML += `<div class="evento">
+          <div class="evento-icono tipo-${e.tipo}">${icono}</div>
+          <div class="evento-info">
+            <div class="evento-titulo-evt">${titulo} <span class="badge-voz">VOZ</span></div>
+            <div class="evento-detalle">${eq ? eq.nombre : '?'} · ${f}</div>
+          </div>
+        </div>`;
+      });
+    }
+
+    function mostrarToast(mensaje) {
+      const t = document.getElementById('toast');
+      t.textContent = mensaje;
+      t.classList.add('visible');
+      setTimeout(() => t.classList.remove('visible'), 3500);
+    }
+  </script>
+
+</body>
+</html>

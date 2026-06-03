@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Cultivos</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --verde: #0F3D14;
+      --verde-claro: #1B5E20;
+      --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D;
+      --crema: #FAF6EC;
+      --crema-oscuro: #f0ead8;
+      --rojo: #B5371C;
+      --gris-texto: #6B6356;
+      --negro: #1A1A1A;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--crema);
+      color: var(--negro);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--verde);
+      color: var(--crema);
+      padding: 24px 14px 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
+      margin-bottom: 18px;
+    }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+
+    .sidebar-grupo {
+      font-size: 10px; opacity: 0.55;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 18px 8px 6px; font-weight: 600;
+    }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      color: var(--crema); text-decoration: none;
+      font-size: 13px; margin-bottom: 1px;
+      transition: background 0.15s;
+    }
+    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
+    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
+
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: 24px; padding: 14px 10px 4px;
+      border-top: 1px solid rgba(212, 162, 76, 0.25);
+      font-size: 10px; opacity: 0.6; line-height: 1.5;
+    }
+
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+
+    .topbar {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
+    }
+    .topbar-saludo {
+      font-size: 11px; color: var(--gris-texto);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 4px; font-weight: 600;
+    }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
+    .topbar-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--ambar); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px;
+    }
+
+    .contenedor { max-width: 900px; margin: 0 auto; }
+
+    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      background: #fff;
+      padding: 6px;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      background: transparent;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #6B6356;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab.activo {
+      background: #0F3D14;
+      color: #FAF6EC;
+    }
+
+    .tab:not(.activo):hover {
+      background: rgba(15, 61, 20, 0.08);
+    }
+
+    .tab .conteo {
+      background: rgba(255,255,255,0.25);
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+
+    .tarjeta {
+      background: #fff;
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      transition: border-color 0.3s;
+    }
+    .tarjeta.editando {
+      border: 2px solid #D4A24C;
+      box-shadow: 0 4px 20px rgba(212, 162, 76, 0.3);
+    }
+
+    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
+    .tarjeta-titulo.editando { color: #D4A24C; }
+    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
+
+    .seccion {
+      border-top: 1px solid rgba(0,0,0,0.08);
+      padding-top: 20px;
+      margin-top: 20px;
+    }
+    .seccion-titulo {
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
+      color: #0F3D14; font-weight: 700; margin-bottom: 14px;
+    }
+
+    .campo { margin-bottom: 18px; }
+    .campo label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: #6B6356; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 6px;
+    }
+    .campo input, .campo select, .campo textarea {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
+      font-size: 15px; font-family: inherit;
+      background: #FAF6EC; color: #1A1A1A;
+    }
+    .campo .ayuda {
+      font-size: 11px; color: #6B6356; margin-top: 4px; font-style: italic;
+    }
+
+    .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .fila-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .fila-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+
+    .botones-form {
+      display: flex; gap: 10px; margin-top: 20px;
+    }
+
+    .boton-guardar {
+      flex: 1; padding: 18px;
+      background: #0F3D14; color: #FAF6EC;
+      border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .boton-guardar:hover { background: #1B5E20; }
+    .boton-guardar.editando { background: #D4A24C; }
+
+    .boton-cancelar {
+      padding: 18px 24px;
+      background: rgba(0,0,0,0.06); color: #6B6356;
+      border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      display: none;
+    }
+    .boton-cancelar.visible { display: block; }
+
+    .item {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .item-icono {
+      font-size: 36px;
+      flex-shrink: 0;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(212, 162, 76, 0.12);
+      border-radius: 14px;
+    }
+
+    .item-info { flex: 1; min-width: 0; }
+
+    .item-nombre {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1A1A1A;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .item-detalles {
+      font-size: 12px;
+      color: #6B6356;
+      margin-top: 4px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .item-detalles span {
+      display: inline-block;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 100px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-fao {
+      background: rgba(15, 61, 20, 0.1);
+      color: #0F3D14;
+    }
+
+    .badge-anual {
+      background: rgba(212, 162, 76, 0.2);
+      color: #8B6F00;
+    }
+
+    .badge-perenne {
+      background: rgba(76, 175, 80, 0.15);
+      color: #2E7D32;
+    }
+
+    .badge-custom {
+      background: rgba(33, 150, 243, 0.15);
+      color: #1565C0;
+    }
+
+    .item-acciones {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .item-boton {
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .item-editar {
+      background: rgba(15, 61, 20, 0.1);
+      color: #0F3D14;
+    }
+    .item-borrar {
+      background: rgba(181, 55, 28, 0.1);
+      color: #B5371C;
+    }
+
+    .vacio {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6B6356;
+      background: #fff;
+      border-radius: 16px;
+      border: 2px dashed rgba(0,0,0,0.1);
+    }
+
+    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+    .vacio-texto { font-size: 14px; }
+
+    .alerta-edicion {
+      background: rgba(212, 162, 76, 0.15);
+      border-left: 4px solid #D4A24C;
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #8B6F00;
+      display: none;
+    }
+    .alerta-edicion.visible { display: block; }
+
+    .info-fao {
+      background: rgba(15, 61, 20, 0.05);
+      border-left: 3px solid #0F3D14;
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #0F3D14;
+    }
+
+    .filtros {
+      background: #fff;
+      padding: 12px 16px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filtro-pill {
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: #FAF6EC;
+      border: 1.5px solid transparent;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6B6356;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .filtro-pill.activo {
+      background: #0F3D14;
+      color: #FAF6EC;
+      border-color: #0F3D14;
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+    }
+
+    @media (max-width: 600px) {
+      .fila-2, .fila-3, .fila-4 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 500px) {
+      .main { padding: 16px; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
+          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
+          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+        </svg>
+        <div class="sidebar-logo-textos">
+          <div class="sidebar-logo-titulo">SAFIA</div>
+          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+        </div>
+      </div>
+
+      <div class="sidebar-grupo">Inicio</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-grupo">Datos</div>
+      <a href="mis-clientes.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
+      </a>
+      <a href="mis-campos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
+      </a>
+      <a href="mis-equipos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
+      </a>
+      <a href="mis-cultivos.html" class="sidebar-link activo">
+        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
+      </a>
+      <a href="mis-campanas.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
+      </a>
+      <a href="analisis.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span>
+      </a>
+
+      <div class="sidebar-grupo">Inteligencia</div>
+      <a href="clima.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
+      </a>
+      <a href="prediccion.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
+      </a>
+
+      <div class="sidebar-grupo">Operación</div>
+      <a href="operador.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
+      </a>
+      <a href="eventos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
+      </a>
+      <a href="encargado.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
+      </a>
+      <a href="propietario.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
+      </a>
+      <a href="voz.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
+      </a>
+
+      <div class="sidebar-grupo">Sistema</div>
+      <a href="backup.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
+      </a>
+
+      <div class="sidebar-footer">
+        SAFIA v1.0<br>
+        Herramienta para productores
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div>
+          <div class="topbar-saludo">Datos</div>
+          <div class="topbar-titulo">🌱 Cultivos</div>
+        </div>
+        <div class="topbar-derecha">
+          <div class="topbar-fecha" id="topbarFecha">—</div>
+          <div class="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <div class="contenedor">
+
+        <p class="subtitulo-pagina">Catálogo de cultivos disponibles para tus campañas. SAFIA ya trae 22 cultivos pre-cargados con datos oficiales FAO. Podés agregar los tuyos personalizados.</p>
+
+        <div class="tabs">
+          <button class="tab activo" id="tabFAO" onclick="cambiarTab('fao')">
+            📚 Cultivos FAO <span class="conteo" id="conteoFAO">22</span>
+          </button>
+          <button class="tab" id="tabCustom" onclick="cambiarTab('custom')">
+            ✏️ Mis personalizados <span class="conteo" id="conteoCustom">0</span>
+          </button>
+        </div>
+
+        <div id="vistaFAO">
+
+          <div class="info-fao">
+            ℹ️ Estos son los cultivos pre-cargados con coeficientes oficiales de la <strong>FAO 56</strong> (Penman-Monteith). No se pueden editar ni borrar, pero podés crear los tuyos personalizados en la otra pestaña.
+          </div>
+
+          <div class="filtros">
+            <button class="filtro-pill activo" onclick="filtrarFAO('todos')">Todos</button>
+            <button class="filtro-pill" onclick="filtrarFAO('anual')">🌾 Anuales</button>
+            <button class="filtro-pill" onclick="filtrarFAO('perenne')">🌳 Perennes</button>
+          </div>
+
+          <div id="listaFAO"></div>
+        </div>
+
+        <div id="vistaCustom" style="display:none;">
+
+          <div class="alerta-edicion" id="alertaEdicion">
+            ✏️ <strong>Modo edición activo:</strong> estás editando un cultivo personalizado.
+          </div>
+
+          <div class="tarjeta" id="tarjetaForm">
+            <div class="tarjeta-titulo" id="tituloForm">+ Agregar cultivo personalizado</div>
+            <div class="tarjeta-sub">Cargá las características y los coeficientes Kc de tu cultivo. Si no sabés los Kc exactos, podés usar los de un cultivo similar como referencia.</div>
+
+            <div class="seccion" style="border-top: none; padding-top: 0;">
+              <div class="seccion-titulo">📋 Datos básicos</div>
+
+              <div class="campo">
+                <label>Nombre del cultivo</label>
+                <input type="text" id="nombre" placeholder="Ej: Yuca / Mandioca, Quinoa, Stevia, Eucalipto">
+              </div>
+
+              <div class="fila-2">
+                <div class="campo">
+                  <label>Emoji / ícono</label>
+                  <input type="text" id="emoji" placeholder="Ej: 🌱" maxlength="2">
+                  <div class="ayuda">Cualquier emoji que represente al cultivo</div>
+                </div>
+
+                <div class="campo">
+                  <label>Tipo de cultivo</label>
+                  <select id="tipo" onchange="cambiarTipo()">
+                    <option value="">Seleccionar...</option>
+                    <option value="anual">🌾 Anual (siembra → cosecha)</option>
+                    <option value="perenne">🌳 Perenne (vive años)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="seccion" id="seccionAnual" style="display:none;">
+              <div class="seccion-titulo">📊 Coeficientes Kc por etapa (FAO 56)</div>
+
+              <div class="info-fao" style="margin-bottom: 18px;">
+                ℹ️ <strong>Kc</strong> es el coeficiente que multiplica la ETo. Va de 0.20 (cultivo muy chico) a 1.30 (consumo máximo). Buscá los valores en internet o usá referencias similares.
+              </div>
+
+              <div class="fila-3">
+                <div class="campo">
+                  <label>Kc inicial</label>
+                  <input type="number" id="kc_ini" step="0.05" min="0.10" max="1.30" placeholder="0.30">
+                  <div class="ayuda">Recién emergido</div>
+                </div>
+
+                <div class="campo">
+                  <label>Kc media (máx)</label>
+                  <input type="number" id="kc_med" step="0.05" min="0.50" max="1.30" placeholder="1.15">
+                  <div class="ayuda">Pleno desarrollo</div>
+                </div>
+
+                <div class="campo">
+                  <label>Kc final</label>
+                  <input type="number" id="kc_fin" step="0.05" min="0.10" max="1.30" placeholder="0.50">
+                  <div class="ayuda">Cerca de cosecha</div>
+                </div>
+              </div>
+
+              <div class="seccion-titulo" style="margin-top: 20px;">📅 Duración de etapas (días)</div>
+
+              <div class="fila-4">
+                <div class="campo">
+                  <label>L Inicial</label>
+                  <input type="number" id="L_ini" min="5" max="120" placeholder="30">
+                  <div class="ayuda">Emergencia</div>
+                </div>
+
+                <div class="campo">
+                  <label>L Desarrollo</label>
+                  <input type="number" id="L_des" min="5" max="120" placeholder="40">
+                  <div class="ayuda">Crecimiento</div>
+                </div>
+
+                <div class="campo">
+                  <label>L Media</label>
+                  <input type="number" id="L_med" min="5" max="200" placeholder="45">
+                  <div class="ayuda">Reproductivo</div>
+                </div>
+
+                <div class="campo">
+                  <label>L Final</label>
+                  <input type="number" id="L_fin" min="5" max="120" placeholder="30">
+                  <div class="ayuda">Madurez</div>
+                </div>
+              </div>
+
+              <div class="info-fao" style="margin-top: 12px; background: rgba(212, 162, 76, 0.1); border-left-color: #D4A24C; color: #8B6F00;">
+                📊 Total del ciclo: <strong id="totalDias">— días</strong>
+              </div>
+            </div>
+
+            <div class="seccion" id="seccionPerenne" style="display:none;">
+              <div class="seccion-titulo">📊 Coeficientes Kc estacionales (cultivos perennes)</div>
+
+              <div class="info-fao" style="margin-bottom: 18px;">
+                ℹ️ Los cultivos perennes (cítricos, alfalfa, café, vid) usan Kc según la <strong>estación del año</strong>, no por días desde siembra.
+              </div>
+
+              <div class="fila-2">
+                <div class="campo">
+                  <label>🌸 Kc Primavera</label>
+                  <input type="number" id="kc_pri" step="0.05" min="0.10" max="1.30" placeholder="0.75">
+                </div>
+
+                <div class="campo">
+                  <label>☀️ Kc Verano</label>
+                  <input type="number" id="kc_ver" step="0.05" min="0.10" max="1.30" placeholder="1.10">
+                </div>
+              </div>
+
+              <div class="fila-2">
+                <div class="campo">
+                  <label>🍂 Kc Otoño</label>
+                  <input type="number" id="kc_oto" step="0.05" min="0.10" max="1.30" placeholder="0.85">
+                </div>
+
+                <div class="campo">
+                  <label>❄️ Kc Invierno</label>
+                  <input type="number" id="kc_inv" step="0.05" min="0.10" max="1.30" placeholder="0.40">
+                </div>
+              </div>
+            </div>
+
+            <div class="campo" style="margin-top: 20px;">
+              <label>Notas (opcional)</label>
+              <textarea id="notas" placeholder="Cualquier dato adicional sobre el cultivo, variedades, manejos especiales..." style="min-height: 70px; resize: vertical;"></textarea>
+            </div>
+
+            <div class="botones-form">
+              <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">
+                ✓ Guardar cultivo
+              </button>
+              <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">
+                ✕ Cancelar
+              </button>
+            </div>
+          </div>
+
+          <div style="font-size: 12px; font-weight: 600; color: #6B6356; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; padding: 0 4px;">
+            Mis cultivos personalizados
+          </div>
+          <div id="listaCustom"></div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script>
+    document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    const TABLA_FAO = [
+      { nombre: 'Maíz', emoji: '🌽', tipo: 'anual', kc_ini: 0.30, kc_med: 1.20, kc_fin: 0.60, L_ini: 30, L_des: 40, L_med: 45, L_fin: 30 },
+      { nombre: 'Soja', emoji: '🌱', tipo: 'anual', kc_ini: 0.40, kc_med: 1.15, kc_fin: 0.50, L_ini: 20, L_des: 30, L_med: 60, L_fin: 25 },
+      { nombre: 'Trigo', emoji: '🌾', tipo: 'anual', kc_ini: 0.30, kc_med: 1.15, kc_fin: 0.40, L_ini: 30, L_des: 40, L_med: 40, L_fin: 30 },
+      { nombre: 'Arroz', emoji: '🌾', tipo: 'anual', kc_ini: 1.05, kc_med: 1.20, kc_fin: 0.70, L_ini: 30, L_des: 30, L_med: 60, L_fin: 30 },
+      { nombre: 'Sorgo', emoji: '🌾', tipo: 'anual', kc_ini: 0.30, kc_med: 1.10, kc_fin: 0.55, L_ini: 20, L_des: 35, L_med: 45, L_fin: 30 },
+      { nombre: 'Girasol', emoji: '🌻', tipo: 'anual', kc_ini: 0.35, kc_med: 1.15, kc_fin: 0.35, L_ini: 25, L_des: 35, L_med: 45, L_fin: 25 },
+      { nombre: 'Algodón', emoji: '🌱', tipo: 'anual', kc_ini: 0.35, kc_med: 1.20, kc_fin: 0.60, L_ini: 30, L_des: 50, L_med: 60, L_fin: 55 },
+      { nombre: 'Maní', emoji: '🥜', tipo: 'anual', kc_ini: 0.40, kc_med: 1.15, kc_fin: 0.60, L_ini: 25, L_des: 35, L_med: 45, L_fin: 25 },
+      { nombre: 'Frijol/Poroto', emoji: '🫘', tipo: 'anual', kc_ini: 0.40, kc_med: 1.15, kc_fin: 0.35, L_ini: 20, L_des: 30, L_med: 30, L_fin: 15 },
+      { nombre: 'Sésamo', emoji: '🌻', tipo: 'anual', kc_ini: 0.35, kc_med: 1.10, kc_fin: 0.25, L_ini: 20, L_des: 30, L_med: 40, L_fin: 20 },
+      { nombre: 'Chía', emoji: '🌱', tipo: 'anual', kc_ini: 0.35, kc_med: 1.15, kc_fin: 0.40, L_ini: 25, L_des: 35, L_med: 45, L_fin: 25 },
+      { nombre: 'Avena', emoji: '🌾', tipo: 'anual', kc_ini: 0.30, kc_med: 1.15, kc_fin: 0.40, L_ini: 25, L_des: 35, L_med: 35, L_fin: 25 },
+      { nombre: 'Tomate', emoji: '🍅', tipo: 'anual', kc_ini: 0.60, kc_med: 1.15, kc_fin: 0.80, L_ini: 30, L_des: 40, L_med: 40, L_fin: 25 },
+      { nombre: 'Lechuga', emoji: '🥬', tipo: 'anual', kc_ini: 0.70, kc_med: 1.00, kc_fin: 0.95, L_ini: 20, L_des: 25, L_med: 20, L_fin: 10 },
+
+      { nombre: 'Alfalfa', emoji: '🌿', tipo: 'perenne', kc_pri: 0.85, kc_ver: 1.20, kc_oto: 0.95, kc_inv: 0.40 },
+      { nombre: 'Pasturas', emoji: '🌾', tipo: 'perenne', kc_pri: 0.70, kc_ver: 0.95, kc_oto: 0.85, kc_inv: 0.50 },
+      { nombre: 'Cítricos', emoji: '🍊', tipo: 'perenne', kc_pri: 0.75, kc_ver: 0.80, kc_oto: 0.75, kc_inv: 0.70 },
+      { nombre: 'Vid (uva)', emoji: '🍇', tipo: 'perenne', kc_pri: 0.30, kc_ver: 0.85, kc_oto: 0.45, kc_inv: 0.20 },
+      { nombre: 'Café', emoji: '☕', tipo: 'perenne', kc_pri: 0.90, kc_ver: 1.05, kc_oto: 0.95, kc_inv: 0.90 },
+      { nombre: 'Banana', emoji: '🍌', tipo: 'perenne', kc_pri: 0.50, kc_ver: 1.10, kc_oto: 1.00, kc_inv: 0.50 },
+      { nombre: 'Palta/Aguacate', emoji: '🥑', tipo: 'perenne', kc_pri: 0.60, kc_ver: 0.85, kc_oto: 0.75, kc_inv: 0.55 },
+      { nombre: 'Caña de azúcar', emoji: '🌾', tipo: 'perenne', kc_pri: 0.40, kc_ver: 1.25, kc_oto: 0.75, kc_inv: 0.40 },
+    ];
+
+    let editandoId = null;
+    let filtroFAO = 'todos';
+
+    window.onload = function() {
+      localStorage.setItem('cultivos_fao', JSON.stringify(TABLA_FAO));
+      mostrarFAO();
+      mostrarCustom();
+      actualizarConteos();
+    };
+
+    function cambiarTab(tab) {
+      document.getElementById('tabFAO').classList.toggle('activo', tab === 'fao');
+      document.getElementById('tabCustom').classList.toggle('activo', tab === 'custom');
+      document.getElementById('vistaFAO').style.display = tab === 'fao' ? 'block' : 'none';
+      document.getElementById('vistaCustom').style.display = tab === 'custom' ? 'block' : 'none';
+    }
+
+    function actualizarConteos() {
+      document.getElementById('conteoFAO').textContent = TABLA_FAO.length;
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      document.getElementById('conteoCustom').textContent = custom.length;
+    }
+
+    function filtrarFAO(filtro) {
+      filtroFAO = filtro;
+      document.querySelectorAll('.filtro-pill').forEach(p => p.classList.remove('activo'));
+      event.target.classList.add('activo');
+      mostrarFAO();
+    }
+
+    function mostrarFAO() {
+      const lista = document.getElementById('listaFAO');
+      let cultivos = TABLA_FAO;
+      if (filtroFAO !== 'todos') {
+        cultivos = TABLA_FAO.filter(c => c.tipo === filtroFAO);
+      }
+
+      lista.innerHTML = '';
+      cultivos.forEach(c => {
+        let detalles = '';
+        if (c.tipo === 'anual') {
+          const total = c.L_ini + c.L_des + c.L_med + c.L_fin;
+          detalles = `
+            <span>Kc: ${c.kc_ini} → <strong>${c.kc_med}</strong> → ${c.kc_fin}</span>
+            <span>Ciclo: ${total} días</span>
+          `;
+        } else {
+          detalles = `
+            <span>🌸 ${c.kc_pri}</span>
+            <span>☀️ ${c.kc_ver}</span>
+            <span>🍂 ${c.kc_oto}</span>
+            <span>❄️ ${c.kc_inv}</span>
+          `;
+        }
+
+        const tipoBadge = c.tipo === 'anual'
+          ? '<span class="badge badge-anual">🌾 Anual</span>'
+          : '<span class="badge badge-perenne">🌳 Perenne</span>';
+
+        lista.innerHTML += `
+          <div class="item">
+            <div class="item-icono">${c.emoji}</div>
+            <div class="item-info">
+              <div class="item-nombre">${c.nombre} ${tipoBadge} <span class="badge badge-fao">FAO</span></div>
+              <div class="item-detalles">${detalles}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function mostrarCustom() {
+      const lista = document.getElementById('listaCustom');
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+
+      if (custom.length === 0) {
+        lista.innerHTML = `
+          <div class="vacio">
+            <div class="vacio-icono">🌱</div>
+            <div class="vacio-texto">Todavía no agregaste cultivos personalizados.<br>Cargá el primero arriba en el formulario.</div>
+          </div>
+        `;
+        return;
+      }
+
+      lista.innerHTML = '';
+      custom.forEach(c => {
+        let detalles = '';
+        if (c.tipo === 'anual') {
+          const total = (parseInt(c.L_ini)||0) + (parseInt(c.L_des)||0) + (parseInt(c.L_med)||0) + (parseInt(c.L_fin)||0);
+          detalles = `
+            <span>Kc: ${c.kc_ini} → <strong>${c.kc_med}</strong> → ${c.kc_fin}</span>
+            <span>Ciclo: ${total} días</span>
+          `;
+        } else {
+          detalles = `
+            <span>🌸 ${c.kc_pri}</span>
+            <span>☀️ ${c.kc_ver}</span>
+            <span>🍂 ${c.kc_oto}</span>
+            <span>❄️ ${c.kc_inv}</span>
+          `;
+        }
+
+        const tipoBadge = c.tipo === 'anual'
+          ? '<span class="badge badge-anual">🌾 Anual</span>'
+          : '<span class="badge badge-perenne">🌳 Perenne</span>';
+
+        const claseEditando = (c.id === editandoId) ? 'editando' : '';
+
+        lista.innerHTML += `
+          <div class="item ${claseEditando}">
+            <div class="item-icono">${c.emoji || '🌱'}</div>
+            <div class="item-info">
+              <div class="item-nombre">${c.nombre} ${tipoBadge} <span class="badge badge-custom">CUSTOM</span></div>
+              <div class="item-detalles">${detalles}</div>
+            </div>
+            <div class="item-acciones">
+              <button class="item-boton item-editar" onclick="editar(${c.id})" title="Editar">✏️</button>
+              <button class="item-boton item-borrar" onclick="borrar(${c.id})" title="Borrar">×</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function cambiarTipo() {
+      const tipo = document.getElementById('tipo').value;
+      document.getElementById('seccionAnual').style.display = tipo === 'anual' ? 'block' : 'none';
+      document.getElementById('seccionPerenne').style.display = tipo === 'perenne' ? 'block' : 'none';
+    }
+
+    document.addEventListener('input', function(e) {
+      if (['L_ini', 'L_des', 'L_med', 'L_fin'].includes(e.target.id)) {
+        const total = (parseInt(document.getElementById('L_ini').value) || 0) +
+                      (parseInt(document.getElementById('L_des').value) || 0) +
+                      (parseInt(document.getElementById('L_med').value) || 0) +
+                      (parseInt(document.getElementById('L_fin').value) || 0);
+        document.getElementById('totalDias').textContent = total + ' días';
+      }
+    });
+
+    function guardarOActualizar() {
+      const nombre = document.getElementById('nombre').value.trim();
+      const emoji = document.getElementById('emoji').value.trim() || '🌱';
+      const tipo = document.getElementById('tipo').value;
+
+      if (!nombre || !tipo) {
+        alert('Cargá al menos el nombre y el tipo del cultivo.');
+        return;
+      }
+
+      const existeFAO = TABLA_FAO.find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
+      if (existeFAO) {
+        alert(`Ya existe el cultivo "${nombre}" en la lista FAO. Elegí otro nombre.`);
+        return;
+      }
+
+      let custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      const existeCustom = custom.find(c =>
+        c.id !== editandoId && c.nombre.toLowerCase() === nombre.toLowerCase()
+      );
+      if (existeCustom) {
+        alert(`Ya tenés un cultivo personalizado con ese nombre.`);
+        return;
+      }
+
+      const datosBase = {
+        nombre,
+        emoji,
+        tipo,
+        notas: document.getElementById('notas').value.trim()
+      };
+
+      if (tipo === 'anual') {
+        datosBase.kc_ini = parseFloat(document.getElementById('kc_ini').value) || 0.30;
+        datosBase.kc_med = parseFloat(document.getElementById('kc_med').value) || 1.15;
+        datosBase.kc_fin = parseFloat(document.getElementById('kc_fin').value) || 0.50;
+        datosBase.L_ini = parseInt(document.getElementById('L_ini').value) || 30;
+        datosBase.L_des = parseInt(document.getElementById('L_des').value) || 40;
+        datosBase.L_med = parseInt(document.getElementById('L_med').value) || 45;
+        datosBase.L_fin = parseInt(document.getElementById('L_fin').value) || 30;
+      } else {
+        datosBase.kc_pri = parseFloat(document.getElementById('kc_pri').value) || 0.75;
+        datosBase.kc_ver = parseFloat(document.getElementById('kc_ver').value) || 1.10;
+        datosBase.kc_oto = parseFloat(document.getElementById('kc_oto').value) || 0.85;
+        datosBase.kc_inv = parseFloat(document.getElementById('kc_inv').value) || 0.40;
+      }
+
+      if (editandoId) {
+        const index = custom.findIndex(c => c.id === editandoId);
+        if (index !== -1) {
+          custom[index] = { ...custom[index], ...datosBase, fechaModificacion: new Date().toISOString() };
+          localStorage.setItem('cultivos_custom', JSON.stringify(custom));
+          alert('¡Cultivo actualizado!');
+          cancelarEdicion();
+        }
+      } else {
+        const cultivo = {
+          id: Date.now(),
+          ...datosBase,
+          fechaCreacion: new Date().toISOString()
+        };
+        custom.push(cultivo);
+        localStorage.setItem('cultivos_custom', JSON.stringify(custom));
+        alert(`¡Cultivo "${nombre}" guardado!`);
+        limpiarFormulario();
+      }
+
+      mostrarCustom();
+      actualizarConteos();
+    }
+
+    function editar(id) {
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      const c = custom.find(c => c.id === id);
+      if (!c) return;
+
+      document.getElementById('nombre').value = c.nombre || '';
+      document.getElementById('emoji').value = c.emoji || '';
+      document.getElementById('tipo').value = c.tipo || '';
+      document.getElementById('notas').value = c.notas || '';
+      cambiarTipo();
+
+      if (c.tipo === 'anual') {
+        document.getElementById('kc_ini').value = c.kc_ini || '';
+        document.getElementById('kc_med').value = c.kc_med || '';
+        document.getElementById('kc_fin').value = c.kc_fin || '';
+        document.getElementById('L_ini').value = c.L_ini || '';
+        document.getElementById('L_des').value = c.L_des || '';
+        document.getElementById('L_med').value = c.L_med || '';
+        document.getElementById('L_fin').value = c.L_fin || '';
+        const total = (c.L_ini||0) + (c.L_des||0) + (c.L_med||0) + (c.L_fin||0);
+        document.getElementById('totalDias').textContent = total + ' días';
+      } else {
+        document.getElementById('kc_pri').value = c.kc_pri || '';
+        document.getElementById('kc_ver').value = c.kc_ver || '';
+        document.getElementById('kc_oto').value = c.kc_oto || '';
+        document.getElementById('kc_inv').value = c.kc_inv || '';
+      }
+
+      editandoId = id;
+      document.getElementById('tarjetaForm').classList.add('editando');
+      document.getElementById('tituloForm').classList.add('editando');
+      document.getElementById('tituloForm').textContent = '✏️ Editando cultivo';
+      document.getElementById('botonGuardar').classList.add('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Actualizar cultivo';
+      document.getElementById('botonCancelar').classList.add('visible');
+      document.getElementById('alertaEdicion').classList.add('visible');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      mostrarCustom();
+    }
+
+    function cancelarEdicion() {
+      editandoId = null;
+      limpiarFormulario();
+      document.getElementById('tarjetaForm').classList.remove('editando');
+      document.getElementById('tituloForm').classList.remove('editando');
+      document.getElementById('tituloForm').textContent = '+ Agregar cultivo personalizado';
+      document.getElementById('botonGuardar').classList.remove('editando');
+      document.getElementById('botonGuardar').textContent = '✓ Guardar cultivo';
+      document.getElementById('botonCancelar').classList.remove('visible');
+      document.getElementById('alertaEdicion').classList.remove('visible');
+      mostrarCustom();
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('nombre').value = '';
+      document.getElementById('emoji').value = '';
+      document.getElementById('tipo').value = '';
+      document.getElementById('notas').value = '';
+      document.getElementById('kc_ini').value = '';
+      document.getElementById('kc_med').value = '';
+      document.getElementById('kc_fin').value = '';
+      document.getElementById('L_ini').value = '';
+      document.getElementById('L_des').value = '';
+      document.getElementById('L_med').value = '';
+      document.getElementById('L_fin').value = '';
+      document.getElementById('kc_pri').value = '';
+      document.getElementById('kc_ver').value = '';
+      document.getElementById('kc_oto').value = '';
+      document.getElementById('kc_inv').value = '';
+      document.getElementById('totalDias').textContent = '— días';
+      document.getElementById('seccionAnual').style.display = 'none';
+      document.getElementById('seccionPerenne').style.display = 'none';
+    }
+
+    function borrar(id) {
+      if (!confirm('¿Seguro que querés borrar este cultivo personalizado?')) return;
+
+      if (editandoId === id) cancelarEdicion();
+
+      let custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      custom = custom.filter(c => c.id !== id);
+      localStorage.setItem('cultivos_custom', JSON.stringify(custom));
+      mostrarCustom();
+      actualizarConteos();
+    }
+  </script>
+
+</body>
+</html>

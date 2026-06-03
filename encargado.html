@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Encargado</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FAF6EC;
+      color: #1A1A1A;
+      min-height: 100vh;
+    }
+
+    .volver {
+      display: inline-block;
+      color: #0F3D14;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding: 8px 14px;
+      background: #fff;
+      border-radius: 100px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .contenedor { max-width: 900px; margin: 0 auto; }
+
+    /* HEADER */
+    .header-encargado {
+      background: linear-gradient(135deg, #7B1FA2, #4A148C);
+      color: #fff;
+      padding: 24px 22px;
+      border-radius: 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icono {
+      font-size: 42px;
+      width: 60px;
+      height: 60px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-textos h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.05em; }
+    .header-textos p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+
+    /* RESUMEN GENERAL */
+    .resumen-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .resumen-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .resumen-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .resumen-numero {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .resumen-numero.urgente { color: #B5371C; }
+    .resumen-numero.normal { color: #0F3D14; }
+    .resumen-numero.bien { color: #2E7D32; }
+
+    .resumen-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6B6356;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    /* FILTROS */
+    .filtros {
+      background: #fff;
+      padding: 12px 16px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filtros-label {
+      font-size: 12px;
+      color: #6B6356;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .filtro-pill {
+      padding: 6px 14px;
+      border-radius: 100px;
+      background: #FAF6EC;
+      border: 1.5px solid transparent;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6B6356;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .filtro-pill.activo {
+      background: #0F3D14;
+      color: #FAF6EC;
+    }
+
+    /* SECCIÓN TÍTULO */
+    .seccion-titulo {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6356;
+      margin: 24px 0 12px 4px;
+    }
+
+    /* EQUIPO CARD */
+    .equipo-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border-left: 5px solid #6B6356;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .equipo-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    }
+
+    .equipo-card.semaforo-verde { border-left-color: #2E7D32; }
+    .equipo-card.semaforo-amarillo { border-left-color: #D4A24C; }
+    .equipo-card.semaforo-rojo { border-left-color: #B5371C; }
+    .equipo-card.semaforo-azul { border-left-color: #1565C0; }
+    .equipo-card.semaforo-gris { border-left-color: #6B6356; }
+
+    .equipo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .equipo-nombre {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1A1A1A;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .equipo-ubicacion {
+      font-size: 12px;
+      color: #6B6356;
+      margin-top: 2px;
+    }
+
+    .semaforo {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .semaforo.verde { background: rgba(46, 125, 50, 0.15); color: #2E7D32; }
+    .semaforo.amarillo { background: rgba(212, 162, 76, 0.2); color: #8B6F00; }
+    .semaforo.rojo { background: rgba(181, 55, 28, 0.15); color: #B5371C; }
+    .semaforo.azul { background: rgba(21, 101, 192, 0.15); color: #1565C0; }
+    .semaforo.gris { background: rgba(107, 99, 86, 0.15); color: #6B6356; }
+
+    .equipo-info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .info-bloque {
+      background: #FAF6EC;
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .info-bloque-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #6B6356;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .info-bloque-valor {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1A1A1A;
+      margin-top: 2px;
+    }
+
+    .equipo-recomendacion {
+      background: rgba(15, 61, 20, 0.05);
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #0F3D14;
+    }
+
+    .equipo-recomendacion strong { font-weight: 700; }
+
+    .equipo-eventos-mini {
+      display: flex;
+      gap: 14px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: #6B6356;
+    }
+
+    .evento-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .equipo-sin-campana {
+      color: #6B6356;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    .vacio {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6B6356;
+      background: #fff;
+      border-radius: 16px;
+      border: 2px dashed rgba(0,0,0,0.1);
+    }
+
+    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+    .loading-text {
+      color: #6B6356;
+      font-size: 12px;
+      font-style: italic;
+    }
+  
+    .sidebar { background: #0F3D14; color: #FAF6EC; padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: #FAF6EC; text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
+    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
+    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
+    
+    /* ===== ALERTAS CLIMÁTICAS ===== */
+    .alertas-clima-wrap { margin-bottom: 16px; }
+    .alertas-clima-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #B5371C; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .alerta-clima-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border-radius: 12px; margin-bottom: 8px; border-left: 4px solid; }
+    .alerta-clima-card.helada   { background: rgba(21,101,192,0.07);  border-color: #1565C0; }
+    .alerta-clima-card.tormenta { background: rgba(181,55,28,0.07);   border-color: #B5371C; }
+    .alerta-clima-card.viento   { background: rgba(107,99,86,0.08);   border-color: #6B6356; }
+    .alerta-clima-card.lluvia   { background: rgba(21,101,192,0.07);  border-color: #1565C0; }
+    .alerta-clima-card.calor    { background: rgba(230,74,25,0.07);   border-color: #E64A19; }
+    .alerta-clima-icono { font-size: 26px; flex-shrink: 0; }
+    .alerta-clima-info { flex: 1; }
+    .alerta-clima-nombre { font-size: 14px; font-weight: 700; color: #1A1A1A; margin-bottom: 2px; }
+    .alerta-clima-detalle { font-size: 12px; color: #6B6356; line-height: 1.4; }
+    .alerta-clima-fecha { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; background: rgba(0,0,0,0.07); color: #1A1A1A; flex-shrink: 0; align-self: center; }
+  </style>
+</head>
+<body>
+<div style="display:grid;grid-template-columns:240px 1fr;min-height:100vh;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+      </svg>
+      <div class="sidebar-logo-textos">
+        <div class="sidebar-logo-titulo">SAFIA</div>
+        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+      </div>
+    </div>
+    <div class="sidebar-grupo">Inicio</div>
+    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
+    <div class="sidebar-grupo">Datos</div>
+    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
+    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
+    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
+    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
+    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
+    <a href="analisis.html" class="sidebar-link"><span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span></a>
+    <div class="sidebar-grupo">Inteligencia</div>
+    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
+    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
+    <div class="sidebar-grupo">Operación</div>
+    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
+    <a href="eventos.html" class="sidebar-link "><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
+    <a href="encargado.html" class="sidebar-link activo"><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
+    <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
+    <a href="voz.html" class="sidebar-link "><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
+    <div class="sidebar-grupo">Sistema</div>
+    <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
+    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
+  </aside>
+
+  <div style="overflow-x:hidden;">
+  <div class="contenedor" style="padding:24px 32px 40px;">
+    <!-- HEADER -->
+    <div class="header-encargado">
+      <div class="header-icono">📋</div>
+      <div class="header-textos">
+        <h1>ENCARGADO</h1>
+        <p>Supervisión multi-equipo · Estado actual de operaciones</p>
+      </div>
+    </div>
+
+    <!-- RESUMEN GENERAL -->
+    <div class="resumen-grid">
+      <div class="resumen-card">
+        <div class="resumen-numero normal" id="resTotalEquipos">—</div>
+        <div class="resumen-label">Equipos</div>
+      </div>
+      <div class="resumen-card">
+        <div class="resumen-numero bien" id="resEquiposOk">—</div>
+        <div class="resumen-label">🟢 OK</div>
+      </div>
+      <div class="resumen-card">
+        <div class="resumen-numero" style="color: #8B6F00;" id="resEquiposMonitorear">—</div>
+        <div class="resumen-label">🟡 Monitorear</div>
+      </div>
+      <div class="resumen-card">
+        <div class="resumen-numero urgente" id="resEquiposUrgente">—</div>
+        <div class="resumen-label">🔴 Urgente</div>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filtros">
+      <div class="filtros-label">Mostrar:</div>
+      <button class="filtro-pill activo" onclick="filtrar('todos')">Todos</button>
+      <button class="filtro-pill" onclick="filtrar('urgente')">🔴 Urgentes</button>
+      <button class="filtro-pill" onclick="filtrar('monitorear')">🟡 Monitorear</button>
+      <button class="filtro-pill" onclick="filtrar('ok')">🟢 OK</button>
+    </div>
+
+
+    <!-- ALERTAS CLIMÁTICAS -->
+    <div id="alertasClimaticas" style="display:none;" class="alertas-clima-wrap"></div>
+
+    <!-- LISTA DE EQUIPOS -->
+    <div class="seccion-titulo">📋 Estado de equipos</div>
+    <div id="listaEquipos">
+      <div class="loading-text" style="text-align:center; padding:40px;">⏳ Cargando estado de equipos...</div>
+    </div>
+
+  </div>
+  </div>
+
+  <script>
+    let estadoEquipos = []; // Caché del análisis
+    let filtroActivo = 'todos';
+
+    window.onload = async function() {
+      await analizarTodosLosEquipos();
+      renderizar();
+    };
+
+    function filtrar(filtro) {
+      filtroActivo = filtro;
+      document.querySelectorAll('.filtro-pill').forEach(p => p.classList.remove('activo'));
+      event.target.classList.add('activo');
+      renderizar();
+    }
+
+    // ============ ANALIZAR TODOS LOS EQUIPOS ============
+    async function analizarTodosLosEquipos() {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+
+      estadoEquipos = [];
+
+      for (const equipo of equipos) {
+        const campo = campos.find(c => c.id === equipo.campoId);
+        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+        const campanaActiva = campanas.find(c => c.equipoId === equipo.id && c.estado === 'Activa');
+
+        const datos = {
+          equipo, campo, cliente, campanaActiva,
+          tieneGPS: campo && campo.latitud && campo.longitud,
+          eventosEquipo: eventos.filter(e => e.equipoId === equipo.id).sort((a, b) => new Date(b.fecha) - new Date(a.fecha)),
+          balance: null,
+          recomendacion: null,
+          semaforo: 'gris',
+          textoSemaforo: 'Sin datos',
+          motivoSemaforo: ''
+        };
+
+        // Si no hay campaña, semáforo gris
+        if (!campanaActiva) {
+          datos.semaforo = 'gris';
+          datos.textoSemaforo = 'Sin campaña';
+          estadoEquipos.push(datos);
+          continue;
+        }
+
+        // Si no hay GPS, no podemos calcular
+        if (!datos.tieneGPS) {
+          datos.semaforo = 'gris';
+          datos.textoSemaforo = 'Sin GPS';
+          estadoEquipos.push(datos);
+          continue;
+        }
+
+        // Calcular balance hídrico real
+        try {
+          const balance = await calcularBalance(campo, campanaActiva, datos.eventosEquipo, datos.equipo);
+          datos.balance = balance;
+
+          // Mostrar alertas climáticas (solo la primera vez)
+          if (balance.alertasClimaticas && balance.alertasClimaticas.length > 0) {
+            const divA = document.getElementById('alertasClimaticas');
+            if (divA.style.display === 'none') mostrarAlertasClimaticas(balance.alertasClimaticas);
+          }
+
+          // Generar semáforo según balance + lluvia próxima
+          if (balance.lluviaProxima >= 15) {
+            datos.semaforo = 'azul';
+            datos.textoSemaforo = '🌧️ Lluvia esperada';
+            datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en próximos 3 días. No regar.`;
+          } else if (balance.balance < -25) {
+            datos.semaforo = 'rojo';
+            datos.textoSemaforo = '🔴 URGENTE';
+            datos.recomendacion = `Déficit fuerte: <strong>${Math.abs(balance.balance).toFixed(0)} mm</strong>. Regar hoy — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.`;
+          } else if (balance.balance < -10) {
+            datos.semaforo = 'amarillo';
+            datos.textoSemaforo = '🟡 Monitorear';
+            datos.recomendacion = `Déficit: <strong>${Math.abs(balance.balance).toFixed(0)} mm</strong>. Programar riego en 24-48 hs.`;
+          } else if (balance.balance >= 0) {
+            datos.semaforo = 'verde';
+            datos.textoSemaforo = '🟢 OK';
+            datos.recomendacion = `Balance positivo: <strong>+${balance.balance.toFixed(0)} mm</strong>. Sin necesidad de riego.`;
+          } else {
+            datos.semaforo = 'amarillo';
+            datos.textoSemaforo = '🟡 Monitorear';
+            datos.recomendacion = `Déficit leve: <strong>${Math.abs(balance.balance).toFixed(0)} mm</strong>. Reevaluar en 2-3 días.`;
+          }
+        } catch (error) {
+          datos.semaforo = 'gris';
+          datos.textoSemaforo = '📡 Sin internet';
+        }
+
+        estadoEquipos.push(datos);
+      }
+    }
+
+
+    // ===== EFICIENCIA DE RIEGO POR TIPO DE EQUIPO =====
+    const EFICIENCIA_RIEGO = {
+      pivote:         0.85,
+      goteo:          0.92,
+      microaspersion: 0.88,
+      aspersion:      0.78,
+      canon:          0.70,
+      superficie:     0.50,
+      otro:           0.80,
+    };
+    function getEficienciaEquipo(equipo) {
+      if (!equipo) return 0.80;
+      if (equipo.eficiencia && parseFloat(equipo.eficiencia) > 0)
+        return parseFloat(equipo.eficiencia) / 100;
+      return EFICIENCIA_RIEGO[equipo.tipo] || 0.80;
+    }
+
+
+    // ===== DETECCIÓN DE ALERTAS CLIMÁTICAS =====
+    function detectarAlertasClimaticas(daily) {
+      const alertas = [];
+      const diasSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      for (let i = 7; i < Math.min(12, daily.time.length); i++) {
+        const fecha = new Date(daily.time[i] + 'T12:00:00');
+        const diaStr = diasSemana[fecha.getDay()] + ' ' + String(fecha.getDate()).padStart(2,'0') + '/' + String(fecha.getMonth()+1).padStart(2,'0');
+        const tempMin  = daily.temperature_2m_min?.[i];
+        const tempMax  = daily.temperature_2m_max?.[i];
+        const viento   = daily.wind_speed_10m_max?.[i];
+        const wCode    = daily.weather_code?.[i];
+        const lluvia   = daily.precipitation_sum?.[i] || 0;
+        const probLluv = daily.precipitation_probability_max?.[i] || 0;
+        if (tempMin !== undefined && tempMin <= 2)
+          alertas.push({ tipo:'helada',   icono:'🧊', nombre:'Riesgo de helada',       detalle:`Temperatura mínima prevista: ${tempMin.toFixed(1)}°C. Proteger cultivos sensibles.`, fecha: diaStr });
+        if (tempMax !== undefined && tempMax >= 38)
+          alertas.push({ tipo:'calor',    icono:'🌡️', nombre:'Ola de calor',            detalle:`Temperatura máxima: ${tempMax.toFixed(1)}°C. Aumentar frecuencia de riego.`, fecha: diaStr });
+        if (wCode !== undefined && wCode >= 95)
+          alertas.push({ tipo:'tormenta', icono:'⛈️', nombre:'Tormenta eléctrica',      detalle:`Posible granizo y vientos fuertes. No operar equipos eléctricos.`, fecha: diaStr });
+        if (viento !== undefined && viento >= 50)
+          alertas.push({ tipo:'viento',   icono:'💨', nombre:'Viento fuerte',           detalle:`Velocidad máxima: ${Math.round(viento)} km/h. Revisar equipos móviles.`, fecha: diaStr });
+        if (lluvia >= 40 && probLluv >= 60)
+          alertas.push({ tipo:'lluvia',   icono:'🌊', nombre:'Lluvia intensa',          detalle:`${lluvia.toFixed(0)} mm (${probLluv}% prob.). Suspender riegos.`, fecha: diaStr });
+      }
+      return alertas;
+    }
+
+    function mostrarAlertasClimaticas(alertas) {
+      const div = document.getElementById('alertasClimaticas');
+      if (!alertas || alertas.length === 0) { div.style.display = 'none'; return; }
+      div.style.display = 'block';
+      div.innerHTML = `<div class="alertas-clima-titulo">⚠️ Alertas climáticas — próximos 5 días</div>` +
+        alertas.map(a => `<div class="alerta-clima-card ${a.tipo}">
+          <div class="alerta-clima-icono">${a.icono}</div>
+          <div class="alerta-clima-info">
+            <div class="alerta-clima-nombre">${a.nombre}</div>
+            <div class="alerta-clima-detalle">${a.detalle}</div>
+          </div>
+          <div class="alerta-clima-fecha">${a.fecha}</div>
+        </div>`).join('');
+    }
+
+    // ============ CALCULAR BALANCE HÍDRICO ============
+    async function calcularBalance(campo, campana, eventosEquipo, equipo) {
+      const lat = parseFloat(campo.latitud);
+      const lon = parseFloat(campo.longitud);
+
+      const url = `https://api.open-meteo.com/v1/forecast?` +
+        `latitude=${lat}&longitude=${lon}` +
+        `&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max` +
+        `&past_days=7&forecast_days=5&timezone=auto`;
+
+      const respuesta = await fetch(url);
+      const datos = await respuesta.json();
+
+      // Cargar Kc del primer cultivo
+      const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      const cultivoNombre = campana.cultivos[0].cultivo;
+      const kcDef = fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
+
+      let lluviaTotal = 0;
+      let etTotal = 0;
+
+      for (let i = 0; i < 7; i++) {
+        lluviaTotal += datos.daily.precipitation_sum[i] || 0;
+        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
+
+        if (kcDef && campana.cultivos[0].fechaSiembra) {
+          const fechaDia = new Date(datos.daily.time[i]);
+          const kcValor = calcularKcSimple(kcDef, fechaDia, campana.cultivos[0].fechaSiembra);
+          etTotal += etoDia * kcValor;
+        } else {
+          etTotal += etoDia;
+        }
+      }
+
+      // Sumar eventos reales últimos 7 días
+      const hace7dias = new Date();
+      hace7dias.setDate(hace7dias.getDate() - 7);
+
+      const eficiencia = getEficienciaEquipo(equipo);
+      let lluviaReal = 0;
+      let riegoEfectivo = 0;
+      eventosEquipo.forEach(ev => {
+        const fechaEv = new Date(ev.fecha);
+        if (fechaEv < hace7dias) return;
+        if (ev.tipo === 'lluvia') lluviaReal += parseFloat(ev.cantidad) || 0;
+        if (ev.tipo === 'riego') riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficiencia;
+      });
+
+      let lluviaProxima = 0;
+      for (let i = 7; i < 10; i++) {
+        lluviaProxima += datos.daily.precipitation_sum[i] || 0;
+      }
+
+      return {
+        lluviaAPI: lluviaTotal,
+        lluviaReal,
+        riegoEfectivo,
+        eficiencia,
+        etcAcumulada: etTotal,
+        balance: (lluviaTotal + lluviaReal + riegoEfectivo) - etTotal,
+        lluviaProxima,
+        kcDef,
+        alertasClimaticas: detectarAlertasClimaticas(datos.daily)
+      };
+    }
+
+    function calcularKcSimple(kcDef, fechaCalc, fechaSiembra) {
+      if (kcDef.tipo === 'perenne') {
+        const mes = new Date(fechaCalc).getMonth() + 1;
+        if ([9, 10, 11].includes(mes)) return kcDef.kc_pri;
+        if ([12, 1, 2].includes(mes)) return kcDef.kc_ver;
+        if ([3, 4, 5].includes(mes)) return kcDef.kc_oto;
+        return kcDef.kc_inv;
+      }
+      const fechaSi = new Date(fechaSiembra);
+      const dias = Math.floor((new Date(fechaCalc) - fechaSi) / 86400000);
+      const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
+      const total = L_ini + L_des + L_med + L_fin;
+      if (dias < 0) return 0;
+      if (dias <= L_ini) return kc_ini;
+      if (dias <= L_ini + L_des) {
+        const p = (dias - L_ini) / L_des;
+        return kc_ini + p * (kc_med - kc_ini);
+      }
+      if (dias <= L_ini + L_des + L_med) return kc_med;
+      if (dias <= total) {
+        const p = (dias - L_ini - L_des - L_med) / L_fin;
+        return kc_med + p * (kc_fin - kc_med);
+      }
+      return kc_fin;
+    }
+
+    // ============ RENDERIZAR ============
+    function renderizar() {
+      // Stats arriba
+      const total = estadoEquipos.length;
+      const ok = estadoEquipos.filter(e => e.semaforo === 'verde' || e.semaforo === 'azul').length;
+      const monitorear = estadoEquipos.filter(e => e.semaforo === 'amarillo').length;
+      const urgente = estadoEquipos.filter(e => e.semaforo === 'rojo').length;
+
+      document.getElementById('resTotalEquipos').textContent = total;
+      document.getElementById('resEquiposOk').textContent = ok;
+      document.getElementById('resEquiposMonitorear').textContent = monitorear;
+      document.getElementById('resEquiposUrgente').textContent = urgente;
+
+      // Filtrar
+      let aMostrar = estadoEquipos;
+      if (filtroActivo === 'urgente') {
+        aMostrar = estadoEquipos.filter(e => e.semaforo === 'rojo');
+      } else if (filtroActivo === 'monitorear') {
+        aMostrar = estadoEquipos.filter(e => e.semaforo === 'amarillo');
+      } else if (filtroActivo === 'ok') {
+        aMostrar = estadoEquipos.filter(e => e.semaforo === 'verde' || e.semaforo === 'azul');
+      }
+
+      const lista = document.getElementById('listaEquipos');
+
+      if (aMostrar.length === 0) {
+        lista.innerHTML = `
+          <div class="vacio">
+            <div class="vacio-icono">📋</div>
+            <div>${total === 0 ? 'No hay equipos cargados.' : 'No hay equipos con este filtro.'}</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Ordenar por urgencia (rojo > amarillo > verde > azul > gris)
+      const orden = { rojo: 0, amarillo: 1, verde: 2, azul: 3, gris: 4 };
+      aMostrar.sort((a, b) => orden[a.semaforo] - orden[b.semaforo]);
+
+      lista.innerHTML = '';
+      aMostrar.forEach(d => {
+        let cultivoTexto = 'Sin campaña activa';
+        let diasTexto = '—';
+        let supTexto = '—';
+
+        if (d.campanaActiva && d.campanaActiva.cultivos && d.campanaActiva.cultivos.length > 0) {
+          const c = d.campanaActiva.cultivos[0];
+          cultivoTexto = `${c.cultivo}${c.variedad ? ' (' + c.variedad + ')' : ''}`;
+          if (c.fechaSiembra) {
+            const dias = Math.floor((new Date() - new Date(c.fechaSiembra)) / 86400000);
+            diasTexto = dias + ' días';
+          }
+          if (c.superficie) supTexto = c.superficie + ' ha';
+        }
+
+        // Eventos recientes (últimos 3)
+        const ultimos = d.eventosEquipo.slice(0, 3);
+        let eventosMiniHTML = '';
+        if (ultimos.length > 0) {
+          eventosMiniHTML = '<div class="equipo-eventos-mini">';
+          ultimos.forEach(ev => {
+            const fecha = new Date(ev.fecha + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' });
+            let icono = '💧', texto = '';
+            if (ev.tipo === 'riego') { icono = '💧'; texto = `${ev.cantidad}mm`; }
+            else if (ev.tipo === 'lluvia') { icono = '🌧️'; texto = `${ev.cantidad}mm`; }
+            else if (ev.tipo === 'aplicacion') { icono = '🧪'; texto = ev.producto; }
+            eventosMiniHTML += `<span class="evento-mini">${icono} ${texto} <span style="opacity:0.6;">${fecha}</span></span>`;
+          });
+          eventosMiniHTML += '</div>';
+        }
+
+        let recoHTML = '';
+        if (d.recomendacion) {
+          recoHTML = `<div class="equipo-recomendacion">💡 ${d.recomendacion}</div>`;
+        } else if (d.semaforo === 'gris') {
+          recoHTML = `<div class="equipo-recomendacion" style="color:#6B6356;font-style:italic;">${
+            !d.tieneGPS ? '⚠️ Cargá GPS al campo para ver recomendación.' :
+            !d.campanaActiva ? '⚠️ Sin campaña activa cargada.' :
+            'Sin datos disponibles.'
+          }</div>`;
+        }
+
+        const html = `
+          <div class="equipo-card semaforo-${d.semaforo}" onclick="window.location.href='operador.html'">
+            <div class="equipo-header">
+              <div>
+                <div class="equipo-nombre">💧 ${d.equipo.nombre}</div>
+                <div class="equipo-ubicacion">📍 ${d.campo ? d.campo.nombre : '?'} · ${d.cliente ? d.cliente.nombre : '?'}</div>
+              </div>
+              <span class="semaforo ${d.semaforo}">${d.textoSemaforo}</span>
+            </div>
+
+            <div class="equipo-info-grid">
+              <div class="info-bloque">
+                <div class="info-bloque-label">Cultivo</div>
+                <div class="info-bloque-valor">${cultivoTexto}</div>
+              </div>
+              <div class="info-bloque">
+                <div class="info-bloque-label">Días siembra</div>
+                <div class="info-bloque-valor">${diasTexto}</div>
+              </div>
+              <div class="info-bloque">
+                <div class="info-bloque-label">Superficie</div>
+                <div class="info-bloque-valor">${supTexto}</div>
+              </div>
+              <div class="info-bloque">
+                <div class="info-bloque-label">Eventos cargados</div>
+                <div class="info-bloque-valor">${d.eventosEquipo.length}</div>
+              </div>
+            </div>
+
+            ${recoHTML}
+            ${eventosMiniHTML}
+          </div>
+        `;
+        lista.innerHTML += html;
+      });
+    }
+  </script>
+
+</body>
+</html>

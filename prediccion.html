@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Predicción de Riego 7 días</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #FAF6EC;
+      color: #1A1A1A;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .volver {
+      display: inline-block;
+      color: #0F3D14;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background: #fff;
+      border-radius: 100px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .contenedor { max-width: 1200px; margin: 0 auto; }
+
+    .header-prediccion {
+      background: linear-gradient(135deg, #6A1B9A, #4A148C);
+      color: #fff;
+      padding: 28px 24px;
+      border-radius: 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icono {
+      font-size: 44px;
+      width: 64px;
+      height: 64px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-prediccion h1 { font-size: 24px; font-weight: 700; letter-spacing: 0.05em; }
+    .header-prediccion p { font-size: 13px; opacity: 0.9; margin-top: 2px; }
+
+    .alerta {
+      background: rgba(181, 55, 28, 0.1);
+      border: 1.5px solid rgba(181, 55, 28, 0.3);
+      color: #B5371C;
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .alerta a { color: #B5371C; font-weight: 700; }
+
+    .loading { text-align: center; padding: 60px 20px; color: #6B6356; }
+    .loading-icon {
+      font-size: 48px;
+      animation: spin 2s linear infinite;
+      display: inline-block; margin-bottom: 14px;
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    /* RESUMEN GENERAL */
+    .resumen-general {
+      margin-bottom: 24px;
+    }
+
+    .seccion-titulo {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6356;
+      margin-bottom: 12px;
+      padding-left: 4px;
+    }
+
+    .grid-equipos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .card-equipo {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .card-equipo:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    }
+
+    .card-equipo.seleccionado {
+      border-color: #6A1B9A;
+      background: rgba(106, 27, 154, 0.04);
+    }
+
+    .card-equipo-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .card-equipo-semaforo {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .semaforo-verde { background: #2E7D32; }
+    .semaforo-amarillo { background: #F57C00; }
+    .semaforo-rojo { background: #C62828; }
+
+    .card-equipo-nombre {
+      font-size: 16px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .card-equipo-cultivo {
+      font-size: 12px;
+      color: #6B6356;
+      margin-bottom: 12px;
+    }
+
+    .card-equipo-resumen {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .dia-mini {
+      flex: 1;
+      min-width: 28px;
+      text-align: center;
+      padding: 6px 4px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .dia-mini.dia-ok { background: rgba(46, 125, 50, 0.15); color: #2E7D32; }
+    .dia-mini.dia-atencion { background: rgba(245, 124, 0, 0.15); color: #F57C00; }
+    .dia-mini.dia-regar { background: rgba(198, 40, 40, 0.15); color: #C62828; }
+    .dia-mini.dia-lluvia { background: rgba(21, 101, 192, 0.15); color: #1565C0; }
+
+    .card-equipo-stats {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      display: flex;
+      gap: 14px;
+      font-size: 11px;
+      color: #6B6356;
+    }
+
+    .card-equipo-stat strong {
+      color: #1A1A1A;
+      font-size: 14px;
+      display: block;
+    }
+
+    /* DETALLE */
+    .detalle {
+      display: none;
+    }
+
+    .detalle.visible { display: block; }
+
+    .detalle-header {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .detalle-info { flex: 1; min-width: 200px; }
+    .detalle-titulo { font-size: 18px; font-weight: 700; }
+    .detalle-sub { font-size: 13px; color: #6B6356; margin-top: 4px; }
+    .detalle-suelo {
+      font-size: 12px;
+      color: #8B6F00;
+      margin-top: 6px;
+      padding: 4px 10px;
+      background: rgba(212, 162, 76, 0.1);
+      border-radius: 100px;
+      display: inline-block;
+    }
+    .detalle-suelo strong { color: #6B5118; }
+
+    .detalle-estado {
+      padding: 8px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* RESUMEN SEMANA */
+    .resumen-semana {
+      background: linear-gradient(135deg, #f0e6f7, #fff);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1.5px solid rgba(106, 27, 154, 0.15);
+    }
+
+    .resumen-semana-titulo {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6A1B9A;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .resumen-semana-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .resumen-stat {
+      background: #fff;
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .resumen-stat-icono { font-size: 22px; margin-bottom: 4px; }
+    .resumen-stat-valor {
+      font-size: 22px;
+      font-weight: 700;
+      color: #6A1B9A;
+      line-height: 1;
+    }
+    .resumen-stat-label {
+      font-size: 11px;
+      color: #6B6356;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+
+    /* DÍA TARJETA */
+    .dia-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border-left: 6px solid transparent;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .dia-card.dia-hoy {
+      border-color: #1565C0;
+      background: rgba(21, 101, 192, 0.04);
+    }
+    .dia-card.dia-ok { border-left-color: #2E7D32; }
+    .dia-card.dia-atencion { border-left-color: #F57C00; background: rgba(245, 124, 0, 0.03); }
+    .dia-card.dia-regar { border-left-color: #C62828; background: rgba(198, 40, 40, 0.03); }
+    .dia-card.dia-lluvia { border-left-color: #1565C0; background: rgba(21, 101, 192, 0.03); }
+
+    .dia-fecha-bloque {
+      width: 90px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .dia-fecha-num {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1A1A1A;
+      line-height: 1;
+    }
+    .dia-fecha-mes {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #6B6356;
+      margin-top: 2px;
+      letter-spacing: 0.08em;
+    }
+    .dia-fecha-dia {
+      font-size: 13px;
+      font-weight: 600;
+      color: #6B6356;
+      margin-top: 4px;
+    }
+
+    .dia-icono-grande {
+      font-size: 36px;
+      margin-top: 6px;
+    }
+
+    .dia-info {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .dia-recomendacion {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dia-detalles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .dia-detalle {
+      font-size: 11px;
+      color: #6B6356;
+    }
+    .dia-detalle strong {
+      display: block;
+      color: #1A1A1A;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .dia-barra-humedad {
+      margin-top: 12px;
+    }
+
+    .dia-barra-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #6B6356;
+      margin-bottom: 4px;
+    }
+    .dia-barra-label strong { color: #1A1A1A; font-weight: 700; }
+
+    .dia-barra-fondo {
+      width: 100%;
+      height: 12px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 100px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .dia-barra-llena {
+      height: 100%;
+      border-radius: 100px;
+      transition: width 0.4s;
+    }
+    .barra-verde { background: linear-gradient(90deg, #4CAF50, #2E7D32); }
+    .barra-amarilla { background: linear-gradient(90deg, #FFC107, #F57C00); }
+    .barra-roja { background: linear-gradient(90deg, #F44336, #C62828); }
+
+    .dia-barra-umbral {
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      width: 2px;
+      background: #6A1B9A;
+    }
+
+    .dia-mensaje {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.04);
+      border-radius: 8px;
+      font-size: 13px;
+      color: #1A1A1A;
+      line-height: 1.5;
+    }
+    .dia-mensaje strong { color: #6A1B9A; }
+
+    .badge-confianza {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-weight: 700;
+      background: rgba(0,0,0,0.06);
+      color: #6B6356;
+      margin-left: auto;
+    }
+    .conf-alta { background: rgba(46, 125, 50, 0.15); color: #2E7D32; }
+    .conf-media { background: rgba(245, 124, 0, 0.15); color: #F57C00; }
+
+    .info-tecnica {
+      background: rgba(106, 27, 154, 0.05);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: #4A148C;
+      line-height: 1.5;
+    }
+    .info-tecnica strong { color: #6A1B9A; }
+
+    .fuente-datos {
+      text-align: center;
+      padding: 16px;
+      font-size: 11px;
+      color: #6B6356;
+      opacity: 0.8;
+    }
+    .fuente-datos a { color: #0F3D14; font-weight: 600; }
+
+    @media (max-width: 600px) {
+      .dia-card { flex-direction: column; align-items: stretch; }
+      .dia-fecha-bloque { width: 100%; display: flex; align-items: center; gap: 16px; text-align: left; }
+      .dia-fecha-num { font-size: 22px; }
+      .dia-icono-grande { margin-top: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="contenedor">
+
+    <a href="index.html" class="volver">← Menú</a>
+    <a href="backup.html" class="volver" style="margin-left:8px;">💾 Respaldo</a>
+
+    <div class="header-prediccion">
+      <div class="header-icono">🔮</div>
+      <div>
+        <h1>PREDICCIÓN DE RIEGO 7 DÍAS</h1>
+        <p>SAFIA mira el clima futuro y te dice cuándo y cuánto regar</p>
+      </div>
+    </div>
+
+    <div class="alerta" id="alertaSinDatos" style="display:none;">
+      ⚠️ Para usar la predicción necesitás tener al menos una <strong>campaña activa</strong> con cultivo válido.
+      <br><br>
+      <a href="mis-campanas.html">→ Cargar campaña</a>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="loading-icon">🔮</div>
+      <div>Analizando clima futuro y simulando riegos...</div>
+    </div>
+
+    <div id="contenidoPrediccion" style="display:none;">
+
+      <div class="info-tecnica">
+        💡 <strong>Cómo funciona:</strong> SAFIA simula día por día la humedad del suelo combinando lluvias previstas (Open-Meteo), evapotranspiración del cultivo (FAO 56 + Kc), y los riegos/lluvias ya cargados. Cuando la humedad va a bajar del umbral crítico, te avisa que tenés que regar.
+      </div>
+
+      <!-- RESUMEN GENERAL -->
+      <div class="resumen-general">
+        <div class="seccion-titulo">📊 Resumen general — Todos los equipos</div>
+        <div class="grid-equipos" id="gridEquipos"></div>
+      </div>
+
+      <!-- DETALLE -->
+      <div class="detalle" id="detalle">
+        <div class="seccion-titulo">🔍 Detalle día por día</div>
+
+        <div class="detalle-header" id="detalleHeader"></div>
+
+        <div class="resumen-semana" id="resumenSemana"></div>
+
+        <div id="diasDetalle"></div>
+      </div>
+
+      <div class="fuente-datos">
+        Fuente: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> · ETo: FAO Penman-Monteith · Kc: FAO 56 · Suelo: valores típicos
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // ============ CONSTANTES TIPOS DE SUELO ============
+    // Valores agronómicos para 40 cm de profundidad efectiva
+    // CC: Capacidad de campo | PMP: Punto de marchitez | AAU: Agua aprovechable útil
+    // coefLluvia: % de lluvia que efectivamente queda disponible (resto se escurre/percola)
+    const TIPOS_SUELO = {
+      arenoso: {
+        nombre: 'Arenoso', emoji: '🏖️',
+        CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95
+      },
+      franco_arenoso: {
+        nombre: 'Franco arenoso', emoji: '🌾',
+        CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90
+      },
+      franco: {
+        nombre: 'Franco', emoji: '🌱',
+        CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85
+      },
+      franco_arcilloso: {
+        nombre: 'Franco arcilloso', emoji: '🟫',
+        CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75
+      },
+      arcilloso: {
+        nombre: 'Arcilloso', emoji: '🧱',
+        CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65
+      }
+    };
+
+    // Umbrales agronómicos universales (no dependen del suelo)
+    const UMBRALES = {
+      CRITICO: 50,   // % AAU debajo del cual hay que regar
+      ATENCION: 70   // % AAU para alerta amarilla
+    };
+
+    // Devuelve los valores del suelo del campo, con fallback a "franco" si no está clasificado
+    function obtenerSueloCampo(campo) {
+      const tipo = (campo && campo.tipoSuelo && TIPOS_SUELO[campo.tipoSuelo])
+        ? campo.tipoSuelo
+        : 'franco';
+      return { ...TIPOS_SUELO[tipo], tipo };
+    }
+
+    // Variables globales
+    let datosTodos = {}; // { equipoId: { contexto, datos, prediccion } }
+    let equipoSeleccionado = null;
+
+    window.onload = async function() {
+      await cargarTodosLosEquipos();
+    };
+
+    // ============ FUNCIÓN Kc (importada de clima.html) ============
+    function obtenerCultivoKc(nombreCultivo) {
+      const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      let cultivo = fao.find(c => c.nombre === nombreCultivo);
+      if (cultivo) return { ...cultivo, fuente: 'FAO' };
+      cultivo = custom.find(c => c.nombre === nombreCultivo);
+      if (cultivo) return { ...cultivo, fuente: 'CUSTOM' };
+      return null;
+    }
+
+    function calcularKc(kcDef, fechaCalculo, fechaSiembra) {
+      if (!kcDef) return { kc: 1.0, etapa: 'Desconocida' };
+
+      if (kcDef.tipo === 'perenne') {
+        const mes = new Date(fechaCalculo).getMonth() + 1;
+        let kc, etapa;
+        if ([9, 10, 11].includes(mes)) { kc = kcDef.kc_pri; etapa = 'Primavera'; }
+        else if ([12, 1, 2].includes(mes)) { kc = kcDef.kc_ver; etapa = 'Verano'; }
+        else if ([3, 4, 5].includes(mes)) { kc = kcDef.kc_oto; etapa = 'Otoño'; }
+        else { kc = kcDef.kc_inv; etapa = 'Invierno'; }
+        return { kc, etapa };
+      }
+
+      const fechaSi = new Date(fechaSiembra);
+      const fechaCalc = new Date(fechaCalculo);
+      const dias = Math.floor((fechaCalc - fechaSi) / (1000 * 60 * 60 * 24));
+      const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
+      const totalDias = L_ini + L_des + L_med + L_fin;
+
+      let kc, etapa;
+
+      if (dias < 0) return { kc: 0, etapa: 'Pre-siembra' };
+      if (dias <= L_ini) { kc = kc_ini; etapa = 'Inicial'; }
+      else if (dias <= L_ini + L_des) {
+        const progreso = (dias - L_ini) / L_des;
+        kc = kc_ini + progreso * (kc_med - kc_ini);
+        etapa = 'Desarrollo';
+      } else if (dias <= L_ini + L_des + L_med) { kc = kc_med; etapa = 'Media'; }
+      else if (dias <= totalDias) {
+        const progreso = (dias - L_ini - L_des - L_med) / L_fin;
+        kc = kc_med + progreso * (kc_fin - kc_med);
+        etapa = 'Final';
+      } else { kc = kc_fin; etapa = 'Post-cosecha'; }
+
+      return { kc, etapa };
+    }
+
+    // ============ CARGAR TODOS LOS EQUIPOS ============
+    async function cargarTodosLosEquipos() {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+
+      // Construir lista de equipos con campaña válida
+      const equiposValidos = [];
+
+      for (const eq of equipos) {
+        const campo = campos.find(c => c.id === eq.campoId);
+        if (!campo || !campo.latitud || !campo.longitud) continue;
+
+        const cliente = clientes.find(cl => cl.id === campo.clienteId);
+
+        // Buscar campaña activa de este equipo
+        const campana = campanas.find(c => c.equipoId === eq.id && c.estado === 'Activa');
+        if (!campana || !campana.cultivos || campana.cultivos.length === 0) continue;
+
+        // Tomar el primer cultivo
+        const cultivo = campana.cultivos[0];
+        const kcDef = obtenerCultivoKc(cultivo.cultivo);
+        if (!kcDef || !cultivo.fechaSiembra) continue;
+
+        equiposValidos.push({
+          equipo: eq,
+          campo,
+          cliente,
+          campana,
+          cultivo,
+          kcDef
+        });
+      }
+
+      if (equiposValidos.length === 0) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('alertaSinDatos').style.display = 'block';
+        return;
+      }
+
+      // Cargar Open-Meteo y simular para cada equipo
+      for (const ev of equiposValidos) {
+        try {
+          const datos = await fetchOpenMeteo(ev.campo.latitud, ev.campo.longitud);
+          const prediccion = simularPrediccion(ev, datos);
+          datosTodos[ev.equipo.id] = { ...ev, datos, prediccion };
+        } catch (err) {
+          console.error('Error cargando ' + ev.equipo.nombre, err);
+        }
+      }
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('contenidoPrediccion').style.display = 'block';
+
+      mostrarResumen();
+
+      // Auto-seleccionar el primero
+      const primerId = Object.keys(datosTodos)[0];
+      if (primerId) seleccionarEquipo(parseInt(primerId));
+    }
+
+    // ============ FETCH OPEN-METEO ============
+    async function fetchOpenMeteo(lat, lon) {
+      const url = `https://api.open-meteo.com/v1/forecast?` +
+        `latitude=${lat}&longitude=${lon}` +
+        `&current=temperature_2m` +
+        `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max` +
+        `&past_days=14&forecast_days=7&timezone=auto`;
+      const respuesta = await fetch(url);
+      if (!respuesta.ok) throw new Error('Open-Meteo error');
+      return await respuesta.json();
+    }
+
+    // ============ NÚCLEO: SIMULACIÓN DE PREDICCIÓN ============
+    function simularPrediccion(ev, datos) {
+      // 0. Obtener tipo de suelo del campo (con fallback a "franco" si no está clasificado)
+      const suelo = obtenerSueloCampo(ev.campo);
+
+      // 1. Calcular humedad ACTUAL del suelo
+      // Empieza en 80% de CC asumiendo suelo razonable, y simula últimos 14 días
+      let humedadMM = suelo.CC * 0.8; // Empezamos en 80%
+
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+
+      // Eventos de los últimos 14 días para este equipo
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const hace14 = new Date(hoy);
+      hace14.setDate(hace14.getDate() - 14);
+
+      // Agarrar eventos del equipo en últimos 14 días
+      const eventosRelevantes = eventos.filter(e =>
+        e.equipoId === ev.equipo.id &&
+        (e.tipo === 'riego' || e.tipo === 'lluvia') &&
+        new Date(e.fecha) >= hace14 &&
+        new Date(e.fecha) <= hoy
+      );
+
+      // Simular pasado (últimos 14 días)
+      // datos.daily.time[0] a [13] son los 14 días pasados
+      // datos.daily.time[14] es HOY
+      // datos.daily.time[15] a [20] son 6 días futuros (1 a 6)
+      // Open-Meteo devuelve past_days + 1 (hoy) + forecast_days en daily
+      // En este caso: past_days=14, forecast_days=7 → indices 0..13 (pasado), 14 (hoy), 15..20 (futuro 6)
+
+      // Encontrar el índice de HOY en el array
+      const indiceHoy = datos.daily.time.findIndex(t => {
+        const d = new Date(t);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() === hoy.getTime();
+      });
+
+      const inicioSimulacion = Math.max(0, indiceHoy - 14);
+
+      // Simular pasado
+      for (let i = inicioSimulacion; i < indiceHoy; i++) {
+        const fechaDia = new Date(datos.daily.time[i]);
+
+        // Sumar lluvia del pronóstico (aplicando coef. de aprovechamiento del suelo)
+        const lluviaDelDia = datos.daily.precipitation_sum[i] || 0;
+        humedadMM += lluviaDelDia * suelo.coefLluvia;
+
+        // Sumar eventos cargados (riego/lluvia manual o por voz)
+        // El operador carga lo que cae/aplica; aplicamos coef solo a lluvia, no a riego dirigido
+        const fechaStr = datos.daily.time[i];
+        eventosRelevantes.forEach(e => {
+          if (e.fecha === fechaStr) {
+            const cantidad = parseFloat(e.cantidad) || 0;
+            if (e.tipo === 'lluvia') {
+              humedadMM += cantidad * suelo.coefLluvia;
+            } else {
+              humedadMM += cantidad; // riego: ya viene aplicado al cultivo
+            }
+          }
+        });
+
+        // Restar ETc
+        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
+        const kcInfo = calcularKc(ev.kcDef, fechaDia, ev.cultivo.fechaSiembra);
+        const etcDia = etoDia * kcInfo.kc;
+        humedadMM -= etcDia;
+
+        // Limitar entre PMP y CC
+        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
+      }
+
+      // Humedad de HOY (después de simulación pasada)
+      const humedadHoy = humedadMM;
+
+      // 2. Simular futuro (HOY + 6 próximos días)
+      const dias = [];
+
+      for (let i = indiceHoy; i < indiceHoy + 7 && i < datos.daily.time.length; i++) {
+        const fechaDia = new Date(datos.daily.time[i]);
+        const esHoy = i === indiceHoy;
+
+        const humedadInicio = humedadMM;
+
+        // Lluvia prevista
+        const lluviaDia = datos.daily.precipitation_sum[i] || 0;
+        const probLluvia = datos.daily.precipitation_probability_max ? datos.daily.precipitation_probability_max[i] : null;
+
+        // ETo y Kc
+        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
+        const kcInfo = calcularKc(ev.kcDef, fechaDia, ev.cultivo.fechaSiembra);
+        const etcDia = etoDia * kcInfo.kc;
+
+        // Para HOY también sumar eventos cargados de hoy
+        let riegoManualHoy = 0;
+        if (esHoy) {
+          const fechaStr = datos.daily.time[i];
+          eventosRelevantes.forEach(e => {
+            if (e.fecha === fechaStr) riegoManualHoy += parseFloat(e.cantidad) || 0;
+          });
+          humedadMM += riegoManualHoy;
+        }
+
+        // Aplicar lluvia (con coef. de aprovechamiento del suelo) y ETc
+        // El resto de la lluvia se pierde por escorrentía/percolación profunda
+        const lluviaEfectiva = lluviaDia * suelo.coefLluvia;
+        humedadMM += lluviaEfectiva;
+        humedadMM -= etcDia;
+
+        // 🔧 FIX: Capar a capacidad de campo ANTES de calcular el porcentaje.
+        // El exceso de lluvia se pierde por escorrentía/percolación profunda
+        // (no queda disponible para la planta). Así nunca pasamos de 100%.
+        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
+
+        // Calcular % sobre AAU
+        const aguaDisponible = humedadMM - suelo.PMP;
+        const porcentajeAAU = (aguaDisponible / suelo.AAU) * 100;
+
+        // Determinar recomendación
+        let estado, recomendacion, mmRegar = 0;
+
+        if (lluviaDia >= 10) {
+          estado = 'lluvia';
+          recomendacion = `🌧️ Lluvia prevista ${lluviaDia.toFixed(0)} mm — No regar`;
+        } else if (porcentajeAAU < UMBRALES.CRITICO) {
+          estado = 'regar';
+          // Cuánto regar para llegar al 100% de AAU
+          mmRegar = Math.ceil((suelo.CC - humedadMM) / 5) * 5; // Redondeado a 5
+          mmRegar = Math.max(15, Math.min(35, mmRegar)); // Entre 15 y 35
+          recomendacion = `🔴 REGAR ${mmRegar} mm`;
+          // Asumir que riega para próximos días
+          humedadMM += mmRegar;
+        } else if (porcentajeAAU < UMBRALES.ATENCION) {
+          estado = 'atencion';
+          recomendacion = '🟡 ATENCIÓN — Prepará riego';
+        } else {
+          estado = 'ok';
+          recomendacion = '🟢 OK — No regar';
+        }
+
+        // Limitar humedad
+        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
+
+        // Confianza (más cerca = más confiable)
+        const diasDesdeHoy = i - indiceHoy;
+        let confianza;
+        if (diasDesdeHoy <= 2) confianza = 'alta';
+        else if (diasDesdeHoy <= 4) confianza = 'media';
+        else confianza = 'media';
+
+        dias.push({
+          fecha: datos.daily.time[i],
+          fechaObj: fechaDia,
+          esHoy,
+          humedadInicio,
+          humedadFin: humedadMM,
+          aguaDisponible,
+          porcentajeAAU,
+          lluviaDia,
+          lluviaEfectiva,
+          probLluvia,
+          etoDia,
+          etcDia,
+          kcInfo,
+          riegoManual: riegoManualHoy,
+          tMax: datos.daily.temperature_2m_max[i],
+          tMin: datos.daily.temperature_2m_min[i],
+          weatherCode: datos.daily.weather_code[i],
+          estado,
+          recomendacion,
+          mmRegar,
+          confianza
+        });
+      }
+
+      // Calcular totales semana
+      const totalRiegos = dias.filter(d => d.estado === 'regar').length;
+      const totalLluviaPrevista = dias.reduce((s, d) => s + d.lluviaDia, 0);
+      const totalRiegoMM = dias.reduce((s, d) => s + d.mmRegar, 0);
+      const totalETc = dias.reduce((s, d) => s + d.etcDia, 0);
+      const semaforo = totalRiegos === 0 ? 'verde' : (totalRiegos <= 1 ? 'amarillo' : 'rojo');
+
+      return {
+        humedadHoy,
+        porcentajeAAUHoy: ((humedadHoy - suelo.PMP) / suelo.AAU) * 100,
+        suelo,
+        dias,
+        totalRiegos,
+        totalLluviaPrevista,
+        totalRiegoMM,
+        totalETc,
+        semaforo
+      };
+    }
+
+    // ============ MOSTRAR RESUMEN ============
+    function mostrarResumen() {
+      const grid = document.getElementById('gridEquipos');
+      grid.innerHTML = '';
+
+      Object.values(datosTodos).forEach(data => {
+        const pred = data.prediccion;
+        const semaforoClase = `semaforo-${pred.semaforo}`;
+
+        let diasMini = '';
+        pred.dias.forEach(d => {
+          const fecha = new Date(d.fecha);
+          const dia = fecha.toLocaleDateString('es-PY', { weekday: 'short' }).slice(0, 1).toUpperCase();
+          let claseDia = 'dia-mini ';
+          if (d.estado === 'lluvia') claseDia += 'dia-lluvia';
+          else if (d.estado === 'regar') claseDia += 'dia-regar';
+          else if (d.estado === 'atencion') claseDia += 'dia-atencion';
+          else claseDia += 'dia-ok';
+
+          let icono = '';
+          if (d.estado === 'lluvia') icono = '🌧️';
+          else if (d.estado === 'regar') icono = '🔴';
+          else if (d.estado === 'atencion') icono = '🟡';
+          else icono = '🟢';
+
+          diasMini += `<div class="${claseDia}" title="${d.recomendacion}">${dia}<br>${icono}</div>`;
+        });
+
+        grid.innerHTML += `
+          <div class="card-equipo" id="card-${data.equipo.id}" onclick="seleccionarEquipo(${data.equipo.id})">
+            <div class="card-equipo-header">
+              <div class="card-equipo-semaforo ${semaforoClase}"></div>
+              <div class="card-equipo-nombre">${data.equipo.nombre}</div>
+            </div>
+            <div class="card-equipo-cultivo">
+              ${data.kcDef.emoji || '🌱'} ${data.cultivo.cultivo} · ${data.campo.nombre} · ${data.cliente.nombre}
+            </div>
+            <div class="card-equipo-resumen">${diasMini}</div>
+            <div class="card-equipo-stats">
+              <div class="card-equipo-stat">
+                <strong>${pred.totalRiegos}</strong>
+                Riegos
+              </div>
+              <div class="card-equipo-stat">
+                <strong>${pred.totalLluviaPrevista.toFixed(0)} mm</strong>
+                Lluvia
+              </div>
+              <div class="card-equipo-stat">
+                <strong>${pred.porcentajeAAUHoy.toFixed(0)}%</strong>
+                Humedad hoy
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // ============ SELECCIONAR EQUIPO ============
+    function seleccionarEquipo(equipoId) {
+      equipoSeleccionado = equipoId;
+
+      // Resaltar card
+      document.querySelectorAll('.card-equipo').forEach(c => c.classList.remove('seleccionado'));
+      const card = document.getElementById(`card-${equipoId}`);
+      if (card) card.classList.add('seleccionado');
+
+      const data = datosTodos[equipoId];
+      if (!data) return;
+
+      const detalle = document.getElementById('detalle');
+      detalle.classList.add('visible');
+
+      // HEADER
+      const semaforoClase = `semaforo-${data.prediccion.semaforo}`;
+      let estadoTexto = '🟢 Semana tranquila';
+      let estadoColor = 'rgba(46, 125, 50, 0.15)';
+      let estadoColorTexto = '#2E7D32';
+      if (data.prediccion.semaforo === 'amarillo') {
+        estadoTexto = '🟡 Atención esta semana';
+        estadoColor = 'rgba(245, 124, 0, 0.15)';
+        estadoColorTexto = '#F57C00';
+      } else if (data.prediccion.semaforo === 'rojo') {
+        estadoTexto = '🔴 Semana con riegos';
+        estadoColor = 'rgba(198, 40, 40, 0.15)';
+        estadoColorTexto = '#C62828';
+      }
+
+      const sueloInfo = data.prediccion.suelo;
+      document.getElementById('detalleHeader').innerHTML = `
+        <div class="card-equipo-semaforo ${semaforoClase}" style="width:24px; height:24px;"></div>
+        <div class="detalle-info">
+          <div class="detalle-titulo">${data.kcDef.emoji || '🌱'} ${data.equipo.nombre} — ${data.cultivo.cultivo}</div>
+          <div class="detalle-sub">
+            ${data.cultivo.variedad ? data.cultivo.variedad + ' · ' : ''}
+            ${data.campo.nombre} · ${data.cliente.nombre}
+          </div>
+          <div class="detalle-suelo">
+            ${sueloInfo.emoji} <strong>Suelo ${sueloInfo.nombre}</strong>
+            · ${sueloInfo.CC}mm CC
+            · ${(sueloInfo.coefLluvia * 100).toFixed(0)}% aprovecha lluvia
+          </div>
+        </div>
+        <div class="detalle-estado" style="background:${estadoColor}; color:${estadoColorTexto};">
+          ${estadoTexto}
+        </div>
+      `;
+
+      // RESUMEN SEMANA
+      document.getElementById('resumenSemana').innerHTML = `
+        <div class="resumen-semana-titulo">📊 Resumen de los próximos 7 días</div>
+        <div class="resumen-semana-grid">
+          <div class="resumen-stat">
+            <div class="resumen-stat-icono">🔴</div>
+            <div class="resumen-stat-valor">${data.prediccion.totalRiegos}</div>
+            <div class="resumen-stat-label">Riegos planificados</div>
+          </div>
+          <div class="resumen-stat">
+            <div class="resumen-stat-icono">💧</div>
+            <div class="resumen-stat-valor">${data.prediccion.totalRiegoMM.toFixed(0)} mm</div>
+            <div class="resumen-stat-label">Total a regar</div>
+          </div>
+          <div class="resumen-stat">
+            <div class="resumen-stat-icono">🌧️</div>
+            <div class="resumen-stat-valor">${data.prediccion.totalLluviaPrevista.toFixed(0)} mm</div>
+            <div class="resumen-stat-label">Lluvia prevista</div>
+          </div>
+          <div class="resumen-stat">
+            <div class="resumen-stat-icono">☀️</div>
+            <div class="resumen-stat-valor">${data.prediccion.totalETc.toFixed(0)} mm</div>
+            <div class="resumen-stat-label">ETc semanal</div>
+          </div>
+        </div>
+      `;
+
+      // DÍAS DETALLE
+      const diasContainer = document.getElementById('diasDetalle');
+      diasContainer.innerHTML = '';
+
+      data.prediccion.dias.forEach(dia => {
+        const fecha = dia.fechaObj;
+        const diaSem = fecha.toLocaleDateString('es-PY', { weekday: 'short' });
+        const numDia = fecha.getDate();
+        const mes = fecha.toLocaleDateString('es-PY', { month: 'short' });
+
+        let claseCard = `dia-card dia-${dia.estado}`;
+        if (dia.esHoy) claseCard += ' dia-hoy';
+
+        // Icono grande según estado
+        let iconoGrande;
+        if (dia.estado === 'lluvia') iconoGrande = '🌧️';
+        else if (dia.estado === 'regar') iconoGrande = '🔴';
+        else if (dia.estado === 'atencion') iconoGrande = '🟡';
+        else iconoGrande = '🟢';
+
+        // Barra de humedad
+        let claseBarra = 'barra-verde';
+        if (dia.porcentajeAAU < UMBRALES.CRITICO) claseBarra = 'barra-roja';
+        else if (dia.porcentajeAAU < UMBRALES.ATENCION) claseBarra = 'barra-amarilla';
+
+        const anchoBarra = Math.max(0, Math.min(100, dia.porcentajeAAU));
+        const umbralPos = UMBRALES.CRITICO;
+
+        // Mensaje detallado
+        let mensaje = '';
+        if (dia.estado === 'regar') {
+          mensaje = `<strong>SAFIA recomienda regar ${dia.mmRegar} mm.</strong> Sin riego, la humedad bajaría a ${dia.porcentajeAAU.toFixed(0)}% del agua útil, debajo del umbral crítico.`;
+        } else if (dia.estado === 'lluvia') {
+          const efectiva = dia.lluviaEfectiva.toFixed(0);
+          mensaje = `<strong>Lluvia prevista de ${dia.lluviaDia.toFixed(0)} mm</strong> (de los cuales ~${efectiva} mm aprovecha la planta según el suelo). ${dia.probLluvia ? `Probabilidad: ${dia.probLluvia}%. ` : ''}No es necesario regar.`;
+        } else if (dia.estado === 'atencion') {
+          mensaje = `<strong>Humedad bajando a ${dia.porcentajeAAU.toFixed(0)}%.</strong> Hoy todavía no, pero prepará el equipo para regar pronto.`;
+        } else {
+          mensaje = `<strong>Humedad en ${dia.porcentajeAAU.toFixed(0)}%</strong>, por encima del umbral crítico (${UMBRALES.CRITICO}%). Día tranquilo.`;
+        }
+
+        // Riego manual cargado hoy
+        let riegoCargado = '';
+        if (dia.riegoManual > 0) {
+          riegoCargado = `<div class="dia-mensaje" style="background:rgba(21,101,192,0.08); color:#1565C0;">💧 <strong>Riego cargado hoy: ${dia.riegoManual} mm</strong> (incluido en el cálculo)</div>`;
+        }
+
+        diasContainer.innerHTML += `
+          <div class="${claseCard}">
+            <div class="dia-fecha-bloque">
+              <div class="dia-fecha-num">${numDia}</div>
+              <div class="dia-fecha-mes">${mes}</div>
+              <div class="dia-fecha-dia">${dia.esHoy ? 'HOY' : diaSem}</div>
+              <div class="dia-icono-grande">${iconoGrande}</div>
+            </div>
+            <div class="dia-info">
+              <div class="dia-recomendacion">
+                ${dia.recomendacion}
+                <span class="badge-confianza conf-${dia.confianza}">Confianza ${dia.confianza}</span>
+              </div>
+
+              <div class="dia-detalles">
+                <div class="dia-detalle">
+                  <strong>${dia.tMax.toFixed(0)}° / ${dia.tMin.toFixed(0)}°</strong>
+                  Temperatura
+                </div>
+                <div class="dia-detalle">
+                  <strong>${dia.lluviaDia.toFixed(1)} mm</strong>
+                  Lluvia prevista
+                </div>
+                <div class="dia-detalle">
+                  <strong>${dia.etoDia.toFixed(1)} mm</strong>
+                  ETo
+                </div>
+                <div class="dia-detalle">
+                  <strong>${dia.etcDia.toFixed(1)} mm</strong>
+                  ETc (Kc ${dia.kcInfo.kc.toFixed(2)})
+                </div>
+              </div>
+
+              <div class="dia-barra-humedad">
+                <div class="dia-barra-label">
+                  <span>💧 Humedad útil del suelo</span>
+                  <strong>${dia.porcentajeAAU.toFixed(0)}%</strong>
+                </div>
+                <div class="dia-barra-fondo">
+                  <div class="dia-barra-llena ${claseBarra}" style="width:${anchoBarra}%;"></div>
+                  <div class="dia-barra-umbral" style="left:${umbralPos}%;" title="Umbral crítico"></div>
+                </div>
+              </div>
+
+              <div class="dia-mensaje">${mensaje}</div>
+
+              ${riegoCargado}
+            </div>
+          </div>
+        `;
+      });
+
+      // Scroll al detalle
+      setTimeout(() => {
+        document.getElementById('detalle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  </script>
+
+</body>
+</html>

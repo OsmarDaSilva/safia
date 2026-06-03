@@ -1,0 +1,36 @@
+# Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# Build / salida
+dist/
+build/
+.cache/
+.vercel/
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos del sistema Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Archivos del sistema macOS / Linux (por si se clona en otro SO)
+.DS_Store
+.AppleDouble
+.LSOverride
+*~
+
+# Editores / IDE
+.vscode/
+.idea/
+*.swp
+*.swo

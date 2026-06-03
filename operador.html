@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Operador</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --verde: #0F3D14;
+      --verde-claro: #1B5E20;
+      --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D;
+      --crema: #FAF6EC;
+      --crema-oscuro: #f0ead8;
+      --rojo: #B5371C;
+      --gris-texto: #6B6356;
+      --negro: #1A1A1A;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--crema);
+      color: var(--negro);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--verde);
+      color: var(--crema);
+      padding: 24px 14px 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 8px 20px;
+      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
+      margin-bottom: 18px;
+    }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+
+    .sidebar-grupo {
+      font-size: 10px; opacity: 0.55;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin: 18px 8px 6px; font-weight: 600;
+    }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+
+    .sidebar-link {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      color: var(--crema); text-decoration: none;
+      font-size: 13px; margin-bottom: 1px;
+      transition: background 0.15s;
+    }
+    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
+    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
+
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+    .sidebar-footer {
+      margin-top: 24px; padding: 14px 10px 4px;
+      border-top: 1px solid rgba(212, 162, 76, 0.25);
+      font-size: 10px; opacity: 0.6; line-height: 1.5;
+    }
+
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+
+    .topbar {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
+    }
+    .topbar-saludo {
+      font-size: 11px; color: var(--gris-texto);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 4px; font-weight: 600;
+    }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
+    .topbar-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--ambar); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px;
+    }
+
+    .contenedor { max-width: 600px; margin: 0 auto; }
+
+    .header-operador {
+      background: linear-gradient(135deg, #00838F, #006064);
+      color: #fff;
+      padding: 24px 22px;
+      border-radius: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-icono {
+      font-size: 42px;
+      width: 60px;
+      height: 60px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .header-textos h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .header-textos p {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      margin-bottom: 14px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6356;
+      margin-bottom: 8px;
+    }
+
+    .card select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 12px;
+      font-size: 16px;
+      font-family: inherit;
+      background: #FAF6EC;
+      font-weight: 600;
+    }
+
+    .campana-card {
+      background: linear-gradient(135deg, #43A047, #2E7D32);
+      color: #fff;
+      padding: 20px;
+      border-radius: 16px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .campana-card.visible { display: block; }
+
+    .campana-titulo {
+      font-size: 13px;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+
+    .campana-cultivo {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .campana-meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      opacity: 0.95;
+    }
+
+    .reco-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      margin-bottom: 14px;
+      border-left: 5px solid #6B6356;
+      display: none;
+    }
+
+    .reco-card.visible { display: block; }
+    .reco-card.regar { border-left-color: #1565C0; }
+    .reco-card.no-regar { border-left-color: #2E7D32; }
+    .reco-card.urgente { border-left-color: #B5371C; }
+    .reco-card.lluvia { border-left-color: #1565C0; }
+
+    .reco-header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .reco-icono {
+      font-size: 32px;
+    }
+
+    .reco-titulo {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0F3D14;
+    }
+
+    .reco-detalle {
+      font-size: 13px;
+      color: #6B6356;
+      line-height: 1.5;
+    }
+
+    .reco-loading {
+      color: #6B6356;
+      font-size: 13px;
+      font-style: italic;
+      text-align: center;
+      padding: 10px;
+    }
+
+    .botones-carga {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .boton-carga {
+      background: #fff;
+      border: none;
+      border-radius: 16px;
+      padding: 18px 8px;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: transform 0.15s;
+    }
+
+    .boton-carga:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .boton-carga:active {
+      transform: scale(0.97);
+    }
+
+    .boton-carga-icono {
+      font-size: 32px;
+      margin-bottom: 4px;
+    }
+
+    .boton-carga-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1A1A1A;
+    }
+
+    .boton-riego { border-bottom: 4px solid #1565C0; }
+    .boton-lluvia { border-bottom: 4px solid #00838F; }
+    .boton-aplicacion { border-bottom: 4px solid #7B1FA2; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-overlay.visible { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-titulo {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #0F3D14;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .campo {
+      margin-bottom: 16px;
+    }
+
+    .campo label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #6B6356;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .campo input, .campo select, .campo textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid rgba(0,0,0,0.1);
+      border-radius: 12px;
+      font-size: 16px;
+      font-family: inherit;
+      background: #FAF6EC;
+    }
+
+    .campo textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+
+    .modal-botones {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .boton-confirmar {
+      flex: 1;
+      padding: 16px;
+      background: #0F3D14;
+      color: #FAF6EC;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .boton-confirmar:hover { background: #1B5E20; }
+
+    .boton-cancelar-modal {
+      padding: 16px 20px;
+      background: rgba(0,0,0,0.06);
+      color: #6B6356;
+      border: none;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .eventos-titulo {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6B6356;
+      margin-bottom: 10px;
+      padding-left: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ver-todos {
+      font-size: 11px;
+      color: #1565C0;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .evento {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .evento-icono {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .evento-icono.tipo-riego { background: rgba(21, 101, 192, 0.12); }
+    .evento-icono.tipo-lluvia { background: rgba(0, 131, 143, 0.12); }
+    .evento-icono.tipo-aplicacion { background: rgba(123, 31, 162, 0.12); }
+
+    .evento-info { flex: 1; min-width: 0; }
+
+    .evento-titulo-evt {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1A1A1A;
+    }
+
+    .evento-detalle {
+      font-size: 12px;
+      color: #6B6356;
+      margin-top: 2px;
+    }
+
+    .evento-borrar {
+      background: rgba(181, 55, 28, 0.1);
+      color: #B5371C;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .vacio {
+      text-align: center;
+      padding: 30px 20px;
+      color: #6B6356;
+      background: #fff;
+      border-radius: 14px;
+      border: 2px dashed rgba(0,0,0,0.1);
+      font-size: 13px;
+    }
+
+    .vacio-icono {
+      font-size: 36px;
+      margin-bottom: 8px;
+      opacity: 0.4;
+    }
+
+    .alerta-sin-equipo {
+      background: rgba(181, 55, 28, 0.1);
+      border: 1.5px solid rgba(181, 55, 28, 0.3);
+      color: #B5371C;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .alerta-sin-equipo a {
+      color: #B5371C;
+      font-weight: 700;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0F3D14;
+      color: #FAF6EC;
+      padding: 14px 24px;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      transition: transform 0.3s;
+      z-index: 2000;
+    }
+
+    .toast.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+    }
+
+    @media (max-width: 500px) {
+      .main { padding: 16px; }
+      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
+          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
+          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+        </svg>
+        <div class="sidebar-logo-textos">
+          <div class="sidebar-logo-titulo">SAFIA</div>
+          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+        </div>
+      </div>
+
+      <div class="sidebar-grupo">Inicio</div>
+      <a href="index.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
+      </a>
+
+      <div class="sidebar-grupo">Datos</div>
+      <a href="mis-clientes.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
+      </a>
+      <a href="mis-campos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
+      </a>
+      <a href="mis-equipos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
+      </a>
+      <a href="mis-cultivos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
+      </a>
+      <a href="mis-campanas.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
+      </a>
+
+      <div class="sidebar-grupo">Inteligencia</div>
+      <a href="clima.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
+      </a>
+      <a href="prediccion.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
+      </a>
+
+      <div class="sidebar-grupo">Operación</div>
+      <a href="operador.html" class="sidebar-link activo">
+        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
+      </a>
+      <a href="eventos.html" class="sidebar-link">
+        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
+      </a>
+      <a href="encargado.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
+      </a>
+      <a href="propietario.html" class="sidebar-link">
+        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
+      </a>
+      <a href="voz.html" class="sidebar-link">
+        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
+      </a>
+
+      <div class="sidebar-grupo">Sistema</div>
+      <a href="backup.html" class="sidebar-link">
+        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
+      </a>
+
+      <div class="sidebar-footer">
+        SAFIA v1.0<br>
+        Herramienta para productores
+      </div>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div>
+          <div class="topbar-saludo">Operación</div>
+          <div class="topbar-titulo">🚜 Operador</div>
+        </div>
+        <div class="topbar-derecha">
+          <div class="topbar-fecha" id="topbarFecha">—</div>
+          <div class="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <div class="contenedor">
+
+        <div class="header-operador">
+          <div class="header-icono">👷</div>
+          <div class="header-textos">
+            <h1>OPERADOR</h1>
+            <p>Cargá lo que pasó hoy en el campo</p>
+          </div>
+        </div>
+
+        <div class="alerta-sin-equipo" id="alertaSinEquipo" style="display:none;">
+          ⚠️ No hay equipos cargados todavía.<br><br>
+          <a href="mis-equipos.html">→ Ir a cargar equipos</a>
+        </div>
+
+        <div class="card" id="selectorCard">
+          <div class="card-label">📍 Equipo de hoy</div>
+          <select id="selectorEquipo" onchange="cargarEquipoSeleccionado()">
+            <option value="">Seleccionar equipo...</option>
+          </select>
+        </div>
+
+        <div class="campana-card" id="campanaCard">
+          <div class="campana-titulo">🌱 Campaña activa</div>
+          <div class="campana-cultivo" id="campanaCultivo">—</div>
+          <div class="campana-meta" id="campanaMeta"></div>
+        </div>
+
+        <div class="reco-card" id="recoCard">
+          <div class="reco-header">
+            <div class="reco-icono" id="recoIcono">💧</div>
+            <div class="reco-titulo" id="recoTitulo">—</div>
+          </div>
+          <div class="reco-detalle" id="recoDetalle">—</div>
+        </div>
+
+        <div class="botones-carga" id="botonesCarga" style="display:none;">
+          <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
+            <div class="boton-carga-icono">💧</div>
+            <div class="boton-carga-label">Riego</div>
+          </button>
+          <button class="boton-carga boton-lluvia" onclick="abrirModal('lluvia')">
+            <div class="boton-carga-icono">🌧️</div>
+            <div class="boton-carga-label">Lluvia</div>
+          </button>
+          <button class="boton-carga boton-aplicacion" onclick="abrirModal('aplicacion')">
+            <div class="boton-carga-icono">🧪</div>
+            <div class="boton-carga-label">Aplicación</div>
+          </button>
+        </div>
+
+        <div id="eventosSeccion" style="display:none;">
+          <div class="eventos-titulo">
+            📅 Últimos eventos
+            <span id="conteoEventos" style="color: #6B6356; font-weight: 600; font-size: 11px;"></span>
+          </div>
+          <div id="listaEventos"></div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay" onclick="cerrarModalSiClickFuera(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-titulo" id="modalTitulo">+ Cargar evento</div>
+
+      <div class="campo">
+        <label>📅 Fecha</label>
+        <input type="date" id="modalFecha">
+      </div>
+
+      <div id="camposRiegoLluvia">
+        <div class="campo">
+          <label id="labelCantidad">💧 Cantidad (mm)</label>
+          <input type="number" id="modalCantidad" placeholder="Ej: 14" step="0.1">
+        </div>
+      </div>
+
+      <div id="camposAplicacion" style="display:none;">
+        <div class="campo">
+          <label>🧪 Producto del catálogo <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional — para calcular N/P/K)</span></label>
+          <select id="modalCatalogo" onchange="seleccionarProductoCatalogo()">
+            <option value="">— Buscar en catálogo —</option>
+            <optgroup label="Nitrogenados">
+              <option data-n="46" data-p="0" data-k="0">Urea (46-0-0)</option>
+              <option data-n="32" data-p="0" data-k="0">UAN solución (32-0-0)</option>
+              <option data-n="33" data-p="0" data-k="0">Nitrato de amonio (33-0-0)</option>
+              <option data-n="21" data-p="0" data-k="0">Sulfato de amonio (21-0-0)</option>
+              <option data-n="27" data-p="0" data-k="0">Nitrato de calcio (27-0-0)</option>
+            </optgroup>
+            <optgroup label="Fosfatados">
+              <option data-n="0" data-p="20" data-k="0">SFT Superfosfato triple (0-46-0)</option>
+              <option data-n="0" data-p="10" data-k="0">SFS Superfosfato simple (0-22-0)</option>
+              <option data-n="18" data-p="20" data-k="0">DAP (18-46-0)</option>
+              <option data-n="12" data-p="23" data-k="0">MAP (12-52-0)</option>
+            </optgroup>
+            <optgroup label="Potásicos">
+              <option data-n="0" data-p="0" data-k="50">KCl Cloruro de potasio (0-0-60)</option>
+              <option data-n="0" data-p="0" data-k="43">K2SO4 Sulfato de potasio (0-0-52)</option>
+            </optgroup>
+            <optgroup label="Complejos NPK">
+              <option data-n="12" data-p="5" data-k="10">NPK 12-12-12</option>
+              <option data-n="15" data-p="7" data-k="12">NPK 15-15-15</option>
+              <option data-n="10" data-p="6" data-k="20">NPK 10-14-24</option>
+              <option data-n="20" data-p="5" data-k="10">NPK 20-10-20</option>
+            </optgroup>
+            <optgroup label="Otros">
+              <option data-n="0" data-p="0" data-k="0">Otro / no aplica</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>🧪 Producto aplicado</label>
+          <input type="text" id="modalProducto" placeholder="Ej: Urea, Glifosato, DAP">
+        </div>
+        <div class="campo">
+          <label>📊 Dosis</label>
+          <input type="number" id="modalDosis" placeholder="Ej: 100" step="0.1" oninput="actualizarNpkPreview()">
+        </div>
+        <div class="campo">
+          <label>📐 Unidad</label>
+          <select id="modalUnidad">
+            <option value="kg/ha">kg/ha (kilos por hectárea)</option>
+            <option value="L/ha">L/ha (litros por hectárea)</option>
+            <option value="g/ha">g/ha (gramos por hectárea)</option>
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div class="campo" style="margin-bottom:0;">
+            <label>% N <span style="color:#aaa;font-weight:400;font-size:10px;">(nitrógeno)</span></label>
+            <input type="number" id="modalNpct" placeholder="Ej: 46" step="0.1" min="0" max="100" style="text-align:center;">
+          </div>
+          <div class="campo" style="margin-bottom:0;">
+            <label>% P <span style="color:#aaa;font-weight:400;font-size:10px;">(fósforo)</span></label>
+            <input type="number" id="modalPpct" placeholder="Ej: 0" step="0.1" min="0" max="100" style="text-align:center;">
+          </div>
+          <div class="campo" style="margin-bottom:0;">
+            <label>% K <span style="color:#aaa;font-weight:400;font-size:10px;">(potasio)</span></label>
+            <input type="number" id="modalKpct" placeholder="Ej: 0" step="0.1" min="0" max="100" style="text-align:center;">
+          </div>
+        </div>
+        <div id="npkPreview" style="display:none;background:rgba(123,31,162,0.06);border-radius:10px;padding:10px 14px;font-size:12px;color:#4A148C;margin-bottom:8px;">
+          💡 <span id="npkPreviewTexto"></span>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label>📝 Observaciones (opcional)</label>
+        <textarea id="modalObservaciones" placeholder="Cualquier detalle..."></textarea>
+      </div>
+
+      <div class="modal-botones">
+        <button class="boton-cancelar-modal" onclick="cerrarModal()">Cancelar</button>
+        <button class="boton-confirmar" onclick="guardarEvento()">✓ Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    let equipoSeleccionadoId = null;
+    let campanaActivaActual = null;
+    let tipoEventoActual = null;
+
+    window.onload = function() {
+      verificarEquipos();
+      cargarSelectorEquipos();
+      document.getElementById('modalFecha').valueAsDate = new Date();
+    };
+
+    function verificarEquipos() {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      if (equipos.length === 0) {
+        document.getElementById('alertaSinEquipo').style.display = 'block';
+        document.getElementById('selectorCard').style.display = 'none';
+      }
+    }
+
+    function cargarSelectorEquipos() {
+      const select = document.getElementById('selectorEquipo');
+      while (select.options.length > 1) select.remove(1);
+
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+      equipos.forEach(e => {
+        const campo = campos.find(c => c.id === e.campoId);
+        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.nombre} (${campo ? campo.nombre : '?'} · ${cliente ? cliente.nombre : '?'})`;
+        select.appendChild(opt);
+      });
+    }
+
+    function cargarEquipoSeleccionado() {
+      const equipoId = document.getElementById('selectorEquipo').value;
+
+      if (!equipoId) {
+        document.getElementById('campanaCard').classList.remove('visible');
+        document.getElementById('recoCard').classList.remove('visible');
+        document.getElementById('botonesCarga').style.display = 'none';
+        document.getElementById('eventosSeccion').style.display = 'none';
+        equipoSeleccionadoId = null;
+        return;
+      }
+
+      equipoSeleccionadoId = parseInt(equipoId);
+
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      campanaActivaActual = campanas.find(c =>
+        c.equipoId === equipoSeleccionadoId && c.estado === 'Activa'
+      );
+
+      mostrarCampana();
+      mostrarRecomendacionClima();
+      mostrarEventos();
+
+      document.getElementById('botonesCarga').style.display = 'grid';
+      document.getElementById('eventosSeccion').style.display = 'block';
+    }
+
+    function mostrarCampana() {
+      const card = document.getElementById('campanaCard');
+
+      if (!campanaActivaActual || !campanaActivaActual.cultivos || campanaActivaActual.cultivos.length === 0) {
+        card.classList.remove('visible');
+        return;
+      }
+
+      const cultivosTexto = campanaActivaActual.cultivos
+        .map(c => c.cultivo + (c.variedad ? ` (${c.variedad})` : ''))
+        .join(' + ');
+
+      const primerCultivo = campanaActivaActual.cultivos[0];
+      let metaTexto = '';
+      if (primerCultivo.fechaSiembra) {
+        const fechaSi = new Date(primerCultivo.fechaSiembra);
+        const dias = Math.floor((new Date() - fechaSi) / (1000 * 60 * 60 * 24));
+        metaTexto = `<div>📅 ${dias} días desde siembra</div>`;
+      }
+      if (primerCultivo.superficie) {
+        metaTexto += `<div>📐 ${primerCultivo.superficie} ha</div>`;
+      }
+
+      document.getElementById('campanaCultivo').textContent = cultivosTexto;
+      document.getElementById('campanaMeta').innerHTML = metaTexto;
+      card.classList.add('visible');
+    }
+
+    async function mostrarRecomendacionClima() {
+      const card = document.getElementById('recoCard');
+      const icono = document.getElementById('recoIcono');
+      const titulo = document.getElementById('recoTitulo');
+      const detalle = document.getElementById('recoDetalle');
+
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const equipo = equipos.find(e => e.id === equipoSeleccionadoId);
+      if (!equipo) return;
+
+      const campo = campos.find(c => c.id === equipo.campoId);
+      if (!campo || !campo.latitud || !campo.longitud) {
+        icono.textContent = '⚠️';
+        titulo.textContent = 'Sin datos GPS';
+        detalle.innerHTML = `Para ver la recomendación, cargá <a href="mis-campos.html" style="color:#1565C0;">GPS en el campo</a>.`;
+        card.className = 'reco-card visible';
+        return;
+      }
+
+      icono.textContent = '⏳';
+      titulo.textContent = 'Consultando clima...';
+      detalle.textContent = '';
+      card.className = 'reco-card visible';
+
+      try {
+        const lat = parseFloat(campo.latitud);
+        const lon = parseFloat(campo.longitud);
+
+        const url = `https://api.open-meteo.com/v1/forecast?` +
+          `latitude=${lat}&longitude=${lon}` +
+          `&daily=precipitation_sum,et0_fao_evapotranspiration` +
+          `&past_days=7&forecast_days=4&timezone=auto`;
+
+        const respuesta = await fetch(url);
+        const datos = await respuesta.json();
+
+        let etTotal = 0;
+        let lluviaTotal = 0;
+        let etiqueta = 'ETo';
+
+        let kcDef = null;
+        if (campanaActivaActual && campanaActivaActual.cultivos && campanaActivaActual.cultivos.length > 0) {
+          const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
+          const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+          const cultivoNombre = campanaActivaActual.cultivos[0].cultivo;
+          kcDef = fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
+          if (kcDef) etiqueta = 'ETc';
+        }
+
+        for (let i = 0; i < 7; i++) {
+          lluviaTotal += datos.daily.precipitation_sum[i] || 0;
+          const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
+
+          if (kcDef && campanaActivaActual.cultivos[0].fechaSiembra) {
+            const fechaDia = new Date(datos.daily.time[i]);
+            const kcValor = calcularKcSimple(kcDef, fechaDia, campanaActivaActual.cultivos[0].fechaSiembra);
+            etTotal += etoDia * kcValor;
+          } else {
+            etTotal += etoDia;
+          }
+        }
+
+        const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+        const hace7dias = new Date();
+        hace7dias.setDate(hace7dias.getDate() - 7);
+
+        let lluviaReal = 0;
+
+    // ===== EFICIENCIA DE RIEGO POR TIPO DE EQUIPO =====
+    const EFICIENCIA_RIEGO = {
+      pivote:         0.85,
+      goteo:          0.92,
+      microaspersion: 0.88,
+      aspersion:      0.78,
+      canon:          0.70,
+      superficie:     0.50,
+      otro:           0.80,
+    };
+    function getEficienciaEquipo(equipo) {
+      if (!equipo) return 0.80;
+      if (equipo.eficiencia && parseFloat(equipo.eficiencia) > 0)
+        return parseFloat(equipo.eficiencia) / 100;
+      return EFICIENCIA_RIEGO[equipo.tipo] || 0.80;
+    }
+        const eficiencia = getEficienciaEquipo(equipoSeleccionado);
+        let riegoEfectivo = 0;
+
+        eventos.forEach(ev => {
+          if (ev.equipoId !== equipoSeleccionadoId) return;
+          const fechaEv = new Date(ev.fecha);
+          if (fechaEv < hace7dias) return;
+
+          if (ev.tipo === 'lluvia') lluviaReal += parseFloat(ev.cantidad) || 0;
+          if (ev.tipo === 'riego') riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficiencia;
+        });
+
+        let lluviaProxima = 0;
+        for (let i = 7; i < 10; i++) {
+          lluviaProxima += datos.daily.precipitation_sum[i] || 0;
+        }
+
+        const balanceConDatosReales = (lluviaTotal + lluviaReal + riegoEfectivo) - etTotal;
+
+        if (lluviaProxima >= 15) {
+          icono.textContent = '🌧️';
+          titulo.textContent = 'No regar — viene lluvia';
+          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en próximos 3 días.`;
+          card.className = 'reco-card visible no-regar';
+        } else if (balanceConDatosReales < -25) {
+          icono.textContent = '⚠️';
+          titulo.textContent = 'RIEGO URGENTE';
+          const cant = Math.min(25, Math.abs(balanceConDatosReales));
+          detalle.innerHTML = `Déficit fuerte: <strong>${Math.abs(balanceConDatosReales).toFixed(0)} mm</strong>. Regar <strong>${cant.toFixed(0)} mm</strong> hoy.`;
+          card.className = 'reco-card visible urgente';
+        } else if (balanceConDatosReales < -10) {
+          icono.textContent = '💧';
+          titulo.textContent = 'Programar riego';
+          const cant = Math.min(15, Math.abs(balanceConDatosReales));
+          detalle.innerHTML = `Déficit: <strong>${Math.abs(balanceConDatosReales).toFixed(0)} mm</strong>. Regar <strong>${cant.toFixed(0)} mm</strong> en 24-48 hs.`;
+          card.className = 'reco-card visible regar';
+        } else if (balanceConDatosReales >= 0) {
+          icono.textContent = '✅';
+          titulo.textContent = 'Sin necesidad de riego';
+          detalle.innerHTML = `Balance positivo: <strong>+${balanceConDatosReales.toFixed(0)} mm</strong>.`;
+          card.className = 'reco-card visible no-regar';
+        } else {
+          icono.textContent = '👀';
+          titulo.textContent = 'Monitorear';
+          detalle.innerHTML = `Déficit leve: <strong>${Math.abs(balanceConDatosReales).toFixed(0)} mm</strong>. Reevaluar en 2-3 días.`;
+          card.className = 'reco-card visible regar';
+        }
+
+      } catch (error) {
+        icono.textContent = '📡';
+        titulo.textContent = 'Sin internet';
+        detalle.textContent = 'No se pudo consultar el clima. Conectate a internet para ver la recomendación.';
+        card.className = 'reco-card visible';
+      }
+    }
+
+    function calcularKcSimple(kcDef, fechaCalc, fechaSiembra) {
+      if (kcDef.tipo === 'perenne') {
+        const mes = new Date(fechaCalc).getMonth() + 1;
+        if ([9, 10, 11].includes(mes)) return kcDef.kc_pri;
+        if ([12, 1, 2].includes(mes)) return kcDef.kc_ver;
+        if ([3, 4, 5].includes(mes)) return kcDef.kc_oto;
+        return kcDef.kc_inv;
+      }
+      const fechaSi = new Date(fechaSiembra);
+      const dias = Math.floor((new Date(fechaCalc) - fechaSi) / 86400000);
+      const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
+      const total = L_ini + L_des + L_med + L_fin;
+
+      if (dias < 0) return 0;
+      if (dias <= L_ini) return kc_ini;
+      if (dias <= L_ini + L_des) {
+        const p = (dias - L_ini) / L_des;
+        return kc_ini + p * (kc_med - kc_ini);
+      }
+      if (dias <= L_ini + L_des + L_med) return kc_med;
+      if (dias <= total) {
+        const p = (dias - L_ini - L_des - L_med) / L_fin;
+        return kc_med + p * (kc_fin - kc_med);
+      }
+      return kc_fin;
+    }
+
+    function seleccionarProductoCatalogo() {
+      const sel = document.getElementById('modalCatalogo');
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.dataset.n) return;
+      const n = opt.dataset.n, p = opt.dataset.p, k = opt.dataset.k;
+      document.getElementById('modalNpct').value = n;
+      document.getElementById('modalPpct').value = p;
+      document.getElementById('modalKpct').value = k;
+      // Pre-llenar nombre del producto
+      const nombre = opt.text.split(' (')[0];
+      if (nombre !== 'Otro / no aplica') document.getElementById('modalProducto').value = nombre;
+      actualizarNpkPreview();
+    }
+
+    function actualizarNpkPreview() {
+      const dosis = parseFloat(document.getElementById('modalDosis').value) || 0;
+      const unidad = document.getElementById('modalUnidad').value;
+      const n = parseFloat(document.getElementById('modalNpct').value) || 0;
+      const p = parseFloat(document.getElementById('modalPpct').value) || 0;
+      const k = parseFloat(document.getElementById('modalKpct').value) || 0;
+      const preview = document.getElementById('npkPreview');
+      const texto = document.getElementById('npkPreviewTexto');
+
+      if (dosis > 0 && unidad === 'kg/ha' && (n > 0 || p > 0 || k > 0)) {
+        const nKg = (dosis * n / 100).toFixed(1);
+        const pKg = (dosis * p / 100).toFixed(1);
+        const kKg = (dosis * k / 100).toFixed(1);
+        texto.textContent = `Esta aplicación aporta: N=${nKg} kg/ha · P=${pKg} kg/ha · K=${kKg} kg/ha`;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    }
+
+    function abrirModal(tipo) {
+      tipoEventoActual = tipo;
+
+      const titulo = document.getElementById('modalTitulo');
+      const camposRiegoLluvia = document.getElementById('camposRiegoLluvia');
+      const camposAplicacion = document.getElementById('camposAplicacion');
+      const labelCantidad = document.getElementById('labelCantidad');
+
+      document.getElementById('modalCantidad').value = '';
+      document.getElementById('modalProducto').value = '';
+      document.getElementById('modalDosis').value = '';
+      document.getElementById('modalCatalogo').value = '';
+      document.getElementById('modalNpct').value = '';
+      document.getElementById('modalPpct').value = '';
+      document.getElementById('modalKpct').value = '';
+      document.getElementById('npkPreview').style.display = 'none';
+      document.getElementById('modalObservaciones').value = '';
+      document.getElementById('modalFecha').valueAsDate = new Date();
+
+      if (tipo === 'riego') {
+        titulo.innerHTML = '💧 Cargar riego';
+        labelCantidad.textContent = '💧 Cantidad regada (mm)';
+        camposRiegoLluvia.style.display = 'block';
+        camposAplicacion.style.display = 'none';
+      } else if (tipo === 'lluvia') {
+        titulo.innerHTML = '🌧️ Cargar lluvia';
+        labelCantidad.textContent = '🌧️ Cantidad caída (mm)';
+        camposRiegoLluvia.style.display = 'block';
+        camposAplicacion.style.display = 'none';
+      } else if (tipo === 'aplicacion') {
+        titulo.innerHTML = '🧪 Cargar aplicación';
+        camposRiegoLluvia.style.display = 'none';
+        camposAplicacion.style.display = 'block';
+      }
+
+      document.getElementById('modalOverlay').classList.add('visible');
+    }
+
+    function cerrarModal() {
+      document.getElementById('modalOverlay').classList.remove('visible');
+    }
+
+    function cerrarModalSiClickFuera(event) {
+      if (event.target.id === 'modalOverlay') cerrarModal();
+    }
+
+    function guardarEvento() {
+      const fecha = document.getElementById('modalFecha').value;
+      const observaciones = document.getElementById('modalObservaciones').value.trim();
+
+      if (!fecha) {
+        alert('Cargá la fecha del evento.');
+        return;
+      }
+
+      const evento = {
+        id: Date.now(),
+        fecha: fecha,
+        equipoId: equipoSeleccionadoId,
+        campanaId: campanaActivaActual ? campanaActivaActual.id : null,
+        tipo: tipoEventoActual,
+        observaciones: observaciones,
+        cargadoPor: 'manual',
+        fechaCreacion: new Date().toISOString()
+      };
+
+      if (tipoEventoActual === 'riego' || tipoEventoActual === 'lluvia') {
+        const cantidad = parseFloat(document.getElementById('modalCantidad').value);
+        if (!cantidad || cantidad <= 0) {
+          alert('Cargá la cantidad en mm.');
+          return;
+        }
+        evento.cantidad = cantidad;
+        evento.unidad = 'mm';
+
+      } else if (tipoEventoActual === 'aplicacion') {
+        const producto = document.getElementById('modalProducto').value.trim();
+        const dosis = parseFloat(document.getElementById('modalDosis').value);
+        const unidad = document.getElementById('modalUnidad').value;
+        const nPct = parseFloat(document.getElementById('modalNpct').value) || 0;
+        const pPct = parseFloat(document.getElementById('modalPpct').value) || 0;
+        const kPct = parseFloat(document.getElementById('modalKpct').value) || 0;
+
+        if (!producto) { alert('Cargá el producto aplicado.'); return; }
+        if (!dosis || dosis <= 0) { alert('Cargá la dosis aplicada.'); return; }
+
+        evento.producto = producto;
+        evento.dosis = dosis;
+        evento.unidad = unidad;
+        // Guardar contenido NPK solo si es en kg/ha (para balance nutricional)
+        if (unidad === 'kg/ha' && (nPct > 0 || pPct > 0 || kPct > 0)) {
+          evento.n_pct = nPct;
+          evento.p_pct = pPct;
+          evento.k_pct = kPct;
+          evento.n_kg_ha = parseFloat((dosis * nPct / 100).toFixed(2));
+          evento.p_kg_ha = parseFloat((dosis * pPct / 100).toFixed(2));
+          evento.k_kg_ha = parseFloat((dosis * kPct / 100).toFixed(2));
+        }
+      }
+
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      eventos.push(evento);
+      localStorage.setItem('eventos', JSON.stringify(eventos));
+
+      cerrarModal();
+      mostrarToast('✓ ' + capitalizar(tipoEventoActual) + ' guardado');
+      mostrarEventos();
+      mostrarRecomendacionClima();
+    }
+
+    function mostrarEventos() {
+      const lista = document.getElementById('listaEventos');
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+
+      const eventosEquipo = eventos
+        .filter(e => e.equipoId === equipoSeleccionadoId)
+        .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+        .slice(0, 8);
+
+      const conteo = eventos.filter(e => e.equipoId === equipoSeleccionadoId).length;
+      document.getElementById('conteoEventos').textContent = conteo > 0 ? `(${conteo} total)` : '';
+
+      if (eventosEquipo.length === 0) {
+        lista.innerHTML = `
+          <div class="vacio">
+            <div class="vacio-icono">📅</div>
+            <div>Todavía no cargaste ningún evento.<br>Tocá un botón arriba para cargar el primero.</div>
+          </div>
+        `;
+        return;
+      }
+
+      lista.innerHTML = '';
+      eventosEquipo.forEach(ev => {
+        const fecha = new Date(ev.fecha + 'T12:00:00');
+        const fechaStr = fecha.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' });
+        const diaSemana = fecha.toLocaleDateString('es-PY', { weekday: 'short' });
+
+        let icono, titulo, detalle;
+
+        if (ev.tipo === 'riego') {
+          icono = '💧';
+          titulo = `Riego ${ev.cantidad} mm`;
+          detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'lluvia') {
+          icono = '🌧️';
+          titulo = `Lluvia ${ev.cantidad} mm`;
+          detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'aplicacion') {
+          icono = '🧪';
+          titulo = `${ev.producto} (${ev.dosis} ${ev.unidad})`;
+          detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        }
+
+        lista.innerHTML += `
+          <div class="evento">
+            <div class="evento-icono tipo-${ev.tipo}">${icono}</div>
+            <div class="evento-info">
+              <div class="evento-titulo-evt">${titulo}</div>
+              <div class="evento-detalle">${detalle}</div>
+            </div>
+            <button class="evento-borrar" onclick="borrarEvento(${ev.id})" title="Borrar">×</button>
+          </div>
+        `;
+      });
+    }
+
+    function borrarEvento(id) {
+      if (!confirm('¿Borrar este evento? No se puede deshacer.')) return;
+
+      let eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      eventos = eventos.filter(e => e.id !== id);
+      localStorage.setItem('eventos', JSON.stringify(eventos));
+
+      mostrarToast('✓ Evento borrado');
+      mostrarEventos();
+      mostrarRecomendacionClima();
+    }
+
+    function mostrarToast(mensaje) {
+      const toast = document.getElementById('toast');
+      toast.textContent = mensaje;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 2500);
+    }
+
+    function capitalizar(s) {
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+  </script>
+
+</body>
+</html>

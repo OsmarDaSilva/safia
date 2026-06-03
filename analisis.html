@@ -1,0 +1,690 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Análisis y Documentos</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --verde: #0F3D14; --ambar: #D4A24C; --crema: #FAF6EC; --rojo: #B5371C; --gris: #6B6356; --negro: #1A1A1A; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--crema); color: var(--negro); min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    .sidebar { background: var(--verde); color: var(--crema); padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--crema); text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
+    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
+    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+    .topbar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(15,61,20,0.08); }
+    .topbar-saludo { font-size: 11px; color: var(--gris); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 600; }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris); text-align: right; }
+    .topbar-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--ambar); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+    .contenedor { max-width: 900px; margin: 0 auto; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: #fff; padding: 6px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .tab { flex: 1; padding: 10px 14px; border: none; background: transparent; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--gris); cursor: pointer; }
+    .tab.activo { background: var(--verde); color: var(--crema); }
+    .tab:not(.activo):hover { background: rgba(15,61,20,0.06); }
+    .filtros { display: flex; gap: 10px; flex-wrap: wrap; }
+    .filtro-select { padding: 8px 14px; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 10px; font-size: 13px; font-family: inherit; background: #fff; color: var(--negro); }
+    .btn-nuevo { background: var(--verde); color: var(--crema); border: none; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-nuevo:hover { background: #1B5E20; }
+    .upload-zone { border: 2.5px dashed rgba(15,61,20,0.3); border-radius: 16px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(15,61,20,0.02); margin-bottom: 16px; }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--verde); background: rgba(15,61,20,0.06); }
+    .upload-zone-icono { font-size: 48px; margin-bottom: 10px; }
+    .upload-zone-titulo { font-size: 16px; font-weight: 700; color: var(--verde); margin-bottom: 4px; }
+    .upload-zone-sub { font-size: 13px; color: var(--gris); }
+    .upload-zone-tipos { font-size: 11px; color: var(--gris); margin-top: 8px; opacity: 0.7; }
+    #inputArchivo { display: none; }
+    .form-card { background: #fff; border-radius: 18px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; display: none; }
+    .form-card.visible { display: block; }
+    .form-titulo { font-size: 17px; font-weight: 700; color: var(--verde); margin-bottom: 18px; }
+    .campo { margin-bottom: 16px; }
+    .campo label { display: block; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .campo label .opc { color: #aaa; font-weight: 400; text-transform: none; font-size: 10px; }
+    .campo input, .campo select, .campo textarea { width: 100%; padding: 12px 14px; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 10px; font-size: 14px; font-family: inherit; background: #FAF6EC; color: var(--negro); }
+    .campo textarea { min-height: 60px; resize: vertical; }
+    .campo input:focus, .campo select:focus, .campo textarea:focus { outline: none; border-color: var(--verde); background: #fff; }
+    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .seccion-params { background: rgba(15,61,20,0.04); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: none; }
+    .seccion-params.visible { display: block; }
+    .seccion-params-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--verde); margin-bottom: 14px; }
+    .param-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+    .param-campo label { font-size: 10px; font-weight: 700; color: var(--gris); text-transform: uppercase; margin-bottom: 3px; display: block; }
+    .param-campo input { padding: 8px 10px; font-size: 13px; text-align: center; }
+    .archivo-preview { background: rgba(15,61,20,0.05); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+    .archivo-preview-icono { font-size: 28px; flex-shrink: 0; }
+    .archivo-preview-info { flex: 1; }
+    .archivo-preview-nombre { font-weight: 700; color: var(--negro); }
+    .archivo-preview-size { font-size: 11px; color: var(--gris); margin-top: 2px; }
+    .archivo-preview-quitar { background: none; border: none; color: var(--rojo); cursor: pointer; font-size: 18px; font-weight: bold; }
+    .botones-form { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-guardar { flex: 1; padding: 14px; background: var(--verde); color: var(--crema); border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-guardar:hover { background: #1B5E20; }
+    .btn-cancelar { padding: 14px 20px; background: rgba(0,0,0,0.06); color: var(--gris); border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .docs-lista { display: grid; gap: 10px; }
+    .doc-card { background: #fff; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 14px; align-items: flex-start; }
+    .doc-icono { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+    .doc-icono.suelo { background: rgba(139,111,0,0.12); }
+    .doc-icono.agua { background: rgba(21,101,192,0.12); }
+    .doc-icono.otro { background: rgba(107,99,86,0.12); }
+    .doc-info { flex: 1; min-width: 0; }
+    .doc-titulo { font-size: 15px; font-weight: 700; color: var(--negro); margin-bottom: 2px; }
+    .doc-meta { font-size: 12px; color: var(--gris); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+    .doc-params { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .doc-param { font-size: 11px; background: rgba(15,61,20,0.07); color: var(--verde); padding: 2px 8px; border-radius: 100px; font-weight: 600; }
+    .doc-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-ver { background: rgba(15,61,20,0.08); color: var(--verde); border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .btn-ver:hover { background: rgba(15,61,20,0.16); }
+    .btn-borrar-doc { background: rgba(181,55,28,0.08); color: var(--rojo); border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .vacio { text-align: center; padding: 48px 20px; color: var(--gris); background: #fff; border-radius: 16px; border: 2px dashed rgba(0,0,0,0.1); }
+    .vacio-icono { font-size: 52px; margin-bottom: 12px; opacity: 0.35; }
+    .visor-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .visor-overlay.visible { display: flex; }
+    .visor-contenedor { background: #fff; border-radius: 16px; width: 100%; max-width: 860px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+    .visor-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    .visor-titulo { font-size: 15px; font-weight: 700; color: var(--negro); }
+    .visor-cerrar { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--gris); font-weight: bold; }
+    .visor-body { flex: 1; overflow: auto; padding: 8px; background: #f0f0f0; }
+    .visor-body embed { width: 100%; height: 70vh; border: none; }
+    .visor-body img { max-width: 100%; max-height: 70vh; display: block; margin: 0 auto; object-fit: contain; }
+    .visor-no-preview { text-align: center; padding: 40px; color: var(--gris); }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--verde); color: var(--crema); padding: 14px 24px; border-radius: 100px; font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: transform 0.3s; z-index: 3000; }
+    .toast.visible { transform: translateX(-50%) translateY(0); }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } }
+    @media (max-width: 600px) { .fila { grid-template-columns: 1fr; } .main { padding: 16px; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+      </svg>
+      <div class="sidebar-logo-textos">
+        <div class="sidebar-logo-titulo">SAFIA</div>
+        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+      </div>
+    </div>
+    <div class="sidebar-grupo">Inicio</div>
+    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
+    <div class="sidebar-grupo">Datos</div>
+    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
+    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
+    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
+    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
+    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
+    <a href="analisis.html" class="sidebar-link activo"><span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span></a>
+    <div class="sidebar-grupo">Inteligencia</div>
+    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
+    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
+    <div class="sidebar-grupo">Operación</div>
+    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
+    <a href="eventos.html" class="sidebar-link"><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
+    <a href="encargado.html" class="sidebar-link"><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
+    <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
+    <a href="voz.html" class="sidebar-link"><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
+    <div class="sidebar-grupo">Sistema</div>
+    <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
+    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-saludo">Datos</div>
+        <div class="topbar-titulo">🧪 Análisis y Documentos</div>
+      </div>
+      <div class="topbar-derecha">
+        <div class="topbar-fecha" id="topbarFecha">—</div>
+        <div class="topbar-avatar">O</div>
+      </div>
+    </div>
+
+    <div class="contenedor">
+
+      <!-- 3 TABS: sin fotos/video -->
+      <div class="tabs">
+        <button class="tab activo" onclick="cambiarTab('suelo', this)">🟫 Análisis de suelo</button>
+        <button class="tab" onclick="cambiarTab('agua', this)">💧 Análisis de agua</button>
+        <button class="tab" onclick="cambiarTab('otro', this)">📄 Otros documentos</button>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div class="filtros">
+          <select class="filtro-select" id="filtroEntidad" onchange="renderLista()">
+            <option value="">Todos los campos / equipos</option>
+          </select>
+        </div>
+        <button class="btn-nuevo" onclick="mostrarFormulario()">+ Nuevo análisis / documento</button>
+      </div>
+
+      <!-- FORMULARIO -->
+      <div class="form-card" id="formCard">
+        <div class="form-titulo" id="formTitulo">📄 Nuevo documento</div>
+
+        <!-- UPLOAD -->
+        <div class="upload-zone" id="uploadZone"
+          onclick="document.getElementById('inputArchivo').click()"
+          ondragover="dragOver(event)" ondragleave="dragLeave()" ondrop="dropArchivo(event)">
+          <div class="upload-zone-icono">📎</div>
+          <div class="upload-zone-titulo">Arrastrá el archivo acá o tocá para buscar</div>
+          <div class="upload-zone-sub">PDF del laboratorio, imagen, planilla de datos</div>
+          <div class="upload-zone-tipos" id="uploadTipos">PDF · JPG · PNG · XLSX · CSV · DOCX</div>
+        </div>
+        <input type="file" id="inputArchivo"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.doc,.docx,.heic,.heif"
+          onchange="archivoSeleccionado(event)">
+
+        <div class="archivo-preview" id="archivoPreview" style="display:none;">
+          <div class="archivo-preview-icono" id="prevIcono">📄</div>
+          <div class="archivo-preview-info">
+            <div class="archivo-preview-nombre" id="prevNombre">—</div>
+            <div class="archivo-preview-size" id="prevSize">—</div>
+          </div>
+          <button class="archivo-preview-quitar" onclick="quitarArchivo()">×</button>
+        </div>
+
+        <div class="fila">
+          <div class="campo">
+            <label>Tipo de documento</label>
+            <select id="formTipo" onchange="actualizarFormTipo()">
+              <option value="suelo">🟫 Análisis de suelo</option>
+              <option value="agua">💧 Análisis de agua</option>
+              <option value="otro">📄 Otro documento</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Asociar a</label>
+            <select id="formEntidad">
+              <option value="">Seleccionar campo o equipo...</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fila">
+          <div class="campo">
+            <label>Fecha del documento / análisis</label>
+            <input type="date" id="formFecha">
+          </div>
+          <div class="campo">
+            <label>Laboratorio / origen <span class="opc">(opcional)</span></label>
+            <input type="text" id="formLaboratorio" placeholder="Ej: Labagro, CETAPAR">
+          </div>
+        </div>
+
+        <div class="campo">
+          <label>Descripción <span class="opc">(opcional)</span></label>
+          <textarea id="formDesc" placeholder="Ej: Análisis pre-siembra lote norte, profundidad 0-20cm"></textarea>
+        </div>
+
+        <!-- PARÁMETROS SUELO -->
+        <div class="seccion-params" id="paramsSuelo">
+          <div class="seccion-params-titulo">📊 Parámetros del análisis de suelo <span style="font-weight:400;opacity:0.7;">(cargá los valores del informe)</span></div>
+          <div class="param-grid">
+            <div class="param-campo campo"><label>pH</label><input type="number" id="s_pH" placeholder="6.5" step="0.1" min="0" max="14"></div>
+            <div class="param-campo campo"><label>MO (%)</label><input type="number" id="s_MO" placeholder="2.8" step="0.1"></div>
+            <div class="param-campo campo"><label>P (ppm)</label><input type="number" id="s_P" placeholder="18" step="0.1"></div>
+            <div class="param-campo campo"><label>K (ppm)</label><input type="number" id="s_K" placeholder="180" step="0.1"></div>
+            <div class="param-campo campo"><label>N total (%)</label><input type="number" id="s_N" placeholder="0.18" step="0.01"></div>
+            <div class="param-campo campo"><label>S (ppm)</label><input type="number" id="s_S" placeholder="8" step="0.1"></div>
+            <div class="param-campo campo"><label>Ca (meq)</label><input type="number" id="s_Ca" placeholder="12" step="0.1"></div>
+            <div class="param-campo campo"><label>Mg (meq)</label><input type="number" id="s_Mg" placeholder="3" step="0.1"></div>
+            <div class="param-campo campo"><label>Na (meq)</label><input type="number" id="s_Na" placeholder="0.5" step="0.1"></div>
+            <div class="param-campo campo"><label>CIC (meq)</label><input type="number" id="s_CIC" placeholder="18" step="0.1"></div>
+            <div class="param-campo campo"><label>Arcilla (%)</label><input type="number" id="s_arcilla" placeholder="35" step="1"></div>
+            <div class="param-campo campo"><label>Arena (%)</label><input type="number" id="s_arena" placeholder="30" step="1"></div>
+          </div>
+          <div class="fila" style="margin-top:10px;">
+            <div class="param-campo campo"><label>Profundidad muestreo</label><input type="text" id="s_prof" placeholder="Ej: 0-20 cm"></div>
+            <div class="param-campo campo"><label>Textura clasificada</label><input type="text" id="s_textura" placeholder="Ej: Franco arcilloso"></div>
+          </div>
+        </div>
+
+        <!-- PARÁMETROS AGUA -->
+        <div class="seccion-params" id="paramsAgua">
+          <div class="seccion-params-titulo">📊 Parámetros del análisis de agua <span style="font-weight:400;opacity:0.7;">(cargá los valores del informe)</span></div>
+          <div class="param-grid">
+            <div class="param-campo campo"><label>pH</label><input type="number" id="a_pH" placeholder="7.2" step="0.1"></div>
+            <div class="param-campo campo"><label>CE (dS/m)</label><input type="number" id="a_CE" placeholder="0.8" step="0.01"></div>
+            <div class="param-campo campo"><label>SAR</label><input type="number" id="a_SAR" placeholder="2.1" step="0.1"></div>
+            <div class="param-campo campo"><label>Cl (meq/L)</label><input type="number" id="a_Cl" placeholder="3" step="0.1"></div>
+            <div class="param-campo campo"><label>Bicarb. (meq/L)</label><input type="number" id="a_HCO3" placeholder="4" step="0.1"></div>
+            <div class="param-campo campo"><label>Na (meq/L)</label><input type="number" id="a_Na" placeholder="2" step="0.1"></div>
+            <div class="param-campo campo"><label>Ca (meq/L)</label><input type="number" id="a_Ca" placeholder="5" step="0.1"></div>
+            <div class="param-campo campo"><label>Mg (meq/L)</label><input type="number" id="a_Mg" placeholder="2" step="0.1"></div>
+            <div class="param-campo campo"><label>N (mg/L)</label><input type="number" id="a_N" placeholder="1.5" step="0.1"></div>
+            <div class="param-campo campo"><label>Fe (mg/L)</label><input type="number" id="a_Fe" placeholder="0.3" step="0.01"></div>
+            <div class="param-campo campo"><label>Boro (mg/L)</label><input type="number" id="a_B" placeholder="0.2" step="0.01"></div>
+            <div class="param-campo campo"><label>TDS (mg/L)</label><input type="number" id="a_TDS" placeholder="500" step="1"></div>
+          </div>
+          <div class="campo" style="margin-top:10px;">
+            <label>Fuente de agua</label>
+            <input type="text" id="a_fuente" placeholder="Ej: Pozo Nº1, Río Paraná, Tajamar norte">
+          </div>
+        </div>
+
+        <div class="botones-form">
+          <button class="btn-cancelar" onclick="ocultarFormulario()">Cancelar</button>
+          <button class="btn-guardar" onclick="guardarDocumento()">✓ Guardar documento</button>
+        </div>
+      </div>
+
+      <div id="listaDocumentos"></div>
+    </div>
+  </main>
+</div>
+
+<!-- VISOR -->
+<div class="visor-overlay" id="visorOverlay" onclick="if(event.target===this)cerrarVisor()">
+  <div class="visor-contenedor">
+    <div class="visor-header">
+      <div class="visor-titulo" id="visorTitulo">Documento</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn-ver" onclick="descargarActual()">⬇️ Descargar</button>
+        <button class="visor-cerrar" onclick="cerrarVisor()">×</button>
+      </div>
+    </div>
+    <div class="visor-body" id="visorBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  // ===== INDEXEDDB =====
+  const DB_NAME = 'safia_documentos';
+  const DB_VERSION = 1;
+  const STORE = 'documentos';
+  let db = null;
+  let docVisor = null;
+  let tabActivo = 'suelo';
+  let archivoActual = null;
+
+  async function abrirDB() {
+    if (db) return db;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        if (!e.target.result.objectStoreNames.contains(STORE))
+          e.target.result.createObjectStore(STORE, { keyPath: 'id' });
+      };
+      req.onsuccess = e => { db = e.target.result; resolve(db); };
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+
+  async function guardarEnDB(doc) {
+    await abrirDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(doc);
+      tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+    });
+  }
+
+  async function obtenerDeDB(id) {
+    await abrirDB();
+    return new Promise((res, rej) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+      req.onsuccess = e => res(e.target.result); req.onerror = e => rej(e.target.error);
+    });
+  }
+
+  async function obtenerTodosDB() {
+    await abrirDB();
+    return new Promise((res, rej) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+      req.onsuccess = e => res(e.target.result || []); req.onerror = e => rej(e.target.error);
+    });
+  }
+
+  async function borrarDeDB(id) {
+    await abrirDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+    });
+  }
+
+  // ===== INIT =====
+  window.onload = async function() {
+    cargarSelectorEntidades();
+    await renderLista();
+  };
+
+  // ===== TABS =====
+  function cambiarTab(tab, btn) {
+    tabActivo = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('activo'));
+    if (btn) btn.classList.add('activo');
+    document.getElementById('formTipo').value = tab;
+    actualizarFormTipo();
+    ocultarFormulario();
+    renderLista();
+  }
+
+  // ===== SELECTOR ENTIDADES =====
+  function cargarSelectorEntidades() {
+    const campos   = JSON.parse(localStorage.getItem('campos')   || '[]');
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    const equipos  = JSON.parse(localStorage.getItem('equipos')  || '[]');
+
+    [document.getElementById('filtroEntidad'), document.getElementById('formEntidad')].forEach(sel => {
+      while (sel.options.length > 1) sel.remove(1);
+      if (campos.length) {
+        const gr = document.createElement('optgroup'); gr.label = '🌾 Campos';
+        campos.forEach(c => {
+          const cli = clientes.find(x => x.id === c.clienteId);
+          gr.appendChild(new Option(`${c.nombre}${cli ? ' — ' + cli.nombre : ''}`, 'campo:' + c.id));
+        });
+        sel.appendChild(gr);
+      }
+      if (equipos.length) {
+        const gr = document.createElement('optgroup'); gr.label = '💧 Equipos';
+        equipos.forEach(e => gr.appendChild(new Option(e.nombre, 'equipo:' + e.id)));
+        sel.appendChild(gr);
+      }
+    });
+  }
+
+  // ===== UPLOAD =====
+  function dragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag-over'); }
+  function dragLeave()  { document.getElementById('uploadZone').classList.remove('drag-over'); }
+  function dropArchivo(e) {
+    e.preventDefault(); dragLeave();
+    if (e.dataTransfer.files[0]) procesarArchivo(e.dataTransfer.files[0]);
+  }
+  function archivoSeleccionado(e) { if (e.target.files[0]) procesarArchivo(e.target.files[0]); }
+
+  function procesarArchivo(file) {
+    if (file.size > 50 * 1024 * 1024) { alert('Archivo demasiado grande (máx. 50 MB).'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      archivoActual = { nombre: file.name, tipo: file.type, tamanio: file.size, datos: e.target.result };
+      document.getElementById('prevIcono').textContent  = iconoMime(file.type, file.name);
+      document.getElementById('prevNombre').textContent = file.name;
+      document.getElementById('prevSize').textContent   = formatSize(file.size);
+      document.getElementById('archivoPreview').style.display = 'flex';
+      document.getElementById('uploadZone').style.display    = 'none';
+      if (!document.getElementById('formDesc').value)
+        document.getElementById('formDesc').value = file.name.replace(/\.[^.]+$/, '');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function quitarArchivo() {
+    archivoActual = null;
+    document.getElementById('archivoPreview').style.display = 'none';
+    document.getElementById('uploadZone').style.display     = 'block';
+    document.getElementById('inputArchivo').value = '';
+  }
+
+  function iconoMime(tipo, nombre) {
+    if (!tipo) tipo = '';
+    if (nombre) {
+      const ext = nombre.split('.').pop().toLowerCase();
+      if (['xlsx','xls','csv'].includes(ext)) return '📊';
+      if (['doc','docx'].includes(ext)) return '📝';
+    }
+    if (tipo === 'application/pdf') return '📄';
+    if (tipo.startsWith('image/')) return '🖼️';
+    if (tipo.includes('spreadsheet') || tipo.includes('excel') || tipo.includes('csv')) return '📊';
+    if (tipo.includes('word')) return '📝';
+    return '📎';
+  }
+
+  function formatSize(b) {
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // ===== FORMULARIO =====
+  function mostrarFormulario() {
+    const form = document.getElementById('formCard');
+    form.classList.add('visible');
+    document.getElementById('formTipo').value = tabActivo === 'otro' ? 'otro' : tabActivo;
+    document.getElementById('formFecha').valueAsDate = new Date();
+    actualizarFormTipo();
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function ocultarFormulario() {
+    document.getElementById('formCard').classList.remove('visible');
+    limpiarFormulario();
+  }
+
+  function limpiarFormulario() {
+    archivoActual = null;
+    document.getElementById('inputArchivo').value = '';
+    document.getElementById('archivoPreview').style.display = 'none';
+    document.getElementById('uploadZone').style.display = 'block';
+    ['formDesc','formLaboratorio'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('formEntidad').value = '';
+    ['pH','MO','P','K','N','S','Ca','Mg','Na','CIC','arcilla','arena','prof','textura']
+      .forEach(p => { const el = document.getElementById('s_'+p); if(el) el.value = ''; });
+    ['pH','CE','SAR','Cl','HCO3','Na','Ca','Mg','N','Fe','B','TDS','fuente']
+      .forEach(p => { const el = document.getElementById('a_'+p); if(el) el.value = ''; });
+  }
+
+  function actualizarFormTipo() {
+    const tipo = document.getElementById('formTipo').value;
+    document.getElementById('paramsSuelo').classList.toggle('visible', tipo === 'suelo');
+    document.getElementById('paramsAgua').classList.toggle('visible',  tipo === 'agua');
+    const titulos = {
+      suelo: '🟫 Nuevo análisis de suelo',
+      agua:  '💧 Nuevo análisis de agua',
+      otro:  '📄 Nuevo documento'
+    };
+    document.getElementById('formTitulo').textContent = titulos[tipo] || '📄 Nuevo documento';
+  }
+
+  async function guardarDocumento() {
+    const tipo    = document.getElementById('formTipo').value;
+    const entidad = document.getElementById('formEntidad').value;
+    const fecha   = document.getElementById('formFecha').value;
+    if (!entidad) { alert('Asociá el documento a un campo o equipo.'); return; }
+    if (!fecha)   { alert('Cargá la fecha del documento.'); return; }
+
+    const doc = {
+      id: Date.now(), tipo, entidadRef: entidad, fecha,
+      laboratorio:  document.getElementById('formLaboratorio').value.trim(),
+      descripcion:  document.getElementById('formDesc').value.trim(),
+      archivo:      archivoActual,
+      fechaCreacion: new Date().toISOString()
+    };
+
+    if (tipo === 'suelo') {
+      doc.parametros = {};
+      ['pH','MO','P','K','N','S','Ca','Mg','Na','CIC','arcilla','arena'].forEach(p => {
+        const v = document.getElementById('s_'+p).value;
+        if (v !== '') doc.parametros[p] = parseFloat(v);
+      });
+      const prof = document.getElementById('s_prof').value.trim();
+      const tex  = document.getElementById('s_textura').value.trim();
+      if (prof) doc.parametros.profundidad = prof;
+      if (tex)  doc.parametros.textura = tex;
+    } else if (tipo === 'agua') {
+      doc.parametros = {};
+      ['pH','CE','SAR','Cl','HCO3','Na','Ca','Mg','N','Fe','B','TDS'].forEach(p => {
+        const v = document.getElementById('a_'+p).value;
+        if (v !== '') doc.parametros[p] = parseFloat(v);
+      });
+      const fuente = document.getElementById('a_fuente').value.trim();
+      if (fuente) doc.parametros.fuente = fuente;
+    }
+
+    try {
+      await guardarEnDB(doc);
+      ocultarFormulario();
+      await renderLista();
+      mostrarToast('✓ Documento guardado');
+    } catch(err) { alert('Error al guardar: ' + err.message); }
+  }
+
+  // ===== LISTA =====
+  async function renderLista() {
+    const lista = document.getElementById('listaDocumentos');
+    lista.innerHTML = '<div style="text-align:center;padding:30px;color:#6B6356;">⏳ Cargando...</div>';
+
+    let docs = [];
+    try { docs = await obtenerTodosDB(); }
+    catch(e) { lista.innerHTML = '<div style="color:#B5371C;padding:20px;">Error al cargar documentos.</div>'; return; }
+
+    docs = docs.filter(d => d.tipo === tabActivo);
+    const filtroEnt = document.getElementById('filtroEntidad').value;
+    if (filtroEnt) docs = docs.filter(d => d.entidadRef === filtroEnt);
+    docs.sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion));
+
+    if (docs.length === 0) {
+      const textos = { suelo:'análisis de suelo', agua:'análisis de agua', otro:'documentos' };
+      const iconos = { suelo:'🟫', agua:'💧', otro:'📄' };
+      lista.innerHTML = `<div class="vacio">
+        <div class="vacio-icono">${iconos[tabActivo]||'📄'}</div>
+        <div>No hay ${textos[tabActivo]||'documentos'} cargados todavía.<br>
+        <span style="font-size:12px;opacity:0.7;">Tocá "+ Nuevo análisis / documento" para agregar.</span></div>
+      </div>`;
+      return;
+    }
+
+    const campos   = JSON.parse(localStorage.getItem('campos')   || '[]');
+    const equipos  = JSON.parse(localStorage.getItem('equipos')  || '[]');
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+
+    function nombreEntidad(ref) {
+      if (!ref) return '—';
+      const [tipo, id] = ref.split(':');
+      if (tipo === 'campo') {
+        const c = campos.find(x => x.id === parseInt(id));
+        const cli = c ? clientes.find(x => x.id === c.clienteId) : null;
+        return `🌾 ${c ? c.nombre : '?'}${cli ? ' · ' + cli.nombre : ''}`;
+      }
+      if (tipo === 'equipo') {
+        const e = equipos.find(x => x.id === parseInt(id));
+        return e ? `💧 ${e.nombre}` : '?';
+      }
+      return ref;
+    }
+
+    const iconosTipo  = { suelo:'🟫', agua:'💧', otro:'📄' };
+    const clasesTipo  = { suelo:'suelo', agua:'agua', otro:'otro' };
+    const unidades    = { pH:'', MO:'%', P:' ppm', K:' ppm', CE:' dS/m', SAR:'' };
+
+    lista.innerHTML = '<div class="docs-lista">' + docs.map(doc => {
+      const fechaStr = doc.fecha
+        ? new Date(doc.fecha+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'})
+        : '—';
+
+      let paramsHTML = '';
+      if (doc.parametros) {
+        const dest = doc.tipo === 'suelo' ? ['pH','MO','P','K'] : ['pH','CE','SAR'];
+        dest.forEach(p => {
+          if (doc.parametros[p] !== undefined)
+            paramsHTML += `<span class="doc-param">${p}: ${doc.parametros[p]}${unidades[p]||''}</span>`;
+        });
+        if (doc.parametros.textura) paramsHTML += `<span class="doc-param">${doc.parametros.textura}</span>`;
+        if (doc.parametros.fuente)  paramsHTML += `<span class="doc-param">${doc.parametros.fuente}</span>`;
+      }
+
+      const tieneArchivo = doc.archivo && doc.archivo.datos;
+      const archivoInfo  = tieneArchivo
+        ? `<span>${iconoMime(doc.archivo.tipo, doc.archivo.nombre)} ${doc.archivo.nombre} · ${formatSize(doc.archivo.tamanio)}</span>`
+        : '<span style="opacity:0.6;">Solo datos manuales</span>';
+
+      return `<div class="doc-card">
+        <div class="doc-icono ${clasesTipo[doc.tipo]||'otro'}">${iconosTipo[doc.tipo]||'📄'}</div>
+        <div class="doc-info">
+          <div class="doc-titulo">${doc.descripcion || doc.archivo?.nombre || 'Sin nombre'}</div>
+          <div class="doc-meta">
+            <span>📅 ${fechaStr}</span>
+            ${doc.laboratorio ? `<span>🔬 ${doc.laboratorio}</span>` : ''}
+            <span>${nombreEntidad(doc.entidadRef)}</span>
+            ${archivoInfo}
+          </div>
+          ${paramsHTML ? `<div class="doc-params">${paramsHTML}</div>` : ''}
+        </div>
+        <div class="doc-acciones">
+          ${tieneArchivo ? `<button class="btn-ver" onclick="verDocumento(${doc.id})">👁️ Ver</button>` : ''}
+          <button class="btn-borrar-doc" onclick="borrarDocumento(${doc.id})" title="Borrar">×</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  // ===== VISOR =====
+  async function verDocumento(id) {
+    const doc = await obtenerDeDB(id);
+    if (!doc || !doc.archivo) return;
+    docVisor = doc;
+    document.getElementById('visorTitulo').textContent = doc.archivo.nombre;
+    document.getElementById('visorOverlay').classList.add('visible');
+
+    const blob = new Blob([doc.archivo.datos], { type: doc.archivo.tipo });
+    const url  = URL.createObjectURL(blob);
+    const body = document.getElementById('visorBody');
+
+    if (doc.archivo.tipo === 'application/pdf') {
+      body.innerHTML = `<embed src="${url}" type="application/pdf" width="100%" height="100%">`;
+    } else if (doc.archivo.tipo && doc.archivo.tipo.startsWith('image/')) {
+      body.innerHTML = `<img src="${url}" alt="${doc.archivo.nombre}">`;
+    } else {
+      body.innerHTML = `<div class="visor-no-preview">
+        <div style="font-size:48px;margin-bottom:16px;">${iconoMime(doc.archivo.tipo, doc.archivo.nombre)}</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${doc.archivo.nombre}</div>
+        <div style="margin-bottom:20px;opacity:0.7;">Este tipo de archivo no se puede previsualizar en el navegador.</div>
+        <button onclick="descargarActual()" style="background:#0F3D14;color:#FAF6EC;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">⬇️ Descargar archivo</button>
+      </div>`;
+    }
+  }
+
+  function cerrarVisor() {
+    document.getElementById('visorOverlay').classList.remove('visible');
+    document.getElementById('visorBody').innerHTML = '';
+    docVisor = null;
+  }
+
+  function descargarActual() {
+    if (!docVisor?.archivo) return;
+    const blob = new Blob([docVisor.archivo.datos], { type: docVisor.archivo.tipo });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = docVisor.archivo.nombre; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ===== BORRAR =====
+  async function borrarDocumento(id) {
+    if (!confirm('¿Borrar este documento? No se puede deshacer.')) return;
+    await borrarDeDB(id);
+    await renderLista();
+    mostrarToast('✓ Documento borrado');
+  }
+
+  // ===== TOAST =====
+  function mostrarToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('visible');
+    setTimeout(() => t.classList.remove('visible'), 3000);
+  }
+</script>
+</body>
+</html>

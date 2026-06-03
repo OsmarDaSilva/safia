@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Propietario</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --verde: #0F3D14; --verde-claro: #1B5E20; --ambar: #D4A24C;
+      --ambar-oscuro: #B88A3D; --crema: #FAF6EC; --rojo: #B5371C;
+      --azul: #1565C0; --gris: #6B6356; --negro: #1A1A1A;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--crema); color: var(--negro); min-height: 100vh; }
+    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    .sidebar { background: var(--verde); color: var(--crema); padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
+    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
+    .sidebar-logo-textos { line-height: 1.1; }
+    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
+    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
+    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
+    .sidebar-grupo:first-of-type { margin-top: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--crema); text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
+    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
+    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
+    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
+    .main { padding: 24px 32px 40px; overflow-x: hidden; }
+    .topbar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(15,61,20,0.08); }
+    .topbar-saludo { font-size: 11px; color: var(--gris); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 600; }
+    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
+    .topbar-fecha { font-size: 12px; color: var(--gris); text-align: right; }
+    .topbar-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--ambar); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+
+    /* HEADER EJECUTIVO */
+    .header-prop {
+      background: linear-gradient(135deg, #BF360C, #E64A19);
+      color: #fff; padding: 22px 26px; border-radius: 18px;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 16px;
+    }
+    .header-icono { font-size: 40px; width: 58px; height: 58px; background: rgba(255,255,255,0.18); border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .header-prop h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.04em; }
+    .header-prop p { font-size: 12px; opacity: 0.9; margin-top: 3px; }
+
+    /* KPIs */
+    .kpis-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 20px; }
+    .kpi { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .kpi-icono { font-size: 22px; margin-bottom: 6px; }
+    .kpi-valor { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
+    .kpi-unidad { font-size: 13px; color: var(--gris); font-weight: 500; }
+    .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gris); margin-top: 6px; font-weight: 600; }
+    .kpi-sub { font-size: 11px; color: var(--gris); margin-top: 3px; }
+
+    /* GRID */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* CARD */
+    .card { background: #fff; border-radius: 16px; padding: 20px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .card-titulo { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--verde); }
+    .card-link { font-size: 11px; color: var(--ambar-oscuro); text-decoration: none; font-weight: 600; }
+
+    /* ALERTAS */
+    .alerta-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border-radius: 10px; margin-bottom: 8px; }
+    .alerta-item.urgente { background: rgba(181,55,28,0.08); border-left: 4px solid var(--rojo); }
+    .alerta-item.atencion { background: rgba(212,162,76,0.1); border-left: 4px solid var(--ambar); }
+    .alerta-item.mant { background: rgba(107,99,86,0.08); border-left: 4px solid var(--gris); }
+    .alerta-icono { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .alerta-titulo { font-size: 13px; font-weight: 700; color: var(--negro); }
+    .alerta-detalle { font-size: 11px; color: var(--gris); margin-top: 2px; }
+    .alerta-link { font-size: 11px; color: var(--azul); font-weight: 700; text-decoration: none; display: inline-block; margin-top: 4px; }
+
+    /* TABLA EQUIPOS */
+    .tabla { width: 100%; border-collapse: collapse; }
+    .tabla thead th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gris); font-weight: 700; text-align: left; padding: 8px 10px; border-bottom: 2px solid rgba(0,0,0,0.07); }
+    .tabla tbody td { padding: 11px 10px; border-bottom: 1px solid rgba(0,0,0,0.04); font-size: 13px; }
+    .tabla tbody tr:last-child td { border-bottom: none; }
+    .tabla tbody tr:hover { background: rgba(15,61,20,0.02); }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 10px; font-weight: 700; }
+    .badge-verde { background: rgba(46,125,50,0.15); color: #2E7D32; }
+    .badge-amarillo { background: rgba(212,162,76,0.2); color: #8B6F00; }
+    .badge-rojo { background: rgba(181,55,28,0.15); color: var(--rojo); }
+    .badge-azul { background: rgba(21,101,192,0.15); color: var(--azul); }
+    .badge-gris { background: rgba(107,99,86,0.15); color: var(--gris); }
+
+    /* EVENTOS MES */
+    .evento-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .evento-row:last-child { border-bottom: none; }
+    .evento-row-info { display: flex; align-items: center; gap: 12px; }
+    .evento-row-icono { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .ev-riego { background: rgba(21,101,192,0.1); }
+    .ev-lluvia { background: rgba(0,131,143,0.1); }
+    .ev-aplicacion { background: rgba(123,31,162,0.1); }
+    .evento-row-nombre { font-size: 14px; font-weight: 700; }
+    .evento-row-sub { font-size: 11px; color: var(--gris); margin-top: 1px; }
+    .evento-row-num { font-size: 22px; font-weight: 700; color: var(--verde); }
+
+    /* COSECHAS */
+    .cosecha-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .cosecha-item:last-child { border-bottom: none; }
+    .cosecha-icono { width: 40px; height: 40px; border-radius: 10px; background: rgba(212,162,76,0.15); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .cosecha-nombre { font-size: 14px; font-weight: 700; flex: 1; }
+    .cosecha-meta { font-size: 11px; color: var(--gris); margin-top: 2px; }
+    .cosecha-rinde { text-align: right; }
+    .cosecha-rinde-val { font-size: 16px; font-weight: 700; color: var(--verde); }
+    .cosecha-rinde-lab { font-size: 10px; color: var(--gris); text-transform: uppercase; letter-spacing: .05em; }
+
+    /* CLIENTES */
+    .cliente-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+    .cliente-row:last-child { border-bottom: none; }
+    .cliente-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #0F3D14, #2E7D32); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+    .cliente-nombre { font-size: 14px; font-weight: 700; flex: 1; }
+    .cliente-meta { font-size: 11px; color: var(--gris); margin-top: 2px; }
+    .cliente-ha { font-size: 15px; font-weight: 700; color: var(--verde); }
+
+    /* BAR CHART RIEGO */
+    .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 80px; margin: 8px 0; }
+    .bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .bar-fill { width: 100%; border-radius: 4px 4px 0 0; min-height: 4px; background: linear-gradient(180deg, #1565C0, #0D47A1); }
+    .bar-label { font-size: 9px; color: var(--gris); margin-top: 4px; font-weight: 600; }
+    .bar-val { font-size: 8px; color: var(--azul); font-weight: 700; margin-bottom: 2px; }
+
+    .vacio { text-align: center; padding: 24px; color: var(--gris); font-size: 13px; }
+    .ok-sin-alertas { display: flex; align-items: center; gap: 12px; padding: 16px; background: rgba(46,125,50,0.06); border-radius: 10px; color: #2E7D32; font-size: 14px; font-weight: 600; }
+
+    @media (max-width: 1100px) { .kpis-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .kpis-grid { grid-template-columns: repeat(2, 1fr); } .main { padding: 16px; } }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
+        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
+        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
+      </svg>
+      <div class="sidebar-logo-textos">
+        <div class="sidebar-logo-titulo">SAFIA</div>
+        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
+      </div>
+    </div>
+    <div class="sidebar-grupo">Inicio</div>
+    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
+    <div class="sidebar-grupo">Datos</div>
+    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
+    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
+    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
+    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
+    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
+    <a href="analisis.html" class="sidebar-link"><span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span></a>
+    <div class="sidebar-grupo">Inteligencia</div>
+    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
+    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
+    <div class="sidebar-grupo">Operación</div>
+    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
+    <a href="eventos.html" class="sidebar-link"><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
+    <a href="encargado.html" class="sidebar-link"><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
+    <a href="propietario.html" class="sidebar-link activo"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
+    <a href="voz.html" class="sidebar-link"><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
+    <div class="sidebar-grupo">Sistema</div>
+    <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
+    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-saludo">Vista ejecutiva</div>
+        <div class="topbar-titulo">👔 Propietario</div>
+      </div>
+      <div class="topbar-derecha">
+        <div class="topbar-fecha" id="topbarFecha">—</div>
+        <div class="topbar-avatar">O</div>
+      </div>
+    </div>
+
+    <!-- HEADER -->
+    <div class="header-prop">
+      <div class="header-icono">📊</div>
+      <div>
+        <h1>RESUMEN EJECUTIVO</h1>
+        <p id="headerSub">Cargando datos del establecimiento...</p>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpis-grid" id="kpisGrid">
+      <div class="kpi"><div class="kpi-icono">👤</div><div class="kpi-valor" id="k1">—</div><div class="kpi-label">Clientes</div></div>
+      <div class="kpi"><div class="kpi-icono">🌾</div><div><span class="kpi-valor" id="k2">—</span><span class="kpi-unidad"> ha</span></div><div class="kpi-label">Superficie total</div></div>
+      <div class="kpi"><div class="kpi-icono">💧</div><div class="kpi-valor" id="k3">—</div><div class="kpi-label">Equipos</div></div>
+      <div class="kpi"><div class="kpi-icono">🌿</div><div class="kpi-valor" id="k4">—</div><div class="kpi-label">Campañas activas</div></div>
+      <div class="kpi"><div class="kpi-icono">💦</div><div><span class="kpi-valor" id="k5" style="color:#1565C0;">—</span><span class="kpi-unidad"> mm</span></div><div class="kpi-label">Riego últimos 30d</div><div class="kpi-sub" id="k5sub"></div></div>
+      <div class="kpi"><div class="kpi-icono">🔧</div><div class="kpi-valor" id="k6" style="color:#B5371C;">—</div><div class="kpi-label">Tareas mant. pend.</div></div>
+    </div>
+
+    <!-- ALERTAS + ACTIVIDAD -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-titulo">🚨 Alertas activas</div>
+          <a href="index.html" class="card-link">Dashboard →</a>
+        </div>
+        <div id="listaAlertas"><div class="vacio">Calculando...</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-titulo">📅 Actividad últimos 30 días</div>
+          <a href="eventos.html" class="card-link">Ver todos →</a>
+        </div>
+        <div id="resumenEventos"></div>
+        <div id="chartRiego" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+    <!-- CAMPAÑAS ACTIVAS -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div class="card-titulo">🌿 Campañas activas</div>
+        <a href="mis-campanas.html" class="card-link">Ver campañas →</a>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tabla" id="tablaCampanas">
+          <thead>
+            <tr>
+              <th>Equipo</th>
+              <th>Campaña</th>
+              <th>Cultivo</th>
+              <th>Sup.</th>
+              <th>Días</th>
+              <th>Etapa</th>
+              <th>Kc</th>
+              <th>Estado riego</th>
+            </tr>
+          </thead>
+          <tbody id="campanaBody"><tr><td colspan="8" class="vacio">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- COSECHAS + CLIENTES -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-titulo">🏆 Cosechas del año</div>
+          <a href="mis-campanas.html" class="card-link">Ver campañas →</a>
+        </div>
+        <div id="listaCosechas"><div class="vacio">Sin cosechas registradas este año.</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-titulo">👥 Clientes por superficie</div>
+          <a href="mis-clientes.html" class="card-link">Ver clientes →</a>
+        </div>
+        <div id="listaClientes"></div>
+      </div>
+    </div>
+
+    <!-- MANTENIMIENTO -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-header">
+        <div class="card-titulo">🔧 Estado de mantenimiento de equipos</div>
+        <a href="mis-equipos.html" class="card-link">Ver equipos →</a>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tabla" id="tablaMant">
+          <thead>
+            <tr><th>Equipo</th><th>Campo</th><th>Horas acum.</th><th>Tareas vencidas</th><th>Próximas a vencer</th><th>Estado</th></tr>
+          </thead>
+          <tbody id="mantBody"><tr><td colspan="6" class="vacio">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
+    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+  });
+
+  // ===== HELPERS KC =====
+  function calcularKcSimple(kcDef, fechaCalc, fechaSiembra) {
+    if (kcDef.tipo === 'perenne') {
+      const mes = new Date(fechaCalc).getMonth() + 1;
+      if ([9,10,11].includes(mes)) return kcDef.kc_pri;
+      if ([12,1,2].includes(mes)) return kcDef.kc_ver;
+      if ([3,4,5].includes(mes)) return kcDef.kc_oto;
+      return kcDef.kc_inv;
+    }
+    const dias = Math.floor((new Date(fechaCalc) - new Date(fechaSiembra)) / 86400000);
+    const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
+    const total = L_ini + L_des + L_med + L_fin;
+    if (dias < 0) return 0;
+    if (dias <= L_ini) return kc_ini;
+    if (dias <= L_ini + L_des) return kc_ini + ((dias - L_ini) / L_des) * (kc_med - kc_ini);
+    if (dias <= L_ini + L_des + L_med) return kc_med;
+    if (dias <= total) return kc_med + ((dias - L_ini - L_des - L_med) / L_fin) * (kc_fin - kc_med);
+    return kc_fin;
+  }
+
+  function etapaCultivo(kcDef, fechaSiembra) {
+    if (!kcDef || !fechaSiembra) return { etapa: '—', kc: 1, dias: 0 };
+    const dias = Math.floor((new Date() - new Date(fechaSiembra)) / 86400000);
+    if (kcDef.tipo === 'perenne') {
+      const mes = new Date().getMonth() + 1;
+      const estaciones = [[9,10,11,'Primavera'],[12,1,2,'Verano'],[3,4,5,'Otoño'],[6,7,8,'Invierno']];
+      const est = estaciones.find(e => e.slice(0,3).includes(mes));
+      return { etapa: est ? est[3] : '—', kc: calcularKcSimple(kcDef, new Date(), fechaSiembra), dias: '∞' };
+    }
+    const { L_ini, L_des, L_med, L_fin } = kcDef;
+    let etapa = '—';
+    if (dias < 0) etapa = 'Pre-siembra';
+    else if (dias <= L_ini) etapa = 'Inicial';
+    else if (dias <= L_ini + L_des) etapa = 'Desarrollo';
+    else if (dias <= L_ini + L_des + L_med) etapa = 'Media';
+    else if (dias <= L_ini + L_des + L_med + L_fin) etapa = 'Final';
+    else etapa = 'Post-cosecha';
+    return { etapa, kc: calcularKcSimple(kcDef, new Date(), fechaSiembra), dias };
+  }
+
+  // ===== CARGA PRINCIPAL =====
+  window.onload = async function() {
+    const clientes  = JSON.parse(localStorage.getItem('clientes')      || '[]');
+    const campos    = JSON.parse(localStorage.getItem('campos')        || '[]');
+    const equipos   = JSON.parse(localStorage.getItem('equipos')       || '[]');
+    const campanas  = JSON.parse(localStorage.getItem('campanas')      || '[]');
+    const eventos   = JSON.parse(localStorage.getItem('eventos')       || '[]');
+    const fao       = JSON.parse(localStorage.getItem('cultivos_fao')  || '[]');
+    const custom    = JSON.parse(localStorage.getItem('cultivos_custom')|| '[]');
+
+    const activas   = campanas.filter(c => c.estado === 'Activa');
+    const cerradas  = campanas.filter(c => c.estado === 'Cerrada');
+
+    // KPIs básicos
+    const haTotal = campos.reduce((s, c) => s + (parseFloat(c.superficie) || 0), 0);
+    const hace30 = new Date(); hace30.setDate(hace30.getDate() - 30);
+    const ev30   = eventos.filter(e => new Date(e.fecha) >= hace30);
+    const riegoMM = ev30.filter(e => e.tipo==='riego').reduce((s,e) => s+(parseFloat(e.cantidad)||0), 0);
+    const nRiegos = ev30.filter(e => e.tipo==='riego').length;
+
+    // KPI mantenimiento
+    let totalPend = 0;
+    equipos.forEach(eq => {
+      const plan = eq.planMantenimiento;
+      if (!plan) return;
+      const horas = parseFloat(eq.horasAcumuladas) || 0;
+      plan.forEach(t => {
+        const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
+        if ((desde / t.intervalo) >= 0.8) totalPend++;
+      });
+    });
+
+    document.getElementById('k1').textContent = clientes.length;
+    document.getElementById('k2').textContent = haTotal.toLocaleString('es-PY');
+    document.getElementById('k3').textContent = equipos.length;
+    document.getElementById('k4').textContent = activas.length;
+    document.getElementById('k5').textContent = Math.round(riegoMM);
+    document.getElementById('k5sub').textContent = nRiegos + ' evento' + (nRiegos!==1?'s':'');
+    document.getElementById('k6').textContent = totalPend;
+    if (totalPend === 0) document.getElementById('k6').style.color = '#2E7D32';
+
+    // Header sub
+    const nombreCampo = campos[0] ? campos[0].nombre : 'Sin campos cargados';
+    const nombreCliente = clientes[0] ? clientes[0].nombre : '';
+    document.getElementById('headerSub').textContent =
+      `${nombreCliente ? nombreCliente + ' · ' : ''}${haTotal} ha · ${equipos.length} equipo${equipos.length!==1?'s':''} · ${activas.length} campaña${activas.length!==1?'s':''}`;
+
+    // Actividad 30d
+    const lluviaMM  = ev30.filter(e=>e.tipo==='lluvia').reduce((s,e)=>s+(parseFloat(e.cantidad)||0),0);
+    const nAplics   = ev30.filter(e=>e.tipo==='aplicacion').length;
+    document.getElementById('resumenEventos').innerHTML = `
+      <div class="evento-row">
+        <div class="evento-row-info">
+          <div class="evento-row-icono ev-riego">💧</div>
+          <div><div class="evento-row-nombre">Riegos</div><div class="evento-row-sub">${Math.round(riegoMM)} mm en total</div></div>
+        </div>
+        <div class="evento-row-num">${nRiegos}</div>
+      </div>
+      <div class="evento-row">
+        <div class="evento-row-info">
+          <div class="evento-row-icono ev-lluvia">🌧️</div>
+          <div><div class="evento-row-nombre">Lluvias registradas</div><div class="evento-row-sub">${Math.round(lluviaMM)} mm acumulados</div></div>
+        </div>
+        <div class="evento-row-num">${ev30.filter(e=>e.tipo==='lluvia').length}</div>
+      </div>
+      <div class="evento-row">
+        <div class="evento-row-info">
+          <div class="evento-row-icono ev-aplicacion">🧪</div>
+          <div><div class="evento-row-nombre">Aplicaciones</div><div class="evento-row-sub">Productos aplicados</div></div>
+        </div>
+        <div class="evento-row-num">${nAplics}</div>
+      </div>`;
+
+    // ===== CAMPAÑAS ACTIVAS TABLE =====
+    const campBody = document.getElementById('campanaBody');
+    if (activas.length === 0) {
+      campBody.innerHTML = '<tr><td colspan="8" class="vacio">No hay campañas activas.</td></tr>';
+    } else {
+      const alertas = [];
+      campBody.innerHTML = '';
+
+      for (const camp of activas) {
+        const eq    = equipos.find(e => e.id === camp.equipoId);
+        const campo = eq ? campos.find(f => f.id === eq.campoId) : null;
+        const cul   = camp.cultivos && camp.cultivos[0] ? camp.cultivos[0] : null;
+        const kcDef = cul ? (fao.find(c=>c.nombre===cul.cultivo) || custom.find(c=>c.nombre===cul.cultivo)) : null;
+        const info  = kcDef && cul?.fechaSiembra ? etapaCultivo(kcDef, cul.fechaSiembra) : {etapa:'—',kc:1,dias:'—'};
+
+        // Estado de riego (desde API si hay GPS)
+        let estadoBadge = '<span class="badge badge-gris">Sin GPS</span>';
+        if (campo && campo.latitud && campo.longitud) {
+          estadoBadge = '<span class="badge badge-gris">Consultando...</span>';
+          // Async se manejará abajo
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${eq?.nombre || '?'}</strong></td>
+          <td>${camp.nombre}</td>
+          <td>${cul ? (kcDef?.emoji||'🌱')+' '+cul.cultivo+(cul.variedad?' ('+cul.variedad+')':'') : '—'}</td>
+          <td>${cul?.superficie || '—'} ha</td>
+          <td>${typeof info.dias === 'number' ? info.dias+'d' : info.dias}</td>
+          <td>${info.etapa}</td>
+          <td>${info.kc.toFixed(2)}</td>
+          <td class="estado-riego-${camp.id}">${campo?.latitud ? '<span class="badge badge-gris">⏳</span>' : '<span class="badge badge-gris">Sin GPS</span>'}</td>`;
+        campBody.appendChild(tr);
+
+        // Fetch estado riego async
+        if (campo?.latitud && campo?.longitud) {
+          fetchEstadoRiego(campo, camp, eventos.filter(e=>e.equipoId===camp.equipoId), camp.id, alertas);
+        }
+      }
+
+      // Alertas generales (mant + riego)
+      renderAlertas(alertas, equipos, campos, clientes, campanas);
+    }
+
+    // ===== COSECHAS DEL AÑO =====
+    const anioActual = new Date().getFullYear();
+    const cosechasAnio = cerradas.filter(c => {
+      if (!c.cosecha?.fecha) return false;
+      return new Date(c.cosecha.fecha).getFullYear() >= anioActual - 1;
+    }).sort((a, b) => new Date(b.cosecha.fecha) - new Date(a.cosecha.fecha));
+
+    const listaCosechas = document.getElementById('listaCosechas');
+    if (cosechasAnio.length === 0) {
+      listaCosechas.innerHTML = '<div class="vacio">No hay cosechas registradas todavía.<br>Al cerrar una campaña desde Campañas, aparecerá acá.</div>';
+    } else {
+      listaCosechas.innerHTML = cosechasAnio.slice(0, 6).map(camp => {
+        const cul  = camp.cultivos?.[0];
+        const eq   = equipos.find(e => e.id === camp.equipoId);
+        const cos  = camp.cosecha;
+        const obj  = cul?.rendimientoObj ? parseFloat(cul.rendimientoObj) : 0;
+        const real = cos.rendimientoNeto;
+        const pct  = obj > 0 ? Math.round((real/obj)*100) : null;
+        const emoji = pct ? (pct>=100?'🏆':pct>=85?'✅':pct>=70?'🟡':'⚠️') : '🌾';
+        const fecha = new Date(cos.fecha+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'});
+        return `<div class="cosecha-item">
+          <div class="cosecha-icono">${emoji}</div>
+          <div style="flex:1;">
+            <div class="cosecha-nombre">${cul?.cultivo||'?'}${cul?.variedad?' ('+cul.variedad+')':''}</div>
+            <div class="cosecha-meta">${eq?.nombre||'?'} · ${fecha} · ${(cos.produccionKg/1000).toFixed(1)} ton</div>
+          </div>
+          <div class="cosecha-rinde">
+            <div class="cosecha-rinde-val">${real.toLocaleString('es-PY')}</div>
+            <div class="cosecha-rinde-lab">kg/ha${pct?' · '+pct+'%obj':''}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ===== CLIENTES =====
+    const ranking = clientes.map(c => {
+      const cCampos = campos.filter(f => f.clienteId === c.id);
+      const has = cCampos.reduce((s,f) => s+(parseFloat(f.superficie)||0), 0);
+      const nEqs = equipos.filter(e => cCampos.some(f => f.id === e.campoId)).length;
+      return { c, has, nCampos: cCampos.length, nEqs };
+    }).sort((a,b) => b.has - a.has);
+
+    document.getElementById('listaClientes').innerHTML = ranking.length === 0
+      ? '<div class="vacio">No hay clientes cargados.</div>'
+      : ranking.map(r => `
+        <div class="cliente-row">
+          <div class="cliente-avatar">${r.c.nombre.charAt(0).toUpperCase()}</div>
+          <div style="flex:1;">
+            <div class="cliente-nombre">${r.c.nombre}</div>
+            <div class="cliente-meta">${r.nCampos} campo${r.nCampos!==1?'s':''} · ${r.nEqs} equipo${r.nEqs!==1?'s':''}</div>
+          </div>
+          <div class="cliente-ha">${r.has.toLocaleString('es-PY')} ha</div>
+        </div>`).join('');
+
+    // ===== MANTENIMIENTO TABLE =====
+    const mantBody = document.getElementById('mantBody');
+    if (equipos.length === 0) {
+      mantBody.innerHTML = '<tr><td colspan="6" class="vacio">No hay equipos cargados.</td></tr>';
+    } else {
+      mantBody.innerHTML = equipos.map(eq => {
+        const campo = campos.find(f => f.id === eq.campoId);
+        const plan  = eq.planMantenimiento || [];
+        const horas = parseFloat(eq.horasAcumuladas) || 0;
+        let vencidas = 0, proximas = 0;
+        plan.forEach(t => {
+          const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
+          const pct = (desde / t.intervalo) * 100;
+          if (pct >= 100) vencidas++;
+          else if (pct >= 80) proximas++;
+        });
+        let estadoBadge = '';
+        if (!plan.length) estadoBadge = '<span class="badge badge-gris">Sin plan</span>';
+        else if (vencidas > 0) estadoBadge = '<span class="badge badge-rojo">🔴 '+vencidas+' vencida'+(vencidas>1?'s':'')+'</span>';
+        else if (proximas > 0) estadoBadge = '<span class="badge badge-amarillo">🟡 Revisar</span>';
+        else estadoBadge = '<span class="badge badge-verde">🟢 Al día</span>';
+
+        return `<tr>
+          <td><strong>${eq.nombre}</strong></td>
+          <td>${campo?.nombre || '—'}</td>
+          <td>${horas > 0 ? horas+' h' : '—'}</td>
+          <td style="color:${vencidas>0?'var(--rojo)':'var(--gris)'};">${vencidas > 0 ? vencidas : '—'}</td>
+          <td style="color:${proximas>0?'#8B6F00':'var(--gris)'};">${proximas > 0 ? proximas : '—'}</td>
+          <td>${estadoBadge}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Alertas mantenimiento iniciales (sin esperar API)
+    if (activas.length === 0) renderAlertas([], equipos, campos, clientes, campanas);
+  };
+
+  // ===== FETCH ESTADO RIEGO POR EQUIPO =====
+  function detectarAlertasClimaticasProp(daily) {
+    const alertas = [];
+    const diasSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    for (let i = 7; i < Math.min(12, daily.time.length); i++) {
+      const fecha = new Date(daily.time[i] + 'T12:00:00');
+      const diaStr = diasSemana[fecha.getDay()] + ' ' + String(fecha.getDate()).padStart(2,'0') + '/' + String(fecha.getMonth()+1).padStart(2,'0');
+      const tempMin  = daily.temperature_2m_min?.[i];
+      const tempMax  = daily.temperature_2m_max?.[i];
+      const viento   = daily.wind_speed_10m_max?.[i];
+      const wCode    = daily.weather_code?.[i];
+      const lluvia   = daily.precipitation_sum?.[i] || 0;
+      const probLluv = daily.precipitation_probability_max?.[i] || 0;
+      if (tempMin !== undefined && tempMin <= 2)
+        alertas.push({ tipo:'helada', icono:'🧊', nombre:'Riesgo de helada', detalle:`Mín. ${tempMin.toFixed(1)}°C. Proteger cultivos.`, fecha: diaStr });
+      if (tempMax !== undefined && tempMax >= 38)
+        alertas.push({ tipo:'calor', icono:'🌡️', nombre:'Ola de calor', detalle:`Máx. ${tempMax.toFixed(1)}°C. Aumentar riego.`, fecha: diaStr });
+      if (wCode !== undefined && wCode >= 95)
+        alertas.push({ tipo:'tormenta', icono:'⛈️', nombre:'Tormenta eléctrica', detalle:`Posible granizo y vientos fuertes.`, fecha: diaStr });
+      if (viento !== undefined && viento >= 50)
+        alertas.push({ tipo:'viento', icono:'💨', nombre:'Viento fuerte', detalle:`${Math.round(viento)} km/h previstos.`, fecha: diaStr });
+      if (lluvia >= 40 && probLluv >= 60)
+        alertas.push({ tipo:'lluvia', icono:'🌊', nombre:'Lluvia intensa', detalle:`${lluvia.toFixed(0)} mm (${probLluv}% prob.). Suspender riegos.`, fecha: diaStr });
+    }
+    return alertas;
+  }
+
+  async function fetchEstadoRiego(campo, camp, eventosEq, campId, alertas) {
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${campo.latitud}&longitude=${campo.longitud}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max&past_days=7&forecast_days=5&timezone=auto`;
+      const datos = (await (await fetch(url)).json()).daily;
+
+      // Detectar alertas climáticas (solo primera vez)
+      if (!window._alertasClimaticasYaMostradas) {
+        const alertasClima = detectarAlertasClimaticasProp(datos);
+        if (alertasClima.length > 0) {
+          alertasClima.forEach(a => alertas.unshift({ tipo: a.tipo === 'tormenta' || a.tipo === 'calor' ? 'urgente' : 'atencion', titulo: `${a.icono} ${a.nombre} — ${a.fecha}`, detalle: a.detalle }));
+          window._alertasClimaticasYaMostradas = true;
+        }
+      }
+      const fao    = JSON.parse(localStorage.getItem('cultivos_fao')   || '[]');
+      const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+      const cul = camp.cultivos[0];
+      const kcDef = fao.find(c=>c.nombre===cul.cultivo) || custom.find(c=>c.nombre===cul.cultivo);
+
+      let lluviaAPI = 0, etTotal = 0;
+      for (let i = 0; i < 7; i++) {
+        lluviaAPI += datos.precipitation_sum[i] || 0;
+        const eto = datos.et0_fao_evapotranspiration[i] || 0;
+        const kc  = kcDef && cul.fechaSiembra ? calcularKcSimple(kcDef, new Date(datos.time[i]), cul.fechaSiembra) : 1;
+        etTotal += eto * kc;
+      }
+      let lluviaReal = 0, riegoReal = 0;
+      const hace7 = new Date(); hace7.setDate(hace7.getDate()-7);
+      eventosEq.forEach(ev => {
+        if (new Date(ev.fecha) < hace7) return;
+        if (ev.tipo==='lluvia') lluviaReal += parseFloat(ev.cantidad)||0;
+        if (ev.tipo==='riego')  riegoReal  += parseFloat(ev.cantidad)||0;
+      });
+      let lluviaProxima = 0;
+      for (let i = 7; i < 10; i++) lluviaProxima += datos.precipitation_sum[i] || 0;
+      const balance = (lluviaAPI + lluviaReal + riegoReal) - etTotal;
+
+      let badge, tipo;
+      if (lluviaProxima >= 15)   { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
+      else if (balance < -25)    { badge = '<span class="badge badge-rojo">🔴 Urgente</span>';  tipo = 'urgente'; }
+      else if (balance < -10)    { badge = '<span class="badge badge-amarillo">🟡 Monitorear</span>'; tipo = 'atencion'; }
+      else                       { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
+
+      // Actualizar celda en tabla
+      const celdas = document.querySelectorAll('.estado-riego-' + campId);
+      celdas.forEach(c => c.innerHTML = badge);
+
+      if (tipo) {
+        const eq = JSON.parse(localStorage.getItem('equipos')||'[]').find(e=>e.id===camp.equipoId);
+        alertas.push({ tipo, titulo: `${tipo==='urgente'?'🔴':'🟡'} ${eq?.nombre||'?'} — ${tipo==='urgente'?'Riego urgente':'Programar riego'}`, detalle: `Déficit ${Math.abs(balance).toFixed(0)} mm · ${campo.nombre}` });
+        renderAlertas(alertas);
+      }
+    } catch(e) {
+      document.querySelectorAll('.estado-riego-' + campId).forEach(c => c.innerHTML = '<span class="badge badge-gris">Sin internet</span>');
+    }
+  }
+
+  // ===== RENDER ALERTAS =====
+  function renderAlertas(alertasRiego, equipos, campos, clientes, campanas) {
+    const div = document.getElementById('listaAlertas');
+
+    // Alertas de mantenimiento
+    const alertasMant = [];
+    const eqs = equipos || JSON.parse(localStorage.getItem('equipos')||'[]');
+    eqs.forEach(eq => {
+      const plan = eq.planMantenimiento;
+      if (!plan) return;
+      const horas = parseFloat(eq.horasAcumuladas) || 0;
+      plan.forEach(t => {
+        const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
+        const pct = (desde / t.intervalo) * 100;
+        if (pct >= 100) alertasMant.push({ titulo: `🔧 ${eq.nombre} — ${t.tarea}`, detalle: `Mantenimiento vencido · ${Math.round(pct)}% del intervalo`, link: 'mis-equipos.html' });
+        else if (pct >= 80) alertasMant.push({ titulo: `🟡 ${eq.nombre} — ${t.tarea}`, detalle: `Próximo a vencer · ${Math.round(pct)}%`, link: 'mis-equipos.html', amarilla: true });
+      });
+    });
+
+    const todas = [...(alertasRiego||[]), ...alertasMant];
+
+    if (todas.length === 0) {
+      div.innerHTML = '<div class="ok-sin-alertas">✅ Sin alertas activas. Todo en orden.</div>';
+      return;
+    }
+
+    div.innerHTML = todas.slice(0, 6).map(a => `
+      <div class="alerta-item ${a.tipo==='urgente'?'urgente':a.amarilla?'atencion':'mant'}">
+        <div>
+          <div class="alerta-titulo">${a.titulo}</div>
+          <div class="alerta-detalle">${a.detalle}</div>
+          ${a.link ? `<a href="${a.link}" class="alerta-link">Ver →</a>` : ''}
+        </div>
+      </div>`).join('');
+  }
+</script>
+</body>
+</html>
