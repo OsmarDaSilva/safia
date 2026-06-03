@@ -908,6 +908,36 @@
       card.classList.add('visible');
     }
 
+    // ===== PARSEO ROBUSTO DE COORDENADAS (acepta coma decimal y separadores mezclados) =====
+    function parseCoordNum(v) {
+      if (v === null || v === undefined) return NaN;
+      const m = String(v).trim().match(/-?\d+(?:[.,]\d+)?/);
+      return m ? parseFloat(m[0].replace(',', '.')) : NaN;
+    }
+    function coordsValidas(lat, lon) {
+      return !isNaN(lat) && !isNaN(lon) &&
+             Math.abs(lat) <= 90 && Math.abs(lon) <= 180 &&
+             !(lat === 0 && lon === 0);
+    }
+    // Resuelve {lat, lon} desde el campo (campos separados) o, como respaldo, desde el GPS del equipo ("lat, lon")
+    function resolverCoordenadas(campo, equipo) {
+      if (campo && campo.latitud != null && campo.latitud !== '' &&
+          campo.longitud != null && campo.longitud !== '') {
+        const lat = parseCoordNum(campo.latitud);
+        const lon = parseCoordNum(campo.longitud);
+        if (coordsValidas(lat, lon)) return { lat, lon };
+      }
+      if (equipo && equipo.gps) {
+        const nums = String(equipo.gps).match(/-?\d+(?:[.,]\d+)?/g);
+        if (nums && nums.length >= 2) {
+          const lat = parseFloat(nums[0].replace(',', '.'));
+          const lon = parseFloat(nums[1].replace(',', '.'));
+          if (coordsValidas(lat, lon)) return { lat, lon };
+        }
+      }
+      return null;
+    }
+
     async function mostrarRecomendacionClima() {
       const card = document.getElementById('recoCard');
       const icono = document.getElementById('recoIcono');
@@ -920,13 +950,27 @@
       if (!equipo) return;
 
       const campo = campos.find(c => c.id === equipo.campoId);
-      if (!campo || !campo.latitud || !campo.longitud) {
+
+      // Resolver coordenadas de forma robusta (campo con campos separados o, en su defecto, GPS del equipo)
+      const coords = resolverCoordenadas(campo, equipo);
+
+      if (!coords) {
+        // Distinguir "no hay nada cargado" de "hay datos pero inválidos" (NO es problema de internet)
+        const hayAlgoCargado = (campo && (campo.latitud || campo.longitud)) || (equipo && equipo.gps);
         icono.textContent = '⚠️';
-        titulo.textContent = 'Sin datos GPS';
-        detalle.innerHTML = `Para ver la recomendación, cargá <a href="mis-campos.html" style="color:#1565C0;">GPS en el campo</a>.`;
+        if (hayAlgoCargado) {
+          titulo.textContent = 'No se pudo calcular';
+          detalle.innerHTML = `Revisá las coordenadas del <a href="mis-campos.html" style="color:#1565C0;">campo</a> o del equipo: deben ser números válidos (ej: -24.27, -56.22).`;
+        } else {
+          titulo.textContent = 'Sin datos GPS';
+          detalle.innerHTML = `Para ver la recomendación, cargá <a href="mis-campos.html" style="color:#1565C0;">GPS en el campo</a>.`;
+        }
         card.className = 'reco-card visible';
         return;
       }
+
+      const lat = coords.lat;
+      const lon = coords.lon;
 
       icono.textContent = '⏳';
       titulo.textContent = 'Consultando clima...';
@@ -934,16 +978,15 @@
       card.className = 'reco-card visible';
 
       try {
-        const lat = parseFloat(campo.latitud);
-        const lon = parseFloat(campo.longitud);
-
         const url = `https://api.open-meteo.com/v1/forecast?` +
           `latitude=${lat}&longitude=${lon}` +
           `&daily=precipitation_sum,et0_fao_evapotranspiration` +
           `&past_days=7&forecast_days=4&timezone=auto`;
 
         const respuesta = await fetch(url);
+        if (!respuesta.ok) throw new Error('http_' + respuesta.status);
         const datos = await respuesta.json();
+        if (!datos || !datos.daily) throw new Error('sin_datos_clima');
 
         let etTotal = 0;
         let lluviaTotal = 0;
@@ -1042,9 +1085,16 @@
         }
 
       } catch (error) {
-        icono.textContent = '📡';
-        titulo.textContent = 'Sin internet';
-        detalle.textContent = 'No se pudo consultar el clima. Conectate a internet para ver la recomendación.';
+        // "Sin internet" SOLO para fallos reales de conexión (fetch lanza TypeError sin red).
+        if (error instanceof TypeError) {
+          icono.textContent = '📡';
+          titulo.textContent = 'Sin internet';
+          detalle.textContent = 'No se pudo consultar el clima. Conectate a internet para ver la recomendación.';
+        } else {
+          icono.textContent = '⚠️';
+          titulo.textContent = 'No se pudo calcular';
+          detalle.textContent = 'El servicio de clima no respondió correctamente. Probá de nuevo en unos minutos.';
+        }
         card.className = 'reco-card visible';
       }
     }

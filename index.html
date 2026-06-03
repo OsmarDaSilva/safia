@@ -1040,7 +1040,7 @@
 
       if (ctx.campo.latitud && ctx.campo.longitud) {
         try {
-          const datosClima = await fetchClima(parseFloat(ctx.campo.latitud), parseFloat(ctx.campo.longitud));
+          const datosClima = await fetchClima(parseFloat(String(ctx.campo.latitud).replace(',', '.')), parseFloat(String(ctx.campo.longitud).replace(',', '.')));
           const simulacion = simularSemana(ctx, datosClima);
           const estado = determinarEstadoGeneral(simulacion);
           const acumulado = calcularRiegoAcumulado(ctx.campana.id, ctx.equipo.id);

@@ -963,7 +963,7 @@
 
       if (campo.latitud && campo.longitud) {
         document.getElementById('gpsCompleto').value = `${campo.latitud}, ${campo.longitud}`;
-        validarGPS(parseFloat(campo.latitud), parseFloat(campo.longitud));
+        validarGPS(parseFloat(String(campo.latitud).replace(',', '.')), parseFloat(String(campo.longitud).replace(',', '.')));
       }
 
       editandoId = id;

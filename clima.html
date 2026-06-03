@@ -628,14 +628,14 @@
         const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
         const campo = campos.find(c => c.id === campoId);
         const cliente = clientes.find(c => c.id === campo.clienteId);
-        lat = parseFloat(campo.latitud);
-        lon = parseFloat(campo.longitud);
+        lat = parseFloat(String(campo.latitud).replace(',', '.'));
+        lon = parseFloat(String(campo.longitud).replace(',', '.'));
         contexto = { tipo: 'campo', campo, cliente };
       } else {
         const idx = parseInt(valor.split(':')[1]);
         const cv = window.__campanasValidas[idx];
-        lat = parseFloat(cv.campo.latitud);
-        lon = parseFloat(cv.campo.longitud);
+        lat = parseFloat(String(cv.campo.latitud).replace(',', '.'));
+        lon = parseFloat(String(cv.campo.longitud).replace(',', '.'));
         contexto = { tipo: 'campana', ...cv };
       }
 

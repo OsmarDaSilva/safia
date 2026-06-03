@@ -608,7 +608,9 @@
 
   async function fetchEstadoRiego(campo, camp, eventosEq, campId, alertas) {
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${campo.latitud}&longitude=${campo.longitud}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max&past_days=7&forecast_days=5&timezone=auto`;
+      const lat = parseFloat(String(campo.latitud).replace(',', '.'));
+      const lon = parseFloat(String(campo.longitud).replace(',', '.'));
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max&past_days=7&forecast_days=5&timezone=auto`;
       const datos = (await (await fetch(url)).json()).daily;
 
       // Detectar alertas climáticas (solo primera vez)

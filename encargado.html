@@ -608,8 +608,8 @@
 
     // ============ CALCULAR BALANCE HÍDRICO ============
     async function calcularBalance(campo, campana, eventosEquipo, equipo) {
-      const lat = parseFloat(campo.latitud);
-      const lon = parseFloat(campo.longitud);
+      const lat = parseFloat(String(campo.latitud).replace(',', '.'));
+      const lon = parseFloat(String(campo.longitud).replace(',', '.'));
 
       const url = `https://api.open-meteo.com/v1/forecast?` +
         `latitude=${lat}&longitude=${lon}` +
