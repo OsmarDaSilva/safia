@@ -418,7 +418,7 @@
   <div class="contenedor" style="padding:24px 32px 40px;">
     <!-- HEADER -->
     <div class="header-encargado">
-      <div class="header-icono">📋</div>
+      <div class="header-icono"><svg class="ic-hero" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></div>
       <div class="header-textos">
         <h1>ENCARGADO</h1>
         <p>Supervisión multi-equipo · Estado actual de operaciones</p>
@@ -459,7 +459,7 @@
     <div id="alertasClimaticas" style="display:none;" class="alertas-clima-wrap"></div>
 
     <!-- LISTA DE EQUIPOS -->
-    <div class="seccion-titulo">📋 Estado de equipos</div>
+    <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg> Estado de equipos</div>
     <div id="listaEquipos">
       <div class="loading-text" style="text-align:center; padding:40px;">⏳ Cargando estado de equipos...</div>
     </div>
@@ -617,7 +617,7 @@
       const div = document.getElementById('alertasClimaticas');
       if (!alertas || alertas.length === 0) { div.style.display = 'none'; return; }
       div.style.display = 'block';
-      div.innerHTML = `<div class="alertas-clima-titulo">⚠️ Alertas climáticas — próximos 5 días</div>` +
+      div.innerHTML = `<div class="alertas-clima-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg> Alertas climáticas — próximos 5 días</div>` +
         alertas.map(a => `<div class="alerta-clima-card ${a.tipo}">
           <div class="alerta-clima-icono">${a.icono}</div>
           <div class="alerta-clima-info">
