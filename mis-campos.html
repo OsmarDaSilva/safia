@@ -4,687 +4,215 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Campos</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --verde: #0F3D14;
-      --verde-claro: #1B5E20;
-      --ambar: #D4A24C;
-      --ambar-oscuro: #B88A3D;
-      --crema: #FAF6EC;
-      --crema-oscuro: #f0ead8;
-      --rojo: #B5371C;
-      --gris-texto: #6B6356;
-      --negro: #1A1A1A;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--crema);
-      color: var(--negro);
-      min-height: 100vh;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      background: var(--verde);
-      color: var(--crema);
-      padding: 24px 14px 20px;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sidebar-logo {
-      display: flex; align-items: center; gap: 12px;
-      padding: 0 8px 20px;
-      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
-      margin-bottom: 18px;
-    }
-    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
-    .sidebar-logo-textos { line-height: 1.1; }
-    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
-    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
-
-    .sidebar-grupo {
-      font-size: 10px; opacity: 0.55;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      margin: 18px 8px 6px; font-weight: 600;
-    }
-    .sidebar-grupo:first-of-type { margin-top: 4px; }
-
-    .sidebar-link {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 10px; border-radius: 8px;
-      color: var(--crema); text-decoration: none;
-      font-size: 13px; margin-bottom: 1px;
-      transition: background 0.15s;
-    }
-    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
-    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
-
-    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-
-    .sidebar-footer {
-      margin-top: 24px; padding: 14px 10px 4px;
-      border-top: 1px solid rgba(212, 162, 76, 0.25);
-      font-size: 10px; opacity: 0.6; line-height: 1.5;
-    }
-
-    .main { padding: 24px 32px 40px; overflow-x: hidden; }
-
-    .topbar {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      margin-bottom: 24px; padding-bottom: 16px;
-      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
-    }
-    .topbar-saludo {
-      font-size: 11px; color: var(--gris-texto);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 4px; font-weight: 600;
-    }
-    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
-    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
-    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
-    .topbar-avatar {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: var(--ambar); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 15px;
-    }
-
-    .contenedor { max-width: 760px; margin: 0 auto; }
-
-    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
-
-    .tarjeta {
-      background: #fff; border-radius: 18px; padding: 28px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
-      transition: border-color 0.3s;
-    }
-    .tarjeta.editando {
-      border: 2px solid #D4A24C;
-      box-shadow: 0 4px 20px rgba(212, 162, 76, 0.3);
-    }
-    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
-    .tarjeta-titulo.editando { color: #D4A24C; }
-    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
-
-    .seccion {
-      border-top: 1px solid rgba(0,0,0,0.08);
-      padding-top: 20px; margin-top: 20px;
-    }
-    .seccion-titulo {
-      font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
-      color: #0F3D14; font-weight: 700; margin-bottom: 14px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .seccion-titulo .badge {
-      background: rgba(212, 162, 76, 0.2); color: #8B6F00;
-      font-size: 10px; padding: 3px 10px; border-radius: 100px; font-weight: 600;
-    }
-
-    .campo { margin-bottom: 18px; }
-    .campo label {
-      display: block; font-size: 12px; font-weight: 600;
-      color: #6B6356; text-transform: uppercase;
-      letter-spacing: 0.05em; margin-bottom: 6px;
-    }
-    .campo label .opcional {
-      color: #aaa; font-weight: 400; text-transform: none;
-      letter-spacing: 0; font-size: 11px; margin-left: 4px;
-    }
-    .campo input, .campo select, .campo textarea {
-      width: 100%; padding: 14px 16px;
-      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
-      font-size: 15px; font-family: inherit;
-      background: #FAF6EC; color: #1A1A1A;
-    }
-    .campo textarea { min-height: 70px; resize: vertical; }
-    .campo input:focus, .campo select:focus, .campo textarea:focus {
-      outline: none; border-color: #0F3D14; background: #fff;
-    }
-    .campo .ayuda {
-      font-size: 11px; color: #6B6356; margin-top: 4px; font-style: italic;
-    }
-
-    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-
-    .gps-helper {
-      background: rgba(15, 61, 20, 0.05);
-      border-left: 3px solid #0F3D14;
-      padding: 14px 16px;
-      border-radius: 8px;
-      margin-top: 12px;
-      font-size: 13px;
-      color: #0F3D14;
-    }
-
-    .gps-helper a {
-      color: #0F3D14;
-      font-weight: 700;
-      text-decoration: underline;
-    }
-
-    .gps-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 100px;
-      font-weight: 600;
-      margin-top: 6px;
-    }
-    .gps-status.ok {
-      background: rgba(46, 125, 50, 0.15);
-      color: #2E7D32;
-    }
-    .gps-status.error {
-      background: rgba(181, 55, 28, 0.15);
-      color: #B5371C;
-    }
-
-    .suelo-info {
-      background: rgba(212, 162, 76, 0.08);
-      border-left: 3px solid #D4A24C;
-      padding: 14px 16px;
-      border-radius: 8px;
-      margin-top: 12px;
-      font-size: 13px;
-      color: #4A3818;
-      display: none;
-    }
-    .suelo-info.visible { display: block; }
-    .suelo-info-titulo {
-      font-weight: 700;
-      font-size: 14px;
-      color: #8B6F00;
-      margin-bottom: 6px;
-    }
-    .suelo-info-desc {
-      line-height: 1.5;
-      margin-bottom: 10px;
-    }
-    .suelo-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .suelo-stat {
-      background: #fff;
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-size: 11px;
-      color: #6B6356;
-    }
-    .suelo-stat strong {
-      display: block;
-      font-size: 16px;
-      color: #8B6F00;
-      font-weight: 700;
-    }
-    .item-suelo {
-      display: inline-block;
-      font-size: 11px;
-      padding: 2px 8px;
-      background: rgba(212, 162, 76, 0.15);
-      color: #8B6F00;
-      border-radius: 100px;
-      margin-left: 6px;
-      font-weight: 600;
-    }
-
-    .botones-form {
-      display: flex; gap: 10px; margin-top: 20px;
-    }
-
-    .boton-guardar {
-      flex: 1; padding: 18px;
-      background: #0F3D14; color: #FAF6EC;
-      border: none; border-radius: 14px;
-      font-size: 16px; font-weight: 700;
-      cursor: pointer; font-family: inherit;
-    }
-    .boton-guardar:hover { background: #1B5E20; }
-    .boton-guardar.editando { background: #D4A24C; }
-    .boton-guardar.editando:hover { background: #B88A3D; }
-
-    .boton-cancelar {
-      padding: 18px 24px;
-      background: rgba(0,0,0,0.06); color: #6B6356;
-      border: none; border-radius: 14px;
-      font-size: 15px; font-weight: 600;
-      cursor: pointer; font-family: inherit;
-      display: none;
-    }
-    .boton-cancelar.visible { display: block; }
-    .boton-cancelar:hover { background: rgba(0,0,0,0.1); }
-
-    .lista-titulo {
-      font-size: 12px; font-weight: 600; color: #6B6356;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      margin-bottom: 12px; padding: 0 4px;
-    }
-
-    .item {
-      background: #fff; border-radius: 16px; padding: 18px 20px;
-      margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      display: flex; gap: 16px; align-items: center;
-      transition: all 0.2s;
-    }
-    .item.editando {
-      background: rgba(212, 162, 76, 0.1);
-      border: 2px solid #D4A24C;
-    }
-
-    .item-icono {
-      width: 50px; height: 50px;
-      background: rgba(212, 162, 76, 0.2);
-      border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px; flex-shrink: 0;
-    }
-    .item-info { flex: 1; }
-    .item-nombre { font-size: 16px; font-weight: 700; color: #1A1A1A; }
-    .item-detalles { font-size: 13px; color: #6B6356; margin-top: 3px; }
-
-    .item-cliente {
-      font-size: 11px; color: #0F3D14;
-      background: rgba(15, 61, 20, 0.08);
-      padding: 2px 8px; border-radius: 100px;
-      display: inline-block; margin-top: 4px; font-weight: 600;
-    }
-
-    .item-gps {
-      font-size: 11px; color: #1565C0;
-      background: rgba(33, 150, 243, 0.1);
-      padding: 2px 8px; border-radius: 100px;
-      display: inline-block; margin-top: 4px; margin-left: 4px; font-weight: 600;
-    }
-
-    .item-acciones {
-      display: flex; gap: 8px; flex-shrink: 0;
-    }
-
-    .item-boton {
-      border: none; width: 36px; height: 36px;
-      border-radius: 50%; cursor: pointer;
-      font-size: 16px; font-weight: bold;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .item-editar {
-      background: rgba(15, 61, 20, 0.1);
-      color: #0F3D14;
-    }
-    .item-editar:hover { background: rgba(15, 61, 20, 0.2); }
-
-    .item-borrar {
-      background: rgba(181, 55, 28, 0.1);
-      color: #B5371C;
-    }
-    .item-borrar:hover { background: rgba(181, 55, 28, 0.2); }
-
-    .vacio {
-      text-align: center; padding: 40px 20px; color: #6B6356;
-      background: #fff; border-radius: 16px;
-      border: 2px dashed rgba(0,0,0,0.1);
-    }
-    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
-    .vacio-texto { font-size: 14px; }
-
-    .alerta {
-      background: rgba(181, 55, 28, 0.1);
-      border: 1.5px solid rgba(181, 55, 28, 0.3);
-      color: #B5371C;
-      padding: 16px 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      display: none;
-    }
-    .alerta.visible { display: block; }
-    .alerta a { color: #B5371C; font-weight: 700; text-decoration: underline; }
-
-    .alerta-edicion {
-      background: rgba(212, 162, 76, 0.15);
-      border-left: 4px solid #D4A24C;
-      padding: 14px 18px; border-radius: 8px;
-      margin-bottom: 20px; font-size: 14px;
-      color: #8B6F00; display: none;
-    }
-    .alerta-edicion.visible { display: block; }
-
-    .filtro-cliente {
-      background: #fff; padding: 14px 18px;
-      border-radius: 14px; margin-bottom: 16px;
-      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
-    }
-    .filtro-cliente label {
-      font-size: 13px; color: #6B6356; font-weight: 600; flex-shrink: 0;
-    }
-    .filtro-cliente select {
-      flex: 1; padding: 8px 12px;
-      border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
-      font-family: inherit; font-size: 14px;
-      background: #FAF6EC; min-width: 200px;
-    }
-
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { position: static; height: auto; }
-    }
-
-    @media (max-width: 500px) {
-      .main { padding: 16px; }
-      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
-      .fila { grid-template-columns: 1fr; }
-    }
-  </style>
-  <style>
-    /* ===== SAFIA · Menú móvil responsive (solo afecta pantallas <= 768px) ===== */
-    .menu-toggle { display: none; }
-    .sidebar-overlay { display: none; }
-    @media (max-width: 768px) {
-      .menu-toggle {
-        display: flex; align-items: center; justify-content: center;
-        position: fixed; top: 12px; left: 12px; z-index: 1001;
-        width: 46px; height: 46px;
-        background: #0F3D14; color: #FAF6EC;
-        border: none; border-radius: 12px;
-        font-size: 22px; line-height: 1; cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-      }
-      .layout { display: block !important; }
-      .sidebar {
-        position: fixed !important; top: 0; left: 0;
-        width: 264px; max-width: 84vw; height: 100vh !important;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        z-index: 1000; overflow-y: auto;
-      }
-      .sidebar.abierto { transform: translateX(0); }
-      .sidebar-overlay {
-        display: block; position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45);
-        opacity: 0; pointer-events: none;
-        transition: opacity 0.25s ease; z-index: 999;
-      }
-      .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
-      .main {
-        padding-top: 64px !important;
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        width: 100%; max-width: 100%; overflow-x: hidden;
-      }
-      body.menu-abierto { overflow: hidden; }
-      html, body { overflow-x: hidden; max-width: 100%; }
-    }
+    /* Estados de edición (hooks del JS) */
+    #botonCancelar{display:none;} #botonCancelar.visible{display:inline-flex;}
+    #alertaEdicion{display:none;} #alertaEdicion.visible{display:block;}
+    #alertaSinClientes{display:none;} #alertaSinClientes.visible{display:block;}
+    .formcard.editando{border:2px solid var(--green);}
+    #tituloForm.editando{color:var(--green-d);}
+    .btn.editando{background:var(--amber);border-color:var(--amber);color:#fff;}
+    tr.editando td{background:var(--amber-t);}
+    /* Bloque info de suelo (innerHTML generado por el JS) */
+    .suelo-info{display:none;margin-top:12px;background:var(--amber-t);border-left:3px solid var(--amber);padding:14px 16px;border-radius:8px;font-size:13px;color:#7a4d10;}
+    .suelo-info.visible{display:block;}
+    .suelo-info-titulo{font-weight:700;font-size:14px;color:var(--amber);margin-bottom:6px;}
+    .suelo-info-desc{line-height:1.5;margin-bottom:10px;}
+    .suelo-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px;}
+    .suelo-stat{background:#fff;padding:8px 10px;border-radius:8px;font-size:11px;color:var(--label);}
+    .suelo-stat strong{display:block;font-size:16px;color:var(--amber);font-weight:700;}
+    /* Estado validación GPS (innerHTML generado por el JS) */
+    .gps-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:100px;font-weight:600;margin-top:6px;}
+    .gps-status.ok{background:var(--green-t);color:var(--green-d);}
+    .gps-status.error{background:var(--red-t);color:var(--red);}
+    .opcional{color:var(--label);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;margin-left:4px;}
   </style>
 </head>
 <body>
 
-  <div class="layout">
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
 
-    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    <aside class="sidebar">
-      <div class="sidebar-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
-          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
-          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
-          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
-          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
-          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
-        </svg>
-        <div class="sidebar-logo-textos">
-          <div class="sidebar-logo-titulo">SAFIA</div>
-          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
-        </div>
+  <div class="app">
+
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark">🌿</div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
       </div>
-
-      <div class="sidebar-grupo">Inicio</div>
-      <a href="index.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
-      </a>
-
-      <div class="sidebar-grupo">Datos</div>
-      <a href="mis-clientes.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
-      </a>
-      <a href="mis-campos.html" class="sidebar-link activo">
-        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
-      </a>
-      <a href="mis-equipos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
-      </a>
-      <a href="mis-cultivos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
-      </a>
-      <a href="mis-campanas.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
-      </a>
-      <a href="analisis.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span>
-      </a>
-
-      <div class="sidebar-grupo">Inteligencia</div>
-      <a href="clima.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
-      </a>
-      <a href="prediccion.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
-      </a>
-
-      <div class="sidebar-grupo">Operación</div>
-      <a href="operador.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
-      </a>
-      <a href="eventos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
-      </a>
-      <a href="encargado.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
-      </a>
-      <a href="propietario.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
-      </a>
-      <a href="voz.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
-      </a>
-
-      <div class="sidebar-grupo">Sistema</div>
-      <a href="backup.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
-      </a>
-
-      <div class="sidebar-footer">
-        SAFIA v1.0<br>
-        Herramienta para productores
-      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><span class="ico">📊</span>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><span class="ico">👤</span>Clientes</a>
+        <a href="mis-campos.html" class="active"><span class="ico">🌾</span>Campos</a>
+        <a href="mis-equipos.html"><span class="ico">💧</span>Equipos</a>
+        <a href="mis-cultivos.html"><span class="ico">🌱</span>Cultivos</a>
+        <a href="mis-campanas.html"><span class="ico">📋</span>Campañas</a>
+        <a href="analisis.html"><span class="ico">🧪</span>Análisis y Docs</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><span class="ico">🌡️</span>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><span class="ico">🔮</span>Predicción 7d</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><span class="ico">🚜</span>Operador</a>
+        <a href="eventos.html"><span class="ico">📅</span>Eventos</a>
+        <a href="encargado.html"><span class="ico">👷</span>Encargado</a>
+        <a href="propietario.html"><span class="ico">👔</span>Propietario</a>
+        <a href="voz.html"><span class="ico">🎤</span>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><span class="ico">💾</span>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
     </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
 
     <main class="main">
 
-      <div class="topbar">
+      <div class="crumb">Datos · <b>Campos</b></div>
+      <div class="ptop">
         <div>
-          <div class="topbar-saludo">Datos</div>
-          <div class="topbar-titulo">🌾 Campos</div>
+          <h2>Campos / Estancias</h2>
+          <div class="sub">Propiedades de cada cliente. Después agregás los equipos de riego.</div>
         </div>
-        <div class="topbar-derecha">
-          <div class="topbar-fecha" id="topbarFecha">—</div>
-          <div class="topbar-avatar">O</div>
-        </div>
+        <div class="actions"><span class="muted" id="topbarFecha">—</span></div>
       </div>
 
-      <div class="contenedor">
+      <div class="note danger" id="alertaSinClientes">
+        ⚠️ No tenés clientes cargados todavía. Antes de crear un campo necesitás al menos un cliente.
+        <a href="mis-clientes.html" style="font-weight:700;text-decoration:underline;">→ Ir a cargar clientes</a>
+      </div>
 
-        <p class="subtitulo-pagina">Cargá las propiedades de cada cliente. Después agregás los equipos de riego.</p>
+      <div class="note ok" id="alertaEdicion">
+        ✏️ <strong>Modo edición activo:</strong> estás editando un campo. Tocá "Actualizar" para guardar o "Cancelar" para descartar.
+      </div>
 
-        <div class="alerta" id="alertaSinClientes">
-          ⚠️ No tenés clientes cargados todavía. Antes de crear un campo necesitás al menos un cliente.
-          <br><br>
-          <a href="mis-clientes.html">→ Ir a cargar clientes</a>
-        </div>
+      <div class="formcard" id="tarjetaForm">
+        <h3 id="tituloForm">+ Agregar un campo / estancia</h3>
+        <div class="formsub">Elegí el cliente y completá los datos del establecimiento.</div>
 
-        <div class="alerta-edicion" id="alertaEdicion">
-          ✏️ <strong>Modo edición activo:</strong> estás editando un campo. Hacé clic en "Actualizar" para guardar los cambios o "Cancelar" para descartar.
-        </div>
-
-        <div class="tarjeta" id="tarjetaForm">
-          <div class="tarjeta-titulo" id="tituloForm">+ Agregar un campo / estancia</div>
-          <div class="tarjeta-sub">Elegí el cliente y completá los datos del establecimiento.</div>
-
-          <div class="campo">
+        <div class="form-grid">
+          <div class="field full">
             <label>Cliente / Productor</label>
-            <select id="cliente">
-              <option value="">Seleccionar cliente...</option>
-            </select>
+            <select id="cliente"><option value="">Seleccionar cliente...</option></select>
           </div>
-
-          <div class="campo">
+          <div class="field full">
             <label>Nombre del campo / estancia</label>
             <input type="text" id="nombre" placeholder="Ej: Estancia La María / Lote del Río">
           </div>
-
-          <div class="fila">
-            <div class="campo">
-              <label>Superficie total (ha)</label>
-              <input type="number" id="superficie" placeholder="Ej: 250">
-            </div>
-
-            <div class="campo">
-              <label>Departamento / Provincia</label>
-              <input type="text" id="departamento" placeholder="Ej: Canindeyú">
-            </div>
+          <div class="field">
+            <label>Superficie total (ha)</label>
+            <input type="number" id="superficie" placeholder="Ej: 250">
           </div>
-
-          <div class="fila">
-            <div class="campo">
-              <label>País</label>
-              <select id="pais">
-                <option value="">Seleccionar...</option>
-                <option value="Paraguay">Paraguay</option>
-                <option value="Brasil">Brasil</option>
-                <option value="Argentina">Argentina</option>
-                <option value="Bolivia">Bolivia</option>
-                <option value="Uruguay">Uruguay</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <label>Tipo de actividad</label>
-              <select id="actividad">
-                <option value="">Seleccionar...</option>
-                <option value="Agrícola">Agrícola</option>
-                <option value="Ganadera">Ganadera</option>
-                <option value="Mixta (agrícola + ganadera)">Mixta</option>
-                <option value="Frutícola">Frutícola</option>
-                <option value="Hortícola">Hortícola</option>
-                <option value="Otro">Otro</option>
-              </select>
-            </div>
+          <div class="field">
+            <label>Departamento / Provincia</label>
+            <input type="text" id="departamento" placeholder="Ej: Canindeyú">
           </div>
-
-          <div class="seccion">
-            <div class="seccion-titulo">🌱 Tipo de suelo <span class="badge">Importante para riego</span></div>
-
-            <div class="campo">
-              <label>Clasificación del suelo del lote</label>
-              <select id="tipoSuelo" onchange="mostrarInfoSuelo()">
-                <option value="">Seleccionar tipo de suelo...</option>
-                <option value="arenoso">🏖️ Arenoso (suelto, drena rápido)</option>
-                <option value="franco_arenoso">🌾 Franco arenoso (mezcla con algo de arena)</option>
-                <option value="franco">🌱 Franco (suelo balanceado, lo más común)</option>
-                <option value="franco_arcilloso">🟫 Franco arcilloso (más pesado, retiene agua)</option>
-                <option value="arcilloso">🧱 Arcilloso (muy pesado, se compacta)</option>
-              </select>
-              <div class="ayuda">Si no estás seguro, elegí "Franco" — es lo más común en suelos paraguayos.</div>
-            </div>
-
-            <div class="suelo-info" id="suelo-info"></div>
+          <div class="field">
+            <label>País</label>
+            <select id="pais">
+              <option value="">Seleccionar...</option>
+              <option value="Paraguay">Paraguay</option>
+              <option value="Brasil">Brasil</option>
+              <option value="Argentina">Argentina</option>
+              <option value="Bolivia">Bolivia</option>
+              <option value="Uruguay">Uruguay</option>
+              <option value="Otro">Otro</option>
+            </select>
           </div>
-
-          <div class="seccion">
-            <div class="seccion-titulo">🛰️ Coordenadas GPS <span class="badge">Importante para clima</span></div>
-
-            <div class="fila">
-              <div class="campo">
-                <label>Latitud</label>
-                <input type="number" id="latitud" placeholder="Ej: -24.3572" step="any">
-                <div class="ayuda">Negativo si estás al sur del Ecuador</div>
-              </div>
-
-              <div class="campo">
-                <label>Longitud</label>
-                <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any">
-                <div class="ayuda">Negativo si estás al oeste de Greenwich</div>
-              </div>
-            </div>
-
-            <div class="campo">
-              <label>O pegar las dos coordenadas juntas <span class="opcional">(de Google Maps)</span></label>
-              <input type="text" id="gpsCompleto" placeholder="Ej: -24.3572, -54.4869" oninput="parsearGPS()">
-              <div class="ayuda">Pegá lo que copiaste con clic derecho en Google Maps. Se separa solo.</div>
-            </div>
-
-            <div class="gps-helper">
-              📍 <strong>¿Cómo obtener las coordenadas de tu campo?</strong><br>
-              1. Andá a <a href="https://www.google.com/maps" target="_blank">Google Maps</a><br>
-              2. Buscá tu campo y acercate (zoom)<br>
-              3. <strong>Clic derecho</strong> sobre el centro del campo<br>
-              4. Lo primero que aparece son las coordenadas → <strong>clic izquierdo para copiarlas</strong><br>
-              5. Pegalas arriba en "O pegar las dos coordenadas juntas"
-            </div>
-
-            <div id="gpsValidacion"></div>
-          </div>
-
-          <div class="campo" style="margin-top: 20px;">
-            <label>Observaciones (opcional)</label>
-            <textarea id="observaciones" placeholder="Cualquier dato adicional sobre el campo..."></textarea>
-          </div>
-
-          <div class="botones-form">
-            <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">
-              ✓ Guardar campo
-            </button>
-            <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">
-              ✕ Cancelar
-            </button>
+          <div class="field">
+            <label>Tipo de actividad</label>
+            <select id="actividad">
+              <option value="">Seleccionar...</option>
+              <option value="Agrícola">Agrícola</option>
+              <option value="Ganadera">Ganadera</option>
+              <option value="Mixta (agrícola + ganadera)">Mixta</option>
+              <option value="Frutícola">Frutícola</option>
+              <option value="Hortícola">Hortícola</option>
+              <option value="Otro">Otro</option>
+            </select>
           </div>
         </div>
 
-        <div class="filtro-cliente" id="filtroContenedor" style="display: none;">
-          <label>Filtrar por cliente:</label>
-          <select id="filtroCliente" onchange="mostrarCampos()">
-            <option value="">Todos los clientes</option>
+        <div class="section-title" style="margin-top:18px;">🌱 Tipo de suelo · importante para riego</div>
+        <div class="field">
+          <label>Clasificación del suelo del lote</label>
+          <select id="tipoSuelo" onchange="mostrarInfoSuelo()">
+            <option value="">Seleccionar tipo de suelo...</option>
+            <option value="arenoso">🏖️ Arenoso (suelto, drena rápido)</option>
+            <option value="franco_arenoso">🌾 Franco arenoso (mezcla con algo de arena)</option>
+            <option value="franco">🌱 Franco (suelo balanceado, lo más común)</option>
+            <option value="franco_arcilloso">🟫 Franco arcilloso (más pesado, retiene agua)</option>
+            <option value="arcilloso">🧱 Arcilloso (muy pesado, se compacta)</option>
           </select>
+          <div class="hint">Si no estás seguro, elegí "Franco" — es lo más común en suelos paraguayos.</div>
+        </div>
+        <div class="suelo-info" id="suelo-info"></div>
+
+        <div class="section-title" style="margin-top:18px;">🛰️ Coordenadas GPS · importante para clima</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Latitud</label>
+            <input type="number" id="latitud" placeholder="Ej: -24.3572" step="any">
+            <div class="hint">Negativo si estás al sur del Ecuador</div>
+          </div>
+          <div class="field">
+            <label>Longitud</label>
+            <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any">
+            <div class="hint">Negativo si estás al oeste de Greenwich</div>
+          </div>
+          <div class="field full">
+            <label>O pegar las dos coordenadas juntas <span class="opcional">(de Google Maps)</span></label>
+            <input type="text" id="gpsCompleto" placeholder="Ej: -24.3572, -54.4869" oninput="parsearGPS()">
+            <div class="hint">Pegá lo que copiaste con clic derecho en Google Maps. Se separa solo.</div>
+          </div>
+        </div>
+        <div class="note info">
+          📍 <strong>¿Cómo obtener las coordenadas?</strong> Andá a <a href="https://www.google.com/maps" target="_blank" style="font-weight:700;text-decoration:underline;">Google Maps</a>, buscá tu campo, hacé <strong>clic derecho</strong> sobre el centro y tocá las coordenadas para copiarlas. Pegalas arriba.
+        </div>
+        <div id="gpsValidacion"></div>
+
+        <div class="field full" style="margin-top:14px;">
+          <label>Observaciones (opcional)</label>
+          <textarea id="observaciones" placeholder="Cualquier dato adicional sobre el campo..."></textarea>
         </div>
 
-        <div class="lista-titulo">Campos cargados</div>
-        <div id="listaCampos"></div>
+        <div class="form-actions">
+          <button class="btn green" id="botonGuardar" onclick="guardarOActualizar()">✓ Guardar campo</button>
+          <button class="btn" id="botonCancelar" onclick="cancelarEdicion()">✕ Cancelar</button>
+        </div>
+      </div>
 
+      <div class="toolbar" id="filtroContenedor" style="display:none;">
+        <div class="filter">
+          <span class="fl">Filtrar por cliente</span>
+          <select id="filtroCliente" onchange="mostrarCampos()"><option value="">Todos los clientes</option></select>
+        </div>
+      </div>
+
+      <div class="section-title">Campos cargados</div>
+      <div class="tablewrap">
+        <div class="tablescroll">
+          <table class="tbl">
+            <thead>
+              <tr><th>Campo</th><th>Cliente</th><th class="r">Superficie</th><th>Actividad</th><th>Ubicación</th><th>GPS</th><th>Suelo</th><th class="r">Acciones</th></tr>
+            </thead>
+            <tbody id="listaCampos"></tbody>
+          </table>
+        </div>
       </div>
 
     </main>
-
   </div>
 
   <script>
-    // Setear fecha en el topbar
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
     });
@@ -692,78 +220,27 @@
     let editandoId = null;
 
     const TIPOS_SUELO = {
-      arenoso: {
-        nombre: 'Arenoso',
-        emoji: '🏖️',
-        CC: 40, PMP: 18, AAU: 22,
-        coefLluvia: 0.95,
-        infiltracion: '25-50 mm/h',
-        desc: 'Suelo suelto y poroso. Drena muy rápido pero retiene poca agua. Necesita riegos frecuentes y livianos. Casi nada de escorrentía superficial.'
-      },
-      franco_arenoso: {
-        nombre: 'Franco arenoso',
-        emoji: '🌾',
-        CC: 65, PMP: 30, AAU: 35,
-        coefLluvia: 0.90,
-        infiltracion: '13-20 mm/h',
-        desc: 'Buena mezcla con algo de arena. Drena bien y retiene moderado. Aprovecha la mayoría de la lluvia. Común en suelos cultivados.'
-      },
-      franco: {
-        nombre: 'Franco',
-        emoji: '🌱',
-        CC: 90, PMP: 40, AAU: 50,
-        coefLluvia: 0.85,
-        infiltracion: '8-15 mm/h',
-        desc: 'Suelo balanceado, ideal para cultivos. Buena retención de agua y aireación. Es el suelo más común en zonas agrícolas paraguayas. Default recomendado.'
-      },
-      franco_arcilloso: {
-        nombre: 'Franco arcilloso',
-        emoji: '🟫',
-        CC: 105, PMP: 55, AAU: 50,
-        coefLluvia: 0.75,
-        infiltracion: '3-8 mm/h',
-        desc: 'Suelo más pesado, rico en arcilla. Retiene mucha agua pero infiltra lento. En lluvias intensas, parte del agua escurre. Riegos espaciados pero abundantes.'
-      },
-      arcilloso: {
-        nombre: 'Arcilloso',
-        emoji: '🧱',
-        CC: 110, PMP: 70, AAU: 40,
-        coefLluvia: 0.65,
-        infiltracion: '1-5 mm/h',
-        desc: 'Suelo muy pesado y compactable. Retiene mucha agua pero la infiltración es muy lenta. En lluvias fuertes, hasta el 35% se escurre. Riegos lentos para no encharcar.'
-      }
+      arenoso: { nombre: 'Arenoso', emoji: '🏖️', CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95, infiltracion: '25-50 mm/h', desc: 'Suelo suelto y poroso. Drena muy rápido pero retiene poca agua. Necesita riegos frecuentes y livianos. Casi nada de escorrentía superficial.' },
+      franco_arenoso: { nombre: 'Franco arenoso', emoji: '🌾', CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90, infiltracion: '13-20 mm/h', desc: 'Buena mezcla con algo de arena. Drena bien y retiene moderado. Aprovecha la mayoría de la lluvia. Común en suelos cultivados.' },
+      franco: { nombre: 'Franco', emoji: '🌱', CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85, infiltracion: '8-15 mm/h', desc: 'Suelo balanceado, ideal para cultivos. Buena retención de agua y aireación. Es el suelo más común en zonas agrícolas paraguayas. Default recomendado.' },
+      franco_arcilloso: { nombre: 'Franco arcilloso', emoji: '🟫', CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75, infiltracion: '3-8 mm/h', desc: 'Suelo más pesado, rico en arcilla. Retiene mucha agua pero infiltra lento. En lluvias intensas, parte del agua escurre. Riegos espaciados pero abundantes.' },
+      arcilloso: { nombre: 'Arcilloso', emoji: '🧱', CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65, infiltracion: '1-5 mm/h', desc: 'Suelo muy pesado y compactable. Retiene mucha agua pero la infiltración es muy lenta. En lluvias fuertes, hasta el 35% se escurre. Riegos lentos para no encharcar.' }
     };
 
     function mostrarInfoSuelo() {
       const tipo = document.getElementById('tipoSuelo').value;
       const div = document.getElementById('suelo-info');
-      if (!tipo || !TIPOS_SUELO[tipo]) {
-        div.classList.remove('visible');
-        return;
-      }
+      if (!tipo || !TIPOS_SUELO[tipo]) { div.classList.remove('visible'); return; }
       const s = TIPOS_SUELO[tipo];
       div.innerHTML = `
         <div class="suelo-info-titulo">${s.emoji} Suelo ${s.nombre}</div>
         <div class="suelo-info-desc">${s.desc}</div>
         <div class="suelo-stats">
-          <div class="suelo-stat">
-            <strong>${s.CC} mm</strong>
-            Capacidad de campo
-          </div>
-          <div class="suelo-stat">
-            <strong>${s.AAU} mm</strong>
-            Agua útil disponible
-          </div>
-          <div class="suelo-stat">
-            <strong>${(s.coefLluvia * 100).toFixed(0)}%</strong>
-            Aprovecha de lluvia
-          </div>
-          <div class="suelo-stat">
-            <strong>${s.infiltracion}</strong>
-            Infiltración
-          </div>
-        </div>
-      `;
+          <div class="suelo-stat"><strong>${s.CC} mm</strong>Capacidad de campo</div>
+          <div class="suelo-stat"><strong>${s.AAU} mm</strong>Agua útil disponible</div>
+          <div class="suelo-stat"><strong>${(s.coefLluvia * 100).toFixed(0)}%</strong>Aprovecha de lluvia</div>
+          <div class="suelo-stat"><strong>${s.infiltracion}</strong>Infiltración</div>
+        </div>`;
       div.classList.add('visible');
     }
 
@@ -799,11 +276,9 @@
       while (select.options.length > 1) select.remove(1);
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
-
       if (clientes.length > 1 && campos.length > 0) {
         document.getElementById('filtroContenedor').style.display = 'flex';
       }
-
       clientes.forEach(cliente => {
         const option = document.createElement('option');
         option.value = cliente.id;
@@ -829,23 +304,9 @@
 
     function validarGPS(lat, lon) {
       const div = document.getElementById('gpsValidacion');
-
-      if (lat < -90 || lat > 90) {
-        div.innerHTML = '<span class="gps-status error">❌ Latitud inválida (debe estar entre -90 y 90)</span>';
-        return false;
-      }
-      if (lon < -180 || lon > 180) {
-        div.innerHTML = '<span class="gps-status error">❌ Longitud inválida (debe estar entre -180 y 180)</span>';
-        return false;
-      }
-
-      let region = '';
-      if (lat < 0) {
-        region += '🌎 Hemisferio Sur';
-      } else {
-        region += '🌍 Hemisferio Norte';
-      }
-
+      if (lat < -90 || lat > 90) { div.innerHTML = '<span class="gps-status error">❌ Latitud inválida (debe estar entre -90 y 90)</span>'; return false; }
+      if (lon < -180 || lon > 180) { div.innerHTML = '<span class="gps-status error">❌ Longitud inválida (debe estar entre -180 y 180)</span>'; return false; }
+      let region = lat < 0 ? '🌎 Hemisferio Sur' : '🌍 Hemisferio Norte';
       div.innerHTML = `<span class="gps-status ok">✓ Coordenadas válidas · ${region}</span>`;
       return true;
     }
@@ -862,10 +323,7 @@
       const longitud = document.getElementById('longitud').value;
       const observaciones = document.getElementById('observaciones').value.trim();
 
-      if (!clienteId || !nombre) {
-        alert('Por favor seleccioná un cliente y completá el nombre del campo.');
-        return;
-      }
+      if (!clienteId || !nombre) { alert('Por favor seleccioná un cliente y completá el nombre del campo.'); return; }
 
       if (latitud && longitud) {
         if (!validarGPS(parseFloat(latitud), parseFloat(longitud))) {
@@ -877,62 +335,26 @@
       let campos = JSON.parse(localStorage.getItem('campos') || '[]');
 
       if (editandoId) {
-        const existe = campos.find(c =>
-          c.id !== editandoId &&
-          c.clienteId === parseInt(clienteId) &&
-          c.nombre.toLowerCase() === nombre.toLowerCase()
-        );
-        if (existe) {
-          alert('Este cliente ya tiene OTRO campo con ese nombre.');
-          return;
-        }
-
+        const existe = campos.find(c => c.id !== editandoId && c.clienteId === parseInt(clienteId) && c.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existe) { alert('Este cliente ya tiene OTRO campo con ese nombre.'); return; }
         const index = campos.findIndex(c => c.id === editandoId);
         if (index !== -1) {
           campos[index] = {
             ...campos[index],
-            clienteId: parseInt(clienteId),
-            nombre: nombre,
-            superficie: superficie,
-            departamento: departamento,
-            pais: pais,
-            actividad: actividad,
-            tipoSuelo: tipoSuelo,
-            latitud: latitud,
-            longitud: longitud,
-            observaciones: observaciones,
-            fechaModificacion: new Date().toISOString()
+            clienteId: parseInt(clienteId), nombre, superficie, departamento, pais, actividad,
+            tipoSuelo, latitud, longitud, observaciones, fechaModificacion: new Date().toISOString()
           };
           localStorage.setItem('campos', JSON.stringify(campos));
           alert('¡Campo actualizado!');
           cancelarEdicion();
         }
-
       } else {
-        const existe = campos.find(c =>
-          c.clienteId === parseInt(clienteId) &&
-          c.nombre.toLowerCase() === nombre.toLowerCase()
-        );
-        if (existe) {
-          alert('Este cliente ya tiene un campo con ese nombre.');
-          return;
-        }
-
+        const existe = campos.find(c => c.clienteId === parseInt(clienteId) && c.nombre.toLowerCase() === nombre.toLowerCase());
+        if (existe) { alert('Este cliente ya tiene un campo con ese nombre.'); return; }
         const campo = {
-          id: Date.now(),
-          clienteId: parseInt(clienteId),
-          nombre: nombre,
-          superficie: superficie,
-          departamento: departamento,
-          pais: pais,
-          actividad: actividad,
-          tipoSuelo: tipoSuelo,
-          latitud: latitud,
-          longitud: longitud,
-          observaciones: observaciones,
-          fechaCreacion: new Date().toISOString()
+          id: Date.now(), clienteId: parseInt(clienteId), nombre, superficie, departamento, pais, actividad,
+          tipoSuelo, latitud, longitud, observaciones, fechaCreacion: new Date().toISOString()
         };
-
         campos.push(campo);
         localStorage.setItem('campos', JSON.stringify(campos));
         alert('¡Campo guardado!');
@@ -1012,82 +434,50 @@
       const lista = document.getElementById('listaCampos');
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
-      const filtroId = document.getElementById('filtroCliente')?.value || '';
+      const filtroId = document.getElementById('filtroCliente') ? document.getElementById('filtroCliente').value : '';
 
       let camposFiltrados = campos;
-      if (filtroId) {
-        camposFiltrados = campos.filter(c => c.clienteId === parseInt(filtroId));
-      }
+      if (filtroId) camposFiltrados = campos.filter(c => c.clienteId === parseInt(filtroId));
 
       if (camposFiltrados.length === 0) {
-        lista.innerHTML = `
-          <div class="vacio">
-            <div class="vacio-icono">🌾</div>
-            <div class="vacio-texto">${filtroId ? 'Este cliente no tiene campos cargados todavía.' : 'Todavía no cargaste ningún campo.<br>Agregá el primero arriba.'}</div>
-          </div>
-        `;
+        lista.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="eico">🌾</div><div class="etxt">${filtroId ? 'Este cliente no tiene campos cargados todavía.' : 'Todavía no cargaste ningún campo. Agregá el primero arriba.'}</div></div></td></tr>`;
         return;
       }
 
-      lista.innerHTML = '';
-      camposFiltrados.forEach(campo => {
+      lista.innerHTML = camposFiltrados.map(campo => {
         const cliente = clientes.find(c => c.id === campo.clienteId);
         const nombreCliente = cliente ? cliente.nombre : 'Cliente eliminado';
-
-        const detalles = [];
-        if (campo.superficie) detalles.push(campo.superficie + ' ha');
-        if (campo.actividad) detalles.push(campo.actividad);
-        if (campo.departamento) detalles.push(campo.departamento);
-        if (campo.pais) detalles.push(campo.pais);
-
+        const ubic = [campo.departamento, campo.pais].filter(Boolean).join(', ') || '—';
         const claseEditando = (campo.id === editandoId) ? 'editando' : '';
-
-        let badgeGps = '';
-        if (campo.latitud && campo.longitud) {
-          badgeGps = `<span class="item-gps">🛰️ GPS</span>`;
-        }
-
-        let badgeSuelo = '';
+        const badgeGps = (campo.latitud && campo.longitud) ? '<span class="badge info">🛰️ Sí</span>' : '<span class="badge muted">—</span>';
+        let badgeSuelo = '<span class="muted">—</span>';
         if (campo.tipoSuelo && TIPOS_SUELO[campo.tipoSuelo]) {
           const s = TIPOS_SUELO[campo.tipoSuelo];
-          badgeSuelo = `<span class="item-suelo">${s.emoji} ${s.nombre}</span>`;
+          badgeSuelo = `<span class="badge muted">${s.emoji} ${s.nombre}</span>`;
         }
-
-        const html = `
-          <div class="item ${claseEditando}">
-            <div class="item-icono">🌾</div>
-            <div class="item-info">
-              <div class="item-nombre">${campo.nombre}</div>
-              <div class="item-detalles">${detalles.join(' · ')}</div>
-              <span class="item-cliente">👤 ${nombreCliente}</span>${badgeGps}${badgeSuelo}
-            </div>
-            <div class="item-acciones">
-              <button class="item-boton item-editar" onclick="editarCampo(${campo.id})" title="Editar">✏️</button>
-              <button class="item-boton item-borrar" onclick="borrarCampo(${campo.id})" title="Borrar">×</button>
-            </div>
-          </div>
-        `;
-        lista.innerHTML += html;
-      });
+        return `
+          <tr class="${claseEditando}">
+            <td><span class="num">${campo.nombre}</span></td>
+            <td>${nombreCliente}</td>
+            <td class="r">${campo.superficie ? campo.superficie + ' ha' : '—'}</td>
+            <td>${campo.actividad || '—'}</td>
+            <td>${ubic}</td>
+            <td>${badgeGps}</td>
+            <td>${badgeSuelo}</td>
+            <td class="r"><span class="rowact">
+              <button onclick="editarCampo(${campo.id})" title="Editar">✏️</button>
+              <button class="del" onclick="borrarCampo(${campo.id})" title="Borrar">🗑️</button>
+            </span></td>
+          </tr>`;
+      }).join('');
     }
 
     function borrarCampo(id) {
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
       const tieneEquipos = equipos.some(e => e.campoId === id);
-
-      if (tieneEquipos) {
-        alert('Este campo tiene equipos de riego asociados. Borralos primero antes de borrar el campo.');
-        return;
-      }
-
-      if (!confirm('¿Seguro que querés borrar este campo?')) {
-        return;
-      }
-
-      if (editandoId === id) {
-        cancelarEdicion();
-      }
-
+      if (tieneEquipos) { alert('Este campo tiene equipos de riego asociados. Borralos primero antes de borrar el campo.'); return; }
+      if (!confirm('¿Seguro que querés borrar este campo?')) return;
+      if (editandoId === id) cancelarEdicion();
       let campos = JSON.parse(localStorage.getItem('campos') || '[]');
       campos = campos.filter(c => c.id !== id);
       localStorage.setItem('campos', JSON.stringify(campos));
@@ -1096,18 +486,18 @@
   </script>
 
   <script>
-    /* SAFIA · control del menú móvil */
+    /* SAFIA · control del menú móvil (theme) */
     (function () {
       var btn = document.getElementById('menuToggle');
-      var sb  = document.querySelector('.sidebar');
-      var ov  = document.getElementById('sidebarOverlay');
-      if (!btn || !sb) return;
-      function abrir()  { sb.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto');    btn.setAttribute('aria-expanded', 'true'); }
-      function cerrar() { sb.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); btn.setAttribute('aria-expanded', 'false'); }
-      btn.addEventListener('click', function () { if (sb.classList.contains('abierto')) { cerrar(); } else { abrir(); } });
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
       if (ov) ov.addEventListener('click', cerrar);
-      sb.querySelectorAll('.sidebar-link').forEach(function (a) { a.addEventListener('click', cerrar); });
-      window.addEventListener('resize', function () { if (window.innerWidth > 768) cerrar(); });
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
     })();
   </script>
 </body>
