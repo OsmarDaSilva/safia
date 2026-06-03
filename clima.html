@@ -3,21 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
   <title>SAFIA — Clima y ETo/ETc</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #FAF6EC;
-      color: #1A1A1A;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F2F3F5;
+      color: #2E3236;
       min-height: 100vh;
       padding: 20px;
     }
 
     .volver {
       display: inline-block;
-      color: #0F3D14;
+      color: #178029;
       text-decoration: none;
       font-size: 14px;
       font-weight: 600;
@@ -27,12 +31,12 @@
       border-radius: 100px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-    .volver:hover { background: #f0ead8; }
+    .volver:hover { background: #E8EAEC; }
 
     .contenedor { max-width: 1000px; margin: 0 auto; }
 
     .titulo-principal { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-    .subtitulo-principal { font-size: 15px; color: #6B6356; margin-bottom: 32px; }
+    .subtitulo-principal { font-size: 15px; color: #8C9196; margin-bottom: 32px; }
 
     .modo-tabs {
       display: flex; gap: 8px; margin-bottom: 16px;
@@ -45,15 +49,15 @@
       border: none; background: transparent;
       border-radius: 10px; font-family: inherit;
       font-size: 14px; font-weight: 600;
-      color: #6B6356; cursor: pointer;
+      color: #8C9196; cursor: pointer;
     }
 
-    .modo-tab.activo { background: #0F3D14; color: #FAF6EC; }
+    .modo-tab.activo { background: #178029; color: #F2F3F5; }
     .modo-tab:not(.activo):hover { background: rgba(15, 61, 20, 0.08); }
 
     .modo-tab .badge-pro {
       display: inline-block;
-      background: #D4A24C; color: #fff;
+      background: #B8731A; color: #fff;
       font-size: 9px; padding: 2px 6px;
       border-radius: 100px; margin-left: 4px; font-weight: 700;
     }
@@ -65,7 +69,7 @@
 
     .selector-titulo {
       font-size: 13px; text-transform: uppercase;
-      letter-spacing: 0.1em; color: #6B6356;
+      letter-spacing: 0.1em; color: #8C9196;
       font-weight: 700; margin-bottom: 12px;
     }
 
@@ -73,18 +77,18 @@
       width: 100%; padding: 16px 18px;
       border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
       font-size: 16px; font-family: inherit;
-      background: #FAF6EC; color: #1A1A1A;
+      background: #F2F3F5; color: #2E3236;
     }
 
     .alerta {
       background: rgba(181, 55, 28, 0.1);
       border: 1.5px solid rgba(181, 55, 28, 0.3);
-      color: #B5371C; padding: 16px 20px;
+      color: #C0392B; padding: 16px 20px;
       border-radius: 12px; margin-bottom: 20px; font-size: 14px;
     }
-    .alerta a { color: #B5371C; font-weight: 700; text-decoration: underline; }
+    .alerta a { color: #C0392B; font-weight: 700; text-decoration: underline; }
 
-    .loading { text-align: center; padding: 60px 20px; color: #6B6356; }
+    .loading { text-align: center; padding: 60px 20px; color: #8C9196; }
 
     .loading-icon {
       font-size: 48px;
@@ -100,8 +104,8 @@
     .dashboard { display: none; }
 
     .dash-header {
-      background: linear-gradient(135deg, #0F3D14, #1B5E20);
-      color: #FAF6EC; padding: 28px;
+      background: linear-gradient(135deg, #178029, #22A93A);
+      color: #F2F3F5; padding: 28px;
       border-radius: 18px; margin-bottom: 20px;
     }
 
@@ -123,7 +127,7 @@
     .dash-suelo strong { font-weight: 700; }
 
     .campana-info {
-      background: linear-gradient(135deg, #D4A24C, #B88A3D);
+      background: linear-gradient(135deg, #B8731A, #8a5713);
       color: #fff; padding: 24px 28px;
       border-radius: 18px; margin-bottom: 20px; display: none;
     }
@@ -164,25 +168,25 @@
 
     .etapa-titulo {
       font-size: 13px; text-transform: uppercase;
-      letter-spacing: 0.1em; color: #6B6356;
+      letter-spacing: 0.1em; color: #8C9196;
       font-weight: 700; margin-bottom: 12px;
     }
 
     .etapa-actual { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
     .etapa-icono { font-size: 36px; }
-    .etapa-nombre { font-size: 22px; font-weight: 700; color: #0F3D14; }
-    .etapa-desc { font-size: 13px; color: #6B6356; margin-top: 2px; }
+    .etapa-nombre { font-size: 22px; font-weight: 700; color: #178029; }
+    .etapa-desc { font-size: 13px; color: #8C9196; margin-top: 2px; }
 
     .kc-grafico {
       width: 100%; height: 180px; margin-top: 20px;
-      background: #FAF6EC; border-radius: 12px;
+      background: #F2F3F5; border-radius: 12px;
       padding: 12px; position: relative;
     }
     .kc-grafico svg { width: 100%; height: 100%; }
 
     .kc-leyenda {
       display: flex; gap: 12px; flex-wrap: wrap;
-      margin-top: 10px; font-size: 11px; color: #6B6356;
+      margin-top: 10px; font-size: 11px; color: #8C9196;
     }
     .kc-leyenda-item { display: flex; align-items: center; gap: 4px; }
     .kc-leyenda-color { width: 12px; height: 12px; border-radius: 3px; }
@@ -190,15 +194,15 @@
     .recomendacion {
       background: #fff; border-radius: 18px; padding: 28px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
-      border-left: 6px solid #2E7D32;
+      border-left: 6px solid #178029;
     }
-    .recomendacion.regar { border-left-color: #1565C0; }
-    .recomendacion.no-regar { border-left-color: #2E7D32; }
-    .recomendacion.urgente { border-left-color: #B5371C; }
+    .recomendacion.regar { border-left-color: #2E72C8; }
+    .recomendacion.no-regar { border-left-color: #178029; }
+    .recomendacion.urgente { border-left-color: #C0392B; }
 
     .reco-icono { font-size: 48px; margin-bottom: 8px; }
-    .reco-titulo { font-size: 22px; font-weight: 700; color: #0F3D14; margin-bottom: 6px; }
-    .reco-detalle { font-size: 14px; color: #6B6356; line-height: 1.5; }
+    .reco-titulo { font-size: 22px; font-weight: 700; color: #178029; margin-bottom: 6px; }
+    .reco-detalle { font-size: 14px; color: #8C9196; line-height: 1.5; }
 
     .kpis {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -211,56 +215,56 @@
     }
 
     .kpi.kpi-destacado {
-      background: linear-gradient(135deg, #0F3D14, #1B5E20);
-      color: #FAF6EC;
+      background: linear-gradient(135deg, #178029, #22A93A);
+      color: #F2F3F5;
     }
 
     .kpi-icono { font-size: 28px; margin-bottom: 6px; }
 
-    .kpi-valor { font-size: 24px; font-weight: 700; color: #0F3D14; line-height: 1; }
-    .kpi.kpi-destacado .kpi-valor { color: #FAF6EC; }
+    .kpi-valor { font-size: 24px; font-weight: 700; color: #178029; line-height: 1; }
+    .kpi.kpi-destacado .kpi-valor { color: #F2F3F5; }
 
-    .kpi-unidad { font-size: 14px; color: #6B6356; font-weight: 500; }
-    .kpi.kpi-destacado .kpi-unidad { color: #FAF6EC; opacity: 0.85; }
+    .kpi-unidad { font-size: 14px; color: #8C9196; font-weight: 500; }
+    .kpi.kpi-destacado .kpi-unidad { color: #F2F3F5; opacity: 0.85; }
 
     .kpi-label {
       font-size: 11px; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #6B6356;
+      letter-spacing: 0.08em; color: #8C9196;
       margin-top: 6px; font-weight: 600;
     }
-    .kpi.kpi-destacado .kpi-label { color: #FAF6EC; opacity: 0.9; }
+    .kpi.kpi-destacado .kpi-label { color: #F2F3F5; opacity: 0.9; }
 
     .kpi-formula {
-      font-size: 11px; color: #6B6356;
+      font-size: 11px; color: #8C9196;
       margin-top: 4px; font-style: italic;
     }
-    .kpi.kpi-destacado .kpi-formula { color: #FAF6EC; opacity: 0.8; }
+    .kpi.kpi-destacado .kpi-formula { color: #F2F3F5; opacity: 0.8; }
 
     .seccion-pronostico {
       background: #fff; border-radius: 18px; padding: 28px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
     }
 
-    .seccion-titulo { font-size: 16px; font-weight: 700; color: #0F3D14; margin-bottom: 16px; }
-    .seccion-sub { font-size: 13px; color: #6B6356; margin-bottom: 16px; margin-top: -10px; }
+    .seccion-titulo { font-size: 16px; font-weight: 700; color: #178029; margin-bottom: 16px; }
+    .seccion-sub { font-size: 13px; color: #8C9196; margin-bottom: 16px; margin-top: -10px; }
 
     .pronostico-dias {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;
     }
 
     .dia {
-      background: #FAF6EC; border-radius: 12px; padding: 14px 8px;
+      background: #F2F3F5; border-radius: 12px; padding: 14px 8px;
       text-align: center; border: 1.5px solid transparent;
     }
-    .dia.hoy { background: rgba(15, 61, 20, 0.08); border-color: #0F3D14; }
+    .dia.hoy { background: rgba(15, 61, 20, 0.08); border-color: #178029; }
 
-    .dia-fecha { font-size: 11px; color: #6B6356; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+    .dia-fecha { font-size: 11px; color: #8C9196; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
     .dia-icono { font-size: 28px; margin: 6px 0; }
-    .dia-temps { font-size: 13px; font-weight: 600; color: #1A1A1A; margin-bottom: 4px; }
-    .dia-temp-min { color: #6B6356; font-weight: 400; }
-    .dia-lluvia { font-size: 11px; color: #1565C0; font-weight: 600; margin-top: 4px; }
-    .dia-eto { font-size: 11px; color: #8B6F00; font-weight: 600; margin-top: 2px; }
-    .dia-etc { font-size: 11px; color: #2E7D32; font-weight: 700; margin-top: 2px; }
+    .dia-temps { font-size: 13px; font-weight: 600; color: #2E3236; margin-bottom: 4px; }
+    .dia-temp-min { color: #8C9196; font-weight: 400; }
+    .dia-lluvia { font-size: 11px; color: #2E72C8; font-weight: 600; margin-top: 4px; }
+    .dia-eto { font-size: 11px; color: #B8731A; font-weight: 600; margin-top: 2px; }
+    .dia-etc { font-size: 11px; color: #178029; font-weight: 700; margin-top: 2px; }
 
     .balance {
       background: #fff; border-radius: 18px; padding: 28px;
@@ -273,28 +277,28 @@
     }
     .balance-fila:last-of-type { border-bottom: none; }
 
-    .balance-label { font-size: 14px; color: #1A1A1A; font-weight: 500; }
+    .balance-label { font-size: 14px; color: #2E3236; font-weight: 500; }
 
     .balance-valor { font-size: 16px; font-weight: 700; }
-    .balance-valor.entrada { color: #2E7D32; }
-    .balance-valor.salida { color: #B5371C; }
+    .balance-valor.entrada { color: #178029; }
+    .balance-valor.salida { color: #C0392B; }
 
     .balance-resultado {
       margin-top: 16px; padding: 16px 20px;
-      background: #FAF6EC; border-radius: 12px;
+      background: #F2F3F5; border-radius: 12px;
       display: flex; justify-content: space-between; align-items: center;
     }
 
-    .balance-resultado-label { font-size: 14px; font-weight: 700; color: #0F3D14; }
+    .balance-resultado-label { font-size: 14px; font-weight: 700; color: #178029; }
     .balance-resultado-valor { font-size: 24px; font-weight: 700; }
-    .balance-resultado-valor.deficit { color: #B5371C; }
-    .balance-resultado-valor.surplus { color: #2E7D32; }
+    .balance-resultado-valor.deficit { color: #C0392B; }
+    .balance-resultado-valor.surplus { color: #178029; }
 
     .fuente-datos {
       text-align: center; padding: 16px;
-      font-size: 11px; color: #6B6356; opacity: 0.8;
+      font-size: 11px; color: #8C9196; opacity: 0.8;
     }
-    .fuente-datos a { color: #0F3D14; font-weight: 600; }
+    .fuente-datos a { color: #178029; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -981,18 +985,18 @@
           <text x="${padX - 8}" y="${yPos(1.0)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">1.0</text>
           <text x="${padX - 8}" y="${yPos(1.3)}" font-size="10" fill="#999" text-anchor="end" dominant-baseline="middle">1.3</text>
 
-          <rect x="${xPos(0)}" y="${padY}" width="${xPos(L_ini) - xPos(0)}" height="${innerH}" fill="#43A047" opacity="0.08"/>
-          <rect x="${xPos(L_ini)}" y="${padY}" width="${xPos(L_ini + L_des) - xPos(L_ini)}" height="${innerH}" fill="#D4A24C" opacity="0.08"/>
-          <rect x="${xPos(L_ini + L_des)}" y="${padY}" width="${xPos(L_ini + L_des + L_med) - xPos(L_ini + L_des)}" height="${innerH}" fill="#B5371C" opacity="0.08"/>
+          <rect x="${xPos(0)}" y="${padY}" width="${xPos(L_ini) - xPos(0)}" height="${innerH}" fill="#22A93A" opacity="0.08"/>
+          <rect x="${xPos(L_ini)}" y="${padY}" width="${xPos(L_ini + L_des) - xPos(L_ini)}" height="${innerH}" fill="#B8731A" opacity="0.08"/>
+          <rect x="${xPos(L_ini + L_des)}" y="${padY}" width="${xPos(L_ini + L_des + L_med) - xPos(L_ini + L_des)}" height="${innerH}" fill="#C0392B" opacity="0.08"/>
           <rect x="${xPos(L_ini + L_des + L_med)}" y="${padY}" width="${xPos(totalDias) - xPos(L_ini + L_des + L_med)}" height="${innerH}" fill="#7B1FA2" opacity="0.08"/>
 
           <polyline points="${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}"
-                    fill="none" stroke="#0F3D14" stroke-width="2.5" stroke-linejoin="round"/>
+                    fill="none" stroke="#178029" stroke-width="2.5" stroke-linejoin="round"/>
 
-          <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#0F3D14" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+          <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#178029" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
 
-          <circle cx="${xActual}" cy="${yActual}" r="7" fill="#D4A24C" stroke="#0F3D14" stroke-width="2"/>
-          <text x="${xActual}" y="${yActual - 12}" font-size="12" font-weight="700" fill="#0F3D14" text-anchor="middle">★ Hoy (Kc ${kcInfo.kc.toFixed(2)})</text>
+          <circle cx="${xActual}" cy="${yActual}" r="7" fill="#B8731A" stroke="#178029" stroke-width="2"/>
+          <text x="${xActual}" y="${yActual - 12}" font-size="12" font-weight="700" fill="#178029" text-anchor="middle">★ Hoy (Kc ${kcInfo.kc.toFixed(2)})</text>
 
           <text x="${xPos(0)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">0d</text>
           <text x="${xPos(L_ini)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">${L_ini}d</text>
@@ -1005,11 +1009,11 @@
       document.getElementById('kcGrafico').innerHTML = svg;
 
       document.getElementById('kcLeyenda').innerHTML = `
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#43A047;"></div> Inicial</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#D4A24C;"></div> Desarrollo</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B5371C;"></div> Media (máx)</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#22A93A;"></div> Inicial</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B8731A;"></div> Desarrollo</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#C0392B;"></div> Media (máx)</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#7B1FA2;"></div> Final</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#0F3D14;"></div> ★ Hoy</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> ★ Hoy</div>
       `;
     }
 
@@ -1022,8 +1026,8 @@
       const estaciones = [
         { nombre: 'Pri', kc: kcDef.kc_pri, color: '#E91E63' },
         { nombre: 'Ver', kc: kcDef.kc_ver, color: '#FF9800' },
-        { nombre: 'Oto', kc: kcDef.kc_oto, color: '#8B6F00' },
-        { nombre: 'Inv', kc: kcDef.kc_inv, color: '#1565C0' }
+        { nombre: 'Oto', kc: kcDef.kc_oto, color: '#B8731A' },
+        { nombre: 'Inv', kc: kcDef.kc_inv, color: '#2E72C8' }
       ];
 
       const xPos = (i) => padX + (i / 4) * innerW + (innerW / 8);
@@ -1052,15 +1056,15 @@
             <text x="${xPos(i)}" y="${H - 4}" font-size="10" fill="#666" text-anchor="middle" font-weight="600">${e.nombre} (${e.kc})</text>
           `).join('')}
 
-          <polyline points="${polyline}" fill="none" stroke="#0F3D14" stroke-width="2.5" stroke-linejoin="round"/>
+          <polyline points="${polyline}" fill="none" stroke="#178029" stroke-width="2.5" stroke-linejoin="round"/>
 
           ${estaciones.map((e, i) => `
             <circle cx="${xPos(i)}" cy="${yPos(e.kc)}" r="4" fill="${e.color}"/>
           `).join('')}
 
-          <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#0F3D14" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
-          <circle cx="${xActual}" cy="${yActual}" r="8" fill="#D4A24C" stroke="#0F3D14" stroke-width="2"/>
-          <text x="${xActual}" y="${yActual - 14}" font-size="12" font-weight="700" fill="#0F3D14" text-anchor="middle">★ Hoy</text>
+          <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#178029" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+          <circle cx="${xActual}" cy="${yActual}" r="8" fill="#B8731A" stroke="#178029" stroke-width="2"/>
+          <text x="${xActual}" y="${yActual - 14}" font-size="12" font-weight="700" fill="#178029" text-anchor="middle">★ Hoy</text>
         </svg>
       `;
 
@@ -1069,9 +1073,9 @@
       document.getElementById('kcLeyenda').innerHTML = `
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#E91E63;"></div> Primavera</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#FF9800;"></div> Verano</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#8B6F00;"></div> Otoño</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#1565C0;"></div> Invierno</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#0F3D14;"></div> ★ Hoy</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B8731A;"></div> Otoño</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#2E72C8;"></div> Invierno</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> ★ Hoy</div>
       `;
     }
 
