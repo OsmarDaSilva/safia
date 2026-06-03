@@ -718,7 +718,7 @@
       <div class="contenedor">
 
         <div class="header-operador">
-          <div class="header-icono">👷</div>
+          <div class="header-icono"><svg class="ic-hero" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg></div>
           <div class="header-textos">
             <h1>OPERADOR</h1>
             <p>Cargá lo que pasó hoy en el campo</p>
@@ -731,14 +731,14 @@
         </div>
 
         <div class="card" id="selectorCard">
-          <div class="card-label">📍 Equipo de hoy</div>
+          <div class="card-label"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> Equipo de hoy</div>
           <select id="selectorEquipo" onchange="cargarEquipoSeleccionado()">
             <option value="">Seleccionar equipo...</option>
           </select>
         </div>
 
         <div class="campana-card" id="campanaCard">
-          <div class="campana-titulo">🌱 Campaña activa</div>
+          <div class="campana-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg> Campaña activa</div>
           <div class="campana-cultivo" id="campanaCultivo">—</div>
           <div class="campana-meta" id="campanaMeta"></div>
         </div>
@@ -753,22 +753,22 @@
 
         <div class="botones-carga" id="botonesCarga" style="display:none;">
           <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
-            <div class="boton-carga-icono">💧</div>
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#2E72C8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></div>
             <div class="boton-carga-label">Riego</div>
           </button>
           <button class="boton-carga boton-lluvia" onclick="abrirModal('lluvia')">
-            <div class="boton-carga-icono">🌧️</div>
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#2E72C8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16a4 4 0 0 1 .5-8 5 5 0 0 1 9.6 1.4A3.3 3.3 0 0 1 17 16"/><path d="M8 19l-1 2M12 19l-1 2M16 19l-1 2"/></svg></div>
             <div class="boton-carga-label">Lluvia</div>
           </button>
           <button class="boton-carga boton-aplicacion" onclick="abrirModal('aplicacion')">
-            <div class="boton-carga-icono">🧪</div>
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">undefined</svg></div>
             <div class="boton-carga-label">Aplicación</div>
           </button>
         </div>
 
         <div id="eventosSeccion" style="display:none;">
           <div class="eventos-titulo">
-            📅 Últimos eventos
+            <svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg> Últimos eventos
             <span id="conteoEventos" style="color: #6B6356; font-weight: 600; font-size: 11px;"></span>
           </div>
           <div id="listaEventos"></div>
