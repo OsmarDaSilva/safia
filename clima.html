@@ -988,7 +988,7 @@
           <rect x="${xPos(0)}" y="${padY}" width="${xPos(L_ini) - xPos(0)}" height="${innerH}" fill="#22A93A" opacity="0.08"/>
           <rect x="${xPos(L_ini)}" y="${padY}" width="${xPos(L_ini + L_des) - xPos(L_ini)}" height="${innerH}" fill="#B8731A" opacity="0.08"/>
           <rect x="${xPos(L_ini + L_des)}" y="${padY}" width="${xPos(L_ini + L_des + L_med) - xPos(L_ini + L_des)}" height="${innerH}" fill="#C0392B" opacity="0.08"/>
-          <rect x="${xPos(L_ini + L_des + L_med)}" y="${padY}" width="${xPos(totalDias) - xPos(L_ini + L_des + L_med)}" height="${innerH}" fill="#7B1FA2" opacity="0.08"/>
+          <rect x="${xPos(L_ini + L_des + L_med)}" y="${padY}" width="${xPos(totalDias) - xPos(L_ini + L_des + L_med)}" height="${innerH}" fill="#2E72C8" opacity="0.08"/>
 
           <polyline points="${p0.x},${p0.y} ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y} ${p4.x},${p4.y}"
                     fill="none" stroke="#178029" stroke-width="2.5" stroke-linejoin="round"/>
@@ -1012,7 +1012,7 @@
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#22A93A;"></div> Inicial</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B8731A;"></div> Desarrollo</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#C0392B;"></div> Media (máx)</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#7B1FA2;"></div> Final</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#2E72C8;"></div> Final</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> ★ Hoy</div>
       `;
     }
@@ -1024,8 +1024,8 @@
       const innerH = H - 2 * padY;
 
       const estaciones = [
-        { nombre: 'Pri', kc: kcDef.kc_pri, color: '#E91E63' },
-        { nombre: 'Ver', kc: kcDef.kc_ver, color: '#FF9800' },
+        { nombre: 'Pri', kc: kcDef.kc_pri, color: '#178029' },
+        { nombre: 'Ver', kc: kcDef.kc_ver, color: '#C0392B' },
         { nombre: 'Oto', kc: kcDef.kc_oto, color: '#B8731A' },
         { nombre: 'Inv', kc: kcDef.kc_inv, color: '#2E72C8' }
       ];
@@ -1071,8 +1071,8 @@
       document.getElementById('kcGrafico').innerHTML = svg;
 
       document.getElementById('kcLeyenda').innerHTML = `
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#E91E63;"></div> Primavera</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#FF9800;"></div> Verano</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> Primavera</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#C0392B;"></div> Verano</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B8731A;"></div> Otoño</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#2E72C8;"></div> Invierno</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> ★ Hoy</div>
