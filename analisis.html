@@ -1,225 +1,136 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Análisis y Documentos</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root { --verde: #0F3D14; --ambar: #D4A24C; --crema: #FAF6EC; --rojo: #B5371C; --gris: #6B6356; --negro: #1A1A1A; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--crema); color: var(--negro); min-height: 100vh; }
-    .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-    .sidebar { background: var(--verde); color: var(--crema); padding: 24px 14px 20px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-    .sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 8px 20px; border-bottom: 1px solid rgba(212,162,76,0.25); margin-bottom: 18px; }
-    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
-    .sidebar-logo-textos { line-height: 1.1; }
-    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
-    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
-    .sidebar-grupo { font-size: 10px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.1em; margin: 18px 8px 6px; font-weight: 600; }
-    .sidebar-grupo:first-of-type { margin-top: 4px; }
-    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--crema); text-decoration: none; font-size: 13px; margin-bottom: 1px; transition: background 0.15s; }
-    .sidebar-link:hover { background: rgba(212,162,76,0.12); }
-    .sidebar-link.activo { background: rgba(212,162,76,0.22); font-weight: 600; }
-    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-    .sidebar-footer { margin-top: 24px; padding: 14px 10px 4px; border-top: 1px solid rgba(212,162,76,0.25); font-size: 10px; opacity: 0.6; line-height: 1.5; }
-    .main { padding: 24px 32px 40px; overflow-x: hidden; }
-    .topbar { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(15,61,20,0.08); }
-    .topbar-saludo { font-size: 11px; color: var(--gris); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 600; }
-    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
-    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
-    .topbar-fecha { font-size: 12px; color: var(--gris); text-align: right; }
-    .topbar-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--ambar); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
-    .contenedor { max-width: 900px; margin: 0 auto; }
-    .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: #fff; padding: 6px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
-    .tab { flex: 1; padding: 10px 14px; border: none; background: transparent; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--gris); cursor: pointer; }
-    .tab.activo { background: var(--verde); color: var(--crema); }
-    .tab:not(.activo):hover { background: rgba(15,61,20,0.06); }
-    .filtros { display: flex; gap: 10px; flex-wrap: wrap; }
-    .filtro-select { padding: 8px 14px; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 10px; font-size: 13px; font-family: inherit; background: #fff; color: var(--negro); }
-    .btn-nuevo { background: var(--verde); color: var(--crema); border: none; padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
-    .btn-nuevo:hover { background: #1B5E20; }
-    .upload-zone { border: 2.5px dashed rgba(15,61,20,0.3); border-radius: 16px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: rgba(15,61,20,0.02); margin-bottom: 16px; }
-    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--verde); background: rgba(15,61,20,0.06); }
-    .upload-zone-icono { font-size: 48px; margin-bottom: 10px; }
-    .upload-zone-titulo { font-size: 16px; font-weight: 700; color: var(--verde); margin-bottom: 4px; }
-    .upload-zone-sub { font-size: 13px; color: var(--gris); }
-    .upload-zone-tipos { font-size: 11px; color: var(--gris); margin-top: 8px; opacity: 0.7; }
-    #inputArchivo { display: none; }
-    .form-card { background: #fff; border-radius: 18px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; display: none; }
-    .form-card.visible { display: block; }
-    .form-titulo { font-size: 17px; font-weight: 700; color: var(--verde); margin-bottom: 18px; }
-    .campo { margin-bottom: 16px; }
-    .campo label { display: block; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-    .campo label .opc { color: #aaa; font-weight: 400; text-transform: none; font-size: 10px; }
-    .campo input, .campo select, .campo textarea { width: 100%; padding: 12px 14px; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 10px; font-size: 14px; font-family: inherit; background: #FAF6EC; color: var(--negro); }
-    .campo textarea { min-height: 60px; resize: vertical; }
-    .campo input:focus, .campo select:focus, .campo textarea:focus { outline: none; border-color: var(--verde); background: #fff; }
-    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .seccion-params { background: rgba(15,61,20,0.04); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: none; }
-    .seccion-params.visible { display: block; }
-    .seccion-params-titulo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--verde); margin-bottom: 14px; }
-    .param-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
-    .param-campo label { font-size: 10px; font-weight: 700; color: var(--gris); text-transform: uppercase; margin-bottom: 3px; display: block; }
-    .param-campo input { padding: 8px 10px; font-size: 13px; text-align: center; }
-    .archivo-preview { background: rgba(15,61,20,0.05); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
-    .archivo-preview-icono { font-size: 28px; flex-shrink: 0; }
-    .archivo-preview-info { flex: 1; }
-    .archivo-preview-nombre { font-weight: 700; color: var(--negro); }
-    .archivo-preview-size { font-size: 11px; color: var(--gris); margin-top: 2px; }
-    .archivo-preview-quitar { background: none; border: none; color: var(--rojo); cursor: pointer; font-size: 18px; font-weight: bold; }
-    .botones-form { display: flex; gap: 10px; margin-top: 20px; }
-    .btn-guardar { flex: 1; padding: 14px; background: var(--verde); color: var(--crema); border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
-    .btn-guardar:hover { background: #1B5E20; }
-    .btn-cancelar { padding: 14px 20px; background: rgba(0,0,0,0.06); color: var(--gris); border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
-    .docs-lista { display: grid; gap: 10px; }
-    .doc-card { background: #fff; border-radius: 14px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); display: flex; gap: 14px; align-items: flex-start; }
-    .doc-icono { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
-    .doc-icono.suelo { background: rgba(139,111,0,0.12); }
-    .doc-icono.agua { background: rgba(21,101,192,0.12); }
-    .doc-icono.otro { background: rgba(107,99,86,0.12); }
-    .doc-info { flex: 1; min-width: 0; }
-    .doc-titulo { font-size: 15px; font-weight: 700; color: var(--negro); margin-bottom: 2px; }
-    .doc-meta { font-size: 12px; color: var(--gris); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
-    .doc-params { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    .doc-param { font-size: 11px; background: rgba(15,61,20,0.07); color: var(--verde); padding: 2px 8px; border-radius: 100px; font-weight: 600; }
-    .doc-acciones { display: flex; gap: 6px; flex-shrink: 0; }
-    .btn-ver { background: rgba(15,61,20,0.08); color: var(--verde); border: none; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
-    .btn-ver:hover { background: rgba(15,61,20,0.16); }
-    .btn-borrar-doc { background: rgba(181,55,28,0.08); color: var(--rojo); border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-    .vacio { text-align: center; padding: 48px 20px; color: var(--gris); background: #fff; border-radius: 16px; border: 2px dashed rgba(0,0,0,0.1); }
-    .vacio-icono { font-size: 52px; margin-bottom: 12px; opacity: 0.35; }
-    .visor-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-    .visor-overlay.visible { display: flex; }
-    .visor-contenedor { background: #fff; border-radius: 16px; width: 100%; max-width: 860px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
-    .visor-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(0,0,0,0.08); }
-    .visor-titulo { font-size: 15px; font-weight: 700; color: var(--negro); }
-    .visor-cerrar { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--gris); font-weight: bold; }
-    .visor-body { flex: 1; overflow: auto; padding: 8px; background: #f0f0f0; }
-    .visor-body embed { width: 100%; height: 70vh; border: none; }
-    .visor-body img { max-width: 100%; max-height: 70vh; display: block; margin: 0 auto; object-fit: contain; }
-    .visor-no-preview { text-align: center; padding: 40px; color: var(--gris); }
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--verde); color: var(--crema); padding: 14px 24px; border-radius: 100px; font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); transition: transform 0.3s; z-index: 3000; }
-    .toast.visible { transform: translateX(-50%) translateY(0); }
-    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .sidebar { position: static; height: auto; } }
-    @media (max-width: 600px) { .fila { grid-template-columns: 1fr; } .main { padding: 16px; } }
-  </style>
-  <style>
-    /* ===== SAFIA · Menú móvil responsive (solo afecta pantallas <= 768px) ===== */
-    .menu-toggle { display: none; }
-    .sidebar-overlay { display: none; }
-    @media (max-width: 768px) {
-      .menu-toggle {
-        display: flex; align-items: center; justify-content: center;
-        position: fixed; top: 12px; left: 12px; z-index: 1001;
-        width: 46px; height: 46px;
-        background: #0F3D14; color: #FAF6EC;
-        border: none; border-radius: 12px;
-        font-size: 22px; line-height: 1; cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-      }
-      .layout { display: block !important; }
-      .sidebar {
-        position: fixed !important; top: 0; left: 0;
-        width: 264px; max-width: 84vw; height: 100vh !important;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        z-index: 1000; overflow-y: auto;
-      }
-      .sidebar.abierto { transform: translateX(0); }
-      .sidebar-overlay {
-        display: block; position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45);
-        opacity: 0; pointer-events: none;
-        transition: opacity 0.25s ease; z-index: 999;
-      }
-      .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
-      .main {
-        padding-top: 64px !important;
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        width: 100%; max-width: 100%; overflow-x: hidden;
-      }
-      body.menu-abierto { overflow: hidden; }
-      html, body { overflow-x: hidden; max-width: 100%; }
-    }
+    /* Tabs */
+    .tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--bd);flex-wrap:wrap;}
+    .tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-family:inherit;font-size:13px;font-weight:600;color:var(--label);cursor:pointer;}
+    .tab.activo{color:var(--green-d);border-bottom-color:var(--green);}
+    /* Upload */
+    .upload-zone{border:2px dashed var(--bd);border-radius:12px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);margin-bottom:14px;}
+    .upload-zone:hover,.upload-zone.drag-over{border-color:var(--green);background:var(--green-t);}
+    .upload-zone-icono{font-size:40px;margin-bottom:8px;}
+    .upload-zone-titulo{font-size:15px;font-weight:700;color:var(--head);margin-bottom:4px;}
+    .upload-zone-sub,.upload-zone-tipos{font-size:12px;color:var(--label);}
+    .upload-zone-tipos{margin-top:6px;opacity:.7;}
+    #inputArchivo{display:none;}
+    .archivo-preview{background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px;font-size:13px;}
+    .archivo-preview-icono{font-size:26px;flex-shrink:0;}
+    .archivo-preview-nombre{font-weight:700;color:var(--head);}
+    .archivo-preview-size{font-size:11px;color:var(--label);margin-top:2px;}
+    .archivo-preview-info{flex:1;}
+    .archivo-preview-quitar{background:none;border:none;color:var(--red);cursor:pointer;font-size:18px;font-weight:bold;}
+    /* Form */
+    .form-card{display:none;}
+    .form-card.visible{display:block;}
+    .form-titulo{font-size:15px;font-weight:700;color:var(--head);margin-bottom:16px;}
+    .campo{margin-bottom:14px;}
+    .campo label{display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+    .campo label .opc{color:var(--label);font-weight:400;text-transform:none;font-size:10px;}
+    .campo input,.campo select,.campo textarea{width:100%;padding:11px 12px;border:1px solid var(--bd);border-radius:7px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--head);}
+    .campo textarea{min-height:60px;resize:vertical;}
+    .campo input:focus,.campo select:focus,.campo textarea:focus{outline:none;border-color:var(--green);background:#fff;}
+    .fila{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .seccion-params{display:none;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:14px;}
+    .seccion-params.visible{display:block;}
+    .seccion-params-titulo{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--head);margin-bottom:12px;}
+    .param-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;}
+    .param-campo label{font-size:10px;}
+    .param-campo input{padding:8px 10px;font-size:13px;text-align:center;}
+    .botones-form{display:flex;gap:10px;margin-top:16px;}
+    @media(max-width:600px){.fila{grid-template-columns:1fr;}}
+    /* Visor */
+    .visor-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:2000;padding:20px;}
+    .visor-overlay.visible{display:flex;}
+    .visor-contenedor{background:#fff;border-radius:14px;width:100%;max-width:860px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+    .visor-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--bd);}
+    .visor-titulo{font-size:15px;font-weight:700;color:var(--head);}
+    .visor-cerrar{background:none;border:none;font-size:22px;cursor:pointer;color:var(--label);font-weight:bold;}
+    .visor-body{flex:1;overflow:auto;padding:8px;background:#f0f0f0;}
+    .visor-body embed{width:100%;height:70vh;border:none;}
+    .visor-body img{max-width:100%;max-height:70vh;display:block;margin:0 auto;object-fit:contain;}
+    .visor-no-preview{text-align:center;padding:40px;color:var(--label);}
   </style>
 </head>
 <body>
-<div class="layout">
-  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
-        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
-        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
-        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
-      </svg>
-      <div class="sidebar-logo-textos">
-        <div class="sidebar-logo-titulo">SAFIA</div>
-        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
-      </div>
-    </div>
-    <div class="sidebar-grupo">Inicio</div>
-    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono">📊</span><span>Dashboard</span></a>
-    <div class="sidebar-grupo">Datos</div>
-    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono">👤</span><span>Clientes</span></a>
-    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono">🌾</span><span>Campos</span></a>
-    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono">💧</span><span>Equipos</span></a>
-    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono">🌱</span><span>Cultivos</span></a>
-    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono">📋</span><span>Campañas</span></a>
-    <a href="analisis.html" class="sidebar-link activo"><span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span></a>
-    <div class="sidebar-grupo">Inteligencia</div>
-    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span></a>
-    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span></a>
-    <div class="sidebar-grupo">Operación</div>
-    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono">🚜</span><span>Operador</span></a>
-    <a href="eventos.html" class="sidebar-link"><span class="sidebar-link-icono">📅</span><span>Eventos</span></a>
-    <a href="encargado.html" class="sidebar-link"><span class="sidebar-link-icono">👷</span><span>Encargado</span></a>
-    <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono">👔</span><span>Propietario</span></a>
-    <a href="voz.html" class="sidebar-link"><span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span></a>
-    <div class="sidebar-grupo">Sistema</div>
-    <a href="backup.html" class="sidebar-link"><span class="sidebar-link-icono">💾</span><span>Respaldo</span></a>
-    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
-  </aside>
 
-  <main class="main">
-    <div class="topbar">
-      <div>
-        <div class="topbar-saludo">Datos</div>
-        <div class="topbar-titulo">🧪 Análisis y Documentos</div>
-      </div>
-      <div class="topbar-derecha">
-        <div class="topbar-fecha" id="topbarFecha">—</div>
-        <div class="topbar-avatar">O</div>
-      </div>
-    </div>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
 
-    <div class="contenedor">
+  <div class="app">
 
-      <!-- 3 TABS: sin fotos/video -->
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark">🌿</div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><span class="ico">📊</span>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><span class="ico">👤</span>Clientes</a>
+        <a href="mis-campos.html"><span class="ico">🌾</span>Campos</a>
+        <a href="mis-equipos.html"><span class="ico">💧</span>Equipos</a>
+        <a href="mis-cultivos.html"><span class="ico">🌱</span>Cultivos</a>
+        <a href="mis-campanas.html"><span class="ico">📋</span>Campañas</a>
+        <a href="analisis.html" class="active"><span class="ico">🧪</span>Análisis y Docs</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><span class="ico">🌡️</span>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><span class="ico">🔮</span>Predicción 7d</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><span class="ico">🚜</span>Operador</a>
+        <a href="eventos.html"><span class="ico">📅</span>Eventos</a>
+        <a href="encargado.html"><span class="ico">👷</span>Encargado</a>
+        <a href="propietario.html"><span class="ico">👔</span>Propietario</a>
+        <a href="voz.html"><span class="ico">🎤</span>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><span class="ico">💾</span>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+
+      <div class="crumb">Datos · <b>Análisis y Documentos</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Análisis y Documentos</h2>
+          <div class="sub">Análisis de suelo/agua y documentos asociados a campos y equipos.</div>
+        </div>
+        <div class="actions">
+          <button class="btn green" onclick="mostrarFormulario()"><span class="ico">＋</span>Nuevo análisis / documento</button>
+        </div>
+      </div>
+
       <div class="tabs">
         <button class="tab activo" onclick="cambiarTab('suelo', this)">🟫 Análisis de suelo</button>
         <button class="tab" onclick="cambiarTab('agua', this)">💧 Análisis de agua</button>
         <button class="tab" onclick="cambiarTab('otro', this)">📄 Otros documentos</button>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
-        <div class="filtros">
-          <select class="filtro-select" id="filtroEntidad" onchange="renderLista()">
-            <option value="">Todos los campos / equipos</option>
-          </select>
+      <div class="toolbar">
+        <div class="filter">
+          <span class="fl">Campo / Equipo</span>
+          <select id="filtroEntidad" onchange="renderLista()"><option value="">Todos los campos / equipos</option></select>
         </div>
-        <button class="btn-nuevo" onclick="mostrarFormulario()">+ Nuevo análisis / documento</button>
       </div>
 
       <!-- FORMULARIO -->
-      <div class="form-card" id="formCard">
+      <div class="formcard form-card" id="formCard">
         <div class="form-titulo" id="formTitulo">📄 Nuevo documento</div>
 
-        <!-- UPLOAD -->
         <div class="upload-zone" id="uploadZone"
           onclick="document.getElementById('inputArchivo').click()"
           ondragover="dragOver(event)" ondragleave="dragLeave()" ondrop="dropArchivo(event)">
@@ -252,21 +163,13 @@
           </div>
           <div class="campo">
             <label>Asociar a</label>
-            <select id="formEntidad">
-              <option value="">Seleccionar campo o equipo...</option>
-            </select>
+            <select id="formEntidad"><option value="">Seleccionar campo o equipo...</option></select>
           </div>
         </div>
 
         <div class="fila">
-          <div class="campo">
-            <label>Fecha del documento / análisis</label>
-            <input type="date" id="formFecha">
-          </div>
-          <div class="campo">
-            <label>Laboratorio / origen <span class="opc">(opcional)</span></label>
-            <input type="text" id="formLaboratorio" placeholder="Ej: Labagro, CETAPAR">
-          </div>
+          <div class="campo"><label>Fecha del documento / análisis</label><input type="date" id="formFecha"></div>
+          <div class="campo"><label>Laboratorio / origen <span class="opc">(opcional)</span></label><input type="text" id="formLaboratorio" placeholder="Ej: Labagro, CETAPAR"></div>
         </div>
 
         <div class="campo">
@@ -274,9 +177,8 @@
           <textarea id="formDesc" placeholder="Ej: Análisis pre-siembra lote norte, profundidad 0-20cm"></textarea>
         </div>
 
-        <!-- PARÁMETROS SUELO -->
         <div class="seccion-params" id="paramsSuelo">
-          <div class="seccion-params-titulo">📊 Parámetros del análisis de suelo <span style="font-weight:400;opacity:0.7;">(cargá los valores del informe)</span></div>
+          <div class="seccion-params-titulo">📊 Parámetros del análisis de suelo</div>
           <div class="param-grid">
             <div class="param-campo campo"><label>pH</label><input type="number" id="s_pH" placeholder="6.5" step="0.1" min="0" max="14"></div>
             <div class="param-campo campo"><label>MO (%)</label><input type="number" id="s_MO" placeholder="2.8" step="0.1"></div>
@@ -297,9 +199,8 @@
           </div>
         </div>
 
-        <!-- PARÁMETROS AGUA -->
         <div class="seccion-params" id="paramsAgua">
-          <div class="seccion-params-titulo">📊 Parámetros del análisis de agua <span style="font-weight:400;opacity:0.7;">(cargá los valores del informe)</span></div>
+          <div class="seccion-params-titulo">📊 Parámetros del análisis de agua</div>
           <div class="param-grid">
             <div class="param-campo campo"><label>pH</label><input type="number" id="a_pH" placeholder="7.2" step="0.1"></div>
             <div class="param-campo campo"><label>CE (dS/m)</label><input type="number" id="a_CE" placeholder="0.8" step="0.01"></div>
@@ -314,44 +215,36 @@
             <div class="param-campo campo"><label>Boro (mg/L)</label><input type="number" id="a_B" placeholder="0.2" step="0.01"></div>
             <div class="param-campo campo"><label>TDS (mg/L)</label><input type="number" id="a_TDS" placeholder="500" step="1"></div>
           </div>
-          <div class="campo" style="margin-top:10px;">
-            <label>Fuente de agua</label>
-            <input type="text" id="a_fuente" placeholder="Ej: Pozo Nº1, Río Paraná, Tajamar norte">
-          </div>
+          <div class="campo" style="margin-top:10px;"><label>Fuente de agua</label><input type="text" id="a_fuente" placeholder="Ej: Pozo Nº1, Río Paraná, Tajamar norte"></div>
         </div>
 
         <div class="botones-form">
-          <button class="btn-cancelar" onclick="ocultarFormulario()">Cancelar</button>
-          <button class="btn-guardar" onclick="guardarDocumento()">✓ Guardar documento</button>
+          <button class="btn" onclick="ocultarFormulario()">Cancelar</button>
+          <button class="btn green" onclick="guardarDocumento()">✓ Guardar documento</button>
         </div>
       </div>
 
       <div id="listaDocumentos"></div>
-    </div>
-  </main>
-</div>
-
-<!-- VISOR -->
-<div class="visor-overlay" id="visorOverlay" onclick="if(event.target===this)cerrarVisor()">
-  <div class="visor-contenedor">
-    <div class="visor-header">
-      <div class="visor-titulo" id="visorTitulo">Documento</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn-ver" onclick="descargarActual()">⬇️ Descargar</button>
-        <button class="visor-cerrar" onclick="cerrarVisor()">×</button>
-      </div>
-    </div>
-    <div class="visor-body" id="visorBody"></div>
+    </main>
   </div>
-</div>
 
-<div class="toast" id="toast"></div>
+  <!-- VISOR -->
+  <div class="visor-overlay" id="visorOverlay" onclick="if(event.target===this)cerrarVisor()">
+    <div class="visor-contenedor">
+      <div class="visor-header">
+        <div class="visor-titulo" id="visorTitulo">Documento</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn" onclick="descargarActual()">⬇️ Descargar</button>
+          <button class="visor-cerrar" onclick="cerrarVisor()">×</button>
+        </div>
+      </div>
+      <div class="visor-body" id="visorBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
 
 <script>
-  document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
-    weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
-  });
-
   // ===== INDEXEDDB =====
   const DB_NAME = 'safia_documentos';
   const DB_VERSION = 1;
@@ -586,11 +479,11 @@
   // ===== LISTA =====
   async function renderLista() {
     const lista = document.getElementById('listaDocumentos');
-    lista.innerHTML = '<div style="text-align:center;padding:30px;color:#6B6356;">⏳ Cargando...</div>';
+    lista.innerHTML = '<div style="text-align:center;padding:30px;color:var(--label);">⏳ Cargando...</div>';
 
     let docs = [];
     try { docs = await obtenerTodosDB(); }
-    catch(e) { lista.innerHTML = '<div style="color:#B5371C;padding:20px;">Error al cargar documentos.</div>'; return; }
+    catch(e) { lista.innerHTML = '<div class="note danger">Error al cargar documentos.</div>'; return; }
 
     docs = docs.filter(d => d.tipo === tabActivo);
     const filtroEnt = document.getElementById('filtroEntidad').value;
@@ -600,11 +493,7 @@
     if (docs.length === 0) {
       const textos = { suelo:'análisis de suelo', agua:'análisis de agua', otro:'documentos' };
       const iconos = { suelo:'🟫', agua:'💧', otro:'📄' };
-      lista.innerHTML = `<div class="vacio">
-        <div class="vacio-icono">${iconos[tabActivo]||'📄'}</div>
-        <div>No hay ${textos[tabActivo]||'documentos'} cargados todavía.<br>
-        <span style="font-size:12px;opacity:0.7;">Tocá "+ Nuevo análisis / documento" para agregar.</span></div>
-      </div>`;
+      lista.innerHTML = `<div class="empty"><div class="eico">${iconos[tabActivo]||'📄'}</div><div class="etxt">No hay ${textos[tabActivo]||'documentos'} cargados todavía.<br><span style="font-size:12px;opacity:0.7;">Tocá "Nuevo análisis / documento" para agregar.</span></div></div>`;
       return;
     }
 
@@ -627,11 +516,9 @@
       return ref;
     }
 
-    const iconosTipo  = { suelo:'🟫', agua:'💧', otro:'📄' };
-    const clasesTipo  = { suelo:'suelo', agua:'agua', otro:'otro' };
-    const unidades    = { pH:'', MO:'%', P:' ppm', K:' ppm', CE:' dS/m', SAR:'' };
+    const unidades = { pH:'', MO:'%', P:' ppm', K:' ppm', CE:' dS/m', SAR:'' };
 
-    lista.innerHTML = '<div class="docs-lista">' + docs.map(doc => {
+    const filas = docs.map(doc => {
       const fechaStr = doc.fecha
         ? new Date(doc.fecha+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'})
         : '—';
@@ -641,35 +528,33 @@
         const dest = doc.tipo === 'suelo' ? ['pH','MO','P','K'] : ['pH','CE','SAR'];
         dest.forEach(p => {
           if (doc.parametros[p] !== undefined)
-            paramsHTML += `<span class="doc-param">${p}: ${doc.parametros[p]}${unidades[p]||''}</span>`;
+            paramsHTML += `<span class="badge muted">${p}: ${doc.parametros[p]}${unidades[p]||''}</span> `;
         });
-        if (doc.parametros.textura) paramsHTML += `<span class="doc-param">${doc.parametros.textura}</span>`;
-        if (doc.parametros.fuente)  paramsHTML += `<span class="doc-param">${doc.parametros.fuente}</span>`;
+        if (doc.parametros.textura) paramsHTML += `<span class="badge muted">${doc.parametros.textura}</span> `;
+        if (doc.parametros.fuente)  paramsHTML += `<span class="badge muted">${doc.parametros.fuente}</span> `;
       }
+      if (!paramsHTML) paramsHTML = '<span class="muted">—</span>';
 
       const tieneArchivo = doc.archivo && doc.archivo.datos;
       const archivoInfo  = tieneArchivo
-        ? `<span>${iconoMime(doc.archivo.tipo, doc.archivo.nombre)} ${doc.archivo.nombre} · ${formatSize(doc.archivo.tamanio)}</span>`
-        : '<span style="opacity:0.6;">Solo datos manuales</span>';
+        ? `${iconoMime(doc.archivo.tipo, doc.archivo.nombre)} ${doc.archivo.nombre}`
+        : '<span class="muted">Solo datos</span>';
 
-      return `<div class="doc-card">
-        <div class="doc-icono ${clasesTipo[doc.tipo]||'otro'}">${iconosTipo[doc.tipo]||'📄'}</div>
-        <div class="doc-info">
-          <div class="doc-titulo">${doc.descripcion || doc.archivo?.nombre || 'Sin nombre'}</div>
-          <div class="doc-meta">
-            <span>📅 ${fechaStr}</span>
-            ${doc.laboratorio ? `<span>🔬 ${doc.laboratorio}</span>` : ''}
-            <span>${nombreEntidad(doc.entidadRef)}</span>
-            ${archivoInfo}
-          </div>
-          ${paramsHTML ? `<div class="doc-params">${paramsHTML}</div>` : ''}
-        </div>
-        <div class="doc-acciones">
-          ${tieneArchivo ? `<button class="btn-ver" onclick="verDocumento(${doc.id})">👁️ Ver</button>` : ''}
-          <button class="btn-borrar-doc" onclick="borrarDocumento(${doc.id})" title="Borrar">×</button>
-        </div>
-      </div>`;
-    }).join('') + '</div>';
+      return `<tr>
+        <td><span class="num">${doc.descripcion || (doc.archivo && doc.archivo.nombre) || 'Sin nombre'}</span></td>
+        <td>${nombreEntidad(doc.entidadRef)}</td>
+        <td><span class="fecha">${fechaStr}</span></td>
+        <td>${doc.laboratorio || '—'}</td>
+        <td>${paramsHTML}</td>
+        <td>${archivoInfo}</td>
+        <td class="r"><span class="rowact">
+          ${tieneArchivo ? `<button onclick="verDocumento(${doc.id})" title="Ver">👁️</button>` : ''}
+          <button class="del" onclick="borrarDocumento(${doc.id})" title="Borrar">🗑️</button>
+        </span></td>
+      </tr>`;
+    }).join('');
+
+    lista.innerHTML = `<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Documento</th><th>Asociado a</th><th>Fecha</th><th>Laboratorio</th><th>Parámetros</th><th>Archivo</th><th class="r">Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
   }
 
   // ===== VISOR =====
@@ -693,7 +578,7 @@
         <div style="font-size:48px;margin-bottom:16px;">${iconoMime(doc.archivo.tipo, doc.archivo.nombre)}</div>
         <div style="font-size:15px;font-weight:700;margin-bottom:8px;">${doc.archivo.nombre}</div>
         <div style="margin-bottom:20px;opacity:0.7;">Este tipo de archivo no se puede previsualizar en el navegador.</div>
-        <button onclick="descargarActual()" style="background:#0F3D14;color:#FAF6EC;border:none;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;">⬇️ Descargar archivo</button>
+        <button class="btn green" onclick="descargarActual()">⬇️ Descargar archivo</button>
       </div>`;
     }
   }
@@ -705,7 +590,7 @@
   }
 
   function descargarActual() {
-    if (!docVisor?.archivo) return;
+    if (!docVisor || !docVisor.archivo) return;
     const blob = new Blob([docVisor.archivo.datos], { type: docVisor.archivo.tipo });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -728,20 +613,21 @@
     setTimeout(() => t.classList.remove('visible'), 3000);
   }
 </script>
-  <script>
-    /* SAFIA · control del menú móvil */
-    (function () {
-      var btn = document.getElementById('menuToggle');
-      var sb  = document.querySelector('.sidebar');
-      var ov  = document.getElementById('sidebarOverlay');
-      if (!btn || !sb) return;
-      function abrir()  { sb.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto');    btn.setAttribute('aria-expanded', 'true'); }
-      function cerrar() { sb.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); btn.setAttribute('aria-expanded', 'false'); }
-      btn.addEventListener('click', function () { if (sb.classList.contains('abierto')) { cerrar(); } else { abrir(); } });
-      if (ov) ov.addEventListener('click', cerrar);
-      sb.querySelectorAll('.sidebar-link').forEach(function (a) { a.addEventListener('click', cerrar); });
-      window.addEventListener('resize', function () { if (window.innerWidth > 768) cerrar(); });
-    })();
-  </script>
+
+<script>
+  /* SAFIA · control del menú móvil (theme) */
+  (function () {
+    var btn = document.getElementById('menuToggle');
+    var side = document.getElementById('sideNav');
+    var ov = document.getElementById('sideOverlay');
+    if (!btn || !side) return;
+    function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+    function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+    btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
+    if (ov) ov.addEventListener('click', cerrar);
+    side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+    window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
+  })();
+</script>
 </body>
 </html>
