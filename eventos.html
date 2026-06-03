@@ -66,8 +66,8 @@
           <div class="sub">Todos los riegos, lluvias y aplicaciones cargados en SAFIA</div>
         </div>
         <div class="actions">
-          <button class="btn boton-export" onclick="exportarExcel()"><span class="ico">📊</span>Excel</button>
-          <button class="btn boton-export" onclick="exportarCSV()"><span class="ico">📄</span>CSV</button>
+          <button class="btn boton-export" onclick="exportarExcel()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.5h16M9.5 9.5V20"/></svg>Excel</button>
+          <button class="btn boton-export" onclick="exportarCSV()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>CSV</button>
         </div>
       </div>
 
@@ -308,8 +308,8 @@
             <td class="r"><span class="num">${cantidad}</span></td>
             <td>${origenBadge}</td>
             <td class="r"><span class="rowact">
-              <button onclick="editarEvento(${ev.id})" title="Editar">✏️</button>
-              <button class="del" onclick="borrarEvento(${ev.id})" title="Borrar">🗑️</button>
+              <button onclick="editarEvento(${ev.id})" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17z"/><path d="M14 7l3 3"/></svg></button>
+              <button class="del" onclick="borrarEvento(${ev.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
             </span></td>
           </tr>`;
       }).join('');

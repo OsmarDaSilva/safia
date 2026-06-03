@@ -1105,9 +1105,9 @@
             <td class="r">${equipo.superficie ? equipo.superficie + ' ha' : '—'}</td>
             <td>${badgeMant(estadoMant)}</td>
             <td class="r"><span class="rowact">
-              <button onclick="abrirModalMant(${equipo.id})" title="Mantenimiento">🔧</button>
-              <button onclick="editarEquipo(${equipo.id})" title="Editar">✏️</button>
-              <button class="del" onclick="borrarEquipo(${equipo.id})" title="Borrar">🗑️</button>
+              <button onclick="abrirModalMant(${equipo.id})" title="Mantenimiento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 6.4a3.8 3.8 0 0 0-5 4.9L4 17l3 3 5.7-5.6a3.8 3.8 0 0 0 4.9-5l-2.4 2.4-2.1-2.1z"/></svg></button>
+              <button onclick="editarEquipo(${equipo.id})" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17z"/><path d="M14 7l3 3"/></svg></button>
+              <button class="del" onclick="borrarEquipo(${equipo.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
             </span></td>
           </tr>`;
       }).join('');

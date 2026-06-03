@@ -1510,10 +1510,10 @@
               <td>${campo ? campo.nombre : '?'}</td>
               <td>${cliente ? cliente.nombre : '?'}</td>
               <td class="r"><span class="rowact">
-                <button onclick="abrirModalNPK(${campana.id})" title="Balance N/P/K">🧪</button>
-                <button onclick="abrirModalCosecha(${campana.id})" title="Registrar cosecha">🌾</button>
-                <button onclick="editarCampana(${campana.id})" title="Editar">✏️</button>
-                <button class="del" onclick="borrarCampana(${campana.id})" title="Borrar">🗑️</button>
+                <button onclick="abrirModalNPK(${campana.id})" title="Balance N/P/K"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></button>
+                <button onclick="abrirModalCosecha(${campana.id})" title="Registrar cosecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M12 9c0-2.2 1.6-4 4-4 0 2.2-1.6 4-4 4z"/><path d="M12 9c0-2.2-1.6-4-4-4 0 2.2 1.6 4 4 4z"/><path d="M12 14c0-2.2 1.6-4 4-4 0 2.2-1.6 4-4 4z"/><path d="M12 14c0-2.2-1.6-4-4-4 0 2.2 1.6 4 4 4z"/></svg></button>
+                <button onclick="editarCampana(${campana.id})" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17z"/><path d="M14 7l3 3"/></svg></button>
+                <button class="del" onclick="borrarCampana(${campana.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
               </span></td>
             </tr>`;
         }).join('');

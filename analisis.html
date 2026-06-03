@@ -548,8 +548,8 @@
         <td>${paramsHTML}</td>
         <td>${archivoInfo}</td>
         <td class="r"><span class="rowact">
-          ${tieneArchivo ? `<button onclick="verDocumento(${doc.id})" title="Ver">👁️</button>` : ''}
-          <button class="del" onclick="borrarDocumento(${doc.id})" title="Borrar">🗑️</button>
+          ${tieneArchivo ? `<button onclick="verDocumento(${doc.id})" title="Ver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>` : ''}
+          <button class="del" onclick="borrarDocumento(${doc.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
         </span></td>
       </tr>`;
     }).join('');

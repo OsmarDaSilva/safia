@@ -268,8 +268,8 @@
             <td>${c.email || '—'}</td>
             <td>${c.localidad || '—'}</td>
             <td class="r"><span class="rowact">
-              <button onclick="editarCliente(${c.id})" title="Editar">✏️</button>
-              <button class="del" onclick="borrarCliente(${c.id})" title="Borrar">🗑️</button>
+              <button onclick="editarCliente(${c.id})" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17z"/><path d="M14 7l3 3"/></svg></button>
+              <button class="del" onclick="borrarCliente(${c.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
             </span></td>
           </tr>`;
       }).join('');
