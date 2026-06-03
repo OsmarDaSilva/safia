@@ -277,12 +277,12 @@
     .dia-card {
       background: #fff;
       border-radius: 14px;
-      padding: 18px;
-      margin-bottom: 10px;
+      padding: 13px 16px;
+      margin-bottom: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
       border-left: 6px solid transparent;
       display: flex;
-      gap: 16px;
+      gap: 14px;
       align-items: flex-start;
       flex-wrap: wrap;
     }
@@ -297,13 +297,13 @@
     .dia-card.dia-lluvia { border-left-color: #2E72C8; background: rgba(21, 101, 192, 0.03); }
 
     .dia-fecha-bloque {
-      width: 90px;
+      width: 70px;
       flex-shrink: 0;
       text-align: center;
     }
 
     .dia-fecha-num {
-      font-size: 28px;
+      font-size: 23px;
       font-weight: 700;
       color: #2E3236;
       line-height: 1;
@@ -323,19 +323,29 @@
     }
 
     .dia-icono-grande {
-      font-size: 36px;
-      margin-top: 6px;
+      font-size: 26px;
+      margin-top: 2px;
     }
 
     .dia-info {
       flex: 1;
-      min-width: 200px;
+      min-width: 220px;
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      column-gap: 16px;
+      row-gap: 7px;
+      align-content: start;
     }
+    .dia-recomendacion { grid-column: 1 / -1; }
+    .dia-detalles { grid-column: 1; grid-row: 2; }
+    .dia-barra-humedad { grid-column: 1; grid-row: 3; }
+    .dia-info > .dia-mensaje:not([style]) { grid-column: 2; grid-row: 2 / 4; align-self: center; }
+    .dia-info > .dia-mensaje[style] { grid-column: 1 / -1; }
 
     .dia-recomendacion {
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 700;
-      margin-bottom: 8px;
+      margin-bottom: 0;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -343,9 +353,9 @@
 
     .dia-detalles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-      gap: 10px;
-      margin-top: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+      gap: 8px;
+      margin-top: 0;
     }
 
     .dia-detalle {
@@ -355,12 +365,12 @@
     .dia-detalle strong {
       display: block;
       color: #2E3236;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
     }
 
     .dia-barra-humedad {
-      margin-top: 12px;
+      margin-top: 0;
     }
 
     .dia-barra-label {
@@ -368,13 +378,13 @@
       justify-content: space-between;
       font-size: 11px;
       color: #8C9196;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .dia-barra-label strong { color: #2E3236; font-weight: 700; }
 
     .dia-barra-fondo {
       width: 100%;
-      height: 12px;
+      height: 9px;
       background: rgba(0,0,0,0.05);
       border-radius: 100px;
       overflow: hidden;
@@ -399,13 +409,13 @@
     }
 
     .dia-mensaje {
-      margin-top: 12px;
-      padding: 10px 14px;
+      margin-top: 0;
+      padding: 8px 11px;
       background: rgba(0,0,0,0.04);
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 12px;
       color: #2E3236;
-      line-height: 1.5;
+      line-height: 1.35;
     }
     .dia-mensaje strong { color: #178029; }
 
@@ -447,6 +457,9 @@
       .dia-fecha-bloque { width: 100%; display: flex; align-items: center; gap: 16px; text-align: left; }
       .dia-fecha-num { font-size: 22px; }
       .dia-icono-grande { margin-top: 0; }
+      .dia-info { display: block; min-width: 0; }
+      .dia-recomendacion { margin-bottom: 4px; }
+      .dia-detalles, .dia-barra-humedad, .dia-mensaje { margin-top: 8px; }
     }
   </style>
 </head>
