@@ -4,441 +4,136 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Clientes</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --verde: #0F3D14;
-      --verde-claro: #1B5E20;
-      --ambar: #D4A24C;
-      --ambar-oscuro: #B88A3D;
-      --crema: #FAF6EC;
-      --crema-oscuro: #f0ead8;
-      --rojo: #B5371C;
-      --gris-texto: #6B6356;
-      --negro: #1A1A1A;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--crema);
-      color: var(--negro);
-      min-height: 100vh;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      background: var(--verde);
-      color: var(--crema);
-      padding: 24px 14px 20px;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sidebar-logo {
-      display: flex; align-items: center; gap: 12px;
-      padding: 0 8px 20px;
-      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
-      margin-bottom: 18px;
-    }
-    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
-    .sidebar-logo-textos { line-height: 1.1; }
-    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
-    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
-
-    .sidebar-grupo {
-      font-size: 10px; opacity: 0.55;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      margin: 18px 8px 6px; font-weight: 600;
-    }
-    .sidebar-grupo:first-of-type { margin-top: 4px; }
-
-    .sidebar-link {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 10px; border-radius: 8px;
-      color: var(--crema); text-decoration: none;
-      font-size: 13px; margin-bottom: 1px;
-      transition: background 0.15s;
-    }
-    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
-    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
-
-    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-
-    .sidebar-footer {
-      margin-top: 24px; padding: 14px 10px 4px;
-      border-top: 1px solid rgba(212, 162, 76, 0.25);
-      font-size: 10px; opacity: 0.6; line-height: 1.5;
-    }
-
-    .main { padding: 24px 32px 40px; overflow-x: hidden; }
-
-    .topbar {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      margin-bottom: 24px; padding-bottom: 16px;
-      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
-    }
-    .topbar-saludo {
-      font-size: 11px; color: var(--gris-texto);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 4px; font-weight: 600;
-    }
-    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
-    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
-    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
-    .topbar-avatar {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: var(--ambar); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 15px;
-    }
-
-    .contenedor { max-width: 760px; margin: 0 auto; }
-
-    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
-
-    .tarjeta {
-      background: #fff; border-radius: 18px; padding: 28px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
-      transition: border-color 0.3s;
-    }
-    .tarjeta.editando {
-      border: 2px solid #D4A24C;
-      box-shadow: 0 4px 20px rgba(212, 162, 76, 0.3);
-    }
-    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
-    .tarjeta-titulo.editando { color: #D4A24C; }
-    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
-
-    .campo { margin-bottom: 18px; }
-    .campo label {
-      display: block; font-size: 12px; font-weight: 600;
-      color: #6B6356; text-transform: uppercase;
-      letter-spacing: 0.05em; margin-bottom: 6px;
-    }
-    .campo input, .campo select {
-      width: 100%; padding: 14px 16px;
-      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
-      font-size: 15px; font-family: inherit;
-      background: #FAF6EC; color: #1A1A1A;
-    }
-    .campo input:focus, .campo select:focus {
-      outline: none; border-color: #0F3D14; background: #fff;
-    }
-
-    .fila { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-
-    .botones-form { display: flex; gap: 10px; margin-top: 8px; }
-
-    .boton-guardar {
-      flex: 1; padding: 18px;
-      background: #0F3D14; color: #FAF6EC;
-      border: none; border-radius: 14px;
-      font-size: 16px; font-weight: 700;
-      cursor: pointer; font-family: inherit;
-    }
-    .boton-guardar:hover { background: #1B5E20; }
-    .boton-guardar.editando { background: #D4A24C; }
-    .boton-guardar.editando:hover { background: #B88A3D; }
-
-    .boton-cancelar {
-      padding: 18px 24px;
-      background: rgba(0,0,0,0.06); color: #6B6356;
-      border: none; border-radius: 14px;
-      font-size: 15px; font-weight: 600;
-      cursor: pointer; font-family: inherit;
-      display: none;
-    }
-    .boton-cancelar.visible { display: block; }
-    .boton-cancelar:hover { background: rgba(0,0,0,0.1); }
-
-    .lista-titulo {
-      font-size: 12px; font-weight: 600; color: #6B6356;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      margin-bottom: 12px; padding: 0 4px;
-    }
-
-    .item {
-      background: #fff; border-radius: 16px; padding: 18px 20px;
-      margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      display: flex; gap: 16px; align-items: center;
-      transition: all 0.2s;
-    }
-    .item.editando {
-      background: rgba(212, 162, 76, 0.1);
-      border: 2px solid #D4A24C;
-    }
-
-    .item-icono {
-      width: 50px; height: 50px;
-      background: rgba(46, 125, 50, 0.15);
-      border-radius: 14px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px; flex-shrink: 0;
-    }
-    .item-info { flex: 1; }
-    .item-nombre { font-size: 16px; font-weight: 700; color: #1A1A1A; }
-    .item-detalles { font-size: 13px; color: #6B6356; margin-top: 3px; }
-
-    .item-acciones { display: flex; gap: 8px; flex-shrink: 0; }
-    .item-boton {
-      border: none; width: 36px; height: 36px;
-      border-radius: 50%; cursor: pointer;
-      font-size: 16px; font-weight: bold;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .item-editar { background: rgba(15, 61, 20, 0.1); color: #0F3D14; }
-    .item-editar:hover { background: rgba(15, 61, 20, 0.2); }
-    .item-borrar { background: rgba(181, 55, 28, 0.1); color: #B5371C; }
-    .item-borrar:hover { background: rgba(181, 55, 28, 0.2); }
-
-    .vacio {
-      text-align: center; padding: 40px 20px; color: #6B6356;
-      background: #fff; border-radius: 16px;
-      border: 2px dashed rgba(0,0,0,0.1);
-    }
-    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
-    .vacio-texto { font-size: 14px; }
-
-    .alerta-edicion {
-      background: rgba(212, 162, 76, 0.15);
-      border-left: 4px solid #D4A24C;
-      padding: 14px 18px; border-radius: 8px;
-      margin-bottom: 20px; font-size: 14px;
-      color: #8B6F00; display: none;
-    }
-    .alerta-edicion.visible { display: block; }
-
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { position: static; height: auto; }
-    }
-
-    @media (max-width: 500px) {
-      .main { padding: 16px; }
-      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
-      .fila { grid-template-columns: 1fr; }
-    }
-  </style>
-  <style>
-    /* ===== SAFIA · Menú móvil responsive (solo afecta pantallas <= 768px) ===== */
-    .menu-toggle { display: none; }
-    .sidebar-overlay { display: none; }
-    @media (max-width: 768px) {
-      .menu-toggle {
-        display: flex; align-items: center; justify-content: center;
-        position: fixed; top: 12px; left: 12px; z-index: 1001;
-        width: 46px; height: 46px;
-        background: #0F3D14; color: #FAF6EC;
-        border: none; border-radius: 12px;
-        font-size: 22px; line-height: 1; cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-      }
-      .layout { display: block !important; }
-      .sidebar {
-        position: fixed !important; top: 0; left: 0;
-        width: 264px; max-width: 84vw; height: 100vh !important;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        z-index: 1000; overflow-y: auto;
-      }
-      .sidebar.abierto { transform: translateX(0); }
-      .sidebar-overlay {
-        display: block; position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45);
-        opacity: 0; pointer-events: none;
-        transition: opacity 0.25s ease; z-index: 999;
-      }
-      .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
-      .main {
-        padding-top: 64px !important;
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        width: 100%; max-width: 100%; overflow-x: hidden;
-      }
-      body.menu-abierto { overflow: hidden; }
-      html, body { overflow-x: hidden; max-width: 100%; }
-    }
+    /* Estados de edición (hooks que usa el JS) */
+    #botonCancelar{display:none;}
+    #botonCancelar.visible{display:inline-flex;}
+    #alertaEdicion{display:none;}
+    #alertaEdicion.visible{display:block;}
+    .formcard.editando{border:2px solid var(--green);}
+    #tituloForm.editando{color:var(--green-d);}
+    .btn.editando{background:var(--amber);border-color:var(--amber);color:#fff;}
+    tr.editando td{background:var(--amber-t);}
   </style>
 </head>
 <body>
 
-  <div class="layout">
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
 
-    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    <aside class="sidebar">
-      <div class="sidebar-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
-          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
-          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
-          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
-          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
-          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
-        </svg>
-        <div class="sidebar-logo-textos">
-          <div class="sidebar-logo-titulo">SAFIA</div>
-          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
-        </div>
+  <div class="app">
+
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark">🌿</div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
       </div>
-
-      <div class="sidebar-grupo">Inicio</div>
-      <a href="index.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
-      </a>
-
-      <div class="sidebar-grupo">Datos</div>
-      <a href="mis-clientes.html" class="sidebar-link activo">
-        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
-      </a>
-      <a href="mis-campos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
-      </a>
-      <a href="mis-equipos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
-      </a>
-      <a href="mis-cultivos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
-      </a>
-      <a href="mis-campanas.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
-      </a>
-      <a href="analisis.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span>
-      </a>
-
-      <div class="sidebar-grupo">Inteligencia</div>
-      <a href="clima.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
-      </a>
-      <a href="prediccion.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
-      </a>
-
-      <div class="sidebar-grupo">Operación</div>
-      <a href="operador.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
-      </a>
-      <a href="eventos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
-      </a>
-      <a href="encargado.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
-      </a>
-      <a href="propietario.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
-      </a>
-      <a href="voz.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
-      </a>
-
-      <div class="sidebar-grupo">Sistema</div>
-      <a href="backup.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
-      </a>
-
-      <div class="sidebar-footer">
-        SAFIA v1.0<br>
-        Herramienta para productores
-      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><span class="ico">📊</span>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html" class="active"><span class="ico">👤</span>Clientes</a>
+        <a href="mis-campos.html"><span class="ico">🌾</span>Campos</a>
+        <a href="mis-equipos.html"><span class="ico">💧</span>Equipos</a>
+        <a href="mis-cultivos.html"><span class="ico">🌱</span>Cultivos</a>
+        <a href="mis-campanas.html"><span class="ico">📋</span>Campañas</a>
+        <a href="analisis.html"><span class="ico">🧪</span>Análisis y Docs</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><span class="ico">🌡️</span>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><span class="ico">🔮</span>Predicción 7d</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><span class="ico">🚜</span>Operador</a>
+        <a href="eventos.html"><span class="ico">📅</span>Eventos</a>
+        <a href="encargado.html"><span class="ico">👷</span>Encargado</a>
+        <a href="propietario.html"><span class="ico">👔</span>Propietario</a>
+        <a href="voz.html"><span class="ico">🎤</span>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><span class="ico">💾</span>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
     </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
 
     <main class="main">
 
-      <div class="topbar">
+      <div class="crumb">Datos · <b>Clientes</b></div>
+      <div class="ptop">
         <div>
-          <div class="topbar-saludo">Datos</div>
-          <div class="topbar-titulo">👤 Clientes</div>
+          <h2>Clientes</h2>
+          <div class="sub">Productores que usan la plataforma. Cada cliente puede tener varios campos.</div>
         </div>
-        <div class="topbar-derecha">
-          <div class="topbar-fecha" id="topbarFecha">—</div>
-          <div class="topbar-avatar">O</div>
-        </div>
+        <div class="actions"><span class="muted" id="topbarFecha">—</span></div>
       </div>
 
-      <div class="contenedor">
+      <div class="note ok" id="alertaEdicion">
+        ✏️ <strong>Modo edición activo:</strong> estás editando un cliente. Tocá "Actualizar" para guardar o "Cancelar" para descartar.
+      </div>
 
-        <p class="subtitulo-pagina">Cargá los productores que usan la plataforma. Cada cliente puede tener varios campos.</p>
-
-        <div class="alerta-edicion" id="alertaEdicion">
-          ✏️ <strong>Modo edición activo:</strong> estás editando un cliente. Hacé clic en "Actualizar" para guardar los cambios o "Cancelar" para descartar.
-        </div>
-
-        <div class="tarjeta" id="tarjetaForm">
-          <div class="tarjeta-titulo" id="tituloForm">+ Agregar un cliente</div>
-          <div class="tarjeta-sub">Completá los datos del productor.</div>
-
-          <div class="campo">
+      <div class="formcard" id="tarjetaForm">
+        <h3 id="tituloForm">+ Agregar un cliente</h3>
+        <div class="formsub">Completá los datos del productor.</div>
+        <div class="form-grid">
+          <div class="field full">
             <label>Nombre completo o razón social</label>
             <input type="text" id="nombre" placeholder="Ej: Juan Pérez / Cooperativa Agrícola del Norte">
           </div>
-
-          <div class="fila">
-            <div class="campo">
-              <label>Tipo</label>
-              <select id="tipo">
-                <option value="">Seleccionar...</option>
-                <option value="Persona física">Persona física</option>
-                <option value="Empresa / Sociedad">Empresa / Sociedad</option>
-                <option value="Cooperativa">Cooperativa</option>
-                <option value="Asesor agrónomo">Asesor agrónomo</option>
-              </select>
-            </div>
-
-            <div class="campo">
-              <label>Documento / RUC</label>
-              <input type="text" id="documento" placeholder="Ej: 1234567-8">
-            </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="tipo">
+              <option value="">Seleccionar...</option>
+              <option value="Persona física">Persona física</option>
+              <option value="Empresa / Sociedad">Empresa / Sociedad</option>
+              <option value="Cooperativa">Cooperativa</option>
+              <option value="Asesor agrónomo">Asesor agrónomo</option>
+            </select>
           </div>
-
-          <div class="fila">
-            <div class="campo">
-              <label>Teléfono / WhatsApp</label>
-              <input type="text" id="telefono" placeholder="Ej: +595 981 234567">
-            </div>
-
-            <div class="campo">
-              <label>Email</label>
-              <input type="email" id="email" placeholder="Ej: juan@gmail.com">
-            </div>
+          <div class="field">
+            <label>Documento / RUC</label>
+            <input type="text" id="documento" placeholder="Ej: 1234567-8">
           </div>
-
-          <div class="campo">
+          <div class="field">
+            <label>Teléfono / WhatsApp</label>
+            <input type="text" id="telefono" placeholder="Ej: +595 981 234567">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="Ej: juan@gmail.com">
+          </div>
+          <div class="field full">
             <label>Localidad / Departamento</label>
             <input type="text" id="localidad" placeholder="Ej: Katueté, Canindeyú">
           </div>
-
-          <div class="botones-form">
-            <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">
-              ✓ Guardar cliente
-            </button>
-            <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">
-              ✕ Cancelar
-            </button>
-          </div>
         </div>
+        <div class="form-actions">
+          <button class="btn green" id="botonGuardar" onclick="guardarOActualizar()">✓ Guardar cliente</button>
+          <button class="btn" id="botonCancelar" onclick="cancelarEdicion()">✕ Cancelar</button>
+        </div>
+      </div>
 
-        <div class="lista-titulo">Clientes cargados</div>
-        <div id="listaClientes"></div>
-
+      <div class="section-title">Clientes cargados</div>
+      <div class="tablewrap">
+        <div class="tablescroll">
+          <table class="tbl">
+            <thead>
+              <tr><th>Nombre</th><th>Tipo</th><th>Documento</th><th>Teléfono</th><th>Email</th><th>Localidad</th><th class="r">Acciones</th></tr>
+            </thead>
+            <tbody id="listaClientes"></tbody>
+          </table>
+        </div>
       </div>
 
     </main>
-
   </div>
 
   <script>
-    // Setear fecha en el topbar
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
     });
@@ -558,31 +253,25 @@
       const lista = document.getElementById('listaClientes');
 
       if (clientes.length === 0) {
-        lista.innerHTML = `
-          <div class="vacio">
-            <div class="vacio-icono">👥</div>
-            <div class="vacio-texto">Todavía no cargaste ningún cliente.<br>Empezá agregando el primero arriba 👆</div>
-          </div>
-        `;
+        lista.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="eico">👥</div><div class="etxt">Todavía no cargaste ningún cliente.<br>Empezá agregando el primero arriba 👆</div></div></td></tr>`;
         return;
       }
 
       lista.innerHTML = clientes.map(c => {
-        const detalles = [c.tipo, c.localidad].filter(x => x).join(' · ') || 'Sin detalles';
-        const esEditando = editandoId === c.id;
+        const ed = editandoId === c.id ? 'editando' : '';
         return `
-          <div class="item ${esEditando ? 'editando' : ''}">
-            <div class="item-icono">👤</div>
-            <div class="item-info">
-              <div class="item-nombre">${c.nombre}</div>
-              <div class="item-detalles">${detalles}</div>
-            </div>
-            <div class="item-acciones">
-              <button class="item-boton item-editar" onclick="editarCliente(${c.id})" title="Editar">✏️</button>
-              <button class="item-boton item-borrar" onclick="borrarCliente(${c.id})" title="Borrar">×</button>
-            </div>
-          </div>
-        `;
+          <tr class="${ed}">
+            <td><span class="num">${c.nombre || '—'}</span></td>
+            <td>${c.tipo ? `<span class="badge muted">${c.tipo}</span>` : '—'}</td>
+            <td>${c.documento || '—'}</td>
+            <td>${c.telefono || '—'}</td>
+            <td>${c.email || '—'}</td>
+            <td>${c.localidad || '—'}</td>
+            <td class="r"><span class="rowact">
+              <button onclick="editarCliente(${c.id})" title="Editar">✏️</button>
+              <button class="del" onclick="borrarCliente(${c.id})" title="Borrar">🗑️</button>
+            </span></td>
+          </tr>`;
       }).join('');
     }
 
@@ -590,18 +279,18 @@
   </script>
 
   <script>
-    /* SAFIA · control del menú móvil */
+    /* SAFIA · control del menú móvil (theme) */
     (function () {
       var btn = document.getElementById('menuToggle');
-      var sb  = document.querySelector('.sidebar');
-      var ov  = document.getElementById('sidebarOverlay');
-      if (!btn || !sb) return;
-      function abrir()  { sb.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto');    btn.setAttribute('aria-expanded', 'true'); }
-      function cerrar() { sb.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); btn.setAttribute('aria-expanded', 'false'); }
-      btn.addEventListener('click', function () { if (sb.classList.contains('abierto')) { cerrar(); } else { abrir(); } });
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
       if (ov) ov.addEventListener('click', cerrar);
-      sb.querySelectorAll('.sidebar-link').forEach(function (a) { a.addEventListener('click', cerrar); });
-      window.addEventListener('resize', function () { if (window.innerWidth > 768) cerrar(); });
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
     })();
   </script>
 </body>
