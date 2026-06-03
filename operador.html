@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Operador</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -554,6 +558,66 @@
       html, body { overflow-x: hidden; max-width: 100%; }
     }
   </style>
+  <style id="safia-reskin">
+    /* ===== SAFIA · reskin de Operador al theme profesional ===== */
+    body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif !important;background:#F2F3F5 !important;font-size:14px;}
+    .contenedor{max-width:760px !important;}
+    .sidebar{background:#3A3E41 !important;color:#BFC4C9 !important;}
+    .sidebar-logo{border-bottom-color:rgba(255,255,255,.10) !important;}
+    .sidebar-logo svg path{fill:#22A93A !important;}
+    .sidebar-logo svg circle{fill:#0F3D14 !important;}
+    .sidebar-logo-titulo{color:#fff !important;}
+    .sidebar-logo-tag{color:#8A9096 !important;}
+    .sidebar-grupo{color:#7A8086 !important;}
+    .sidebar-link{color:#BFC4C9 !important;border-left:3px solid transparent;}
+    .sidebar-link:hover{background:#4A4F53 !important;}
+    .sidebar-link.activo{background:#4A4F53 !important;color:#fff !important;border-left-color:#22A93A !important;}
+    .sidebar-link-icono{color:#8A9096;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;}
+    .sidebar-link-icono svg{width:18px;height:18px;}
+    .sidebar-link.activo .sidebar-link-icono{color:#3FCB5A;}
+    .sidebar-footer{color:#7A8086 !important;border-top-color:rgba(255,255,255,.10) !important;}
+    .menu-toggle{background:#3A3E41 !important;}
+    .crumb{font-size:12px;color:#8C9196;margin-bottom:6px;}
+    .crumb b{color:#178029;}
+    .topbar{border-bottom-color:#E1E4E7 !important;}
+    .topbar-saludo{color:#8C9196 !important;}
+    .topbar-titulo{color:#2E3236 !important;}
+    .topbar-avatar{background:#3A3E41 !important;}
+    /* Hero + tarjetas */
+    .header-operador{background:linear-gradient(135deg,#22A93A,#0F3D14) !important;border-radius:10px !important;}
+    .card,.reco-card{border:1px solid #E1E4E7 !important;box-shadow:0 1px 3px rgba(30,40,50,.06) !important;border-radius:10px !important;}
+    .card-label{color:#8C9196 !important;}
+    .card select{border:1px solid #E1E4E7 !important;border-radius:7px !important;background:#F2F3F5 !important;color:#2E3236 !important;}
+    .campana-card{background:linear-gradient(135deg,#22A93A,#178029) !important;border-radius:10px !important;}
+    .reco-titulo{color:#2E3236 !important;}
+    .reco-detalle{color:#8C9196 !important;}
+    .reco-card.regar,.reco-card.lluvia{border-left-color:#2E72C8 !important;}
+    .reco-card.no-regar{border-left-color:#178029 !important;}
+    .reco-card.urgente{border-left-color:#C0392B !important;}
+    /* Botones de carga */
+    .boton-carga{border:1px solid #E1E4E7 !important;box-shadow:0 1px 3px rgba(30,40,50,.06) !important;border-radius:10px !important;}
+    .boton-carga-label{color:#2E3236 !important;}
+    .boton-riego,.boton-lluvia{border-bottom:4px solid #2E72C8 !important;}
+    .boton-aplicacion{border-bottom:4px solid #B8731A !important;}
+    .eventos-titulo{color:#8C9196 !important;font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-size:11px;}
+    /* Lista de eventos */
+    .evento{background:#fff !important;border:1px solid #E1E4E7 !important;border-radius:10px !important;box-shadow:0 1px 3px rgba(30,40,50,.06) !important;}
+    .evento-titulo-evt{color:#2E3236 !important;}
+    .evento-detalle{color:#8C9196 !important;}
+    .evento-icono.tipo-riego,.evento-icono.tipo-lluvia{background:#E7F0FB !important;}
+    .evento-icono.tipo-aplicacion{background:#FBF1DF !important;}
+    /* Formulario (modal) */
+    .campo label{color:#8C9196 !important;}
+    .campo input,.campo select,.campo textarea{border:1px solid #E1E4E7 !important;border-radius:7px !important;background:#F2F3F5 !important;color:#2E3236 !important;}
+    .campo input:focus,.campo select:focus,.campo textarea:focus{border-color:#22A93A !important;background:#fff !important;}
+    .modal{border-radius:14px !important;}
+    .modal-titulo{color:#2E3236 !important;}
+    .boton-confirmar{background:#22A93A !important;border-radius:8px !important;}
+    .boton-cancelar-modal{border-radius:8px !important;}
+    .alerta-sin-equipo{background:#FBECEA !important;border:1px solid #E8C4be !important;color:#7a241a !important;border-radius:8px !important;padding:16px 20px !important;}
+    .alerta-sin-equipo a{color:#C0392B !important;font-weight:700;}
+    .toast{background:#2E3236 !important;border-radius:100px !important;}
+  </style>
 </head>
 <body>
 
@@ -578,54 +642,57 @@
 
       <div class="sidebar-grupo">Inicio</div>
       <a href="index.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></span><span>Dashboard</span>
       </a>
 
       <div class="sidebar-grupo">Datos</div>
       <a href="mis-clientes.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg></span><span>Clientes</span>
       </a>
       <a href="mis-campos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span><span>Campos</span>
       </a>
       <a href="mis-equipos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span><span>Equipos</span>
       </a>
       <a href="mis-cultivos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg></span><span>Cultivos</span>
       </a>
       <a href="mis-campanas.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></span><span>Campañas</span>
+      </a>
+      <a href="analisis.html" class="sidebar-link">
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></span><span>Análisis y Docs</span>
       </a>
 
       <div class="sidebar-grupo">Inteligencia</div>
       <a href="clima.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg></span><span>Clima · ETo/ETc</span>
       </a>
       <a href="prediccion.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg></span><span>Predicción 7d</span>
       </a>
 
       <div class="sidebar-grupo">Operación</div>
       <a href="operador.html" class="sidebar-link activo">
-        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg></span><span>Operador</span>
       </a>
       <a href="eventos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg></span><span>Eventos</span>
       </a>
       <a href="encargado.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg></span><span>Encargado</span>
       </a>
       <a href="propietario.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg></span><span>Propietario</span>
       </a>
       <a href="voz.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span><span>Cargar por voz</span>
       </a>
 
       <div class="sidebar-grupo">Sistema</div>
       <a href="backup.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
+        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span><span>Respaldo</span>
       </a>
 
       <div class="sidebar-footer">
@@ -636,6 +703,7 @@
 
     <main class="main">
 
+      <div class="crumb">Operación · <b>Operador</b></div>
       <div class="topbar">
         <div>
           <div class="topbar-saludo">Operación</div>
