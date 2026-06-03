@@ -4,718 +4,173 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Cultivos</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%230F3D14'/%3E%3Ccircle cx='50' cy='45' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='50' cy='70' r='5' fill='%23D4A24C'/%3E%3Ccircle cx='35' cy='55' r='4' fill='%23D4A24C'/%3E%3Ccircle cx='65' cy='60' r='4' fill='%23D4A24C'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --verde: #0F3D14;
-      --verde-claro: #1B5E20;
-      --ambar: #D4A24C;
-      --ambar-oscuro: #B88A3D;
-      --crema: #FAF6EC;
-      --crema-oscuro: #f0ead8;
-      --rojo: #B5371C;
-      --gris-texto: #6B6356;
-      --negro: #1A1A1A;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--crema);
-      color: var(--negro);
-      min-height: 100vh;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      min-height: 100vh;
-    }
-
-    .sidebar {
-      background: var(--verde);
-      color: var(--crema);
-      padding: 24px 14px 20px;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sidebar-logo {
-      display: flex; align-items: center; gap: 12px;
-      padding: 0 8px 20px;
-      border-bottom: 1px solid rgba(212, 162, 76, 0.25);
-      margin-bottom: 18px;
-    }
-    .sidebar-logo svg { width: 36px; height: 42px; flex-shrink: 0; }
-    .sidebar-logo-textos { line-height: 1.1; }
-    .sidebar-logo-titulo { font-size: 18px; font-weight: 700; letter-spacing: 0.06em; }
-    .sidebar-logo-tag { font-size: 9px; opacity: 0.7; letter-spacing: 0.15em; margin-top: 2px; }
-
-    .sidebar-grupo {
-      font-size: 10px; opacity: 0.55;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      margin: 18px 8px 6px; font-weight: 600;
-    }
-    .sidebar-grupo:first-of-type { margin-top: 4px; }
-
-    .sidebar-link {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 10px; border-radius: 8px;
-      color: var(--crema); text-decoration: none;
-      font-size: 13px; margin-bottom: 1px;
-      transition: background 0.15s;
-    }
-    .sidebar-link:hover { background: rgba(212, 162, 76, 0.12); }
-    .sidebar-link.activo { background: rgba(212, 162, 76, 0.22); font-weight: 600; }
-
-    .sidebar-link-icono { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-
-    .sidebar-footer {
-      margin-top: 24px; padding: 14px 10px 4px;
-      border-top: 1px solid rgba(212, 162, 76, 0.25);
-      font-size: 10px; opacity: 0.6; line-height: 1.5;
-    }
-
-    .main { padding: 24px 32px 40px; overflow-x: hidden; }
-
-    .topbar {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      margin-bottom: 24px; padding-bottom: 16px;
-      border-bottom: 1px solid rgba(15, 61, 20, 0.08);
-    }
-    .topbar-saludo {
-      font-size: 11px; color: var(--gris-texto);
-      text-transform: uppercase; letter-spacing: 0.08em;
-      margin-bottom: 4px; font-weight: 600;
-    }
-    .topbar-titulo { font-size: 26px; font-weight: 700; color: var(--verde); line-height: 1; }
-    .topbar-derecha { display: flex; align-items: center; gap: 14px; }
-    .topbar-fecha { font-size: 12px; color: var(--gris-texto); text-align: right; }
-    .topbar-avatar {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: var(--ambar); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 15px;
-    }
-
-    .contenedor { max-width: 900px; margin: 0 auto; }
-
-    .subtitulo-pagina { font-size: 14px; color: var(--gris-texto); margin-bottom: 24px; line-height: 1.5; }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
-      background: #fff;
-      padding: 6px;
-      border-radius: 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-
-    .tab {
-      flex: 1;
-      padding: 12px 16px;
-      border: none;
-      background: transparent;
-      border-radius: 10px;
-      font-family: inherit;
-      font-size: 14px;
-      font-weight: 600;
-      color: #6B6356;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .tab.activo {
-      background: #0F3D14;
-      color: #FAF6EC;
-    }
-
-    .tab:not(.activo):hover {
-      background: rgba(15, 61, 20, 0.08);
-    }
-
-    .tab .conteo {
-      background: rgba(255,255,255,0.25);
-      padding: 2px 8px;
-      border-radius: 100px;
-      font-size: 11px;
-      margin-left: 6px;
-    }
-
-    .tarjeta {
-      background: #fff;
-      border-radius: 18px;
-      padding: 28px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      margin-bottom: 20px;
-      transition: border-color 0.3s;
-    }
-    .tarjeta.editando {
-      border: 2px solid #D4A24C;
-      box-shadow: 0 4px 20px rgba(212, 162, 76, 0.3);
-    }
-
-    .tarjeta-titulo { font-size: 18px; font-weight: 700; margin-bottom: 6px; color: #0F3D14; }
-    .tarjeta-titulo.editando { color: #D4A24C; }
-    .tarjeta-sub { font-size: 13px; color: #6B6356; margin-bottom: 24px; }
-
-    .seccion {
-      border-top: 1px solid rgba(0,0,0,0.08);
-      padding-top: 20px;
-      margin-top: 20px;
-    }
-    .seccion-titulo {
-      font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
-      color: #0F3D14; font-weight: 700; margin-bottom: 14px;
-    }
-
-    .campo { margin-bottom: 18px; }
-    .campo label {
-      display: block; font-size: 12px; font-weight: 600;
-      color: #6B6356; text-transform: uppercase;
-      letter-spacing: 0.05em; margin-bottom: 6px;
-    }
-    .campo input, .campo select, .campo textarea {
-      width: 100%; padding: 14px 16px;
-      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
-      font-size: 15px; font-family: inherit;
-      background: #FAF6EC; color: #1A1A1A;
-    }
-    .campo .ayuda {
-      font-size: 11px; color: #6B6356; margin-top: 4px; font-style: italic;
-    }
-
-    .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .fila-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-    .fila-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
-
-    .botones-form {
-      display: flex; gap: 10px; margin-top: 20px;
-    }
-
-    .boton-guardar {
-      flex: 1; padding: 18px;
-      background: #0F3D14; color: #FAF6EC;
-      border: none; border-radius: 14px;
-      font-size: 16px; font-weight: 700;
-      cursor: pointer; font-family: inherit;
-    }
-    .boton-guardar:hover { background: #1B5E20; }
-    .boton-guardar.editando { background: #D4A24C; }
-
-    .boton-cancelar {
-      padding: 18px 24px;
-      background: rgba(0,0,0,0.06); color: #6B6356;
-      border: none; border-radius: 14px;
-      font-size: 15px; font-weight: 600;
-      cursor: pointer; font-family: inherit;
-      display: none;
-    }
-    .boton-cancelar.visible { display: block; }
-
-    .item {
-      background: #fff;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      transition: all 0.2s;
-    }
-
-    .item-icono {
-      font-size: 36px;
-      flex-shrink: 0;
-      width: 56px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(212, 162, 76, 0.12);
-      border-radius: 14px;
-    }
-
-    .item-info { flex: 1; min-width: 0; }
-
-    .item-nombre {
-      font-size: 16px;
-      font-weight: 700;
-      color: #1A1A1A;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .item-detalles {
-      font-size: 12px;
-      color: #6B6356;
-      margin-top: 4px;
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .item-detalles span {
-      display: inline-block;
-    }
-
-    .badge {
-      font-size: 10px;
-      padding: 3px 8px;
-      border-radius: 100px;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-    }
-
-    .badge-fao {
-      background: rgba(15, 61, 20, 0.1);
-      color: #0F3D14;
-    }
-
-    .badge-anual {
-      background: rgba(212, 162, 76, 0.2);
-      color: #8B6F00;
-    }
-
-    .badge-perenne {
-      background: rgba(76, 175, 80, 0.15);
-      color: #2E7D32;
-    }
-
-    .badge-custom {
-      background: rgba(33, 150, 243, 0.15);
-      color: #1565C0;
-    }
-
-    .item-acciones {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .item-boton {
-      border: none;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .item-editar {
-      background: rgba(15, 61, 20, 0.1);
-      color: #0F3D14;
-    }
-    .item-borrar {
-      background: rgba(181, 55, 28, 0.1);
-      color: #B5371C;
-    }
-
-    .vacio {
-      text-align: center;
-      padding: 40px 20px;
-      color: #6B6356;
-      background: #fff;
-      border-radius: 16px;
-      border: 2px dashed rgba(0,0,0,0.1);
-    }
-
-    .vacio-icono { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
-    .vacio-texto { font-size: 14px; }
-
-    .alerta-edicion {
-      background: rgba(212, 162, 76, 0.15);
-      border-left: 4px solid #D4A24C;
-      padding: 14px 18px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 14px;
-      color: #8B6F00;
-      display: none;
-    }
-    .alerta-edicion.visible { display: block; }
-
-    .info-fao {
-      background: rgba(15, 61, 20, 0.05);
-      border-left: 3px solid #0F3D14;
-      padding: 14px 18px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      color: #0F3D14;
-    }
-
-    .filtros {
-      background: #fff;
-      padding: 12px 16px;
-      border-radius: 14px;
-      margin-bottom: 16px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .filtro-pill {
-      padding: 6px 14px;
-      border-radius: 100px;
-      background: #FAF6EC;
-      border: 1.5px solid transparent;
-      font-size: 12px;
-      font-weight: 600;
-      color: #6B6356;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .filtro-pill.activo {
-      background: #0F3D14;
-      color: #FAF6EC;
-      border-color: #0F3D14;
-    }
-
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { position: static; height: auto; }
-    }
-
-    @media (max-width: 600px) {
-      .fila-2, .fila-3, .fila-4 { grid-template-columns: 1fr; }
-    }
-
-    @media (max-width: 500px) {
-      .main { padding: 16px; }
-      .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
-    }
-  </style>
-  <style>
-    /* ===== SAFIA · Menú móvil responsive (solo afecta pantallas <= 768px) ===== */
-    .menu-toggle { display: none; }
-    .sidebar-overlay { display: none; }
-    @media (max-width: 768px) {
-      .menu-toggle {
-        display: flex; align-items: center; justify-content: center;
-        position: fixed; top: 12px; left: 12px; z-index: 1001;
-        width: 46px; height: 46px;
-        background: #0F3D14; color: #FAF6EC;
-        border: none; border-radius: 12px;
-        font-size: 22px; line-height: 1; cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-      }
-      .layout { display: block !important; }
-      .sidebar {
-        position: fixed !important; top: 0; left: 0;
-        width: 264px; max-width: 84vw; height: 100vh !important;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        z-index: 1000; overflow-y: auto;
-      }
-      .sidebar.abierto { transform: translateX(0); }
-      .sidebar-overlay {
-        display: block; position: fixed; inset: 0;
-        background: rgba(0,0,0,0.45);
-        opacity: 0; pointer-events: none;
-        transition: opacity 0.25s ease; z-index: 999;
-      }
-      .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
-      .main {
-        padding-top: 64px !important;
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        width: 100%; max-width: 100%; overflow-x: hidden;
-      }
-      body.menu-abierto { overflow: hidden; }
-      html, body { overflow-x: hidden; max-width: 100%; }
-    }
+    .tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--bd);}
+    .tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;color:var(--label);cursor:pointer;}
+    .tab.activo{color:var(--green-d);border-bottom-color:var(--green);}
+    .tab .conteo{display:inline-block;background:var(--bd);color:var(--body);border-radius:100px;padding:1px 8px;font-size:11px;margin-left:4px;}
+    .tab.activo .conteo{background:var(--green-t);color:var(--green-d);}
+    #botonCancelar{display:none;} #botonCancelar.visible{display:inline-flex;}
+    #alertaEdicion{display:none;} #alertaEdicion.visible{display:block;}
+    .formcard.editando{border:2px solid var(--green);}
+    #tituloForm.editando{color:var(--green-d);}
+    .btn.editando{background:var(--amber);border-color:var(--amber);color:#fff;}
+    tr.editando td{background:var(--amber-t);}
   </style>
 </head>
 <body>
 
-  <div class="layout">
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
 
-    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-    <aside class="sidebar">
-      <div class="sidebar-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
-          <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
-          <circle cx="50" cy="45" r="5" fill="#0F3D14"/>
-          <circle cx="50" cy="70" r="5" fill="#0F3D14"/>
-          <circle cx="35" cy="55" r="4" fill="#0F3D14"/>
-          <circle cx="65" cy="60" r="4" fill="#0F3D14"/>
-        </svg>
-        <div class="sidebar-logo-textos">
-          <div class="sidebar-logo-titulo">SAFIA</div>
-          <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
-        </div>
+  <div class="app">
+
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark">🌿</div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
       </div>
-
-      <div class="sidebar-grupo">Inicio</div>
-      <a href="index.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📊</span><span>Dashboard</span>
-      </a>
-
-      <div class="sidebar-grupo">Datos</div>
-      <a href="mis-clientes.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👤</span><span>Clientes</span>
-      </a>
-      <a href="mis-campos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌾</span><span>Campos</span>
-      </a>
-      <a href="mis-equipos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💧</span><span>Equipos</span>
-      </a>
-      <a href="mis-cultivos.html" class="sidebar-link activo">
-        <span class="sidebar-link-icono">🌱</span><span>Cultivos</span>
-      </a>
-      <a href="mis-campanas.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📋</span><span>Campañas</span>
-      </a>
-      <a href="analisis.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🧪</span><span>Análisis y Docs</span>
-      </a>
-
-      <div class="sidebar-grupo">Inteligencia</div>
-      <a href="clima.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🌡️</span><span>Clima · ETo/ETc</span>
-      </a>
-      <a href="prediccion.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🔮</span><span>Predicción 7d</span>
-      </a>
-
-      <div class="sidebar-grupo">Operación</div>
-      <a href="operador.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🚜</span><span>Operador</span>
-      </a>
-      <a href="eventos.html" class="sidebar-link">
-        <span class="sidebar-link-icono">📅</span><span>Eventos</span>
-      </a>
-      <a href="encargado.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👷</span><span>Encargado</span>
-      </a>
-      <a href="propietario.html" class="sidebar-link">
-        <span class="sidebar-link-icono">👔</span><span>Propietario</span>
-      </a>
-      <a href="voz.html" class="sidebar-link">
-        <span class="sidebar-link-icono">🎤</span><span>Cargar por voz</span>
-      </a>
-
-      <div class="sidebar-grupo">Sistema</div>
-      <a href="backup.html" class="sidebar-link">
-        <span class="sidebar-link-icono">💾</span><span>Respaldo</span>
-      </a>
-
-      <div class="sidebar-footer">
-        SAFIA v1.0<br>
-        Herramienta para productores
-      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><span class="ico">📊</span>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><span class="ico">👤</span>Clientes</a>
+        <a href="mis-campos.html"><span class="ico">🌾</span>Campos</a>
+        <a href="mis-equipos.html"><span class="ico">💧</span>Equipos</a>
+        <a href="mis-cultivos.html" class="active"><span class="ico">🌱</span>Cultivos</a>
+        <a href="mis-campanas.html"><span class="ico">📋</span>Campañas</a>
+        <a href="analisis.html"><span class="ico">🧪</span>Análisis y Docs</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><span class="ico">🌡️</span>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><span class="ico">🔮</span>Predicción 7d</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><span class="ico">🚜</span>Operador</a>
+        <a href="eventos.html"><span class="ico">📅</span>Eventos</a>
+        <a href="encargado.html"><span class="ico">👷</span>Encargado</a>
+        <a href="propietario.html"><span class="ico">👔</span>Propietario</a>
+        <a href="voz.html"><span class="ico">🎤</span>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><span class="ico">💾</span>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
     </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
 
     <main class="main">
 
-      <div class="topbar">
+      <div class="crumb">Datos · <b>Cultivos</b></div>
+      <div class="ptop">
         <div>
-          <div class="topbar-saludo">Datos</div>
-          <div class="topbar-titulo">🌱 Cultivos</div>
+          <h2>Cultivos</h2>
+          <div class="sub">22 cultivos FAO 56 pre-cargados + los que agregues vos.</div>
         </div>
-        <div class="topbar-derecha">
-          <div class="topbar-fecha" id="topbarFecha">—</div>
-          <div class="topbar-avatar">O</div>
+        <div class="actions"><span class="muted" id="topbarFecha">—</span></div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab activo" id="tabFAO" onclick="cambiarTab('fao')">📚 Cultivos FAO <span class="conteo" id="conteoFAO">22</span></button>
+        <button class="tab" id="tabCustom" onclick="cambiarTab('custom')">✏️ Mis personalizados <span class="conteo" id="conteoCustom">0</span></button>
+      </div>
+
+      <div id="vistaFAO">
+        <div class="note info">ℹ️ Cultivos pre-cargados con coeficientes oficiales <strong>FAO 56</strong> (Penman-Monteith). No se editan ni borran, pero podés crear los tuyos en la otra pestaña.</div>
+        <div class="toolbar">
+          <div class="filter">
+            <span class="fl">Tipo</span>
+            <select onchange="filtrarFAO(this.value)">
+              <option value="todos">Todos</option>
+              <option value="anual">🌾 Anuales</option>
+              <option value="perenne">🌳 Perennes</option>
+            </select>
+          </div>
+        </div>
+        <div class="tablewrap">
+          <div class="tablescroll">
+            <table class="tbl">
+              <thead><tr><th>Cultivo</th><th>Tipo</th><th>Coeficientes Kc</th><th>Ciclo</th><th>Fuente</th></tr></thead>
+              <tbody id="listaFAO"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div class="contenedor">
+      <div id="vistaCustom" style="display:none;">
+        <div class="note ok" id="alertaEdicion">✏️ <strong>Modo edición activo:</strong> estás editando un cultivo personalizado.</div>
 
-        <p class="subtitulo-pagina">Catálogo de cultivos disponibles para tus campañas. SAFIA ya trae 22 cultivos pre-cargados con datos oficiales FAO. Podés agregar los tuyos personalizados.</p>
+        <div class="formcard" id="tarjetaForm">
+          <h3 id="tituloForm">+ Agregar cultivo personalizado</h3>
+          <div class="formsub">Cargá las características y los coeficientes Kc. Si no sabés los Kc exactos, usá los de un cultivo similar como referencia.</div>
 
-        <div class="tabs">
-          <button class="tab activo" id="tabFAO" onclick="cambiarTab('fao')">
-            📚 Cultivos FAO <span class="conteo" id="conteoFAO">22</span>
-          </button>
-          <button class="tab" id="tabCustom" onclick="cambiarTab('custom')">
-            ✏️ Mis personalizados <span class="conteo" id="conteoCustom">0</span>
-          </button>
+          <div class="section-title">📋 Datos básicos</div>
+          <div class="form-grid">
+            <div class="field full"><label>Nombre del cultivo</label><input type="text" id="nombre" placeholder="Ej: Yuca / Mandioca, Quinoa, Stevia, Eucalipto"></div>
+            <div class="field"><label>Emoji / ícono</label><input type="text" id="emoji" placeholder="Ej: 🌱" maxlength="2"><div class="hint">Cualquier emoji que represente al cultivo</div></div>
+            <div class="field"><label>Tipo de cultivo</label>
+              <select id="tipo" onchange="cambiarTipo()">
+                <option value="">Seleccionar...</option>
+                <option value="anual">🌾 Anual (siembra → cosecha)</option>
+                <option value="perenne">🌳 Perenne (vive años)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="seccionAnual" style="display:none;">
+            <div class="section-title" style="margin-top:18px;">📊 Coeficientes Kc por etapa (FAO 56)</div>
+            <div class="note info">ℹ️ <strong>Kc</strong> multiplica la ETo. Va de 0.20 (cultivo muy chico) a 1.30 (consumo máximo).</div>
+            <div class="form-grid">
+              <div class="field"><label>Kc inicial</label><input type="number" id="kc_ini" step="0.05" min="0.10" max="1.30" placeholder="0.30"><div class="hint">Recién emergido</div></div>
+              <div class="field"><label>Kc media (máx)</label><input type="number" id="kc_med" step="0.05" min="0.50" max="1.30" placeholder="1.15"><div class="hint">Pleno desarrollo</div></div>
+              <div class="field"><label>Kc final</label><input type="number" id="kc_fin" step="0.05" min="0.10" max="1.30" placeholder="0.50"><div class="hint">Cerca de cosecha</div></div>
+            </div>
+            <div class="section-title" style="margin-top:14px;">📅 Duración de etapas (días)</div>
+            <div class="form-grid">
+              <div class="field"><label>L Inicial</label><input type="number" id="L_ini" min="5" max="120" placeholder="30"><div class="hint">Emergencia</div></div>
+              <div class="field"><label>L Desarrollo</label><input type="number" id="L_des" min="5" max="120" placeholder="40"><div class="hint">Crecimiento</div></div>
+              <div class="field"><label>L Media</label><input type="number" id="L_med" min="5" max="200" placeholder="45"><div class="hint">Reproductivo</div></div>
+              <div class="field"><label>L Final</label><input type="number" id="L_fin" min="5" max="120" placeholder="30"><div class="hint">Madurez</div></div>
+            </div>
+            <div class="note warn">📊 Total del ciclo: <strong id="totalDias">— días</strong></div>
+          </div>
+
+          <div id="seccionPerenne" style="display:none;">
+            <div class="section-title" style="margin-top:18px;">📊 Coeficientes Kc estacionales (perennes)</div>
+            <div class="note info">ℹ️ Los perennes (cítricos, alfalfa, café, vid) usan Kc según la <strong>estación</strong>, no por días desde siembra.</div>
+            <div class="form-grid">
+              <div class="field"><label>🌸 Kc Primavera</label><input type="number" id="kc_pri" step="0.05" min="0.10" max="1.30" placeholder="0.75"></div>
+              <div class="field"><label>☀️ Kc Verano</label><input type="number" id="kc_ver" step="0.05" min="0.10" max="1.30" placeholder="1.10"></div>
+              <div class="field"><label>🍂 Kc Otoño</label><input type="number" id="kc_oto" step="0.05" min="0.10" max="1.30" placeholder="0.85"></div>
+              <div class="field"><label>❄️ Kc Invierno</label><input type="number" id="kc_inv" step="0.05" min="0.10" max="1.30" placeholder="0.40"></div>
+            </div>
+          </div>
+
+          <div class="field full" style="margin-top:14px;"><label>Notas (opcional)</label><textarea id="notas" placeholder="Variedades, manejos especiales..."></textarea></div>
+
+          <div class="form-actions">
+            <button class="btn green" id="botonGuardar" onclick="guardarOActualizar()">✓ Guardar cultivo</button>
+            <button class="btn" id="botonCancelar" onclick="cancelarEdicion()">✕ Cancelar</button>
+          </div>
         </div>
 
-        <div id="vistaFAO">
-
-          <div class="info-fao">
-            ℹ️ Estos son los cultivos pre-cargados con coeficientes oficiales de la <strong>FAO 56</strong> (Penman-Monteith). No se pueden editar ni borrar, pero podés crear los tuyos personalizados en la otra pestaña.
+        <div class="section-title">Mis cultivos personalizados</div>
+        <div class="tablewrap">
+          <div class="tablescroll">
+            <table class="tbl">
+              <thead><tr><th>Cultivo</th><th>Tipo</th><th>Coeficientes Kc</th><th>Ciclo</th><th class="r">Acciones</th></tr></thead>
+              <tbody id="listaCustom"></tbody>
+            </table>
           </div>
-
-          <div class="filtros">
-            <button class="filtro-pill activo" onclick="filtrarFAO('todos')">Todos</button>
-            <button class="filtro-pill" onclick="filtrarFAO('anual')">🌾 Anuales</button>
-            <button class="filtro-pill" onclick="filtrarFAO('perenne')">🌳 Perennes</button>
-          </div>
-
-          <div id="listaFAO"></div>
         </div>
-
-        <div id="vistaCustom" style="display:none;">
-
-          <div class="alerta-edicion" id="alertaEdicion">
-            ✏️ <strong>Modo edición activo:</strong> estás editando un cultivo personalizado.
-          </div>
-
-          <div class="tarjeta" id="tarjetaForm">
-            <div class="tarjeta-titulo" id="tituloForm">+ Agregar cultivo personalizado</div>
-            <div class="tarjeta-sub">Cargá las características y los coeficientes Kc de tu cultivo. Si no sabés los Kc exactos, podés usar los de un cultivo similar como referencia.</div>
-
-            <div class="seccion" style="border-top: none; padding-top: 0;">
-              <div class="seccion-titulo">📋 Datos básicos</div>
-
-              <div class="campo">
-                <label>Nombre del cultivo</label>
-                <input type="text" id="nombre" placeholder="Ej: Yuca / Mandioca, Quinoa, Stevia, Eucalipto">
-              </div>
-
-              <div class="fila-2">
-                <div class="campo">
-                  <label>Emoji / ícono</label>
-                  <input type="text" id="emoji" placeholder="Ej: 🌱" maxlength="2">
-                  <div class="ayuda">Cualquier emoji que represente al cultivo</div>
-                </div>
-
-                <div class="campo">
-                  <label>Tipo de cultivo</label>
-                  <select id="tipo" onchange="cambiarTipo()">
-                    <option value="">Seleccionar...</option>
-                    <option value="anual">🌾 Anual (siembra → cosecha)</option>
-                    <option value="perenne">🌳 Perenne (vive años)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div class="seccion" id="seccionAnual" style="display:none;">
-              <div class="seccion-titulo">📊 Coeficientes Kc por etapa (FAO 56)</div>
-
-              <div class="info-fao" style="margin-bottom: 18px;">
-                ℹ️ <strong>Kc</strong> es el coeficiente que multiplica la ETo. Va de 0.20 (cultivo muy chico) a 1.30 (consumo máximo). Buscá los valores en internet o usá referencias similares.
-              </div>
-
-              <div class="fila-3">
-                <div class="campo">
-                  <label>Kc inicial</label>
-                  <input type="number" id="kc_ini" step="0.05" min="0.10" max="1.30" placeholder="0.30">
-                  <div class="ayuda">Recién emergido</div>
-                </div>
-
-                <div class="campo">
-                  <label>Kc media (máx)</label>
-                  <input type="number" id="kc_med" step="0.05" min="0.50" max="1.30" placeholder="1.15">
-                  <div class="ayuda">Pleno desarrollo</div>
-                </div>
-
-                <div class="campo">
-                  <label>Kc final</label>
-                  <input type="number" id="kc_fin" step="0.05" min="0.10" max="1.30" placeholder="0.50">
-                  <div class="ayuda">Cerca de cosecha</div>
-                </div>
-              </div>
-
-              <div class="seccion-titulo" style="margin-top: 20px;">📅 Duración de etapas (días)</div>
-
-              <div class="fila-4">
-                <div class="campo">
-                  <label>L Inicial</label>
-                  <input type="number" id="L_ini" min="5" max="120" placeholder="30">
-                  <div class="ayuda">Emergencia</div>
-                </div>
-
-                <div class="campo">
-                  <label>L Desarrollo</label>
-                  <input type="number" id="L_des" min="5" max="120" placeholder="40">
-                  <div class="ayuda">Crecimiento</div>
-                </div>
-
-                <div class="campo">
-                  <label>L Media</label>
-                  <input type="number" id="L_med" min="5" max="200" placeholder="45">
-                  <div class="ayuda">Reproductivo</div>
-                </div>
-
-                <div class="campo">
-                  <label>L Final</label>
-                  <input type="number" id="L_fin" min="5" max="120" placeholder="30">
-                  <div class="ayuda">Madurez</div>
-                </div>
-              </div>
-
-              <div class="info-fao" style="margin-top: 12px; background: rgba(212, 162, 76, 0.1); border-left-color: #D4A24C; color: #8B6F00;">
-                📊 Total del ciclo: <strong id="totalDias">— días</strong>
-              </div>
-            </div>
-
-            <div class="seccion" id="seccionPerenne" style="display:none;">
-              <div class="seccion-titulo">📊 Coeficientes Kc estacionales (cultivos perennes)</div>
-
-              <div class="info-fao" style="margin-bottom: 18px;">
-                ℹ️ Los cultivos perennes (cítricos, alfalfa, café, vid) usan Kc según la <strong>estación del año</strong>, no por días desde siembra.
-              </div>
-
-              <div class="fila-2">
-                <div class="campo">
-                  <label>🌸 Kc Primavera</label>
-                  <input type="number" id="kc_pri" step="0.05" min="0.10" max="1.30" placeholder="0.75">
-                </div>
-
-                <div class="campo">
-                  <label>☀️ Kc Verano</label>
-                  <input type="number" id="kc_ver" step="0.05" min="0.10" max="1.30" placeholder="1.10">
-                </div>
-              </div>
-
-              <div class="fila-2">
-                <div class="campo">
-                  <label>🍂 Kc Otoño</label>
-                  <input type="number" id="kc_oto" step="0.05" min="0.10" max="1.30" placeholder="0.85">
-                </div>
-
-                <div class="campo">
-                  <label>❄️ Kc Invierno</label>
-                  <input type="number" id="kc_inv" step="0.05" min="0.10" max="1.30" placeholder="0.40">
-                </div>
-              </div>
-            </div>
-
-            <div class="campo" style="margin-top: 20px;">
-              <label>Notas (opcional)</label>
-              <textarea id="notas" placeholder="Cualquier dato adicional sobre el cultivo, variedades, manejos especiales..." style="min-height: 70px; resize: vertical;"></textarea>
-            </div>
-
-            <div class="botones-form">
-              <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">
-                ✓ Guardar cultivo
-              </button>
-              <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">
-                ✕ Cancelar
-              </button>
-            </div>
-          </div>
-
-          <div style="font-size: 12px; font-weight: 600; color: #6B6356; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; padding: 0 4px;">
-            Mis cultivos personalizados
-          </div>
-          <div id="listaCustom"></div>
-        </div>
-
       </div>
 
     </main>
-
   </div>
 
   <script>
@@ -738,7 +193,6 @@
       { nombre: 'Avena', emoji: '🌾', tipo: 'anual', kc_ini: 0.30, kc_med: 1.15, kc_fin: 0.40, L_ini: 25, L_des: 35, L_med: 35, L_fin: 25 },
       { nombre: 'Tomate', emoji: '🍅', tipo: 'anual', kc_ini: 0.60, kc_med: 1.15, kc_fin: 0.80, L_ini: 30, L_des: 40, L_med: 40, L_fin: 25 },
       { nombre: 'Lechuga', emoji: '🥬', tipo: 'anual', kc_ini: 0.70, kc_med: 1.00, kc_fin: 0.95, L_ini: 20, L_des: 25, L_med: 20, L_fin: 10 },
-
       { nombre: 'Alfalfa', emoji: '🌿', tipo: 'perenne', kc_pri: 0.85, kc_ver: 1.20, kc_oto: 0.95, kc_inv: 0.40 },
       { nombre: 'Pasturas', emoji: '🌾', tipo: 'perenne', kc_pri: 0.70, kc_ver: 0.95, kc_oto: 0.85, kc_inv: 0.50 },
       { nombre: 'Cítricos', emoji: '🍊', tipo: 'perenne', kc_pri: 0.75, kc_ver: 0.80, kc_oto: 0.75, kc_inv: 0.70 },
@@ -774,50 +228,31 @@
 
     function filtrarFAO(filtro) {
       filtroFAO = filtro;
-      document.querySelectorAll('.filtro-pill').forEach(p => p.classList.remove('activo'));
-      event.target.classList.add('activo');
       mostrarFAO();
+    }
+
+    function kcResumen(c) {
+      if (c.tipo === 'anual') return `${c.kc_ini} → <strong>${c.kc_med}</strong> → ${c.kc_fin}`;
+      return `🌸 ${c.kc_pri} · ☀️ ${c.kc_ver} · 🍂 ${c.kc_oto} · ❄️ ${c.kc_inv}`;
     }
 
     function mostrarFAO() {
       const lista = document.getElementById('listaFAO');
       let cultivos = TABLA_FAO;
-      if (filtroFAO !== 'todos') {
-        cultivos = TABLA_FAO.filter(c => c.tipo === filtroFAO);
-      }
+      if (filtroFAO !== 'todos') cultivos = TABLA_FAO.filter(c => c.tipo === filtroFAO);
 
-      lista.innerHTML = '';
-      cultivos.forEach(c => {
-        let detalles = '';
-        if (c.tipo === 'anual') {
-          const total = c.L_ini + c.L_des + c.L_med + c.L_fin;
-          detalles = `
-            <span>Kc: ${c.kc_ini} → <strong>${c.kc_med}</strong> → ${c.kc_fin}</span>
-            <span>Ciclo: ${total} días</span>
-          `;
-        } else {
-          detalles = `
-            <span>🌸 ${c.kc_pri}</span>
-            <span>☀️ ${c.kc_ver}</span>
-            <span>🍂 ${c.kc_oto}</span>
-            <span>❄️ ${c.kc_inv}</span>
-          `;
-        }
-
-        const tipoBadge = c.tipo === 'anual'
-          ? '<span class="badge badge-anual">🌾 Anual</span>'
-          : '<span class="badge badge-perenne">🌳 Perenne</span>';
-
-        lista.innerHTML += `
-          <div class="item">
-            <div class="item-icono">${c.emoji}</div>
-            <div class="item-info">
-              <div class="item-nombre">${c.nombre} ${tipoBadge} <span class="badge badge-fao">FAO</span></div>
-              <div class="item-detalles">${detalles}</div>
-            </div>
-          </div>
-        `;
-      });
+      lista.innerHTML = cultivos.map(c => {
+        const tipoBadge = c.tipo === 'anual' ? '<span class="badge green">🌾 Anual</span>' : '<span class="badge amber">🌳 Perenne</span>';
+        const ciclo = c.tipo === 'anual' ? (c.L_ini + c.L_des + c.L_med + c.L_fin) + ' días' : 'Estacional';
+        return `
+          <tr>
+            <td><span class="num">${c.emoji} ${c.nombre}</span></td>
+            <td>${tipoBadge}</td>
+            <td><span class="num" style="font-weight:500">${kcResumen(c)}</span></td>
+            <td>${ciclo}</td>
+            <td><span class="badge muted">FAO 56</span></td>
+          </tr>`;
+      }).join('');
     }
 
     function mostrarCustom() {
@@ -825,53 +260,28 @@
       const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
 
       if (custom.length === 0) {
-        lista.innerHTML = `
-          <div class="vacio">
-            <div class="vacio-icono">🌱</div>
-            <div class="vacio-texto">Todavía no agregaste cultivos personalizados.<br>Cargá el primero arriba en el formulario.</div>
-          </div>
-        `;
+        lista.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="eico">🌱</div><div class="etxt">Todavía no agregaste cultivos personalizados.<br>Cargá el primero arriba en el formulario.</div></div></td></tr>`;
         return;
       }
 
-      lista.innerHTML = '';
-      custom.forEach(c => {
-        let detalles = '';
-        if (c.tipo === 'anual') {
-          const total = (parseInt(c.L_ini)||0) + (parseInt(c.L_des)||0) + (parseInt(c.L_med)||0) + (parseInt(c.L_fin)||0);
-          detalles = `
-            <span>Kc: ${c.kc_ini} → <strong>${c.kc_med}</strong> → ${c.kc_fin}</span>
-            <span>Ciclo: ${total} días</span>
-          `;
-        } else {
-          detalles = `
-            <span>🌸 ${c.kc_pri}</span>
-            <span>☀️ ${c.kc_ver}</span>
-            <span>🍂 ${c.kc_oto}</span>
-            <span>❄️ ${c.kc_inv}</span>
-          `;
-        }
-
-        const tipoBadge = c.tipo === 'anual'
-          ? '<span class="badge badge-anual">🌾 Anual</span>'
-          : '<span class="badge badge-perenne">🌳 Perenne</span>';
-
-        const claseEditando = (c.id === editandoId) ? 'editando' : '';
-
-        lista.innerHTML += `
-          <div class="item ${claseEditando}">
-            <div class="item-icono">${c.emoji || '🌱'}</div>
-            <div class="item-info">
-              <div class="item-nombre">${c.nombre} ${tipoBadge} <span class="badge badge-custom">CUSTOM</span></div>
-              <div class="item-detalles">${detalles}</div>
-            </div>
-            <div class="item-acciones">
-              <button class="item-boton item-editar" onclick="editar(${c.id})" title="Editar">✏️</button>
-              <button class="item-boton item-borrar" onclick="borrar(${c.id})" title="Borrar">×</button>
-            </div>
-          </div>
-        `;
-      });
+      lista.innerHTML = custom.map(c => {
+        const tipoBadge = c.tipo === 'anual' ? '<span class="badge green">🌾 Anual</span>' : '<span class="badge amber">🌳 Perenne</span>';
+        const ciclo = c.tipo === 'anual'
+          ? ((parseInt(c.L_ini) || 0) + (parseInt(c.L_des) || 0) + (parseInt(c.L_med) || 0) + (parseInt(c.L_fin) || 0)) + ' días'
+          : 'Estacional';
+        const ed = (c.id === editandoId) ? 'editando' : '';
+        return `
+          <tr class="${ed}">
+            <td><span class="num">${c.emoji || '🌱'} ${c.nombre}</span></td>
+            <td>${tipoBadge}</td>
+            <td><span class="num" style="font-weight:500">${kcResumen(c)}</span></td>
+            <td>${ciclo}</td>
+            <td class="r"><span class="rowact">
+              <button onclick="editar(${c.id})" title="Editar">✏️</button>
+              <button class="del" onclick="borrar(${c.id})" title="Borrar">🗑️</button>
+            </span></td>
+          </tr>`;
+      }).join('');
     }
 
     function cambiarTipo() {
@@ -895,32 +305,16 @@
       const emoji = document.getElementById('emoji').value.trim() || '🌱';
       const tipo = document.getElementById('tipo').value;
 
-      if (!nombre || !tipo) {
-        alert('Cargá al menos el nombre y el tipo del cultivo.');
-        return;
-      }
+      if (!nombre || !tipo) { alert('Cargá al menos el nombre y el tipo del cultivo.'); return; }
 
       const existeFAO = TABLA_FAO.find(c => c.nombre.toLowerCase() === nombre.toLowerCase());
-      if (existeFAO) {
-        alert(`Ya existe el cultivo "${nombre}" en la lista FAO. Elegí otro nombre.`);
-        return;
-      }
+      if (existeFAO) { alert(`Ya existe el cultivo "${nombre}" en la lista FAO. Elegí otro nombre.`); return; }
 
       let custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
-      const existeCustom = custom.find(c =>
-        c.id !== editandoId && c.nombre.toLowerCase() === nombre.toLowerCase()
-      );
-      if (existeCustom) {
-        alert(`Ya tenés un cultivo personalizado con ese nombre.`);
-        return;
-      }
+      const existeCustom = custom.find(c => c.id !== editandoId && c.nombre.toLowerCase() === nombre.toLowerCase());
+      if (existeCustom) { alert(`Ya tenés un cultivo personalizado con ese nombre.`); return; }
 
-      const datosBase = {
-        nombre,
-        emoji,
-        tipo,
-        notas: document.getElementById('notas').value.trim()
-      };
+      const datosBase = { nombre, emoji, tipo, notas: document.getElementById('notas').value.trim() };
 
       if (tipo === 'anual') {
         datosBase.kc_ini = parseFloat(document.getElementById('kc_ini').value) || 0.30;
@@ -946,11 +340,7 @@
           cancelarEdicion();
         }
       } else {
-        const cultivo = {
-          id: Date.now(),
-          ...datosBase,
-          fechaCreacion: new Date().toISOString()
-        };
+        const cultivo = { id: Date.now(), ...datosBase, fechaCreacion: new Date().toISOString() };
         custom.push(cultivo);
         localStorage.setItem('cultivos_custom', JSON.stringify(custom));
         alert(`¡Cultivo "${nombre}" guardado!`);
@@ -980,7 +370,7 @@
         document.getElementById('L_des').value = c.L_des || '';
         document.getElementById('L_med').value = c.L_med || '';
         document.getElementById('L_fin').value = c.L_fin || '';
-        const total = (c.L_ini||0) + (c.L_des||0) + (c.L_med||0) + (c.L_fin||0);
+        const total = (c.L_ini || 0) + (c.L_des || 0) + (c.L_med || 0) + (c.L_fin || 0);
         document.getElementById('totalDias').textContent = total + ' días';
       } else {
         document.getElementById('kc_pri').value = c.kc_pri || '';
@@ -1016,21 +406,7 @@
     }
 
     function limpiarFormulario() {
-      document.getElementById('nombre').value = '';
-      document.getElementById('emoji').value = '';
-      document.getElementById('tipo').value = '';
-      document.getElementById('notas').value = '';
-      document.getElementById('kc_ini').value = '';
-      document.getElementById('kc_med').value = '';
-      document.getElementById('kc_fin').value = '';
-      document.getElementById('L_ini').value = '';
-      document.getElementById('L_des').value = '';
-      document.getElementById('L_med').value = '';
-      document.getElementById('L_fin').value = '';
-      document.getElementById('kc_pri').value = '';
-      document.getElementById('kc_ver').value = '';
-      document.getElementById('kc_oto').value = '';
-      document.getElementById('kc_inv').value = '';
+      ['nombre','emoji','tipo','notas','kc_ini','kc_med','kc_fin','L_ini','L_des','L_med','L_fin','kc_pri','kc_ver','kc_oto','kc_inv'].forEach(id => { document.getElementById(id).value = ''; });
       document.getElementById('totalDias').textContent = '— días';
       document.getElementById('seccionAnual').style.display = 'none';
       document.getElementById('seccionPerenne').style.display = 'none';
@@ -1038,9 +414,7 @@
 
     function borrar(id) {
       if (!confirm('¿Seguro que querés borrar este cultivo personalizado?')) return;
-
       if (editandoId === id) cancelarEdicion();
-
       let custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
       custom = custom.filter(c => c.id !== id);
       localStorage.setItem('cultivos_custom', JSON.stringify(custom));
@@ -1050,18 +424,18 @@
   </script>
 
   <script>
-    /* SAFIA · control del menú móvil */
+    /* SAFIA · control del menú móvil (theme) */
     (function () {
       var btn = document.getElementById('menuToggle');
-      var sb  = document.querySelector('.sidebar');
-      var ov  = document.getElementById('sidebarOverlay');
-      if (!btn || !sb) return;
-      function abrir()  { sb.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto');    btn.setAttribute('aria-expanded', 'true'); }
-      function cerrar() { sb.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); btn.setAttribute('aria-expanded', 'false'); }
-      btn.addEventListener('click', function () { if (sb.classList.contains('abierto')) { cerrar(); } else { abrir(); } });
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
       if (ov) ov.addEventListener('click', cerrar);
-      sb.querySelectorAll('.sidebar-link').forEach(function (a) { a.addEventListener('click', cerrar); });
-      window.addEventListener('resize', function () { if (window.innerWidth > 768) cerrar(); });
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
     })();
   </script>
 </body>
