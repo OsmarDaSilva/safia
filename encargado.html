@@ -467,6 +467,8 @@
   </div>
   </div>
 
+  <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
+  <script src="safia-balance.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
     let filtroActivo = 'todos';
@@ -536,27 +538,31 @@
             if (divA.style.display === 'none') mostrarAlertasClimaticas(balance.alertasClimaticas);
           }
 
-          // Generar semáforo según balance + lluvia próxima
+          // Semáforo según humedad del suelo (% agua útil HOY) + lluvia próxima.
+          // Unificado con el motor: antes usaba un balance neto bruto de 7 días.
+          const U = SafiaBalance.UMBRALES;
+          const pct = balance.pct;
+          const mmRegar = (balance.mmRegar || 0).toFixed(0);
           if (balance.lluviaProxima >= 15) {
             datos.semaforo = 'azul';
             datos.textoSemaforo = '🌧️ Lluvia esperada';
-            datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en próximos 3 días. No regar.`;
-          } else if (balance.balance < -25) {
+            datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en los próximos días. No regar.`;
+          } else if (pct < 35) {
             datos.semaforo = 'rojo';
             datos.textoSemaforo = '🔴 URGENTE';
-            datos.recomendacion = `Déficit fuerte: <strong>${Math.abs(balance.balance).toFixed(0)} mm</strong>. Regar hoy — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.`;
-          } else if (balance.balance < -10) {
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico). Regar <strong>${mmRegar} mm</strong> hoy — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.`;
+          } else if (pct < U.CRITICO) {
             datos.semaforo = 'amarillo';
             datos.textoSemaforo = '🟡 Monitorear';
-            datos.recomendacion = `Déficit: <strong>${Math.abs(balance.balance).toFixed(0)} mm</strong>. Programar riego en 24-48 hs.`;
-          } else if (balance.balance >= 0) {
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Programar riego <strong>${mmRegar} mm</strong> en 24-48 hs.`;
+          } else if (pct >= U.ATENCION) {
             datos.semaforo = 'verde';
             datos.textoSemaforo = '🟢 OK';
-            datos.recomendacion = `Balance positivo: <strong>+${balance.balance.toFixed(0)} mm</strong>. Sin necesidad de riego.`;
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Sin necesidad de riego.`;
           } else {
             datos.semaforo = 'amarillo';
             datos.textoSemaforo = '🟡 Monitorear';
-            datos.recomendacion = `Déficit leve: <strong>${Math.abs(balance.balance).toFixed(0)} mm</strong>. Reevaluar en 2-3 días.`;
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Reevaluar en 2-3 días.`;
           }
         } catch (error) {
           datos.semaforo = 'gris';
@@ -647,49 +653,37 @@
       const cultivoNombre = campana.cultivos[0].cultivo;
       const kcDef = fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
 
-      let lluviaTotal = 0;
-      let etTotal = 0;
-
-      for (let i = 0; i < 7; i++) {
-        lluviaTotal += datos.daily.precipitation_sum[i] || 0;
-        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
-
-        if (kcDef && campana.cultivos[0].fechaSiembra) {
-          const fechaDia = new Date(datos.daily.time[i]);
-          const kcValor = calcularKcSimple(kcDef, fechaDia, campana.cultivos[0].fechaSiembra);
-          etTotal += etoDia * kcValor;
-        } else {
-          etTotal += etoDia;
-        }
-      }
-
-      // Sumar eventos reales últimos 7 días
-      const hace7dias = new Date();
-      hace7dias.setDate(hace7dias.getDate() - 7);
-
-      const eficiencia = getEficienciaEquipo(equipo);
-      let lluviaReal = 0;
-      let riegoEfectivo = 0;
-      eventosEquipo.forEach(ev => {
-        const fechaEv = new Date(ev.fecha);
-        if (fechaEv < hace7dias) return;
-        if (ev.tipo === 'lluvia') lluviaReal += parseFloat(ev.cantidad) || 0;
-        if (ev.tipo === 'riego') riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficiencia;
+      // Balance unificado vía motor compartido (safia-balance.js):
+      // simulación de humedad día a día, UNA fuente de lluvia por día
+      // (estación>manual>Open-Meteo), riego × eficiencia una vez, tope a CC.
+      const r = SafiaBalance.simular({
+        campo,
+        daily: datos.daily,
+        eventos: eventosEquipo,        // ya viene filtrado al equipo
+        equipoId: null,
+        equipo,
+        kcDef,
+        fechaSiembra: campana.cultivos[0].fechaSiembra,
+        diasPasado: 7,
+        diasFuturo: 5,
+        humedadInicialFrac: 0.8,
+        asumirRiegoRecomendado: false
       });
 
-      let lluviaProxima = 0;
-      for (let i = 7; i < 10; i++) {
-        lluviaProxima += datos.daily.precipitation_sum[i] || 0;
-      }
+      const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 
       return {
-        lluviaAPI: lluviaTotal,
-        lluviaReal,
-        riegoEfectivo,
-        eficiencia,
-        etcAcumulada: etTotal,
-        balance: (lluviaTotal + lluviaReal + riegoEfectivo) - etTotal,
+        pct: r.porcentajeHoy,                 // % de agua útil HOY (driver de la recomendación)
+        humedadMM: r.humedadHoyMM,
+        deficitCC: r.deficitHastaCC,
+        eficiencia: r.eficiencia,
+        mmRegar: r.recomendacion.mm,
         lluviaProxima,
+        suelo: r.suelo,
+        // Totales del período (referencia / compat)
+        lluviaEfectiva: r.totalesPasado.lluviaEfectiva,
+        riegoEfectivo: r.totalesPasado.riegoEfectivo,
+        etcAcumulada: r.totalesPasado.etc,
         kcDef,
         alertasClimaticas: detectarAlertasClimaticas(datos.daily)
       };
