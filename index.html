@@ -424,20 +424,15 @@
 
   </div>
 
+  <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
+  <script src="safia-balance.js"></script>
   <script>
-    const TIPOS_SUELO = {
-      arenoso: { nombre: 'Arenoso', emoji: '🏖️', CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95 },
-      franco_arenoso: { nombre: 'Franco arenoso', emoji: '🌾', CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90 },
-      franco: { nombre: 'Franco', emoji: '🌱', CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85 },
-      franco_arcilloso: { nombre: 'Franco arcilloso', emoji: '🟫', CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75 },
-      arcilloso: { nombre: 'Arcilloso', emoji: '🧱', CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65 }
-    };
-
-    const UMBRALES = { CRITICO: 50, ATENCION: 70 };
+    // Suelos, umbrales y Kc delegados al motor compartido (safia-balance.js).
+    const TIPOS_SUELO = SafiaBalance.TIPOS_SUELO;
+    const UMBRALES = SafiaBalance.UMBRALES;
 
     function obtenerSueloCampo(campo) {
-      const tipo = (campo && campo.tipoSuelo && TIPOS_SUELO[campo.tipoSuelo]) ? campo.tipoSuelo : 'franco';
-      return { ...TIPOS_SUELO[tipo], tipo };
+      return SafiaBalance.obtenerSuelo(campo);
     }
 
     function obtenerCultivoKc(nombreCultivo) {
@@ -531,54 +526,40 @@
     }
 
     function simularSemana(ctx, datosClima) {
-      const suelo = obtenerSueloCampo(ctx.campo);
+      // Balance unificado vía motor compartido (safia-balance.js).
+      // Lluvia: UNA fuente por día (estación>manual>Open-Meteo). Riego × eficiencia
+      // una sola vez. Tope a CC con drenaje descartado. asumirRiegoRecomendado:false
+      // para conservar la trayectoria "si no hago nada" que dispara el semáforo.
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
-
-      let humedadMM = suelo.CC * 0.85;
-
-      const hace2dias = new Date();
-      hace2dias.setDate(hace2dias.getDate() - 2);
-      const eventosRecientes = eventos.filter(ev =>
-        ev.campanaId === ctx.campana.id &&
-        new Date(ev.fecha) >= hace2dias
-      );
-      eventosRecientes.forEach(ev => {
-        if (ev.tipo === 'riego') humedadMM += parseFloat(ev.cantidad) || 0;
-        else if (ev.tipo === 'lluvia') humedadMM += (parseFloat(ev.cantidad) || 0) * suelo.coefLluvia;
+      const r = SafiaBalance.simular({
+        campo: ctx.campo,
+        daily: datosClima.daily,
+        eventos,
+        equipoId: ctx.equipo.id,
+        equipo: ctx.equipo,
+        kcDef: ctx.kcDef,
+        fechaSiembra: ctx.cultivo.fechaSiembra,
+        diasPasado: 2,
+        diasFuturo: 7,
+        humedadInicialFrac: 0.85,
+        asumirRiegoRecomendado: false
       });
-      humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
 
-      const dias = [];
-      const fechaHoy = new Date();
-      for (let i = 0; i < 7; i++) {
-        const idx = i + 2;
-        const fechaDia = new Date(fechaHoy);
-        fechaDia.setDate(fechaDia.getDate() + i);
-
-        const lluviaDia = (datosClima.daily.precipitation_sum[idx] || 0) * suelo.coefLluvia;
-        const etoDia = datosClima.daily.et0_fao_evapotranspiration[idx] || 0;
-        const kcInfo = calcularKc(ctx.kcDef, fechaDia, ctx.cultivo.fechaSiembra);
-        const etcDia = etoDia * kcInfo.kc;
-
-        humedadMM += lluviaDia;
-        humedadMM -= etcDia;
-        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
-
-        const porcentaje = ((humedadMM - suelo.PMP) / suelo.AAU) * 100;
+      const dias = r.dias.map(d => {
+        const porcentaje = Math.round(d.porcentajeAAU);
         let semaforo = 'verde';
         if (porcentaje < UMBRALES.CRITICO) semaforo = 'rojo';
         else if (porcentaje < UMBRALES.ATENCION) semaforo = 'amarillo';
-
-        dias.push({
-          fecha: fechaDia,
-          porcentaje: Math.round(porcentaje),
+        return {
+          fecha: d.fechaObj,
+          porcentaje,
           semaforo,
-          lluvia: datosClima.daily.precipitation_sum[idx] || 0,
-          etc: etcDia,
-          weatherCode: datosClima.daily.weather_code[idx]
-        });
-      }
-      return { dias, suelo };
+          lluvia: d.lluviaBruta,
+          etc: d.etcDia,
+          weatherCode: d.weatherCode
+        };
+      });
+      return { dias, suelo: r.suelo };
     }
 
     function determinarEstadoGeneral(simulacion) {
