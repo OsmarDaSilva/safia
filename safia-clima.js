@@ -33,6 +33,13 @@
 (function (root) {
   'use strict';
 
+  // ===== CONFIG: ¿pedir el clima por el proxy /api/clima o directo? =====
+  // false = Open-Meteo DIRECTO (gratis, sale por la IP del navegador del usuario).
+  // true  = vía /api/clima (proxy de Vercel; para plan pago con clave en el proxy).
+  // Hoy en false: por la IP compartida de Vercel, Open-Meteo devuelve 429
+  // "Too many concurrent requests"; directo desde la IP del usuario responde bien.
+  var USAR_PROXY = false;
+
   var OPEN_METEO_DIRECTO = 'https://api.open-meteo.com/v1/forecast';
   var PROXY = '/api/clima';                // función serverless de Vercel (mismo origen)
   var PREFIJO_CACHE = 'safia_clima:';     // localStorage
@@ -73,10 +80,12 @@
       /^172\.(1[6-9]|2\d|3[01])\./.test(h);
   }
 
-  // Base URL del clima:
-  //  - producción (dominio Vercel, otro host): /api/clima (proxy, mismo origen).
-  //  - desarrollo (localhost/LAN/file): Open-Meteo directo (el proxy no existe).
+  // Base URL del clima, según el flag USAR_PROXY:
+  //  - USAR_PROXY=false → SIEMPRE Open-Meteo directo (producción y local).
+  //  - USAR_PROXY=true  → producción usa /api/clima (proxy); local va directo
+  //    (el proxy no existe en Live Server).
   function baseURL() {
+    if (!USAR_PROXY) return OPEN_METEO_DIRECTO;
     return esEntornoLocal() ? OPEN_METEO_DIRECTO : PROXY;
   }
 
