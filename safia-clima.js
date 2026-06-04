@@ -260,6 +260,27 @@
     return 'Datos del ' + f + ' — no se pudo actualizar';
   }
 
+  // Muestra/actualiza/oculta un banner sticky arriba de la página cuando el
+  // clima viene de caché (no se pudo actualizar). Agnóstico de página: si
+  // fechaCache es falsy, retira el banner. No requiere tocar el HTML de cada
+  // página. Devuelve el elemento (o null).
+  function avisoCache(fechaCache) {
+    if (typeof document === 'undefined' || !document.body) return null;
+    var id = 'safia-aviso-cache';
+    var el = document.getElementById(id);
+    if (!fechaCache) { if (el && el.parentNode) el.parentNode.removeChild(el); return null; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      el.style.cssText = 'position:sticky;top:0;z-index:9999;background:#B8731A;color:#fff;' +
+        'font-family:inherit;font-size:13px;font-weight:600;text-align:center;padding:8px 14px;' +
+        'line-height:1.3;box-shadow:0 2px 6px rgba(0,0,0,0.15);';
+      document.body.insertBefore(el, document.body.firstChild);
+    }
+    el.textContent = '⚠️ ' + etiquetaCache(fechaCache);
+    return el;
+  }
+
   // Limpia las cachés en memoria (para tests).
   function _resetMemoria() { memCache = {}; enVuelo = {}; }
 
@@ -267,6 +288,7 @@
     obtenerClima: obtenerClima,
     mensajeError: mensajeError,
     etiquetaCache: etiquetaCache,
+    avisoCache: avisoCache,
     parseCoord: parseCoord,
     construirURL: construirURL,
     _resetMemoria: _resetMemoria,

@@ -882,6 +882,7 @@
 
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
+  <script src="safia-clima.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -1048,20 +1049,29 @@
       card.className = 'reco-card visible';
 
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?` +
-          `latitude=${lat}&longitude=${lon}` +
-          `&daily=precipitation_sum,et0_fao_evapotranspiration` +
-          `&past_days=7&forecast_days=4&timezone=auto`;
+        // Conexión robusta vía cliente compartido (safia-clima.js):
+        // timeout + reintento ante 502/503/red + respaldo de caché + error honesto.
+        const rClima = await SafiaClima.obtenerClima({
+          lat, lon,
+          daily: 'precipitation_sum,et0_fao_evapotranspiration',
+          pastDays: 7, forecastDays: 4,
+          cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
+        });
 
-        const respuesta = await fetch(url);
-        if (!respuesta.ok) {
-          // Open-Meteo devuelve {"error":true,"reason":"..."} cuando algo falla
-          let motivo = '';
-          try { const errJson = await respuesta.clone().json(); if (errJson && errJson.reason) motivo = errJson.reason; } catch (_) {}
-          throw new Error('HTTP ' + respuesta.status + (motivo ? ' — ' + motivo : ''));
+        SafiaClima.avisoCache(rClima.desactualizado ? rClima.fechaCache : null);
+
+        if (!rClima.datos) {
+          // Mensaje honesto y diferenciado: sin internet / servidor caído / sin datos.
+          const tipo = rClima.error && rClima.error.tipo;
+          icono.textContent = tipo === 'sin_internet' ? '📡' : tipo === 'servidor' ? '🌧️' : '⚠️';
+          titulo.textContent = tipo === 'sin_internet' ? 'Sin internet'
+                             : tipo === 'servidor' ? 'Servicio de clima no disponible'
+                             : 'No se pudo calcular';
+          detalle.textContent = SafiaClima.mensajeError(rClima.error);
+          card.className = 'reco-card visible';
+          return;
         }
-        const datos = await respuesta.json();
-        if (!datos || !datos.daily) throw new Error('Respuesta sin "daily"' + (datos && datos.reason ? ' — ' + datos.reason : ''));
+        const datos = rClima.datos;
 
         // Resolver Kc del cultivo activo (para ETc)
         let kcDef = null;
@@ -1130,18 +1140,12 @@
         detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
 
       } catch (error) {
-        // Diagnóstico para consola (no cambia lo que ve el usuario)
-        console.error('[SAFIA] Recomendación de clima (operador) falló:', error && error.message ? error.message : error, error);
-        // "Sin internet" SOLO para fallos reales de conexión (fetch lanza TypeError sin red).
-        if (error instanceof TypeError) {
-          icono.textContent = '📡';
-          titulo.textContent = 'Sin internet';
-          detalle.textContent = 'No se pudo consultar el clima. Conectate a internet para ver la recomendación.';
-        } else {
-          icono.textContent = '⚠️';
-          titulo.textContent = 'No se pudo calcular';
-          detalle.textContent = 'El servicio de clima no respondió correctamente. Probá de nuevo en unos minutos.';
-        }
+        // La red ya la maneja SafiaClima (sin internet / 502 / caché). Acá solo
+        // caen errores inesperados al calcular el balance con datos ya obtenidos.
+        console.error('[SAFIA] Recomendación (operador) falló al calcular:', error && error.message ? error.message : error, error);
+        icono.textContent = '⚠️';
+        titulo.textContent = 'No se pudo calcular';
+        detalle.textContent = 'Hubo un problema al calcular la recomendación. Probá de nuevo.';
         card.className = 'reco-card visible';
       }
     }
