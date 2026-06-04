@@ -81,6 +81,29 @@
     return EFICIENCIA_RIEGO[equipo.tipo] || 0.80;
   }
 
+  // Devuelve un aviso (HTML) cuando el suelo se resolvió por FALLBACK a "franco"
+  // (campo sin tipo de suelo clasificado). Devuelve '' si el suelo está clasificado.
+  //   opts.plain   → solo el texto interno (sin contenedor con estilos)
+  //   opts.compact → versión chica para celdas de tabla
+  //   opts.link    → false para no enlazar a mis-campos.html (default: enlaza)
+  function notaFallbackSuelo(suelo, opts) {
+    opts = opts || {};
+    if (!suelo || !suelo.esFallback) return '';
+    var clasificar = (opts.link === false)
+      ? 'Clasificá el suelo'
+      : '<a href="mis-campos.html" style="color:#8a5713;font-weight:700;">Clasificá el suelo</a>';
+    if (opts.compact) {
+      return '<div style="margin-top:4px;font-size:10px;color:#8a5713;line-height:1.3;">' +
+        "⚠️ Sin tipo de suelo — se usa 'franco'. " + clasificar + '</div>';
+    }
+    var inner = "⚠️ Este campo no tiene tipo de suelo clasificado — se usa 'franco' por defecto. " +
+      clasificar + ' para un cálculo más preciso.';
+    if (opts.plain) return inner;
+    return '<div style="margin-top:8px;padding:8px 12px;background:rgba(184,115,26,0.10);' +
+      'border-left:3px solid #B8731A;border-radius:6px;font-size:12px;color:#8a5713;' +
+      'font-weight:500;line-height:1.4;">' + inner + '</div>';
+  }
+
   // Kc según etapa fenológica (FAO-56) o estacional para perennes.
   function calcularKc(kcDef, fechaCalculo, fechaSiembra) {
     if (!kcDef) return { kc: 1.0, etapa: 'Sin cultivo' };
@@ -391,6 +414,7 @@
     UMBRALES: UMBRALES,
     EFICIENCIA_RIEGO: EFICIENCIA_RIEGO,
     obtenerSuelo: obtenerSuelo,
+    notaFallbackSuelo: notaFallbackSuelo,
     getEficienciaEquipo: getEficienciaEquipo,
     calcularKc: calcularKc,
     obtenerCultivoKc: obtenerCultivoKc,
