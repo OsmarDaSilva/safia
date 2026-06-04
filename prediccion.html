@@ -522,6 +522,7 @@
 
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
+  <script src="safia-clima.js"></script>
   <script>
     // ============ DEFINICIONES (delegadas al motor compartido) ============
     // Suelos, umbrales, Kc y eficiencia viven en safia-balance.js para que
@@ -597,20 +598,44 @@
         return;
       }
 
-      // Cargar Open-Meteo y simular para cada equipo
+      // Cargar Open-Meteo (cliente robusto) y simular para cada equipo.
+      // SafiaClima deduplica llamadas y cachea: equipos del mismo campo no
+      // repiten el pedido y, ante 502/red, se usa el último clima bueno.
+      let climaStale = null, ultimoError = null;
       for (const ev of equiposValidos) {
-        try {
-          const datos = await fetchOpenMeteo(ev.campo.latitud, ev.campo.longitud);
-          const prediccion = simularPrediccion(ev, datos);
-          datosTodos[ev.equipo.id] = { ...ev, datos, prediccion };
-        } catch (err) {
-          console.error('Error cargando ' + ev.equipo.nombre, err);
+        const rClima = await SafiaClima.obtenerClima({
+          lat: ev.campo.latitud, lon: ev.campo.longitud,
+          current: 'temperature_2m',
+          daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
+          pastDays: 14, forecastDays: 7,
+          cacheKey: 'campo:' + ev.campo.id
+        });
+        if (rClima.datos) {
+          const prediccion = simularPrediccion(ev, rClima.datos);
+          datosTodos[ev.equipo.id] = { ...ev, datos: rClima.datos, prediccion };
+          if (rClima.desactualizado && !climaStale) climaStale = rClima.fechaCache;
+        } else {
+          ultimoError = rClima.error;
+          console.error('Clima no disponible para ' + ev.equipo.nombre + ':', rClima.error);
         }
       }
 
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('contenidoPrediccion').style.display = 'block';
 
+      // Si ningún equipo pudo traer clima (ni de caché): aviso honesto y salir.
+      if (Object.keys(datosTodos).length === 0) {
+        const alerta = document.getElementById('alertaSinDatos');
+        if (alerta) {
+          alerta.textContent = 'No se pudo obtener el clima. ' + SafiaClima.mensajeError(ultimoError);
+          alerta.style.display = 'block';
+        }
+        return;
+      }
+
+      // Banner "Datos del ... — no se pudo actualizar" si algún equipo usó caché.
+      SafiaClima.avisoCache(climaStale);
+
+      document.getElementById('contenidoPrediccion').style.display = 'block';
       mostrarResumen();
 
       // Auto-seleccionar el primero
@@ -618,17 +643,7 @@
       if (primerId) seleccionarEquipo(parseInt(primerId));
     }
 
-    // ============ FETCH OPEN-METEO ============
-    async function fetchOpenMeteo(lat, lon) {
-      const url = `https://api.open-meteo.com/v1/forecast?` +
-        `latitude=${lat}&longitude=${lon}` +
-        `&current=temperature_2m` +
-        `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max` +
-        `&past_days=14&forecast_days=7&timezone=auto`;
-      const respuesta = await fetch(url);
-      if (!respuesta.ok) throw new Error('Open-Meteo error');
-      return await respuesta.json();
-    }
+    // (fetchOpenMeteo eliminado: la conexión a Open-Meteo ahora la hace SafiaClima)
 
     // ============ NÚCLEO: SIMULACIÓN DE PREDICCIÓN ============
     function simularPrediccion(ev, datos) {
