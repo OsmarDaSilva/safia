@@ -426,6 +426,7 @@
 
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
+  <script src="safia-clima.js"></script>
   <script>
     // Suelos, umbrales y Kc delegados al motor compartido (safia-balance.js).
     const TIPOS_SUELO = SafiaBalance.TIPOS_SUELO;
@@ -502,16 +503,7 @@
       return null;
     }
 
-    async function fetchClima(lat, lon) {
-      const url = `https://api.open-meteo.com/v1/forecast?` +
-        `latitude=${lat}&longitude=${lon}` +
-        `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code` +
-        `&daily=precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max` +
-        `&past_days=2&forecast_days=7&timezone=auto`;
-      const respuesta = await fetch(url);
-      if (!respuesta.ok) throw new Error('Open-Meteo no responde');
-      return await respuesta.json();
-    }
+    // (fetchClima eliminado: la conexión a Open-Meteo ahora la hace SafiaClima)
 
     function iconoClima(code) {
       if (code === 0) return '☀️';
@@ -1070,8 +1062,19 @@
       document.getElementById('dashboardContenido').innerHTML = placeholderHTML;
 
       if (ctx.campo.latitud && ctx.campo.longitud) {
-        try {
-          const datosClima = await fetchClima(parseFloat(String(ctx.campo.latitud).replace(',', '.')), parseFloat(String(ctx.campo.longitud).replace(',', '.')));
+        // Conexión robusta vía cliente compartido (safia-clima.js):
+        // timeout + reintento ante 502/503/red + respaldo de caché + error honesto.
+        const rClima = await SafiaClima.obtenerClima({
+          lat: ctx.campo.latitud, lon: ctx.campo.longitud,
+          current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code',
+          daily: 'precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
+          pastDays: 2, forecastDays: 7,
+          cacheKey: 'campo:' + ctx.campo.id
+        });
+        SafiaClima.avisoCache(rClima.desactualizado ? rClima.fechaCache : null);
+
+        if (rClima.datos) {
+          const datosClima = rClima.datos;
           const simulacion = simularSemana(ctx, datosClima);
           const estado = determinarEstadoGeneral(simulacion);
           const acumulado = calcularRiegoAcumulado(ctx.campana.id, ctx.equipo.id);
@@ -1095,13 +1098,18 @@
             </div>
           `;
           document.getElementById('dashboardContenido').innerHTML = html;
-        } catch (error) {
+        } else {
+          // Mensaje honesto y diferenciado (sin internet / servidor caído / sin datos).
+          const tipo = rClima.error && rClima.error.tipo;
+          const tituloErr = tipo === 'sin_internet' ? 'Sin conexión'
+                          : tipo === 'servidor' ? 'Servicio de clima no disponible'
+                          : 'Sin datos del clima';
           const html = `
             <div class="estado-riego sin-datos">
               <div style="flex: 1;">
                 <div class="estado-info-label">Estado del riego</div>
-                <div class="estado-titulo" style="color: var(--gris-texto);">Sin conexión</div>
-                <div class="estado-detalle">No se pudo conectar con Open-Meteo. Verificá tu internet y refrescá.</div>
+                <div class="estado-titulo" style="color: var(--gris-texto);">${tituloErr}</div>
+                <div class="estado-detalle">${SafiaClima.mensajeError(rClima.error)}</div>
               </div>
               <div class="estado-icono"><svg class="ic-estado" viewBox="0 0 24 24" fill="none" stroke="#8C9196" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01M3 3l18 18"/></svg></div>
             </div>
