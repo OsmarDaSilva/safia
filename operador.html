@@ -880,6 +880,8 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
+  <script src="safia-balance.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -1061,100 +1063,67 @@
         const datos = await respuesta.json();
         if (!datos || !datos.daily) throw new Error('Respuesta sin "daily"' + (datos && datos.reason ? ' — ' + datos.reason : ''));
 
-        let etTotal = 0;
-        let lluviaTotal = 0;
-        let etiqueta = 'ETo';
-
+        // Resolver Kc del cultivo activo (para ETc)
         let kcDef = null;
         if (campanaActivaActual && campanaActivaActual.cultivos && campanaActivaActual.cultivos.length > 0) {
-          const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
-          const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
+          const fao = JSON.parse(localStorage.getItem("cultivos_fao") || "[]");
+          const custom = JSON.parse(localStorage.getItem("cultivos_custom") || "[]");
           const cultivoNombre = campanaActivaActual.cultivos[0].cultivo;
           kcDef = fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
-          if (kcDef) etiqueta = 'ETc';
         }
+        const fechaSiembra = (campanaActivaActual && campanaActivaActual.cultivos[0])
+          ? campanaActivaActual.cultivos[0].fechaSiembra : null;
 
-        for (let i = 0; i < 7; i++) {
-          lluviaTotal += datos.daily.precipitation_sum[i] || 0;
-          const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
-
-          if (kcDef && campanaActivaActual.cultivos[0].fechaSiembra) {
-            const fechaDia = new Date(datos.daily.time[i]);
-            const kcValor = calcularKcSimple(kcDef, fechaDia, campanaActivaActual.cultivos[0].fechaSiembra);
-            etTotal += etoDia * kcValor;
-          } else {
-            etTotal += etoDia;
-          }
-        }
-
-        const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
-        const hace7dias = new Date();
-        hace7dias.setDate(hace7dias.getDate() - 7);
-
-        let lluviaReal = 0;
-
-    // ===== EFICIENCIA DE RIEGO POR TIPO DE EQUIPO =====
-    const EFICIENCIA_RIEGO = {
-      pivote:         0.85,
-      goteo:          0.92,
-      microaspersion: 0.88,
-      aspersion:      0.78,
-      canon:          0.70,
-      superficie:     0.50,
-      otro:           0.80,
-    };
-    function getEficienciaEquipo(equipo) {
-      if (!equipo) return 0.80;
-      if (equipo.eficiencia && parseFloat(equipo.eficiencia) > 0)
-        return parseFloat(equipo.eficiencia) / 100;
-      return EFICIENCIA_RIEGO[equipo.tipo] || 0.80;
-    }
-        const eficiencia = getEficienciaEquipo(equipo);
-        let riegoEfectivo = 0;
-
-        eventos.forEach(ev => {
-          if (ev.equipoId !== equipoSeleccionadoId) return;
-          const fechaEv = new Date(ev.fecha);
-          if (fechaEv < hace7dias) return;
-
-          if (ev.tipo === 'lluvia') lluviaReal += parseFloat(ev.cantidad) || 0;
-          if (ev.tipo === 'riego') riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficiencia;
+        // Balance unificado vía motor compartido (safia-balance.js):
+        // humedad del suelo simulada día a día, UNA fuente de lluvia por día,
+        // riego × eficiencia una sola vez, tope a CC. La recomendación se basa
+        // en el % de agua útil de HOY (antes era un balance neto de 7 días).
+        const eventos = JSON.parse(localStorage.getItem("eventos") || "[]");
+        const r = SafiaBalance.simular({
+          campo,
+          daily: datos.daily,
+          eventos,
+          equipoId: equipoSeleccionadoId,
+          equipo,
+          kcDef,
+          fechaSiembra,
+          diasPasado: 7,
+          diasFuturo: 4,
+          humedadInicialFrac: 0.8,
+          asumirRiegoRecomendado: false
         });
 
-        let lluviaProxima = 0;
-        for (let i = 7; i < 10; i++) {
-          lluviaProxima += datos.daily.precipitation_sum[i] || 0;
-        }
-
-        const balanceConDatosReales = (lluviaTotal + lluviaReal + riegoEfectivo) - etTotal;
+        const U = SafiaBalance.UMBRALES;
+        const pct = r.porcentajeHoy;                                  // % agua útil HOY
+        const deficitCC = r.deficitHastaCC;                           // mm para reponer hasta CC
+        const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);  // lluvia ventana próxima
+        const mmRegar = r.recomendacion.mm || Math.min(25, Math.max(10, Math.round(deficitCC)));
 
         if (lluviaProxima >= 15) {
-          icono.textContent = '🌧️';
-          titulo.textContent = 'No regar — viene lluvia';
-          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en próximos 3 días.`;
-          card.className = 'reco-card visible no-regar';
-        } else if (balanceConDatosReales < -25) {
-          icono.textContent = '⚠️';
-          titulo.textContent = 'RIEGO URGENTE';
-          const cant = Math.min(25, Math.abs(balanceConDatosReales));
-          detalle.innerHTML = `Déficit fuerte: <strong>${Math.abs(balanceConDatosReales).toFixed(0)} mm</strong>. Regar <strong>${cant.toFixed(0)} mm</strong> hoy.`;
-          card.className = 'reco-card visible urgente';
-        } else if (balanceConDatosReales < -10) {
-          icono.textContent = '💧';
-          titulo.textContent = 'Programar riego';
-          const cant = Math.min(15, Math.abs(balanceConDatosReales));
-          detalle.innerHTML = `Déficit: <strong>${Math.abs(balanceConDatosReales).toFixed(0)} mm</strong>. Regar <strong>${cant.toFixed(0)} mm</strong> en 24-48 hs.`;
-          card.className = 'reco-card visible regar';
-        } else if (balanceConDatosReales >= 0) {
-          icono.textContent = '✅';
-          titulo.textContent = 'Sin necesidad de riego';
-          detalle.innerHTML = `Balance positivo: <strong>+${balanceConDatosReales.toFixed(0)} mm</strong>.`;
-          card.className = 'reco-card visible no-regar';
+          icono.textContent = "🌧️";
+          titulo.textContent = "No regar — viene lluvia";
+          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en los próximos días.`;
+          card.className = "reco-card visible no-regar";
+        } else if (pct < 35) {
+          icono.textContent = "⚠️";
+          titulo.textContent = "RIEGO URGENTE";
+          detalle.innerHTML = `Humedad del suelo en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico). Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.`;
+          card.className = "reco-card visible urgente";
+        } else if (pct < U.CRITICO) {
+          icono.textContent = "💧";
+          titulo.textContent = "Programar riego";
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Regar <strong>${mmRegar.toFixed(0)} mm</strong> en 24-48 hs.`;
+          card.className = "reco-card visible regar";
+        } else if (pct >= U.ATENCION) {
+          icono.textContent = "✅";
+          titulo.textContent = "Sin necesidad de riego";
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Suelo bien abastecido.`;
+          card.className = "reco-card visible no-regar";
         } else {
-          icono.textContent = '👀';
-          titulo.textContent = 'Monitorear';
-          detalle.innerHTML = `Déficit leve: <strong>${Math.abs(balanceConDatosReales).toFixed(0)} mm</strong>. Reevaluar en 2-3 días.`;
-          card.className = 'reco-card visible regar';
+          icono.textContent = "👀";
+          titulo.textContent = "Monitorear";
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Reevaluar en 2-3 días.`;
+          card.className = "reco-card visible regar";
         }
 
       } catch (error) {
