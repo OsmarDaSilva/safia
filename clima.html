@@ -478,42 +478,17 @@
 
   </div>
 
+  <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
+  <script src="safia-balance.js"></script>
   <script>
     let modoActual = 'campo';
 
-    // ============ CONSTANTES TIPOS DE SUELO ============
-    // Valores agronómicos para 40 cm de profundidad efectiva
-    // CC: Capacidad de campo | PMP: Punto de marchitez | AAU: Agua aprovechable útil
-    // coefLluvia: % de lluvia que efectivamente queda disponible (resto se escurre/percola)
-    const TIPOS_SUELO = {
-      arenoso: {
-        nombre: 'Arenoso', emoji: '🏖️',
-        CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95
-      },
-      franco_arenoso: {
-        nombre: 'Franco arenoso', emoji: '🌾',
-        CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90
-      },
-      franco: {
-        nombre: 'Franco', emoji: '🌱',
-        CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85
-      },
-      franco_arcilloso: {
-        nombre: 'Franco arcilloso', emoji: '🟫',
-        CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75
-      },
-      arcilloso: {
-        nombre: 'Arcilloso', emoji: '🧱',
-        CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65
-      }
-    };
+    // Suelos delegados al motor compartido (safia-balance.js).
+    const TIPOS_SUELO = SafiaBalance.TIPOS_SUELO;
 
-    // Devuelve los valores del suelo del campo, con fallback a "franco" si no está clasificado
+    // Suelo del campo (con fallback a "franco"), vía motor compartido.
     function obtenerSueloCampo(campo) {
-      const tipo = (campo && campo.tipoSuelo && TIPOS_SUELO[campo.tipoSuelo])
-        ? campo.tipoSuelo
-        : 'franco';
-      return { ...TIPOS_SUELO[tipo], tipo };
+      return SafiaBalance.obtenerSuelo(campo);
     }
 
     window.onload = function() {
@@ -850,37 +825,33 @@
         pronosticoPasado.innerHTML += generarDiaCard(datos.daily, i, false, contexto);
       }
 
-      // Balance hídrico — aplicando coef. de aprovechamiento del suelo
-      let lluviaTotal = 0;       // Lluvia bruta caída
-      let lluviaEfectiva = 0;    // Lluvia que realmente aprovecha la planta (descuenta escorrentía)
-      let etTotal = 0;
-
-      for (let i = 0; i < 7; i++) {
-        const lluviaDia = datos.daily.precipitation_sum[i] || 0;
-        lluviaTotal += lluviaDia;
-        lluviaEfectiva += lluviaDia * suelo.coefLluvia;
-
-        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
-
-        if (mostrarPro && contexto.kcDef) {
-          const fechaDia = new Date(datos.daily.time[i]);
-          const kcDia = calcularKc(contexto.kcDef, fechaDia, contexto.cultivo.fechaSiembra);
-          etTotal += etoDia * kcDia.kc;
-        } else {
-          etTotal += etoDia;
-        }
-      }
-
-      // Sumar riego registrado de eventos con eficiencia del equipo
-      // (debe calcularse ANTES de usar eficienciaRiego/riegoEfectivo en balanceLluvia, para evitar TDZ)
-      const eficienciaRiego = getEficienciaEquipo(contexto.equipo);
-      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
-      const hace7dias = new Date(); hace7dias.setDate(hace7dias.getDate() - 7);
-      let riegoEfectivo = 0;
-      if (contexto.equipo) {
-        eventos.filter(ev => ev.equipoId === contexto.equipo.id && ev.tipo === 'riego' && new Date(ev.fecha) >= hace7dias)
-          .forEach(ev => { riegoEfectivo += (parseFloat(ev.cantidad) || 0) * eficienciaRiego; });
-      }
+      // Balance hídrico — vía motor compartido (safia-balance.js).
+      // Una sola fuente de lluvia por día (estación>manual>Open-Meteo), riego ×
+      // eficiencia una vez, ETc FAO-56. El card "Últimos 7 días" muestra los
+      // totales del período pasado; la recomendación usa la humedad de HOY.
+      // En modo "Por Campo" (sin equipo) no se atribuyen eventos cargados
+      // (riego/lluvia manual van por equipo): se usa solo el clima de Open-Meteo,
+      // igual que antes. En modo "Por Campaña" sí se usan los del equipo.
+      const eventos = contexto.equipo ? JSON.parse(localStorage.getItem('eventos') || '[]') : [];
+      const rBal = SafiaBalance.simular({
+        campo,
+        daily: datos.daily,
+        eventos,
+        equipoId: contexto.equipo ? contexto.equipo.id : null,
+        equipo: contexto.equipo,
+        kcDef: (mostrarPro && contexto.kcDef) ? contexto.kcDef : null,
+        fechaSiembra: (mostrarPro && contexto.cultivo) ? contexto.cultivo.fechaSiembra : null,
+        diasPasado: 7,
+        diasFuturo: 7,
+        humedadInicialFrac: 0.8,
+        asumirRiegoRecomendado: false
+      });
+      const tp = rBal.totalesPasado;
+      const lluviaTotal = tp.lluviaBruta;       // Lluvia bruta caída (últimos 7 días)
+      const lluviaEfectiva = tp.lluviaEfectiva; // Descuenta escorrentía (coefLluvia)
+      const etTotal = tp.etc;                   // ETc/ETo acumulada
+      const riegoEfectivo = tp.riegoEfectivo;   // Riego × eficiencia (una vez)
+      const eficienciaRiego = rBal.eficiencia;
 
       // Mostrar la lluvia efectiva (no la bruta) para que el balance sea agronómicamente correcto
       const perdidoEscorrentia = lluviaTotal - lluviaEfectiva;
@@ -905,7 +876,7 @@
         ? `Personalizado para ${contexto.cultivo.cultivo}${kcInfo ? ' en etapa ' + kcInfo.etapa : ''}`
         : 'Últimos 7 días';
 
-      generarRecomendacion(datos, balance, contexto, kcInfo);
+      generarRecomendacion(datos, rBal, contexto, kcInfo);
 
       document.getElementById('loading').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
@@ -1090,12 +1061,13 @@
       `;
     }
 
-    function generarRecomendacion(datos, balanceSemanal, contexto, kcInfo) {
+    function generarRecomendacion(datos, rBal, contexto, kcInfo) {
       const reco = document.getElementById('recomendacion');
       const icono = document.getElementById('recoIcono');
       const titulo = document.getElementById('recoTitulo');
       const detalle = document.getElementById('recoDetalle');
 
+      // Lluvia prevista próximos 3 días (override "viene lluvia").
       let lluviaProxima = 0;
       for (let i = 7; i < 10; i++) {
         lluviaProxima += datos.daily.precipitation_sum[i] || 0;
@@ -1116,32 +1088,36 @@
         return;
       }
 
+      // Recomendación basada en la humedad del suelo de HOY (% de agua útil),
+      // unificada con el resto de las páginas vía el motor compartido.
+      const U = SafiaBalance.UMBRALES;
+      const pct = rBal.porcentajeHoy;
+      const mmRegar = (rBal.recomendacion.mm || 0);
+
       if (lluviaProxima >= 15) {
         icono.textContent = '🌧️';
         titulo.textContent = 'No regar — viene lluvia';
         detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(1)} mm</strong> en los próximos 3 días.${esCampana ? ` Tu ${cultivoNombre} en <strong>${etapa}</strong> tendrá agua suficiente.` : ''}`;
         reco.classList.add('no-regar');
-      } else if (balanceSemanal < -25) {
+      } else if (pct < 35) {
         icono.textContent = '⚠️';
         titulo.textContent = 'Riego URGENTE recomendado';
-        const cantidad = Math.min(25, Math.abs(balanceSemanal));
-        detalle.innerHTML = `Déficit de <strong>${Math.abs(balanceSemanal).toFixed(1)} mm</strong>.${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está bajo estrés hídrico fuerte. ` : ' '}Regar al menos <strong>${cantidad.toFixed(0)} mm</strong> hoy o mañana.`;
+        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico).${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está bajo estrés hídrico fuerte. ` : ' '}Regar al menos <strong>${mmRegar.toFixed(0)} mm</strong> hoy o mañana.`;
         reco.classList.add('urgente');
-      } else if (balanceSemanal < -10) {
+      } else if (pct < U.CRITICO) {
         icono.textContent = '💧';
         titulo.textContent = 'Programar riego pronto';
-        const cantidad = Math.min(15, Math.abs(balanceSemanal));
-        detalle.innerHTML = `Déficit de <strong>${Math.abs(balanceSemanal).toFixed(1)} mm</strong>.${esCampana ? ` ${cultivoNombre} en <strong>${etapa}</strong>. ` : ' '}Regar <strong>${cantidad.toFixed(0)} mm</strong> en 24-48 hs.`;
+        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil.${esCampana ? ` ${cultivoNombre} en <strong>${etapa}</strong>. ` : ' '}Regar <strong>${mmRegar.toFixed(0)} mm</strong> en 24-48 hs.`;
         reco.classList.add('regar');
-      } else if (balanceSemanal >= 0) {
+      } else if (pct >= U.ATENCION) {
         icono.textContent = '✅';
         titulo.textContent = 'Sin necesidad de riego';
-        detalle.innerHTML = `Balance positivo (<strong>+${balanceSemanal.toFixed(1)} mm</strong>).${esCampana ? ` ${cultivoNombre} con agua suficiente.` : ''}`;
+        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil.${esCampana ? ` ${cultivoNombre} con agua suficiente.` : ''}`;
         reco.classList.add('no-regar');
       } else {
         icono.textContent = '👀';
         titulo.textContent = 'Monitorear de cerca';
-        detalle.innerHTML = `Déficit leve de <strong>${Math.abs(balanceSemanal).toFixed(1)} mm</strong>. Por ahora no regar.`;
+        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Por ahora no regar.`;
         reco.classList.add('regar');
       }
     }
