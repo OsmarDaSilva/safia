@@ -469,6 +469,7 @@
 
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
+  <script src="safia-clima.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
     let filtroActivo = 'todos';
@@ -494,6 +495,7 @@
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
 
       estadoEquipos = [];
+      let climaStale = null;   // fecha del clima cacheado, si algún equipo cae a caché
 
       for (const equipo of equipos) {
         const campo = campos.find(c => c.id === equipo.campoId);
@@ -531,6 +533,7 @@
         try {
           const balance = await calcularBalance(campo, campanaActiva, datos.eventosEquipo, datos.equipo);
           datos.balance = balance;
+          if (balance.desactualizado && !climaStale) climaStale = balance.fechaCache;
 
           // Mostrar alertas climáticas (solo la primera vez)
           if (balance.alertasClimaticas && balance.alertasClimaticas.length > 0) {
@@ -567,12 +570,19 @@
           // Aviso si el suelo se resolvió por fallback a "franco"
           datos.recomendacion += SafiaBalance.notaFallbackSuelo(balance.suelo);
         } catch (error) {
+          // Mensaje honesto y diferenciado según el tipo de fallo de clima.
+          const tipo = error && error.climaError && error.climaError.tipo;
           datos.semaforo = 'gris';
-          datos.textoSemaforo = '📡 Sin internet';
+          datos.textoSemaforo = tipo === 'servidor' ? '🌧️ Clima no disp.'
+                              : tipo === 'sin_internet' ? '📡 Sin internet'
+                              : '⚠️ Sin datos';
         }
 
         estadoEquipos.push(datos);
       }
+
+      // Banner "Datos del ... — no se pudo actualizar" si algún equipo usó caché.
+      SafiaClima.avisoCache(climaStale);
     }
 
 
@@ -638,16 +648,20 @@
 
     // ============ CALCULAR BALANCE HÍDRICO ============
     async function calcularBalance(campo, campana, eventosEquipo, equipo) {
-      const lat = parseFloat(String(campo.latitud).replace(',', '.'));
-      const lon = parseFloat(String(campo.longitud).replace(',', '.'));
-
-      const url = `https://api.open-meteo.com/v1/forecast?` +
-        `latitude=${lat}&longitude=${lon}` +
-        `&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max` +
-        `&past_days=7&forecast_days=5&timezone=auto`;
-
-      const respuesta = await fetch(url);
-      const datos = await respuesta.json();
+      // Conexión robusta vía cliente compartido (safia-clima.js):
+      // timeout + reintento ante 502/503/red + respaldo de caché.
+      const rClima = await SafiaClima.obtenerClima({
+        lat: campo.latitud, lon: campo.longitud,
+        daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
+        pastDays: 7, forecastDays: 5,
+        cacheKey: 'campo:' + campo.id
+      });
+      if (!rClima.datos) {
+        const e = new Error('clima no disponible');
+        e.climaError = rClima.error;   // {tipo} para diferenciar el semáforo
+        throw e;
+      }
+      const datos = rClima.datos;
 
       // Cargar Kc del primer cultivo
       const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
@@ -687,7 +701,10 @@
         riegoEfectivo: r.totalesPasado.riegoEfectivo,
         etcAcumulada: r.totalesPasado.etc,
         kcDef,
-        alertasClimaticas: detectarAlertasClimaticas(datos.daily)
+        alertasClimaticas: detectarAlertasClimaticas(datos.daily),
+        // Respaldo de caché: true + fecha si el clima no se pudo actualizar
+        desactualizado: rClima.desactualizado,
+        fechaCache: rClima.fechaCache
       };
     }
 
