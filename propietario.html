@@ -349,6 +349,8 @@
   </main>
 </div>
 
+<!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
+<script src="safia-balance.js"></script>
 <script>
   document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -649,37 +651,41 @@
       const cul = camp.cultivos[0];
       const kcDef = fao.find(c=>c.nombre===cul.cultivo) || custom.find(c=>c.nombre===cul.cultivo);
 
-      let lluviaAPI = 0, etTotal = 0;
-      for (let i = 0; i < 7; i++) {
-        lluviaAPI += datos.precipitation_sum[i] || 0;
-        const eto = datos.et0_fao_evapotranspiration[i] || 0;
-        const kc  = kcDef && cul.fechaSiembra ? calcularKcSimple(kcDef, new Date(datos.time[i]), cul.fechaSiembra) : 1;
-        etTotal += eto * kc;
-      }
-      let lluviaReal = 0, riegoReal = 0;
-      const hace7 = new Date(); hace7.setDate(hace7.getDate()-7);
-      eventosEq.forEach(ev => {
-        if (new Date(ev.fecha) < hace7) return;
-        if (ev.tipo==='lluvia') lluviaReal += parseFloat(ev.cantidad)||0;
-        if (ev.tipo==='riego')  riegoReal  += parseFloat(ev.cantidad)||0;
+      const eq = JSON.parse(localStorage.getItem("equipos")||"[]").find(e=>e.id===camp.equipoId);
+
+      // Balance unificado vía motor compartido (safia-balance.js):
+      // humedad del suelo día a día, UNA fuente de lluvia por día (estación>
+      // manual>Open-Meteo), riego × eficiencia una vez, tope a CC. Antes era
+      // un balance neto bruto de 7 días sin escorrentía ni tope.
+      const r = SafiaBalance.simular({
+        campo,
+        daily: datos,
+        eventos: eventosEq,            // ya filtrado al equipo
+        equipoId: null,
+        equipo: eq,
+        kcDef,
+        fechaSiembra: cul.fechaSiembra,
+        diasPasado: 7,
+        diasFuturo: 5,
+        humedadInicialFrac: 0.8,
+        asumirRiegoRecomendado: false
       });
-      let lluviaProxima = 0;
-      for (let i = 7; i < 10; i++) lluviaProxima += datos.precipitation_sum[i] || 0;
-      const balance = (lluviaAPI + lluviaReal + riegoReal) - etTotal;
+      const U = SafiaBalance.UMBRALES;
+      const pct = r.porcentajeHoy;
+      const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 
       let badge, tipo;
-      if (lluviaProxima >= 15)   { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
-      else if (balance < -25)    { badge = '<span class="badge badge-rojo">🔴 Urgente</span>';  tipo = 'urgente'; }
-      else if (balance < -10)    { badge = '<span class="badge badge-amarillo">🟡 Monitorear</span>'; tipo = 'atencion'; }
-      else                       { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
+      if (lluviaProxima >= 15)  { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
+      else if (pct < 35)        { badge = '<span class="badge badge-rojo">🔴 Urgente</span>';  tipo = 'urgente'; }
+      else if (pct < U.CRITICO) { badge = '<span class="badge badge-amarillo">🟡 Monitorear</span>'; tipo = 'atencion'; }
+      else                      { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
 
       // Actualizar celda en tabla
       const celdas = document.querySelectorAll('.estado-riego-' + campId);
       celdas.forEach(c => c.innerHTML = badge);
 
       if (tipo) {
-        const eq = JSON.parse(localStorage.getItem('equipos')||'[]').find(e=>e.id===camp.equipoId);
-        alertas.push({ tipo, titulo: `${tipo==='urgente'?'🔴':'🟡'} ${eq?.nombre||'?'} — ${tipo==='urgente'?'Riego urgente':'Programar riego'}`, detalle: `Déficit ${Math.abs(balance).toFixed(0)} mm · ${campo.nombre}` });
+        alertas.push({ tipo, titulo: `${tipo==="urgente"?"🔴":"🟡"} ${eq?.nombre||"?"} — ${tipo==="urgente"?"Riego urgente":"Programar riego"}`, detalle: `Humedad ${pct.toFixed(0)}% del agua útil · ${campo.nombre}` });
         renderAlertas(alertas);
       }
     } catch(e) {
