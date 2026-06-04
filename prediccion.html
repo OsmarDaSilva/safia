@@ -520,46 +520,18 @@
 
   </div>
 
+  <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
+  <script src="safia-balance.js"></script>
   <script>
-    // ============ CONSTANTES TIPOS DE SUELO ============
-    // Valores agronómicos para 40 cm de profundidad efectiva
-    // CC: Capacidad de campo | PMP: Punto de marchitez | AAU: Agua aprovechable útil
-    // coefLluvia: % de lluvia que efectivamente queda disponible (resto se escurre/percola)
-    const TIPOS_SUELO = {
-      arenoso: {
-        nombre: 'Arenoso', emoji: '🏖️',
-        CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95
-      },
-      franco_arenoso: {
-        nombre: 'Franco arenoso', emoji: '🌾',
-        CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90
-      },
-      franco: {
-        nombre: 'Franco', emoji: '🌱',
-        CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85
-      },
-      franco_arcilloso: {
-        nombre: 'Franco arcilloso', emoji: '🟫',
-        CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75
-      },
-      arcilloso: {
-        nombre: 'Arcilloso', emoji: '🧱',
-        CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65
-      }
-    };
+    // ============ DEFINICIONES (delegadas al motor compartido) ============
+    // Suelos, umbrales, Kc y eficiencia viven en safia-balance.js para que
+    // TODAS las páginas usen exactamente los mismos valores y fórmulas.
+    const TIPOS_SUELO = SafiaBalance.TIPOS_SUELO;
+    const UMBRALES = SafiaBalance.UMBRALES;
 
-    // Umbrales agronómicos universales (no dependen del suelo)
-    const UMBRALES = {
-      CRITICO: 50,   // % AAU debajo del cual hay que regar
-      ATENCION: 70   // % AAU para alerta amarilla
-    };
-
-    // Devuelve los valores del suelo del campo, con fallback a "franco" si no está clasificado
+    // Suelo del campo (con fallback a "franco"), vía motor compartido.
     function obtenerSueloCampo(campo) {
-      const tipo = (campo && campo.tipoSuelo && TIPOS_SUELO[campo.tipoSuelo])
-        ? campo.tipoSuelo
-        : 'franco';
-      return { ...TIPOS_SUELO[tipo], tipo };
+      return SafiaBalance.obtenerSuelo(campo);
     }
 
     // Variables globales
@@ -581,42 +553,8 @@
       return null;
     }
 
-    function calcularKc(kcDef, fechaCalculo, fechaSiembra) {
-      if (!kcDef) return { kc: 1.0, etapa: 'Desconocida' };
-
-      if (kcDef.tipo === 'perenne') {
-        const mes = new Date(fechaCalculo).getMonth() + 1;
-        let kc, etapa;
-        if ([9, 10, 11].includes(mes)) { kc = kcDef.kc_pri; etapa = 'Primavera'; }
-        else if ([12, 1, 2].includes(mes)) { kc = kcDef.kc_ver; etapa = 'Verano'; }
-        else if ([3, 4, 5].includes(mes)) { kc = kcDef.kc_oto; etapa = 'Otoño'; }
-        else { kc = kcDef.kc_inv; etapa = 'Invierno'; }
-        return { kc, etapa };
-      }
-
-      const fechaSi = new Date(fechaSiembra);
-      const fechaCalc = new Date(fechaCalculo);
-      const dias = Math.floor((fechaCalc - fechaSi) / (1000 * 60 * 60 * 24));
-      const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
-      const totalDias = L_ini + L_des + L_med + L_fin;
-
-      let kc, etapa;
-
-      if (dias < 0) return { kc: 0, etapa: 'Pre-siembra' };
-      if (dias <= L_ini) { kc = kc_ini; etapa = 'Inicial'; }
-      else if (dias <= L_ini + L_des) {
-        const progreso = (dias - L_ini) / L_des;
-        kc = kc_ini + progreso * (kc_med - kc_ini);
-        etapa = 'Desarrollo';
-      } else if (dias <= L_ini + L_des + L_med) { kc = kc_med; etapa = 'Media'; }
-      else if (dias <= totalDias) {
-        const progreso = (dias - L_ini - L_des - L_med) / L_fin;
-        kc = kc_med + progreso * (kc_fin - kc_med);
-        etapa = 'Final';
-      } else { kc = kc_fin; etapa = 'Post-cosecha'; }
-
-      return { kc, etapa };
-    }
+    // Kc delegado al motor compartido (FAO-56 por etapa + estacional perennes).
+    const calcularKc = SafiaBalance.calcularKc;
 
     // ============ CARGAR TODOS LOS EQUIPOS ============
     async function cargarTodosLosEquipos() {
@@ -694,190 +632,68 @@
 
     // ============ NÚCLEO: SIMULACIÓN DE PREDICCIÓN ============
     function simularPrediccion(ev, datos) {
-      // 0. Obtener tipo de suelo del campo (con fallback a "franco" si no está clasificado)
-      const suelo = obtenerSueloCampo(ev.campo);
-
-      // 1. Calcular humedad ACTUAL del suelo
-      // Empieza en 80% de CC asumiendo suelo razonable, y simula últimos 14 días
-      let humedadMM = suelo.CC * 0.8; // Empezamos en 80%
-
-      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
-
-      // Eventos de los últimos 14 días para este equipo
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const hace14 = new Date(hoy);
-      hace14.setDate(hace14.getDate() - 14);
-
-      // Agarrar eventos del equipo en últimos 14 días
-      const eventosRelevantes = eventos.filter(e =>
-        e.equipoId === ev.equipo.id &&
-        (e.tipo === 'riego' || e.tipo === 'lluvia') &&
-        new Date(e.fecha) >= hace14 &&
-        new Date(e.fecha) <= hoy
-      );
-
-      // Simular pasado (últimos 14 días)
-      // datos.daily.time[0] a [13] son los 14 días pasados
-      // datos.daily.time[14] es HOY
-      // datos.daily.time[15] a [20] son 6 días futuros (1 a 6)
-      // Open-Meteo devuelve past_days + 1 (hoy) + forecast_days en daily
-      // En este caso: past_days=14, forecast_days=7 → indices 0..13 (pasado), 14 (hoy), 15..20 (futuro 6)
-
-      // Encontrar el índice de HOY en el array
-      const indiceHoy = datos.daily.time.findIndex(t => {
-        const d = new Date(t);
-        d.setHours(0, 0, 0, 0);
-        return d.getTime() === hoy.getTime();
+      // Delega TODO el balance al motor compartido (safia-balance.js).
+      // Resuelve UNA fuente de lluvia por día (estación > manual > Open-Meteo),
+      // aplica eficiencia de riego UNA sola vez y topea a CC (drenaje descartado).
+      const eventos = JSON.parse(localStorage.getItem("eventos") || "[]");
+      const r = SafiaBalance.simular({
+        campo: ev.campo,
+        daily: datos.daily,
+        eventos,
+        equipoId: ev.equipo.id,
+        equipo: ev.equipo,
+        kcDef: ev.kcDef,
+        fechaSiembra: ev.cultivo.fechaSiembra,
+        diasPasado: 14,
+        diasFuturo: 7,
+        humedadInicialFrac: 0.8
       });
 
-      const inicioSimulacion = Math.max(0, indiceHoy - 14);
+      const suelo = r.suelo;
 
-      // Simular pasado
-      for (let i = inicioSimulacion; i < indiceHoy; i++) {
-        const fechaDia = new Date(datos.daily.time[i]);
-
-        // Sumar lluvia del pronóstico (aplicando coef. de aprovechamiento del suelo)
-        const lluviaDelDia = datos.daily.precipitation_sum[i] || 0;
-        humedadMM += lluviaDelDia * suelo.coefLluvia;
-
-        // Sumar eventos cargados (riego/lluvia manual o por voz)
-        // El operador carga lo que cae/aplica; aplicamos coef solo a lluvia, no a riego dirigido
-        const fechaStr = datos.daily.time[i];
-        eventosRelevantes.forEach(e => {
-          if (e.fecha === fechaStr) {
-            const cantidad = parseFloat(e.cantidad) || 0;
-            if (e.tipo === 'lluvia') {
-              humedadMM += cantidad * suelo.coefLluvia;
-            } else {
-              humedadMM += cantidad; // riego: ya viene aplicado al cultivo
-            }
-          }
-        });
-
-        // Restar ETc
-        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
-        const kcInfo = calcularKc(ev.kcDef, fechaDia, ev.cultivo.fechaSiembra);
-        const etcDia = etoDia * kcInfo.kc;
-        humedadMM -= etcDia;
-
-        // Limitar entre PMP y CC
-        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
-      }
-
-      // Humedad de HOY (después de simulación pasada)
-      const humedadHoy = humedadMM;
-
-      // 2. Simular futuro (HOY + 6 próximos días)
-      const dias = [];
-
-      for (let i = indiceHoy; i < indiceHoy + 7 && i < datos.daily.time.length; i++) {
-        const fechaDia = new Date(datos.daily.time[i]);
-        const esHoy = i === indiceHoy;
-
-        const humedadInicio = humedadMM;
-
-        // Lluvia prevista
-        const lluviaDia = datos.daily.precipitation_sum[i] || 0;
-        const probLluvia = datos.daily.precipitation_probability_max ? datos.daily.precipitation_probability_max[i] : null;
-
-        // ETo y Kc
-        const etoDia = datos.daily.et0_fao_evapotranspiration[i] || 0;
-        const kcInfo = calcularKc(ev.kcDef, fechaDia, ev.cultivo.fechaSiembra);
-        const etcDia = etoDia * kcInfo.kc;
-
-        // Para HOY también sumar eventos cargados de hoy
-        let riegoManualHoy = 0;
-        if (esHoy) {
-          const fechaStr = datos.daily.time[i];
-          eventosRelevantes.forEach(e => {
-            if (e.fecha === fechaStr) riegoManualHoy += parseFloat(e.cantidad) || 0;
-          });
-          humedadMM += riegoManualHoy;
-        }
-
-        // Aplicar lluvia (con coef. de aprovechamiento del suelo) y ETc
-        // El resto de la lluvia se pierde por escorrentía/percolación profunda
-        const lluviaEfectiva = lluviaDia * suelo.coefLluvia;
-        humedadMM += lluviaEfectiva;
-        humedadMM -= etcDia;
-
-        // 🔧 FIX: Capar a capacidad de campo ANTES de calcular el porcentaje.
-        // El exceso de lluvia se pierde por escorrentía/percolación profunda
-        // (no queda disponible para la planta). Así nunca pasamos de 100%.
-        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
-
-        // Calcular % sobre AAU
-        const aguaDisponible = humedadMM - suelo.PMP;
-        const porcentajeAAU = (aguaDisponible / suelo.AAU) * 100;
-
-        // Determinar recomendación
-        let estado, recomendacion, mmRegar = 0;
-
-        if (lluviaDia >= 10) {
-          estado = 'lluvia';
-          recomendacion = `🌧️ Lluvia prevista ${lluviaDia.toFixed(0)} mm — No regar`;
-        } else if (porcentajeAAU < UMBRALES.CRITICO) {
-          estado = 'regar';
-          // Cuánto regar para llegar al 100% de AAU
-          mmRegar = Math.ceil((suelo.CC - humedadMM) / 5) * 5; // Redondeado a 5
-          mmRegar = Math.max(15, Math.min(35, mmRegar)); // Entre 15 y 35
-          recomendacion = `🔴 REGAR ${mmRegar} mm`;
-          // Asumir que riega para próximos días
-          humedadMM += mmRegar;
-        } else if (porcentajeAAU < UMBRALES.ATENCION) {
-          estado = 'atencion';
-          recomendacion = '🟡 ATENCIÓN — Prepará riego';
-        } else {
-          estado = 'ok';
-          recomendacion = '🟢 OK — No regar';
-        }
-
-        // Limitar humedad
-        humedadMM = Math.max(suelo.PMP, Math.min(suelo.CC, humedadMM));
-
-        // Confianza (más cerca = más confiable)
-        const diasDesdeHoy = i - indiceHoy;
-        let confianza;
-        if (diasDesdeHoy <= 2) confianza = 'alta';
-        else if (diasDesdeHoy <= 4) confianza = 'media';
-        else confianza = 'media';
-
-        dias.push({
-          fecha: datos.daily.time[i],
-          fechaObj: fechaDia,
-          esHoy,
-          humedadInicio,
-          humedadFin: humedadMM,
-          aguaDisponible,
-          porcentajeAAU,
-          lluviaDia,
-          lluviaEfectiva,
-          probLluvia,
-          etoDia,
-          etcDia,
-          kcInfo,
-          riegoManual: riegoManualHoy,
-          tMax: datos.daily.temperature_2m_max[i],
-          tMin: datos.daily.temperature_2m_min[i],
-          weatherCode: datos.daily.weather_code[i],
-          estado,
+      // Adaptar la salida del motor al shape que ya consume el render.
+      const dias = r.dias.map((d, i) => {
+        let recomendacion;
+        if (d.estado === "lluvia")        recomendacion = `🌧️ Lluvia prevista ${d.lluviaBruta.toFixed(0)} mm — No regar`;
+        else if (d.estado === "regar")    recomendacion = `🔴 REGAR ${d.mmRegar} mm`;
+        else if (d.estado === "atencion") recomendacion = "🟡 ATENCIÓN — Prepará riego";
+        else                              recomendacion = "🟢 OK — No regar";
+        const confianza = (i <= 2) ? "alta" : "media";
+        return {
+          fecha: d.fecha,
+          fechaObj: d.fechaObj,
+          esHoy: d.esHoy,
+          humedadInicio: d.humedadInicio,
+          humedadFin: d.humedadFin,
+          aguaDisponible: d.aguaDisponible,
+          porcentajeAAU: d.porcentajeAAU,
+          lluviaDia: d.lluviaBruta,
+          lluviaEfectiva: d.lluviaEfectiva,
+          probLluvia: d.probLluvia,
+          etoDia: d.etoDia,
+          etcDia: d.etcDia,
+          kcInfo: { kc: d.kc, etapa: d.etapa },
+          riegoManual: d.riegoBruto,
+          tMax: d.tMax,
+          tMin: d.tMin,
+          weatherCode: d.weatherCode,
+          estado: d.estado,
           recomendacion,
-          mmRegar,
+          mmRegar: d.mmRegar,
           confianza
-        });
-      }
+        };
+      });
 
-      // Calcular totales semana
-      const totalRiegos = dias.filter(d => d.estado === 'regar').length;
+      // Totales de la semana (mismos cálculos que antes, sobre la salida unificada)
+      const totalRiegos = dias.filter(d => d.estado === "regar").length;
       const totalLluviaPrevista = dias.reduce((s, d) => s + d.lluviaDia, 0);
       const totalRiegoMM = dias.reduce((s, d) => s + d.mmRegar, 0);
       const totalETc = dias.reduce((s, d) => s + d.etcDia, 0);
-      const semaforo = totalRiegos === 0 ? 'verde' : (totalRiegos <= 1 ? 'amarillo' : 'rojo');
+      const semaforo = totalRiegos === 0 ? "verde" : (totalRiegos <= 1 ? "amarillo" : "rojo");
 
       return {
-        humedadHoy,
-        porcentajeAAUHoy: ((humedadHoy - suelo.PMP) / suelo.AAU) * 100,
+        humedadHoy: r.humedadHoyMM,
+        porcentajeAAUHoy: r.porcentajeHoy,
         suelo,
         dias,
         totalRiegos,
