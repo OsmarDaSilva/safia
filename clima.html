@@ -832,18 +832,39 @@
       // Una sola fuente de lluvia por día (estación>manual>Open-Meteo), riego ×
       // eficiencia una vez, ETc FAO-56. El card "Últimos 7 días" muestra los
       // totales del período pasado; la recomendación usa la humedad de HOY.
-      // En modo "Por Campo" (sin equipo) no se atribuyen eventos cargados
-      // (riego/lluvia manual van por equipo): se usa solo el clima de Open-Meteo,
-      // igual que antes. En modo "Por Campaña" sí se usan los del equipo.
-      const eventos = contexto.equipo ? JSON.parse(localStorage.getItem('eventos') || '[]') : [];
+      // Para que el % de humedad COINCIDA con operador/encargado/index, el
+      // balance usa el MISMO contexto que esas pantallas: equipo + cultivo +
+      // eventos de la campaña activa del campo.
+      //  - "Por Campaña": ya viene en contexto.
+      //  - "Por Campo": lo resolvemos acá (mismos inputs/ventana que las
+      //    pantallas de equipo). Sin campaña activa en el campo, queda el
+      //    comportamiento genérico (ETo de referencia, sin eventos).
+      let equipoBal = contexto.equipo || null;
+      let kcDefBal = (mostrarPro && contexto.kcDef) ? contexto.kcDef : null;
+      let fechaSiembraBal = (mostrarPro && contexto.cultivo) ? contexto.cultivo.fechaSiembra : null;
+      if (!equipoBal && campo) {
+        const _equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+        const _campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+        const _eqCampo = _equipos.filter(e => e.campoId === campo.id);
+        const _campActiva = _campanas.find(c => c.estado === 'Activa' && c.cultivos && c.cultivos.length &&
+          _eqCampo.some(e => e.id === c.equipoId));
+        if (_campActiva) {
+          equipoBal = _eqCampo.find(e => e.id === _campActiva.equipoId) || null;
+          kcDefBal = obtenerCultivoKc(_campActiva.cultivos[0].cultivo);
+          fechaSiembraBal = _campActiva.cultivos[0].fechaSiembra;
+        }
+      }
+      const usaETc = !!kcDefBal;
+      // Eventos del equipo del balance (lluvia/riego van por equipo).
+      const eventos = equipoBal ? JSON.parse(localStorage.getItem('eventos') || '[]') : [];
       const rBal = SafiaBalance.simular({
         campo,
         daily: datos.daily,
         eventos,
-        equipoId: contexto.equipo ? contexto.equipo.id : null,
-        equipo: contexto.equipo,
-        kcDef: (mostrarPro && contexto.kcDef) ? contexto.kcDef : null,
-        fechaSiembra: (mostrarPro && contexto.cultivo) ? contexto.cultivo.fechaSiembra : null,
+        equipoId: equipoBal ? equipoBal.id : null,
+        equipo: equipoBal,
+        kcDef: kcDefBal,
+        fechaSiembra: fechaSiembraBal,
         diasPasado: 7,
         diasFuturo: 7,
         humedadInicialFrac: 0.8,
@@ -866,8 +887,8 @@
         : '';
       document.getElementById('balanceLluvia').innerHTML = `+${lluviaEfectiva.toFixed(1)} mm${detalleEscorrentia}${riegoLabel}`;
       document.getElementById('balanceET').textContent = `-${etTotal.toFixed(1)} mm`;
-      document.getElementById('balanceETLabel').textContent = mostrarPro
-        ? `${contexto.kcDef.emoji || '🌽'} ETc acumulada (consumo del cultivo)`
+      document.getElementById('balanceETLabel').textContent = usaETc
+        ? `${(kcDefBal && kcDefBal.emoji) || '🌽'} ETc acumulada (consumo del cultivo)`
         : `☀️ ETo acumulada (referencia)`;
 
       const balance = lluviaEfectiva + riegoEfectivo - etTotal;
