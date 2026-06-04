@@ -681,8 +681,9 @@
       else                      { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
 
       // Actualizar celda en tabla
+      const notaSuelo = SafiaBalance.notaFallbackSuelo(r.suelo, { compact: true });
       const celdas = document.querySelectorAll('.estado-riego-' + campId);
-      celdas.forEach(c => c.innerHTML = badge);
+      celdas.forEach(c => c.innerHTML = badge + notaSuelo);
 
       if (tipo) {
         alertas.push({ tipo, titulo: `${tipo==="urgente"?"🔴":"🟡"} ${eq?.nombre||"?"} — ${tipo==="urgente"?"Riego urgente":"Programar riego"}`, detalle: `Humedad ${pct.toFixed(0)}% del agua útil · ${campo.nombre}` });

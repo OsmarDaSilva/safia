@@ -564,6 +564,8 @@
             datos.textoSemaforo = '🟡 Monitorear';
             datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Reevaluar en 2-3 días.`;
           }
+          // Aviso si el suelo se resolvió por fallback a "franco"
+          datos.recomendacion += SafiaBalance.notaFallbackSuelo(balance.suelo);
         } catch (error) {
           datos.semaforo = 'gris';
           datos.textoSemaforo = '📡 Sin internet';

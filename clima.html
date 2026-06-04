@@ -732,7 +732,7 @@
 
       // Mostrar tipo de suelo del campo
       const dashSuelo = document.getElementById('dashSuelo');
-      dashSuelo.innerHTML = `${suelo.emoji} <strong>Suelo ${suelo.nombre}</strong> · ${suelo.CC}mm CC · ${(suelo.coefLluvia * 100).toFixed(0)}% aprovecha lluvia`;
+      dashSuelo.innerHTML = `${suelo.emoji} <strong>Suelo ${suelo.nombre}</strong> · ${suelo.CC}mm CC · ${(suelo.coefLluvia * 100).toFixed(0)}% aprovecha lluvia` + SafiaBalance.notaFallbackSuelo(suelo);
       dashSuelo.style.display = 'inline-block';
 
       const actual = datos.current;

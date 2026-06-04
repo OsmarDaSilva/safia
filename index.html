@@ -754,6 +754,7 @@
             <div class="pred-resumen-item">${ctx.kcDef.emoji || '🌽'} <strong>${etcTotal} mm</strong> ETc</div>
             <div class="pred-resumen-item">${simulacion.suelo.emoji} Suelo <strong>${simulacion.suelo.nombre}</strong></div>
           </div>
+          ${SafiaBalance.notaFallbackSuelo(simulacion.suelo)}
         </div>
       `;
     }

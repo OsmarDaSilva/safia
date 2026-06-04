@@ -1126,6 +1126,9 @@
           card.className = "reco-card visible regar";
         }
 
+        // Aviso si el suelo se resolvió por fallback a "franco"
+        detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
+
       } catch (error) {
         // Diagnóstico para consola (no cambia lo que ve el usuario)
         console.error('[SAFIA] Recomendación de clima (operador) falló:', error && error.message ? error.message : error, error);
