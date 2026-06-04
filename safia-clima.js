@@ -33,7 +33,8 @@
 (function (root) {
   'use strict';
 
-  var BASE = 'https://api.open-meteo.com/v1/forecast';
+  var OPEN_METEO_DIRECTO = 'https://api.open-meteo.com/v1/forecast';
+  var PROXY = '/api/clima';                // función serverless de Vercel (mismo origen)
   var PREFIJO_CACHE = 'safia_clima:';     // localStorage
   var memCache = {};                       // { url: { ts, datos } } caché en memoria (sesión)
   var enVuelo = {};                        // { url: Promise } dedup de llamadas concurrentes
@@ -60,6 +61,25 @@
     return m ? parseFloat(m[0]) : NaN;
   }
 
+  // ¿Estamos en un entorno de desarrollo (localhost / LAN / file://)?
+  // Ahí NO existe la función /api/clima, así que vamos directo a Open-Meteo.
+  function esEntornoLocal() {
+    if (typeof location === 'undefined' || !location) return true;   // node/sin DOM → directo
+    if (location.protocol === 'file:') return true;                  // HTML abierto a mano
+    var h = location.hostname || '';
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h === '' ||
+      /\.local$/.test(h) ||
+      /^192\.168\./.test(h) || /^10\./.test(h) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(h);
+  }
+
+  // Base URL del clima:
+  //  - producción (dominio Vercel, otro host): /api/clima (proxy, mismo origen).
+  //  - desarrollo (localhost/LAN/file): Open-Meteo directo (el proxy no existe).
+  function baseURL() {
+    return esEntornoLocal() ? OPEN_METEO_DIRECTO : PROXY;
+  }
+
   function construirURL(o) {
     var p = [];
     p.push('latitude=' + o.lat);
@@ -70,7 +90,7 @@
     p.push('past_days=' + o.pastDays);
     p.push('forecast_days=' + o.forecastDays);
     p.push('timezone=' + encodeURIComponent(o.timezone));
-    return BASE + '?' + p.join('&');
+    return baseURL() + '?' + p.join('&');
   }
 
   function fetchConTimeout(url, timeoutMs) {
@@ -291,6 +311,7 @@
     avisoCache: avisoCache,
     parseCoord: parseCoord,
     construirURL: construirURL,
+    baseURL: baseURL,
     _resetMemoria: _resetMemoria,
     PREFIJO_CACHE: PREFIJO_CACHE,
     version: '1.0.0'
