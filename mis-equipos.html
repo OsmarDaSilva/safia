@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAFIA — Equipos</title>
+  <title>SAFIA — Equipos y lotes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -276,7 +276,7 @@
       <div class="sidebar-grupo">Datos</div>
       <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg></span><span>Clientes</span></a>
       <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span><span>Campos</span></a>
-      <a href="mis-equipos.html" class="sidebar-link activo"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span><span>Equipos</span></a>
+      <a href="mis-equipos.html" class="sidebar-link activo"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span><span>Equipos y lotes</span></a>
       <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg></span><span>Cultivos</span></a>
       <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></span><span>Campañas</span></a>
     <a href="banco.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg></span><span>Banco Agronómico</span></a>
@@ -298,11 +298,11 @@
     </aside>
 
     <main class="main">
-      <div class="crumb">Datos · <b>Equipos</b></div>
+      <div class="crumb">Datos · <b>Equipos y lotes</b></div>
       <div class="ptop">
         <div>
-          <h2>Equipos de riego</h2>
-          <div class="sub">Cargá los datos del equipo (el "fierro"). El cultivo se carga aparte en cada campaña.</div>
+          <h2>Equipos de riego y lotes de secano</h2>
+          <div class="sub">Cargá el equipo de riego (el "fierro") o el lote sin riego del cliente. Es la unidad donde se siembra: el cultivo se carga aparte en cada campaña.</div>
         </div>
         <div class="actions"><span class="muted" id="topbarFecha">—</span></div>
       </div>
@@ -319,8 +319,8 @@
         </div>
 
         <div class="tarjeta" id="tarjetaForm">
-          <div class="tarjeta-titulo" id="tituloForm">+ Agregar un equipo de riego</div>
-          <div class="tarjeta-sub">Solo los datos del equipo en sí. El cultivo y la siembra se cargan en "Campañas".</div>
+          <div class="tarjeta-titulo" id="tituloForm">+ Agregar un equipo de riego o un lote de secano</div>
+          <div class="tarjeta-sub">Solo los datos del equipo o del lote. El cultivo y la siembra se cargan en "Campañas".</div>
 
           <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg> Identificación <span class="badge">Obligatorio</span></div>
 
@@ -335,7 +335,7 @@
           </div>
 
           <div class="campo">
-            <label>Tipo de equipo</label>
+            <label>Tipo: equipo de riego o lote de secano</label>
             <select id="tipo" onchange="mostrarSeccionTipo()">
               <option value="">Seleccionar tipo...</option>
               <optgroup label="Aspersión presurizada">
@@ -358,7 +358,7 @@
           </div>
 
           <div class="campo">
-            <label>Nombre / identificación del equipo</label>
+            <label id="lblNombre">Nombre / identificación del equipo</label>
             <input type="text" id="nombre" placeholder="Ej: Pivote Norte / Pivote 1 / Goteo Tomate">
           </div>
 
@@ -418,9 +418,9 @@
             <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> Ubicación y superficie</div>
             <div class="fila">
               <div class="campo">
-                <label>Superficie regada (ha)</label>
+                <label id="lblSuperficie">Superficie regada (ha)</label>
                 <input type="number" id="superficie" placeholder="Ej: 60" step="0.1">
-                <div class="ayuda">Hectáreas que cubre el equipo</div>
+                <div class="ayuda" id="ayudaSuperficie">Hectáreas que cubre el equipo</div>
               </div>
               <div class="campo">
                 <label>Coordenadas GPS <span class="opcional">(opcional)</span></label>
@@ -587,7 +587,7 @@
           </div>
         </div>
 
-        <div class="lista-titulo">Equipos cargados</div>
+        <div class="lista-titulo">Equipos y lotes cargados</div>
         <div id="listaEquipos"></div>
       </div>
     </main>
@@ -968,6 +968,10 @@
       document.querySelectorAll('.solo-riego').forEach(s => s.classList.toggle('oculto', esSecano));
       document.getElementById('nombre').placeholder = esSecano ? 'Ej: Lote secano norte / Lote 3 sin riego' : 'Ej: Pivote Norte / Pivote 1 / Goteo Tomate';
       document.getElementById('avisoSecano').style.display = esSecano ? '' : 'none';
+      document.getElementById('lblNombre').textContent = esSecano ? 'Nombre / identificación del lote de secano' : 'Nombre / identificación del equipo';
+      document.getElementById('lblSuperficie').textContent = esSecano ? 'Superficie del lote (ha)' : 'Superficie regada (ha)';
+      document.getElementById('ayudaSuperficie').textContent = esSecano ? 'Hectáreas del área sin riego' : 'Hectáreas que cubre el equipo';
+      document.getElementById('observaciones').placeholder = esSecano ? 'Rotación, historia del lote, tipo de suelo...' : 'Cualquier dato adicional sobre el equipo...';
       if (tipo === 'pivote') document.getElementById('seccion-pivote').classList.add('visible');
       else if (tipo === 'goteo' || tipo === 'microaspersion') document.getElementById('seccion-goteo').classList.add('visible');
       else if (tipo === 'canon') document.getElementById('seccion-canon').classList.add('visible');
