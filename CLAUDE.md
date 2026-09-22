@@ -9,6 +9,24 @@
 - Verificá vos mismo todo lo que puedas ANTES de pedirle que pruebe.
   Si algo no lo podés verificar, decíselo explícitamente.
 
+## La visión (definida por Osmar, sep-2026)
+- SAFIA es un producto agronómico y de riego: ayuda a regar, pero el
+  ACTIVO es el banco de datos agronómico que se va formando.
+- Cada campaña de cada cliente registra ESTRUCTURADO: análisis de suelo
+  y su evolución (pH, materia orgánica, calcio, textura...), manejo
+  (encalado, abono, rotación, variedad, fecha de siembra), lluvia del
+  ciclo, mm regados, cosecha real (kg/ha), calidad de tierra, altitud
+  y latitud.
+- Uso 1 — retención: mostrarle al cliente cómo mejoró su suelo y su
+  rinde a lo largo de los años.
+- Uso 2 — venta de riego: cargar análisis de suelo + altitud + latitud
+  de un prospecto y estimar su productividad triangulando contra los
+  casos similares reales ya cadastrados.
+- Regla de diseño: todo dato agronómico entra estructurado desde el
+  día uno (campos tipados, no texto libre), con unidades consistentes
+  entre clientes; cada pantalla nueva debe preguntarse "¿esto alimenta
+  el banco comparativo?".
+
 ## El proyecto
 - Carpeta: C:\Users\osmar\proyectos\mi-app-riego-safia
 - SAFIA es una app de gestión de riego agrícola: campos, campañas,
