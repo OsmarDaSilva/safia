@@ -135,6 +135,7 @@
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
           <button data-tab="analisis">Análisis de suelo</button>
           <button data-tab="agua">Agua mes a mes</button>
+          <button data-tab="evolucion">📈 Evolución y decisiones</button>
           <button data-tab="archivos">Archivos y mapas</button>
         </div>
 
@@ -289,6 +290,13 @@
           </div>
         </section>
 
+        <!-- ================= TAB EVOLUCIÓN Y DECISIONES ================= -->
+        <section class="panel" id="panel-evolucion">
+          <div class="note info" id="evoNota"></div>
+          <div id="evoContenido"></div>
+          <div class="no-print" style="display:flex;gap:8px;margin-top:6px;"><button class="btn" onclick="window.print()">🖨️ Imprimir informe</button></div>
+        </section>
+
         <!-- ================= TAB ARCHIVOS ================= -->
         <section class="panel" id="panel-archivos">
           <div class="note info">Acá podés guardar <b>mapas de cosecha de la cosechadora</b> (ZIP, shape, ISO-XML, imágenes), PDF de análisis, facturas de fertilizantes y cualquier documento del lote. Quedan guardados en la nube, atados a este campo.</div>
@@ -426,7 +434,7 @@
     document.getElementById('fLng').textContent = campoActual.longitud || '—';
     document.getElementById('fAltitud').value = campoActual.altitud != null ? campoActual.altitud : '';
     cerrarFormCiclo(); cerrarFormAnalisis();
-    pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua();
+    pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
       pintarComparativo();
@@ -1134,6 +1142,186 @@
   }
 
   document.getElementById('aguaTipo').addEventListener('change', pintarAgua);
+
+  /* ============================================================
+     MOTOR 4 · EVOLUCIÓN Y DECISIONES DEL CLIENTE
+     Para el cliente que ya riega: ¿mejoró el suelo? ¿mejoró el rinde?
+     ¿qué variedad, qué época, cuánta agua? ¿cómo está frente al mejor
+     de su localidad? Todo sale de los casos reales del campo.
+     ============================================================ */
+  function h3evo(t, sub) { return '<h3 style="font-size:15px;margin:18px 0 8px;">' + t + (sub ? ' <span class="muted" style="font-weight:500;font-size:12px;">' + sub + '</span>' : '') + '</h3>'; }
+  function tabla(enc, filas) {
+    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr>' + enc.map(function (e) { return '<th' + (e.r ? ' class="r"' : '') + '>' + e.t + '</th>'; }).join('') + '</tr></thead><tbody>' + filas.join('') + '</tbody></table></div></div>';
+  }
+  function td(v, r) { return '<td' + (r ? ' class="r"' : '') + '>' + v + '</td>'; }
+  function prom(arr) { var v = arr.filter(function (x) { return x != null && !isNaN(x); }); return v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length : null; }
+  function flecha(d, dec) {
+    if (d == null) return '<span class="muted">—</span>';
+    if (Math.abs(d) < 1e-9) return '<span class="muted">=</span>';
+    return d > 0 ? '<span class="evo-mejor">▲ +' + fmt(d, dec) + '</span>' : '<span class="evo-peor">▼ ' + fmt(d, dec) + '</span>';
+  }
+  function agrupar(lista, clave) {
+    var g = {};
+    lista.forEach(function (x) { var k = clave(x); if (k == null || k === '') return; (g[k] = g[k] || []).push(x); });
+    return g;
+  }
+
+  function pintarEvolucion() {
+    var nota = document.getElementById('evoNota'), cont = document.getElementById('evoContenido');
+    if (!window.SafiaCasos) { nota.textContent = 'Falta el motor de casos.'; return; }
+    var todos = SafiaCasos.armarCasos();
+    var mios = todos.filter(function (c) { return String(c.campoId) === String(campoActual.id); })
+      .sort(function (a, b) { return String(a.siembra).localeCompare(String(b.siembra)); });
+    var cliente = nombreCliente(campoActual.clienteId);
+
+    if (!mios.length) {
+      nota.innerHTML = 'Todavía no hay campañas cosechadas en este lote. Cuando cierres la primera en <a href="mis-campanas.html"><b>Campañas</b></a>, acá vas a ver la evolución.';
+      cont.innerHTML = ''; return;
+    }
+    var porCultivo = agrupar(mios, function (c) { return c.cultivo; });
+    var cultivosConHistoria = Object.keys(porCultivo).filter(function (k) { return porCultivo[k].length >= 2; });
+    nota.innerHTML = '<b>' + esc(cliente || '') + ' · ' + esc(campoActual.nombre) + '</b> — ' + mios.length + ' campaña(s) cosechada(s) en ' + Object.keys(porCultivo).length + ' cultivo(s). ' +
+      (cultivosConHistoria.length ? 'Con historia para comparar: ' + cultivosConHistoria.join(', ') + '.' : 'Para ver <b>mejoró / empeoró</b> hacen falta al menos 2 campañas del mismo cultivo: cada campaña que cierres suma.');
+
+    var html = '';
+
+    /* ---- 1. Suelo: ¿mejoró o empeoró? ---- */
+    var analisis = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); })
+      .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+    html += h3evo('🧪 Suelo: ¿mejoró o empeoró?', analisis.length ? analisis.length + ' análisis' : '');
+    if (analisis.length < 2) {
+      html += '<div class="note">Hay ' + analisis.length + ' análisis de suelo. Con el próximo vas a ver qué parámetros subieron y cuáles bajaron.</div>';
+    } else {
+      var ant = analisis[analisis.length - 2], ult = analisis[analisis.length - 1];
+      var mejor = 0, peor = 0;
+      var filasS = SafiaCasos.PARAMS_SUELO.map(function (p) {
+        var a = num(ant[p.k]), b = num(ult[p.k]);
+        var d = (a != null && b != null) ? b - a : null;
+        if (d != null && p.k !== 'arcilla' && p.k !== 'ph') { if (d > 0) mejor++; else if (d < 0) peor++; }
+        return '<tr>' + td(p.n + (p.unidad ? ' <span class="sub">' + p.unidad + '</span>' : '')) + td(fmt(a, p.dec), 1) + td(fmt(b, p.dec), 1) + td(flecha(d, p.dec), 1) + '</tr>';
+      });
+      html += '<div class="note ' + (mejor >= peor ? 'ok' : 'warn') + '">Del análisis del <b>' + fmtFecha(ant.fecha) + '</b> al del <b>' + fmtFecha(ult.fecha) + '</b>: <b>' + mejor + '</b> parámetros de fertilidad subieron y <b>' + peor + '</b> bajaron.</div>';
+      html += tabla([{ t: 'Parámetro' }, { t: fmtFecha(ant.fecha), r: 1 }, { t: fmtFecha(ult.fecha), r: 1 }, { t: 'Cambio', r: 1 }], filasS);
+    }
+
+    /* ---- 2. Rinde campaña a campaña ---- */
+    html += h3evo('🌾 Rinde campaña a campaña', 'por cultivo · contra la anterior, contra tu promedio y contra la zona');
+    Object.keys(porCultivo).forEach(function (cu) {
+      var lista = porCultivo[cu];
+      var promedio = prom(lista.map(function (c) { return c.rindeKgHa; }));
+      // mejor de la misma localidad (otros clientes) o referencia regional
+      var otros = todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
+      var mejorLocal = otros.length ? otros.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; }) : null;
+      var filasR = lista.map(function (c, i) {
+        var prev = i > 0 ? lista[i - 1].rindeKgHa : null;
+        return '<tr>' + td('<span class="fecha">' + esc(c.campana) + '</span><div class="sub">' + esc(c.variedad || '—') + ' · ' + fmtFecha(c.siembra) + (c.epoca ? ' · ' + esc(c.epoca) : '') + '</div>') +
+          td('<span class="num">' + fmt(c.rindeKgHa, 0) + '</span>', 1) +
+          td(prev == null ? '<span class="muted">1ª campaña</span>' : flecha(c.rindeKgHa - prev, 0), 1) +
+          td(promedio == null ? '—' : flecha(c.rindeKgHa - promedio, 0), 1) +
+          td(c.aguaTotalMM == null ? '—' : fmt(c.aguaTotalMM, 0) + '<div class="sub">🌧 ' + fmt(c.lluviaMM || 0, 0) + ' · 💧 ' + fmt(c.riegoMM || 0, 0) + '</div>', 1) + '</tr>';
+      });
+      html += '<div style="margin:6px 0 4px;font-weight:700;color:var(--head);">' + esc(cu) + ' <span class="muted" style="font-weight:500;">· ' + lista.length + ' campaña(s) · promedio ' + fmt(promedio, 0) + ' kg/ha' +
+        (mejorLocal ? ' · mejor de ' + esc(campoActual.localidad) + ': ' + fmt(mejorLocal.rindeKgHa, 0) + ' (' + esc(mejorLocal.cliente) + ')' : '') + '</span></div>';
+      html += tabla([{ t: 'Campaña' }, { t: 'Rinde kg/ha', r: 1 }, { t: 'vs anterior', r: 1 }, { t: 'vs tu promedio', r: 1 }, { t: 'Agua mm', r: 1 }], filasR);
+    });
+
+    /* ---- 3. Variedades ---- */
+    html += h3evo('🧬 ¿Qué variedad te responde mejor?', 'rinde promedio por variedad, dentro de cada cultivo');
+    var filasV = [];
+    Object.keys(porCultivo).forEach(function (cu) {
+      var porVar = agrupar(porCultivo[cu], function (c) { return c.variedad || '(sin variedad)'; });
+      var ranking = Object.keys(porVar).map(function (v) { return { v: v, n: porVar[v].length, p: prom(porVar[v].map(function (c) { return c.rindeKgHa; })), max: Math.max.apply(null, porVar[v].map(function (c) { return c.rindeKgHa; })) }; })
+        .sort(function (a, b) { return b.p - a.p; });
+      ranking.forEach(function (r, i) {
+        filasV.push('<tr>' + td(esc(cu)) + td((i === 0 && ranking.length > 1 ? '🏆 ' : '') + esc(r.v)) + td(r.n, 1) + td('<span class="num">' + fmt(r.p, 0) + '</span>', 1) + td(fmt(r.max, 0), 1) + '</tr>');
+      });
+    });
+    html += tabla([{ t: 'Cultivo' }, { t: 'Variedad' }, { t: 'Campañas', r: 1 }, { t: 'Rinde promedio', r: 1 }, { t: 'Mejor', r: 1 }], filasV);
+    if (mios.length === Object.keys(agrupar(mios, function (c) { return c.cultivo + '|' + c.variedad; })).length) {
+      html += '<div class="kpi-sub" style="margin-top:6px;">Todavía hay una campaña por variedad: el ranking va a decir algo cuando repitas o cambies de material en el mismo cultivo.</div>';
+    }
+
+    /* ---- 4. Época de siembra ---- */
+    html += h3evo('📅 ¿Qué época de siembra rinde más?');
+    var filasE = [];
+    Object.keys(porCultivo).forEach(function (cu) {
+      var porEp = agrupar(porCultivo[cu], function (c) { return c.epoca || '(sin fecha)'; });
+      Object.keys(porEp).forEach(function (ep) {
+        var l = porEp[ep];
+        var meses = l.map(function (c) { return c.siembra ? parseInt(c.siembra.slice(5, 7), 10) : null; }).filter(Boolean);
+        filasE.push('<tr>' + td(esc(cu)) + td(esc(ep)) + td(meses.length ? 'mes ' + Math.min.apply(null, meses) + (meses.length > 1 ? '–' + Math.max.apply(null, meses) : '') : '—') + td(l.length, 1) + td('<span class="num">' + fmt(prom(l.map(function (c) { return c.rindeKgHa; })), 0) + '</span>', 1) + '</tr>');
+      });
+    });
+    html += tabla([{ t: 'Cultivo' }, { t: 'Época' }, { t: 'Siembra' }, { t: 'Campañas', r: 1 }, { t: 'Rinde promedio', r: 1 }], filasE);
+
+    /* ---- 5. Agua → rinde ---- */
+    html += h3evo('💧 Agua → rinde', 'con cuánta agua hiciste tus mejores campañas');
+    var filasA = [], reglas = [];
+    Object.keys(porCultivo).forEach(function (cu) {
+      var lista = porCultivo[cu].filter(function (c) { return c.aguaTotalMM != null; });
+      if (!lista.length) { filasA.push('<tr>' + td(esc(cu)) + '<td colspan="6" class="muted">Sin agua cargada en estas campañas (lluvia y riego del ciclo).</td></tr>'); return; }
+      var mejorC = lista.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      lista.forEach(function (c) {
+        var kgPorMm = c.aguaTotalMM > 0 ? c.rindeKgHa / c.aguaTotalMM : null;
+        filasA.push('<tr' + (c === mejorC ? ' style="background:var(--green-t);"' : '') + '>' + td(esc(cu)) + td(esc(c.campana) + '<div class="sub">' + esc(c.variedad || '') + '</div>') +
+          td(fmt(c.lluviaMM, 0), 1) + td(fmt(c.riegoMM, 0), 1) + td('<span class="num">' + fmt(c.aguaTotalMM, 0) + '</span>', 1) + td('<span class="num">' + fmt(c.rindeKgHa, 0) + '</span>' + (c === mejorC ? ' 🏆' : ''), 1) + td(fmt(kgPorMm, 1), 1) +
+          td(c.clima ? fmt(c.clima.tempMedia) + '° · ET₀ ' + fmt(c.clima.et0Total, 0) : '<span class="muted">—</span>', 1) + '</tr>');
+      });
+      reglas.push('<li><b>' + esc(cu) + ':</b> tu mejor rinde (<b>' + fmt(mejorC.rindeKgHa, 0) + ' kg/ha</b>, ' + esc(mejorC.campana) + ') lo hiciste con <b>' + fmt(mejorC.aguaTotalMM, 0) + ' mm</b> de agua total (' + fmt(mejorC.lluviaMM || 0, 0) + ' de lluvia + ' + fmt(mejorC.riegoMM || 0, 0) + ' de riego)' +
+        (mejorC.clima ? ', con ET₀ de ' + fmt(mejorC.clima.et0Total, 0) + ' mm' : '') + '. Si un año viene más seco, la referencia es <b>llegar a esos ' + fmt(mejorC.aguaTotalMM, 0) + ' mm</b> completando con riego.</li>');
+    });
+    html += tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Agua total mm', r: 1 }, { t: 'Rinde kg/ha', r: 1 }, { t: 'kg por mm', r: 1 }, { t: 'Clima', r: 1 }], filasA);
+    if (reglas.length) html += '<div class="note ok" style="margin-top:10px;"><b>Regla práctica para decidir el riego:</b><ul style="margin:6px 0 0 18px;">' + reglas.join('') + '</ul></div>';
+
+    /* ---- 6. Fertirriego y aplicaciones ---- */
+    html += h3evo('🧴 Fertirriego y aplicaciones', '¿las campañas con aplicaciones registradas rindieron más?');
+    var eventos = leer('eventos');
+    var conApl = [], sinApl = [];
+    mios.forEach(function (c) {
+      var n = eventos.filter(function (ev) { return ev.tipo === 'aplicacion' && String(ev.equipoId) === String(c.equipoId) && c.siembra && c.cosecha && String(ev.fecha).slice(0, 10) >= c.siembra && String(ev.fecha).slice(0, 10) <= c.cosecha; }).length;
+      c._apl = n; (n ? conApl : sinApl).push(c);
+    });
+    var eqActual = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
+    var tieneFert = eqActual.some(function (e) { return String(e.pivoteFertirrigacion || e.fertirrigacion || '').toLowerCase().indexOf('s') === 0; });
+    html += '<div class="note">' + (tieneFert ? '✔ El equipo de este lote tiene fertirrigación. ' : '') +
+      'Campañas con aplicaciones registradas: <b>' + conApl.length + '</b> (rinde promedio ' + fmt(prom(conApl.map(function (c) { return c.rindeKgHa; })), 0) + ') · sin aplicaciones registradas: <b>' + sinApl.length + '</b> (rinde promedio ' + fmt(prom(sinApl.map(function (c) { return c.rindeKgHa; })), 0) + ').' +
+      (conApl.length && sinApl.length ? '' : '<br><span class="muted">Para medir el efecto del fertirriego hace falta registrar las aplicaciones en <a href="operador.html">Operador</a> (producto, dosis, fecha) en cada campaña.</span>') + '</div>';
+
+    /* ---- 7. Benchmark: el mejor de tu zona ---- */
+    html += h3evo('🏆 Frente al mejor de tu zona', 'qué tiene el que más rinde, y qué te falta');
+    var filasB = [];
+    Object.keys(porCultivo).forEach(function (cu) {
+      var mioMejor = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      var candidatos = todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu); });
+      var local = candidatos.filter(function (c) { return campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
+      var pool = local.length ? local : candidatos.filter(function (c) { return campoActual.departamento && norm(c.departamento) === norm(campoActual.departamento); });
+      var ambito = local.length ? campoActual.localidad : (pool.length ? campoActual.departamento : null);
+      if (!pool.length) {
+        filasB.push('<tr>' + td(esc(cu)) + '<td colspan="5" class="muted">Todavía no hay otros clientes con ' + esc(cu) + ' en tu zona: sos la referencia. A medida que se carguen, acá vas a ver contra quién compararte.</td></tr>');
+        return;
+      }
+      var top = pool.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      var difR = mioMejor.rindeKgHa - top.rindeKgHa;
+      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + esc(top.cliente) + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">Sos el mejor de la zona</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha') + '</tr>');
+      filasB.push('<tr>' + td('') + td('Agua total mm') + td(fmt(mioMejor.aguaTotalMM, 0), 1) + td(fmt(top.aguaTotalMM, 0), 1) + td(flecha(mioMejor.aguaTotalMM != null && top.aguaTotalMM != null ? mioMejor.aguaTotalMM - top.aguaTotalMM : null, 0), 1) + td('') + '</tr>');
+      filasB.push('<tr>' + td('') + td('Variedad · época') + td(esc(mioMejor.variedad || '—') + ' · ' + esc(mioMejor.epoca || '—')) + td(esc(top.variedad || '—') + ' · ' + esc(top.epoca || '—')) + td('') + td('') + '</tr>');
+      if (mioMejor.suelo && top.suelo) {
+        SafiaCasos.PARAMS_SUELO.forEach(function (p) {
+          var a = mioMejor.suelo[p.k], b = top.suelo[p.k];
+          if (a == null || b == null) return;
+          var d = a - b, rel = b ? d / Math.abs(b) : 0;
+          var falta = (p.k === 'ph') ? (d < -0.3) : (rel < -0.15);
+          filasB.push('<tr>' + td('') + td(p.n) + td(fmt(a, p.dec), 1) + td(fmt(b, p.dec), 1) + td(flecha(d, p.dec), 1) + td(falta ? '<span class="evo-peor">🔻 Te falta ' + esc(p.n.toLowerCase()) + '</span>' : '<span class="muted">ok</span>') + '</tr>');
+        });
+      } else {
+        filasB.push('<tr>' + td('') + td('Suelo') + '<td colspan="4" class="muted">Para comparar el suelo hacen falta análisis en los dos lotes.</td></tr>');
+      }
+    });
+    html += tabla([{ t: 'Cultivo' }, { t: '' }, { t: 'Tu mejor campaña', r: 1 }, { t: 'El mejor de la zona', r: 1 }, { t: 'Diferencia', r: 1 }, { t: 'Lectura' }], filasB);
+    html += '<div class="note warn" style="margin-top:12px;">SAFIA <b>compara</b> con casos reales; cuánto corregir en suelo, riego o manejo lo define el agrónomo.</div>';
+
+    cont.innerHTML = html;
+  }
 
   /* ============================================================
      ARCHIVOS Y MAPAS DE COSECHA
