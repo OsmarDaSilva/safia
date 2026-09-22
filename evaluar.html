@@ -109,7 +109,7 @@
         <div class="formcard">
           <h3>2 · Cultivo y objetivo</h3>
           <div class="form-grid">
-            <div class="field"><label>Cultivo</label><input list="listaCultivos" id="pCultivo" placeholder="Soja, Maíz…"><datalist id="listaCultivos"></datalist></div>
+            <div class="field"><label>Cultivo</label><select id="pCultivo"><option value="">Elegí el cultivo…</option></select></div>
             <div class="field"><label>Época de siembra</label>
               <select id="pEpoca"><option value="">Cualquiera</option><option>Primavera/Verano</option><option>Verano/Otoño</option><option>Otoño/Invierno</option></select></div>
             <div class="field"><label>Rinde objetivo (kg/ha) <span class="hint">opcional</span></label><input type="number" id="pObjetivo" placeholder="Ej: 5000"></div>
@@ -423,9 +423,18 @@
   /* ---------- arranque ---------- */
   SafiaCasos.conectarListasUbicacion(document.getElementById('pDepto'), document.getElementById('pLocalidad'), document.getElementById('pPais'));
   recargarCasos();
-  var cultivos={}; casos.forEach(function(c){ if(c.cultivo)cultivos[c.cultivo]=1; }); ['Soja','Maíz','Trigo'].forEach(function(x){cultivos[x]=1;});
-  var lc=Object.keys(cultivos).sort();
-  document.getElementById('listaCultivos').innerHTML=lc.map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  // Cultivos para elegir: los que ya tienen casos + el catálogo de cultivos + los habituales
+  var cultivos={};
+  function sumar(n){ if(!n) return; var k=norm(n); if(!cultivos[k]) cultivos[k]=String(n).trim(); }
+  ['Soja','Maíz','Trigo','Girasol','Sorgo','Arroz','Canola','Poroto','Avena'].forEach(sumar);
+  try{ JSON.parse(localStorage.getItem('cultivos_fao')||'[]').concat(JSON.parse(localStorage.getItem('cultivos_custom')||'[]')).forEach(function(c){ sumar(c&&c.nombre); }); }catch(e){}
+  casos.forEach(function(c){ sumar(c.cultivo); });
+  var lc=Object.keys(cultivos).map(function(k){return cultivos[k];}).sort(function(a,b){return a.localeCompare(b);});
+  var conCasos={}; casos.forEach(function(c){ conCasos[norm(c.cultivo)]=(conCasos[norm(c.cultivo)]||0)+1; });
+  var selC=document.getElementById('pCultivo');
+  selC.innerHTML='<option value="">Elegí el cultivo…</option>'+lc.map(function(x){ var n=conCasos[norm(x)]; return '<option value="'+esc(x)+'">'+esc(x)+(n?' · '+n+' caso'+(n>1?'s':'')+' en el banco':'')+'</option>'; }).join('');
+  // Si hay un solo cultivo con casos, lo dejamos elegido
+  var conDatos=lc.filter(function(x){return conCasos[norm(x)];}); if(conDatos.length===1) selC.value=conDatos[0];
   document.getElementById('fCasoCultivo').innerHTML='<option value="">Todos</option>'+lc.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
   document.getElementById('notaCasos').innerHTML = casos.length
     ? 'El banco tiene <b>'+casos.length+' caso(s) reales</b> cosechados. '+(casos.length<5?'Con pocos casos el resultado es una <b>orientación</b>; se vuelve confiable a medida que cargás clientes.':'')
