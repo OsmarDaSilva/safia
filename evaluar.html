@@ -95,8 +95,8 @@
           <h3>1 · Ubicación del proyecto</h3>
           <div class="formsub">Con la localidad alcanza para empezar; el punto exacto del lote lo pegás de Google Maps si lo tenés.</div>
           <div class="form-grid">
-            <div class="field"><label>Localidad</label><input id="pLocalidad" placeholder="Ej: Katueté"></div>
-            <div class="field"><label>Departamento</label><input id="pDepto" placeholder="Ej: Canindeyú"></div>
+            <div class="field"><label>Departamento</label><input id="pDepto" placeholder="Elegí o escribí…"><span class="hint">Elegí de la lista o escribí uno nuevo</span></div>
+            <div class="field"><label>Localidad</label><input id="pLocalidad" placeholder="Elegí o escribí…"><span class="hint">Se filtra por el departamento elegido</span></div>
             <div class="field"><label>País</label><select id="pPais"><option>Paraguay</option><option>Brasil</option><option>Argentina</option><option>Bolivia</option><option>Uruguay</option></select></div>
             <div class="field" style="justify-content:flex-end;"><button class="btn" id="btnGeo">📍 Buscar por localidad</button></div>
             <div class="field full"><label>O pegar coordenadas de Google Maps</label><input id="pGps" placeholder="Ej: -24.2483, -54.7596"><span class="hint" id="geoHint"></span></div>
@@ -421,6 +421,7 @@
   });
 
   /* ---------- arranque ---------- */
+  SafiaCasos.conectarListasUbicacion(document.getElementById('pDepto'), document.getElementById('pLocalidad'));
   recargarCasos();
   var cultivos={}; casos.forEach(function(c){ if(c.cultivo)cultivos[c.cultivo]=1; }); ['Soja','Maíz','Trigo'].forEach(function(x){cultivos[x]=1;});
   var lc=Object.keys(cultivos).sort();

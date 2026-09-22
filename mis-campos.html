@@ -34,6 +34,7 @@
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
+<script src="safia-casos.js"></script>
 </head>
 <body>
 
@@ -272,6 +273,10 @@
       cargarSelectorClientes();
       cargarFiltroClientes();
       mostrarCampos();
+      // Listas para elegir departamento y localidad (base de referencia + campos cargados)
+      if (window.SafiaCasos) {
+        SafiaCasos.conectarListasUbicacion(document.getElementById('departamento'), document.getElementById('localidad'));
+      }
     };
 
     function verificarClientes() {
