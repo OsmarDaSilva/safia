@@ -164,12 +164,12 @@
         <div class="form-grid">
           <div class="field">
             <label>Latitud</label>
-            <input type="number" id="latitud" placeholder="Ej: -24.3572" step="any">
+            <input type="number" id="latitud" placeholder="Ej: -24.3572" step="any" onchange="latLonManual()">
             <div class="hint">Negativo si estás al sur del Ecuador</div>
           </div>
           <div class="field">
             <label>Longitud</label>
-            <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any">
+            <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any" onchange="latLonManual()">
             <div class="hint">Negativo si estás al oeste de Greenwich</div>
           </div>
           <div class="field full">
@@ -179,8 +179,8 @@
           </div>
           <div class="field">
             <label>Altitud <span class="opcional">(metros sobre el nivel del mar)</span></label>
-            <input type="number" id="altitud" placeholder="Ej: 220" step="any">
-            <div class="hint">Importante para comparar rindes entre zonas</div>
+            <input type="number" id="altitud" placeholder="Se completa sola con las coordenadas" step="any">
+            <div class="hint" id="altitudHint">Se obtiene sola de las coordenadas · podés corregirla</div>
           </div>
         </div>
         <div class="note info">
@@ -311,13 +311,46 @@
       }
     }
 
+    // Si cargás latitud y longitud a mano (sin pegar), también valida y busca altitud.
+    function latLonManual() {
+      const lat = parseFloat(document.getElementById('latitud').value);
+      const lon = parseFloat(document.getElementById('longitud').value);
+      if (!isNaN(lat) && !isNaN(lon)) validarGPS(lat, lon);
+    }
+
     function validarGPS(lat, lon) {
       const div = document.getElementById('gpsValidacion');
       if (lat < -90 || lat > 90) { div.innerHTML = '<span class="gps-status error">❌ Latitud inválida (debe estar entre -90 y 90)</span>'; return false; }
       if (lon < -180 || lon > 180) { div.innerHTML = '<span class="gps-status error">❌ Longitud inválida (debe estar entre -180 y 180)</span>'; return false; }
       let region = lat < 0 ? '🌎 Hemisferio Sur' : '🌍 Hemisferio Norte';
       div.innerHTML = `<span class="gps-status ok">✓ Coordenadas válidas · ${region}</span>`;
+      autocompletarAltitud(lat, lon);
       return true;
+    }
+
+    // Con las coordenadas ya sabemos la altitud: la traemos de Open-Meteo.
+    // Solo la completa si el casillero está vacío (no pisa lo que cargaste a mano).
+    let ultimoElevKey = '';
+    function autocompletarAltitud(lat, lon) {
+      const campoAlt = document.getElementById('altitud');
+      if (campoAlt.value.trim() !== '') return; // respeta valor manual
+      const clave = lat.toFixed(5) + ',' + lon.toFixed(5);
+      if (clave === ultimoElevKey) return;
+      ultimoElevKey = clave;
+      const hint = document.getElementById('altitudHint');
+      if (hint) hint.textContent = 'Buscando altitud de las coordenadas…';
+      fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`)
+        .then(r => r.json())
+        .then(j => {
+          const m = j && Array.isArray(j.elevation) ? j.elevation[0] : null;
+          if (m != null && campoAlt.value.trim() === '') {
+            campoAlt.value = Math.round(m);
+            if (hint) hint.textContent = '✓ Altitud obtenida de las coordenadas (podés corregirla)';
+          } else if (hint) {
+            hint.textContent = 'Importante para comparar rindes entre zonas';
+          }
+        })
+        .catch(() => { if (hint) hint.textContent = 'No se pudo obtener la altitud sola; cargala a mano'; });
     }
 
     function guardarOActualizar() {
