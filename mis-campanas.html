@@ -628,6 +628,7 @@
 <script src="safia-sync.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-insumos.js"></script>
 <script src="safia-casos.js"></script>
 </head>
 <body>
@@ -902,6 +903,56 @@
       <div class="modal-botones">
         <button class="boton-cancelar-modal" onclick="cerrarModalCosecha()">Cancelar</button>
         <button class="boton-confirmar-cosecha" onclick="guardarCosecha()">🌾 Confirmar y cerrar campaña</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL MANEJO E INSUMOS ===== -->
+  <div class="modal-overlay" id="modalInsumosOverlay" onclick="if(event.target.id==='modalInsumosOverlay') cerrarModalInsumos()">
+    <div class="modal" onclick="event.stopPropagation()" style="max-width:720px;">
+      <div class="modal-titulo">Manejo e insumos</div>
+      <div class="modal-sub" id="modalInsumosSub">—</div>
+
+      <div class="tablewrap" style="margin-bottom:14px;">
+        <div class="tablescroll">
+          <table class="tbl">
+            <thead><tr><th>Categoría</th><th>Producto</th><th class="r">Dosis</th><th>Etapa / fecha</th><th></th></tr></thead>
+            <tbody id="cuerpoInsumos"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="muted" id="insumosVacio" style="font-size:12px;margin:-6px 0 12px;">Todavía no hay insumos cargados en esta campaña. Cargá lo que se usó: tratamiento de semilla, inoculación, fertilización, foliares, fungicidas, insecticidas… Todo es opcional, pero cuanto más completo, mejor compara SAFIA.</div>
+
+      <div style="border:1px solid #E1E4E7;border-radius:10px;padding:12px;background:#F8F9FA;">
+        <div style="font-weight:700;margin-bottom:8px;">Agregar insumo</div>
+        <div class="fila">
+          <div class="campo"><label>Categoría</label><select id="insCategoria"></select></div>
+          <div class="campo" id="campoInsCultivo" style="display:none;"><label>Cultivo</label><select id="insCultivoIdx"></select></div>
+        </div>
+        <div class="fila">
+          <div class="campo"><label>Producto / mezcla</label><input type="text" id="insProducto" list="listaProductos" placeholder="Ej: Standak Top, Bradyrhizobium, 04-30-10, Cobre + Zinc"><datalist id="listaProductos"></datalist></div>
+          <div class="campo"><label>Dosis</label><div style="display:flex;gap:6px;"><input type="number" id="insDosis" step="0.01" min="0" placeholder="Ej: 250" style="flex:1;"><select id="insUnidad" style="flex:1;"></select></div></div>
+        </div>
+        <div class="fila">
+          <div class="campo"><label>Etapa del cultivo</label><select id="insEtapa"></select></div>
+          <div class="campo"><label>Fecha (opcional)</label><input type="date" id="insFecha"></div>
+        </div>
+        <div class="campo"><label>Observaciones (opcional)</label><input type="text" id="insObs" placeholder="Ej: mezcla de tanque con…"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+          <button type="button" class="cierre-boton" onclick="agregarInsumo()">+ Agregar a la campaña</button>
+          <span style="flex:1"></span>
+          <select id="insCopiarDe" style="max-width:260px;"><option value="">Copiar insumos de otra campaña…</option></select>
+          <button type="button" class="cierre-boton" onclick="copiarInsumos()">Copiar</button>
+        </div>
+      </div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;cursor:pointer;">
+        <input type="checkbox" id="insManejoCompleto" onchange="guardarManejoCompleto()"> Ya cargué todo lo que se usó en esta campaña (manejo completo)
+      </label>
+      <div class="ayuda" style="font-size:11px;">Marcalo cuando la lista esté completa: así SAFIA puede comparar "con" y "sin" cada práctica sin confundir "no cargado" con "no se usó".</div>
+
+      <div class="modal-botones">
+        <button class="boton-cancelar-modal" onclick="cerrarModalInsumos()">Cerrar</button>
       </div>
     </div>
   </div>
@@ -1372,6 +1423,114 @@
     function cerrarModalCosecha() {
       document.getElementById('modalCosechaOverlay').classList.remove('visible');
       cosechandoCampanaId = null;
+    }
+
+    // ===== MANEJO E INSUMOS =====
+    let insumosCampanaId = null;
+    function campanaDeInsumos() {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const idx = campanas.findIndex(c => String(c.id) === String(insumosCampanaId));
+      return { campanas, idx, campana: idx >= 0 ? campanas[idx] : null };
+    }
+    function abrirModalInsumos(campanaId) {
+      insumosCampanaId = campanaId;
+      const { campana, campanas } = campanaDeInsumos();
+      if (!campana) return;
+      const cultivos = (campana.cultivos || []).map(c => c.cultivo + (c.variedad ? ' ' + c.variedad : '')).join(' + ');
+      document.getElementById('modalInsumosSub').textContent = campana.nombre + (cultivos ? ' · ' + cultivos : '');
+      const selCat = document.getElementById('insCategoria');
+      if (!selCat.options.length) {
+        const grupos = {};
+        SafiaInsumos.CATEGORIAS.forEach(c => { (grupos[c.grupo] = grupos[c.grupo] || []).push(c); });
+        selCat.innerHTML = Object.keys(grupos).map(g => '<optgroup label="' + g + '">' + grupos[g].map(c => '<option value="' + c.k + '">' + c.n + '</option>').join('') + '</optgroup>').join('');
+        document.getElementById('insUnidad').innerHTML = SafiaInsumos.UNIDADES.map(u => '<option>' + u + '</option>').join('');
+        document.getElementById('insEtapa').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
+      }
+      const selCu = document.getElementById('insCultivoIdx');
+      selCu.innerHTML = (campana.cultivos || []).map((c, i) => '<option value="' + i + '">' + c.cultivo + (c.variedad ? ' ' + c.variedad : '') + '</option>').join('');
+      document.getElementById('campoInsCultivo').style.display = (campana.cultivos || []).length > 1 ? '' : 'none';
+      // productos ya usados (todas las campañas + aplicaciones del Operador) para autocompletar
+      const usados = {};
+      campanas.forEach(c => (c.insumos || []).forEach(i => { if (i.producto) usados[i.producto] = 1; }));
+      JSON.parse(localStorage.getItem('eventos') || '[]').forEach(e => { if (e.tipo === 'aplicacion' && e.producto) usados[e.producto] = 1; });
+      document.getElementById('listaProductos').innerHTML = Object.keys(usados).sort().map(p => '<option value="' + p.replace(/"/g, '&quot;') + '">').join('');
+      // copiar de otra campaña
+      document.getElementById('insCopiarDe').innerHTML = '<option value="">Copiar insumos de otra campaña…</option>' +
+        campanas.filter(c => String(c.id) !== String(campanaId) && (c.insumos || []).length).map(c => '<option value="' + c.id + '">' + c.nombre + ' (' + (c.cultivos || []).map(x => x.cultivo).join('+') + ') · ' + c.insumos.length + ' insumos</option>').join('');
+      document.getElementById('insManejoCompleto').checked = !!campana.manejoCompleto;
+      pintarInsumos();
+      document.getElementById('modalInsumosOverlay').classList.add('visible');
+    }
+    function pintarInsumos() {
+      const { campana } = campanaDeInsumos();
+      const lista = (campana && campana.insumos) || [];
+      const cuerpo = document.getElementById('cuerpoInsumos');
+      document.getElementById('insumosVacio').style.display = lista.length ? 'none' : '';
+      cuerpo.innerHTML = lista.map(i => {
+        const cu = campana.cultivos && campana.cultivos.length > 1 && i.cultivoIdx != null && campana.cultivos[i.cultivoIdx] ? '<div class="sub">' + campana.cultivos[i.cultivoIdx].cultivo + '</div>' : '';
+        return '<tr><td><span class="badge blue">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cu + '</td>' +
+          '<td><span class="num">' + (i.producto || '—') + '</span>' + (i.obs ? '<div class="sub">' + i.obs + '</div>' : '') + '</td>' +
+          '<td class="r">' + (i.dosis != null && i.dosis !== '' ? i.dosis + ' ' + (i.unidad || '') : '—') + '</td>' +
+          '<td>' + (i.etapa || '—') + (i.fecha ? '<div class="sub">' + new Date(i.fecha + 'T12:00:00').toLocaleDateString('es-PY') + '</div>' : '') + '</td>' +
+          '<td class="r"><button class="cierre-boton" onclick="quitarInsumo(' + i.id + ')" title="Quitar">Quitar</button></td></tr>';
+      }).join('');
+    }
+    function guardarCampanaInsumos(campanas, idx) {
+      campanas[idx].fechaModificacion = new Date().toISOString();
+      localStorage.setItem('campanas', JSON.stringify(campanas));
+      pintarInsumos();
+      mostrarCampanas();
+    }
+    function agregarInsumo() {
+      const { campanas, idx, campana } = campanaDeInsumos();
+      if (!campana) return;
+      const producto = document.getElementById('insProducto').value.trim();
+      const categoria = document.getElementById('insCategoria').value;
+      if (!producto && categoria !== 'otro') { mostrarToast('Escribí el producto (o la mezcla) que se usó'); return; }
+      const dosis = document.getElementById('insDosis').value;
+      const item = {
+        id: Date.now(), categoria, producto,
+        dosis: dosis === '' ? null : parseFloat(dosis), unidad: document.getElementById('insUnidad').value,
+        etapa: document.getElementById('insEtapa').value, fecha: document.getElementById('insFecha').value || null,
+        cultivoIdx: (campana.cultivos || []).length > 1 ? parseInt(document.getElementById('insCultivoIdx').value || '0', 10) : null,
+        obs: document.getElementById('insObs').value.trim()
+      };
+      campanas[idx].insumos = (campanas[idx].insumos || []).concat([item]);
+      guardarCampanaInsumos(campanas, idx);
+      document.getElementById('insProducto').value = ''; document.getElementById('insDosis').value = ''; document.getElementById('insObs').value = ''; document.getElementById('insFecha').value = '';
+      mostrarToast('Insumo agregado');
+    }
+    function quitarInsumo(id) {
+      const { campanas, idx, campana } = campanaDeInsumos();
+      if (!campana) return;
+      campanas[idx].insumos = (campana.insumos || []).filter(i => String(i.id) !== String(id));
+      guardarCampanaInsumos(campanas, idx);
+    }
+    function copiarInsumos() {
+      const origenId = document.getElementById('insCopiarDe').value;
+      if (!origenId) { mostrarToast('Elegí de qué campaña copiar'); return; }
+      const { campanas, idx, campana } = campanaDeInsumos();
+      const origen = campanas.find(c => String(c.id) === String(origenId));
+      if (!campana || !origen) return;
+      const base = Date.now();
+      campanas[idx].insumos = (campana.insumos || []).concat((origen.insumos || []).map((i, k) => Object.assign({}, i, { id: base + k, fecha: null })));
+      guardarCampanaInsumos(campanas, idx);
+      mostrarToast((origen.insumos || []).length + ' insumos copiados; revisá dosis y fechas');
+    }
+    function guardarManejoCompleto() {
+      const { campanas, idx, campana } = campanaDeInsumos();
+      if (!campana) return;
+      campanas[idx].manejoCompleto = document.getElementById('insManejoCompleto').checked;
+      guardarCampanaInsumos(campanas, idx);
+    }
+    function cerrarModalInsumos() {
+      document.getElementById('modalInsumosOverlay').classList.remove('visible');
+      insumosCampanaId = null;
+    }
+    function resumenInsumosHTML(campana) {
+      const n = (campana.insumos || []).length;
+      if (!n && !campana.manejoCompleto) return '';
+      return '<div class="sub">' + (n ? n + ' insumo' + (n === 1 ? '' : 's') : 'manejo completo, sin insumos') + '</div>';
     }
 
     function cerrarModalSiClickFuera(event) {
@@ -1892,11 +2051,12 @@
           return `
             <tr class="${claseEditando}">
               <td><span class="num">${campana.nombre}</span></td>
-              <td>${cultivosTexto ? `<span class="badge blue">${cultivosTexto}</span>` : '<span class="muted">Sin cultivos</span>'}</td>
+              <td>${cultivosTexto ? `<span class="badge blue">${cultivosTexto}</span>` : '<span class="muted">Sin cultivos</span>'}${resumenInsumosHTML(campana)}</td>
               <td>${etiquetaEquipo(equipo)}</td>
               <td>${campo ? campo.nombre : '?'}</td>
               <td>${cliente ? cliente.nombre : '?'}</td>
               <td class="r"><span class="rowact">
+                <button onclick="abrirModalInsumos(${campana.id})" title="Manejo e insumos: tratamiento de semilla, inoculación, fertilización, foliares, fungicidas…"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 7.3 12 3 3.5 7.3 12 11.6z"/><path d="M3.5 7.3v9.4L12 21l8.5-4.3V7.3"/><path d="M12 11.6V21"/></svg></button>
                 <button onclick="abrirModalNPK(${campana.id})" title="Balance N/P/K"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></button>
                 <button onclick="abrirModalCosecha(${campana.id})" title="Registrar cosecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M12 9c0-2.2 1.6-4 4-4 0 2.2-1.6 4-4 4z"/><path d="M12 9c0-2.2-1.6-4-4-4 0 2.2 1.6 4 4 4z"/><path d="M12 14c0-2.2 1.6-4 4-4 0 2.2-1.6 4-4 4z"/><path d="M12 14c0-2.2-1.6-4-4-4 0 2.2 1.6 4 4 4z"/></svg></button>
                 <button onclick="editarCampana(${campana.id})" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17z"/><path d="M14 7l3 3"/></svg></button>
@@ -1991,7 +2151,7 @@
                     <span class="badge-estado badge-cerrada">⚫ Cerrada</span>
                   </div>
                   <div class="cierre-sub">
-                    <span>${cultivoNombre}</span>
+                    <span>${cultivoNombre}</span>${(campana.insumos||[]).length ? `<span>${campana.insumos.length} insumos</span>` : ''}
                     <span>${etiquetaEquipo(equipo)}</span>
                     <span>👤 ${cliente ? cliente.nombre : '?'}</span>
                     ${cosecha ? `<span>📅 Cosecha: ${new Date(cosecha.fecha + 'T12:00:00').toLocaleDateString('es-PY', {day:'2-digit',month:'2-digit',year:'numeric'})}</span>` : ''}
@@ -2054,6 +2214,7 @@
               <div class="cierre-acciones">
                 <button class="cierre-boton" onclick="abrirModalCosecha(${campana.id})" title="Corregir la cosecha: fecha, kilos, superficie, riego y lluvia">📝 Corregir cosecha</button>
                 <button class="cierre-boton" onclick="editarCampana(${campana.id})" title="Editar la campaña (nombre, cultivo, fechas de siembra)">✏️ Editar campaña</button>
+                <button class="cierre-boton" onclick="abrirModalInsumos(${campana.id})" title="Qué se usó: tratamiento de semilla, inoculación, fertilización, foliares, fungicidas, insecticidas">Manejo e insumos</button>
                 <button class="item-boton item-borrar" onclick="borrarCampana(${campana.id})" title="Borrar campaña">×</button>
               </div>
             </div>

@@ -71,6 +71,15 @@
     return previoA(delLote) || previoA(generales) || (delLote.length ? orden(delLote)[0] : null) || (generales.length ? orden(generales)[0] : null) || orden(todos)[0];
   }
 
+  /* Aplicaciones del Operador (eventos tipo 'aplicacion') del equipo dentro del ciclo. */
+  function aplicacionesDeEventos(equipoId, desde, hasta) {
+    return leer('eventos').filter(function (ev) {
+      if (ev.tipo !== 'aplicacion' || String(ev.equipoId) !== String(equipoId)) return false;
+      var f = String(ev.fecha || '').slice(0, 10);
+      return (!desde || f >= desde) && (!hasta || f <= hasta);
+    });
+  }
+
   /* Suma de eventos del equipo entre dos fechas, por tipo. */
   function aguaDeEventos(equipoId, desde, hasta) {
     var r = { lluvia: 0, riego: 0, nLluvia: 0, nRiego: 0 };
@@ -142,6 +151,8 @@
           densidad: num(cu.densidad),
           encaladoTnHa: num(cu.encaladoTnHa),
           fertilizacion: cu.fertilizacion || '',
+          insumos: (c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }),
+          manejo: window.SafiaInsumos ? SafiaInsumos.resumen((c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }), aplicacionesDeEventos(c.equipoId, siembra, cosecha), c.manejoCompleto) : null,
           rindeKgHa: rinde,
           objetivoKgHa: num(cu.rendimientoObj),
           lluviaMM: lluvia, riegoMM: riego,
@@ -187,6 +198,7 @@
         lluviaMM: lluvia, riegoMM: riego,
         aguaTotalMM: (lluvia != null || riego != null) ? (lluvia || 0) + (riego || 0) : null,
         encaladoTnHa: num(ci.encaladoTnHa), fertilizacion: ci.fertilizacion || '',
+        insumos: [], manejo: window.SafiaInsumos ? SafiaInsumos.resumen([], [], false) : null,
         clima: ci.clima || null,
         suelo: suelo ? { fecha: suelo.fecha, ph: num(suelo.ph), mo: num(suelo.mo), p: num(suelo.p), k: num(suelo.k), ca: num(suelo.ca), mg: num(suelo.mg), cic: num(suelo.cic), satBases: num(suelo.satBases), arena: num(suelo.arena), limo: num(suelo.limo), arcilla: num(suelo.arcilla) } : null,
         tieneCoordenadas: !!(campo && num(campo.latitud) != null && num(campo.longitud) != null)

@@ -52,6 +52,7 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
+<script src="safia-insumos.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-mapas.js"></script>
 </head>
@@ -1424,19 +1425,35 @@
       }
     }
 
-    /* ---- 6. Fertirriego y aplicaciones ---- */
-    html += h3evo('🧴 Fertirriego y aplicaciones', '¿las campañas con aplicaciones registradas rindieron más?');
-    var eventos = leer('eventos');
-    var conApl = [], sinApl = [];
-    mios.forEach(function (c) {
-      var n = eventos.filter(function (ev) { return ev.tipo === 'aplicacion' && String(ev.equipoId) === String(c.equipoId) && c.siembra && c.cosecha && String(ev.fecha).slice(0, 10) >= c.siembra && String(ev.fecha).slice(0, 10) <= c.cosecha; }).length;
-      c._apl = n; (n ? conApl : sinApl).push(c);
-    });
-    var eqActual = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
-    var tieneFert = eqActual.some(function (e) { return String(e.pivoteFertirrigacion || e.fertirrigacion || '').toLowerCase().indexOf('s') === 0; });
-    html += '<div class="note">' + (tieneFert ? '✔ El equipo de este lote tiene fertirrigación. ' : '') +
-      'Campañas con aplicaciones registradas: <b>' + conApl.length + '</b> (rinde promedio ' + fmt(prom(conApl.map(function (c) { return c.rindeKgHa; })), 0) + ') · sin aplicaciones registradas: <b>' + sinApl.length + '</b> (rinde promedio ' + fmt(prom(sinApl.map(function (c) { return c.rindeKgHa; })), 0) + ').' +
-      (conApl.length && sinApl.length ? '' : '<br><span class="muted">Para medir el efecto del fertirriego hace falta registrar las aplicaciones en <a href="operador.html">Operador</a> (producto, dosis, fecha) en cada campaña.</span>') + '</div>';
+    /* ---- 6. Manejo e insumos ---- */
+    html += h3evo('🧴 Manejo e insumos', '¿qué prácticas acompañaron los mejores rindes? tratamiento de semilla, inoculación, fertilización, foliares, protección');
+    var conManejo = mios.filter(function (c) { return c.manejo && c.manejo.cargado; });
+    if (!window.SafiaInsumos || !conManejo.length) {
+      html += '<div class="note">Ninguna campaña cosechada de este lote tiene el manejo cargado. En <a href="mis-campanas.html"><b>Campañas → Manejo e insumos</b></a> registrá qué se usó (tratamiento de semilla, inoculante, fertilización de base y cobertura, fertirriego, foliares, fungicidas, insecticidas) y marcá "manejo completo": con eso SAFIA compara el rinde <b>con</b> y <b>sin</b> cada práctica.</div>';
+    } else {
+      var mejorM = conManejo.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      html += '<div class="note ok">Campañas con manejo cargado: <b>' + conManejo.length + '</b> de ' + mios.length + '. Tu mejor campaña con manejo (' + esc(mejorM.campana) + ' · ' + esc(mejorM.cultivo) + ', ' + fmt(mejorM.rindeKgHa, 0) + ' kg/ha) usó: <b>' + esc(SafiaInsumos.textoCorto(mejorM.manejo)) + '</b>' + (mejorM.manejo.productos.length ? ' — ' + esc(mejorM.manejo.productos.slice(0, 8).join(', ')) : '') + '.</div>';
+      // con vs sin, por práctica y dentro del mismo cultivo (comparación válida solo entre casos del mismo cultivo)
+      var filasM = [];
+      SafiaInsumos.PRACTICAS.forEach(function (p) {
+        Object.keys(agrupar(conManejo, function (c) { return c.cultivo; })).forEach(function (cu) {
+          var del = conManejo.filter(function (c) { return c.cultivo === cu; });
+          var con = del.filter(function (c) { return SafiaInsumos.tiene(c.manejo, p.k); }), sin = del.filter(function (c) { return !SafiaInsumos.tiene(c.manejo, p.k); });
+          if (!con.length) return;
+          var pc = prom(con.map(function (c) { return c.rindeKgHa; })), ps = sin.length ? prom(sin.map(function (c) { return c.rindeKgHa; })) : null;
+          filasM.push({ p: p.n, cu: cu, nCon: con.length, nSin: sin.length, pc: pc, ps: ps, d: ps != null ? pc - ps : null });
+        });
+      });
+      if (filasM.length) {
+        filasM.sort(function (a, b) { return (b.d == null ? -1e9 : b.d) - (a.d == null ? -1e9 : a.d); });
+        html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Práctica</th><th>Cultivo</th><th class="r">Con (campañas · rinde)</th><th class="r">Sin (campañas · rinde)</th><th class="r">Diferencia</th></tr></thead><tbody>' +
+          filasM.map(function (f) {
+            return '<tr>' + td('<b>' + esc(f.p) + '</b>') + td(esc(f.cu)) + td(f.nCon + ' · <span class="num">' + fmt(f.pc, 0) + '</span>', 1) + td(f.nSin ? f.nSin + ' · ' + fmt(f.ps, 0) : '<span class="muted">sin casos "sin"</span>', 1) +
+              td(f.d == null ? '<span class="muted">—</span>' : '<span class="badge ' + (f.d >= 0 ? 'green' : 'red') + '">' + (f.d >= 0 ? '+' : '') + fmt(f.d, 0) + ' kg/ha</span>', 1) + '</tr>';
+          }).join('') + '</tbody></table></div></div>' +
+          '<div class="muted" style="font-size:12px;margin-top:6px;">La diferencia aparece cuando hay campañas del mismo cultivo con y sin la práctica. Con pocas campañas es orientativa; cada campaña nueva la afina.</div>';
+      }
+    }
 
     /* ---- 7. Benchmark: el mejor de tu zona ---- */
     html += h3evo('🏆 Frente al mejor de tu zona', 'qué tiene el que más rinde, y qué te falta');

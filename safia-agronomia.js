@@ -257,7 +257,18 @@
       }
       var encM = num(mio.encaladoTnHa), encR = num(ref.encaladoTnHa);
       if (encR != null && encR > 0 && (encM == null || encM === 0)) factores.push({ tipo: 'manejo', k: 'encalado', nombre: 'Encalado', peso: 0.35, texto: 'El otro lote encaló ' + fmt(encR, 1) + ' t/ha en esa campaña y este no.' });
-      if (ref.fertilizacion && !mio.fertilizacion) factores.push({ tipo: 'manejo', k: 'fert', nombre: 'Fertilización', peso: 0.2, texto: 'El otro lote registró fertilización ("' + ref.fertilizacion + '") y este no tiene registro: cargala para poder comparar.' });
+      // Manejo e insumos: prácticas que el otro lote hizo y este no (solo si los dos tienen el manejo cargado)
+      if (window.SafiaInsumos && mio.manejo && ref.manejo) {
+        if (mio.manejo.cargado && ref.manejo.cargado) {
+          SafiaInsumos.PRACTICAS.forEach(function (p) {
+            var a = SafiaInsumos.tiene(mio.manejo, p.k), b = SafiaInsumos.tiene(ref.manejo, p.k);
+            if (b && !a) factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso, texto: 'El otro lote hizo ' + p.n.toLowerCase() + (ref.manejo[p.k] > 1 ? ' (' + ref.manejo[p.k] + ' aplicaciones)' : '') + ' y este no lo registró' + (mio.manejo.total || mio.manejoCompleto ? '.' : '.') });
+            else if (a && b && ref.manejo[p.k] > mio.manejo[p.k] + 1) factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso * 0.5, texto: p.n + ': ' + ref.manejo[p.k] + ' aplicaciones en el otro lote contra ' + mio.manejo[p.k] + ' acá.' });
+          });
+        } else if (!mio.manejo.cargado && ref.manejo.cargado) {
+          factores.push({ tipo: 'manejo', k: 'ins_sin', nombre: 'Manejo e insumos sin cargar', peso: 0.15, texto: 'El otro lote tiene cargado su manejo (' + SafiaInsumos.textoCorto(ref.manejo) + '); esta campaña no. Cargalo en Campañas → "Manejo e insumos" para comparar tratamiento de semilla, inoculación, fertilización y protección.' });
+        }
+      } else if (ref.fertilizacion && !mio.fertilizacion) factores.push({ tipo: 'manejo', k: 'fert', nombre: 'Fertilización', peso: 0.2, texto: 'El otro lote registró fertilización ("' + ref.fertilizacion + '") y este no tiene registro: cargala para poder comparar.' });
       var dM = num(mio.densidad), dR = num(ref.densidad);
       if (dM != null && dR != null && dR > 0 && Math.abs(dM - dR) / dR > 0.15) factores.push({ tipo: 'manejo', k: 'densidad', nombre: 'Densidad de siembra', peso: 0.15, texto: 'Densidad ' + fmt(dM, 0) + ' vs ' + fmt(dR, 0) + ' plantas/ha.' });
     }
