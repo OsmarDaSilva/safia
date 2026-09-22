@@ -33,6 +33,33 @@
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);
 
+  /* El navegador (Chrome) recuerda lo que se escribió en campos con el mismo
+     nombre y lo sugiere en cualquier pantalla: apagamos ese historial en todos
+     los campos de texto libre. Las listas propias de SAFIA (datalist) siguen. */
+  function apagarHistorialNavegador(raiz) {
+    if (!raiz || !raiz.querySelectorAll) return;
+    var sel = 'form, textarea, input:not([type]), input[type="text"], input[type="number"], input[type="search"], input[type="tel"], input[type="url"], input[type="email"]';
+    var nodos = raiz.matches && raiz.matches(sel) ? [raiz] : [];
+    nodos = nodos.concat(Array.prototype.slice.call(raiz.querySelectorAll(sel)));
+    nodos.forEach(function (n) {
+      if (!n.hasAttribute('autocomplete')) n.setAttribute('autocomplete', 'off');
+    });
+  }
+  if (!ES_LOGIN) {
+    var arrancarApagado = function () {
+      apagarHistorialNavegador(document.body);
+      new MutationObserver(function (cambios) {
+        cambios.forEach(function (c) {
+          Array.prototype.forEach.call(c.addedNodes, function (n) {
+            if (n.nodeType === 1) apagarHistorialNavegador(n);
+          });
+        });
+      }).observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.body) arrancarApagado();
+    else document.addEventListener('DOMContentLoaded', arrancarApagado);
+  }
+
   // Sin supabase-js (sin internet o CDN caída): modo local, sin bloqueo.
   if (!window.supabase || !window.supabase.createClient) {
     console.warn('SAFIA sync: supabase-js no cargó. Trabajando en modo local.');
