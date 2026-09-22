@@ -51,6 +51,7 @@
 <script src="safia-sync.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
+<script src="safia-agronomia.js"></script>
 </head>
 <body>
 
@@ -255,6 +256,7 @@
           <div class="tablewrap" id="wrapEvolucion">
             <div class="tablescroll"><table class="tbl" id="tablaEvolucion"></table></div>
           </div>
+          <div id="lecturaAnalisis"></div>
           <div class="empty" id="vacioAnalisis" style="display:none;">
             <div class="eico">🧪</div>
             <div class="etxt">Todavía no hay análisis de suelo en este lote.<br>El primer análisis es la línea de base: todo lo que mejore se va a medir contra él.</div>
@@ -797,10 +799,26 @@
       .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
   }
 
+  function pintarLecturaAnalisis(lista) {
+    var cont = document.getElementById('lecturaAnalisis');
+    if (!cont) return;
+    if (!lista.length || !window.SafiaAgro) { cont.innerHTML = ''; return; }
+    var ult = lista[lista.length - 1];
+    var cultivo = (document.getElementById('lecturaCultivo') || {}).value || 'Soja';
+    var recs = SafiaAgro.recomendaciones(ult, cultivo, null);
+    cont.innerHTML = '<div class="card" style="margin-top:14px;"><div class="card-h"><h3>🧠 Lectura agronómica del último análisis</h3>' +
+      '<span class="muted">' + fmtFecha(ult.fecha) + ' · interpretado para <select id="lecturaCultivo" style="font-size:12px;padding:2px 6px;">' + ['Soja', 'Maíz', 'Trigo', 'Girasol'].map(function (c) { return '<option' + (c === cultivo ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></span></div>' +
+      SafiaAgro.tablaInterpretacion(SafiaAgro.interpretarSuelo(ult, cultivo)) +
+      '<div style="font-weight:700;margin-top:12px;">Qué hacer</div>' + SafiaAgro.listaRecomendaciones(recs) +
+      '<div class="muted" style="font-size:11px;margin-top:8px;">Tablas de CAPECO/IPTA (Cubilla & Wendling 2012), Manual RS/SC 2016, Embrapa y Scientia Agricola. La prescripción final la define el agrónomo.</div></div>';
+    document.getElementById('lecturaCultivo').addEventListener('change', function () { pintarLecturaAnalisis(lista); });
+  }
+
   function pintarAnalisis() {
     var lista = analisisDelCampo();
     document.getElementById('wrapEvolucion').style.display = lista.length ? '' : 'none';
     document.getElementById('vacioAnalisis').style.display = lista.length ? 'none' : '';
+    pintarLecturaAnalisis(lista);
     if (!lista.length) return;
 
     var t = document.getElementById('tablaEvolucion');
@@ -1335,7 +1353,7 @@
 
     /* ---- 7. Benchmark: el mejor de tu zona ---- */
     html += h3evo('🏆 Frente al mejor de tu zona', 'qué tiene el que más rinde, y qué te falta');
-    var filasB = [];
+    var filasB = [], diagnosticos = [];
     Object.keys(porCultivo).forEach(function (cu) {
       var mioMejor = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
       var candidatos = todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu); });
@@ -1344,9 +1362,11 @@
       var ambito = local.length ? campoActual.localidad : (pool.length ? campoActual.departamento : null);
       if (!pool.length) {
         filasB.push('<tr>' + td(esc(cu)) + '<td colspan="5" class="muted">Todavía no hay otros clientes con ' + esc(cu) + ' en tu zona: sos la referencia. A medida que se carguen, acá vas a ver contra quién compararte.</td></tr>');
+        diagnosticos.push({ cu: cu, mio: mioMejor, ref: null });
         return;
       }
       var top = pool.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      diagnosticos.push({ cu: cu, mio: mioMejor, ref: top });
       var difR = mioMejor.rindeKgHa - top.rindeKgHa;
       // Si este lote es el que más rinde, el de la columna pasa a ser "el siguiente" de la zona.
       var otro = difR >= 0 ? 'el siguiente' : 'el mejor';
@@ -1366,6 +1386,17 @@
       }
     });
     html += tabla([{ t: 'Cultivo' }, { t: '' }, { t: 'Tu mejor campaña', r: 1 }, { t: 'El mejor de la zona (u otro cliente)', r: 1 }, { t: 'Diferencia', r: 1 }, { t: 'Lectura' }], filasB);
+
+    /* ---- 8. Motor agronómico: por qué rinde más o menos, y qué hacer ---- */
+    html += h3evo('🧠 Diagnóstico agronómico', 'por qué rendís más o menos que el mejor, qué es lo más determinante y qué hacer');
+    if (window.SafiaAgro) {
+      diagnosticos.forEach(function (dg) {
+        html += '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>🌱 ' + esc(dg.cu) + '</h3><span class="muted">' + esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs ' + esc(dg.ref.cliente) + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha' : '') + '</span></div>' +
+          SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu) + '</div>';
+      });
+    } else {
+      html += '<div class="note">Falta el motor agronómico (safia-agronomia.js).</div>';
+    }
     html += '<div class="note warn" style="margin-top:12px;">SAFIA <b>compara</b> con casos reales; cuánto corregir en suelo, riego o manejo lo define el agrónomo.</div>';
 
     cont.innerHTML = html;

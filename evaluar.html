@@ -32,6 +32,7 @@
 <script src="safia-sync.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
+<script src="safia-agronomia.js"></script>
 </head>
 <body>
   <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
@@ -366,7 +367,22 @@
       '<div class="grid cols-2"><div class="card"><div class="kpi-l">Potencial estimado (kg/ha)</div>'+potHTML+'</div>'+
       '<div class="card"><div class="kpi-l">Referencia regional (con riego / secano)</div><div style="margin-top:6px;">'+refHTML+'</div></div></div>'+
       '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Casos reales más parecidos</h3><span class="muted">'+r.totalCandidatos+' caso(s) de '+esc(p.cultivo)+' en el banco</span></div><div class="tablescroll"><table class="tbl"><thead><tr><th>Similitud</th><th>Cliente · campo</th><th class="r">Distancia</th><th class="r">Altitud</th><th>Campaña</th><th class="r">Rinde kg/ha</th><th class="r">Agua mm</th><th class="r">Temp. media</th></tr></thead><tbody>'+casosHTML+'</tbody></table></div></div>'+
-      '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Tu suelo vs el de los que más rinden en '+esc(p.cultivo)+'</h3><span class="muted">'+esc(sueloSub)+'</span></div><div class="tablescroll"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Tu suelo</th><th class="r">Los que más rinden</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead><tbody>'+sueloHTML+'</tbody></table></div></div>';
+      '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Tu suelo vs el de los que más rinden en '+esc(p.cultivo)+'</h3><span class="muted">'+esc(sueloSub)+'</span></div><div class="tablescroll"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Tu suelo</th><th class="r">Los que más rinden</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead><tbody>'+sueloHTML+'</tbody></table></div></div>'+
+      lecturaAgronomicaHTML(p);
+  }
+
+  // Motor agronómico: interpreta el suelo del proyecto y dice qué hacer (encalado, P, K, MO)
+  function lecturaAgronomicaHTML(p){
+    if(!window.SafiaAgro) return '';
+    var tieneSuelo = p.suelo && Object.keys(p.suelo).some(function(k){ return p.suelo[k]!=null && p.suelo[k]!==''; });
+    if(!tieneSuelo) return '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>🧠 Lectura agronómica del suelo</h3></div><div class="muted">Cargá el análisis de suelo del proyecto (arriba, paso 3) para ver qué le falta y qué habría que hacer antes de regar.</div></div>';
+    var inter = SafiaAgro.interpretarSuelo(p.suelo, p.cultivo);
+    var recs = SafiaAgro.recomendaciones(p.suelo, p.cultivo, p.objetivoKgHa);
+    var limitan = inter.filter(function(i){ return i.estado==='limita'; }).map(function(i){ return i.n; });
+    return '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>🧠 Lectura agronómica del suelo para '+esc(p.cultivo)+'</h3><span class="muted">'+(limitan.length?'limita: '+esc(limitan.join(', ')):'sin limitantes fuertes')+'</span></div>'+
+      SafiaAgro.tablaInterpretacion(inter)+
+      '<div style="font-weight:700;margin-top:12px;">Qué hacer antes de la primera campaña'+(p.objetivoKgHa?' <span class="muted" style="font-weight:500;">(objetivo '+fmt(p.objetivoKgHa,0)+' kg/ha)</span>':'')+'</div>'+SafiaAgro.listaRecomendaciones(recs)+
+      '<div class="muted" style="font-size:11px;margin-top:8px;">Tablas de CAPECO/IPTA (Cubilla & Wendling 2012), Manual RS/SC 2016, Embrapa y Scientia Agricola. La prescripción final la define el agrónomo.</div></div>';
   }
 
   function lecturaResumen(p, r, ref){

@@ -82,6 +82,13 @@ Para el cliente que **ya riega**, campaña tras campaña:
 - **Agua → rinde:** con cuántos mm (lluvia + riego) se alcanzaron los rindes máximos; cuánta agua por kilo produjo. Base para la regla "si el año viene más seco, regá hasta llegar a los mm de tu mejor campaña".
 - **Benchmark local:** el mejor productor de su localidad como referencia: qué suelo tiene, cuánta agua usó, qué variedad y época; y qué le falta al cliente para acercarse.
 
+### Motor 6 · Diagnóstico agronómico (por qué y qué hacer) — HECHO
+`safia-agronomia.js` (window.SafiaAgro). Interpreta el análisis de suelo con las tablas usadas en Paraguay y explica la diferencia de rinde entre dos casos:
+- **Tablas:** P y K Mehlich-1 por clase de arcilla, niveles críticos (P 12/15 mg/dm³, K 75 mg/dm³), dosis correctivas y de manutención (Cubilla & Wendling 2012, CAPECO/IPTA); V% objetivo 65 soja / 70 maíz-trigo y encalado NC = (V2 − V1) × CIC / PRNT (Manual RS/SC 2016, Embrapa); Ca/Mg ideal 3–5 y (Ca+Mg)/K > 36 = deficiencia inducida de K (Oliveira Jr. 2001, Scientia Agricola); pH y disponibilidad (PPI 1997).
+- **Por qué:** para cada parámetro calcula una "limitación" 0–1 (distancia al nivel crítico × importancia); lo que limita al cliente y no al de referencia explica la diferencia (ley del mínimo). Suma agua del ciclo vs ET₀, días ≥ 35°, época, fecha, variedad, encalado, fertilización y densidad. Diferencias < 5 % = empate técnico.
+- **Qué hacer:** encalado (t/ha y tipo de calcáreo), P₂O₅ correctivo + manutención por tonelada objetivo, K₂O correctivo gradual, materia orgánica. Siempre con la fuente. SAFIA interpreta; el agrónomo prescribe.
+- **Dónde:** Banco → Evolución (sección "Diagnóstico agronómico" por cultivo, contra el mejor de la zona), Banco → Análisis de suelo ("Lectura agronómica del último análisis"), Evaluar proyecto ("Lectura agronómica del suelo" del prospecto).
+
 ### Motor 5 · Consultor en vivo — FUTURO
 Durante la campaña, con estación meteorológica y satélite (NDVI): comparar las condiciones de **hoy** (agua acumulada vs demanda, grados-día, verdor) contra la **campaña modelo** que alcanzó el objetivo, **alineado por etapa del cultivo** (no por fecha del calendario), y alertar a tiempo para corregir (foliar, fertirriego, más riego).
 
