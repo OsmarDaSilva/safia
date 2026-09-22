@@ -622,6 +622,7 @@
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
+<script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
 </head>
 <body>
@@ -665,9 +666,6 @@
       </a>
       <a href="mis-campanas.html" class="sidebar-link activo">
         <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></span><span>Campañas</span>
-      </a>
-      <a href="analisis.html" class="sidebar-link">
-        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></span><span>Análisis y Docs</span>
       </a>
       <a href="banco.html" class="sidebar-link">
         <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg></span><span>Banco Agronómico</span>
@@ -813,6 +811,11 @@
     <div class="modal" onclick="event.stopPropagation()">
       <div class="modal-titulo">🌾 Registrar cosecha</div>
       <div class="modal-sub" id="modalCosechaSub">—</div>
+      <div class="campo" id="campoCosechaCultivo" style="display:none;">
+        <label>🌱 ¿Qué cultivo cosechás?</label>
+        <select id="cosechaCultivoIdx" onchange="prellenarCosecha()"></select>
+        <div class="ayuda">La campaña tiene más de un cultivo: se cierra cada uno con su propia cosecha.</div>
+      </div>
 
       <div class="modal-kpi-preview" id="kpiPreview">
         <div class="modal-kpi-rinde" id="kpiRinde">— kg/ha</div>
@@ -1072,7 +1075,32 @@
       const campana = campanas.find(c => c.id === campanaId);
       if (!campana) return;
 
-      const cultivo = campana.cultivos[0];
+      // Campañas mixtas: se elige qué cultivo se cosecha; cada uno guarda su cosecha.
+      const selCultivo = document.getElementById('cosechaCultivoIdx');
+      const cultivos = campana.cultivos || [];
+      selCultivo.innerHTML = cultivos.map((cu, i) =>
+        `<option value="${i}">${cu.cultivo}${cu.variedad ? ' ' + cu.variedad : ''}${cu.rendimientoReal ? ' · ya cosechado (' + cu.rendimientoReal + ' kg/ha)' : ''}</option>`).join('');
+      document.getElementById('campoCosechaCultivo').style.display = cultivos.length > 1 ? '' : 'none';
+      // Por defecto, el primero que todavía no se cosechó
+      const pendiente = cultivos.findIndex(cu => !cu.rendimientoReal);
+      selCultivo.value = String(pendiente >= 0 ? pendiente : 0);
+
+      prellenarCosecha();
+      document.getElementById('modalCosechaOverlay').classList.add('visible');
+    }
+
+    function cosechaDelCultivo(campana, idx) {
+      if (campana.cosechas && campana.cosechas[idx]) return campana.cosechas[idx];
+      if (idx === 0 && campana.cosecha) return campana.cosecha; // compatibilidad con campañas viejas
+      return null;
+    }
+
+    function prellenarCosecha() {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const campana = campanas.find(c => c.id === cosechandoCampanaId);
+      if (!campana) return;
+      const idx = parseInt(document.getElementById('cosechaCultivoIdx').value || '0', 10);
+      const cultivo = campana.cultivos[idx];
       const cultivoNombre = cultivo ? `${cultivo.cultivo}${cultivo.variedad ? ' ' + cultivo.variedad : ''}` : '?';
 
       // Calcular días de campaña
@@ -1085,8 +1113,8 @@
       document.getElementById('modalCosechaSub').textContent =
         `${campana.nombre} · ${cultivoNombre}${diasCampana}`;
 
-      // Si la campaña YA tiene cosecha cargada, abrimos para corregirla.
-      const yaCosechada = campana.cosecha || null;
+      // Si este cultivo YA tiene cosecha cargada, abrimos para corregirla.
+      const yaCosechada = cosechaDelCultivo(campana, idx);
       const sup = cultivo && cultivo.superficie ? cultivo.superficie : '';
 
       if (yaCosechada) {
@@ -1118,8 +1146,6 @@
 
       // Guardar rendimiento objetivo para comparación
       window._rendimientoObj = cultivo && cultivo.rendimientoObj ? parseFloat(cultivo.rendimientoObj) : null;
-
-      document.getElementById('modalCosechaOverlay').classList.add('visible');
     }
 
     function calcularRendimiento() {
@@ -1171,7 +1197,7 @@
       const campana = campanas.find(c => c.id === cosechandoCampanaId);
       if (!campana) return;
 
-      const cultivo = (campana.cultivos || [])[0];
+      const cultivo = (campana.cultivos || [])[parseInt((document.getElementById("cosechaCultivoIdx") || {}).value || "0", 10)] || (campana.cultivos || [])[0];
       const siembra = cultivo && cultivo.fechaSiembra;
       const hasta = document.getElementById('cosechaFecha').value || (cultivo && cultivo.fechaCosecha);
       if (!siembra) { hint.textContent = '⚠️ Falta la fecha de siembra en la campaña.'; return; }
@@ -1287,14 +1313,21 @@
       let campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
       const idx = campanas.findIndex(c => c.id === cosechandoCampanaId);
       if (idx !== -1) {
-        campanas[idx].cosecha = cosecha;
-        campanas[idx].estado = 'Cerrada';
-        // Si ya estaba cerrada, conservamos la fecha de cierre original.
-        if (!campanas[idx].fechaCierre) campanas[idx].fechaCierre = new Date().toISOString();
-        // Guardar rendimiento real en el cultivo también
-        if (campanas[idx].cultivos && campanas[idx].cultivos[0]) {
-          campanas[idx].cultivos[0].rendimientoReal = rendimientoNeto;
-          campanas[idx].cultivos[0].fechaCosecha = fecha;
+        const cIdx = parseInt(document.getElementById('cosechaCultivoIdx').value || '0', 10);
+        campanas[idx].cosechas = campanas[idx].cosechas || {};
+        campanas[idx].cosechas[cIdx] = cosecha;
+        // Compatibilidad: la cosecha "principal" de la campaña es la del primer cultivo
+        if (cIdx === 0 || !campanas[idx].cosecha) campanas[idx].cosecha = cosecha;
+        // Guardar rendimiento real y fecha en el cultivo cosechado
+        if (campanas[idx].cultivos && campanas[idx].cultivos[cIdx]) {
+          campanas[idx].cultivos[cIdx].rendimientoReal = rendimientoNeto;
+          campanas[idx].cultivos[cIdx].fechaCosecha = fecha;
+        }
+        // La campaña se cierra cuando TODOS sus cultivos tienen cosecha
+        const todosCosechados = (campanas[idx].cultivos || []).every(cu => cu.rendimientoReal);
+        if (todosCosechados) {
+          campanas[idx].estado = 'Cerrada';
+          if (!campanas[idx].fechaCierre) campanas[idx].fechaCierre = new Date().toISOString();
         }
         localStorage.setItem('campanas', JSON.stringify(campanas));
       }
@@ -1379,7 +1412,10 @@
         densidad: '',
         espaciamiento: '',
         rendimientoObj: '',
-        rendimientoReal: ''
+        rendimientoReal: '',
+        finalidad: 'Granos Comercial',
+        encaladoTnHa: '',
+        fertilizacion: ''
       };
       if (!cultivo.idTemp) cultivo.idTemp = id;
       cultivosTemp.push(cultivo);
@@ -1401,7 +1437,25 @@
       if (c) c[campo] = valor;
     }
 
+    const FINALIDADES = ['Granos Comercial', 'Semilla', 'Ensilaje', 'Granos Húmedos', 'Forraje'];
+    function opcionesFinalidad(actual) {
+      const a = actual || 'Granos Comercial';
+      return FINALIDADES.map(f => '<option' + (f === a ? ' selected' : '') + '>' + f + '</option>').join('');
+    }
+    // Lista de variedades ya usadas (en campañas y en el historial), para no
+    // escribir la misma variedad de tres formas distintas.
+    function armarListaVariedades() {
+      let dl = document.getElementById('listaVariedades');
+      if (!dl) { dl = document.createElement('datalist'); dl.id = 'listaVariedades'; document.body.appendChild(dl); }
+      const vistas = {};
+      const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      JSON.parse(localStorage.getItem('campanas') || '[]').forEach(c => (c.cultivos || []).forEach(cu => { if (cu.variedad) vistas[norm(cu.variedad)] = { v: cu.variedad, c: cu.cultivo }; }));
+      JSON.parse(localStorage.getItem('ciclos') || '[]').forEach(ci => { if (ci.variedad) vistas[norm(ci.variedad)] = { v: ci.variedad, c: ci.cultivo }; });
+      dl.innerHTML = Object.keys(vistas).sort().map(k => '<option value="' + String(vistas[k].v).replace(/"/g, '&quot;') + '">' + (vistas[k].c || '') + '</option>').join('');
+    }
+
     function renderizarCultivos() {
+      armarListaVariedades();
       const container = document.getElementById('cultivosContainer');
       const { fao, custom } = obtenerListaCultivos();
 
@@ -1455,9 +1509,20 @@
 
             <div class="fila">
               <div class="campo">
-                <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
-                <input type="text" placeholder="Ej: P3110, DM 53i54" value="${cultivo.variedad || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+                <label>Finalidad</label>
+                <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'finalidad', this.value)">
+                  ${opcionesFinalidad(cultivo.finalidad)}
+                </select>
+                <div class="ayuda">Grano se compara con grano, ensilaje con ensilaje.</div>
               </div>
+              <div class="campo">
+                <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
+                <input type="text" list="listaVariedades" autocomplete="off" placeholder="Ej: P3110, DM 53i54" value="${cultivo.variedad || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+                <div class="ayuda">Elegí una ya usada o escribí una nueva, siempre igual, para poder comparar.</div>
+              </div>
+            </div>
+
+            <div class="fila">
 
               <div class="campo">
                 <label>Superficie (ha)</label>
@@ -1486,6 +1551,17 @@
               <div class="campo">
                 <label>Espaciamiento (cm) <span class="opcional">(opcional)</span></label>
                 <input type="number" placeholder="Ej: 70" value="${cultivo.espaciamiento || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'espaciamiento', this.value)">
+              </div>
+            </div>
+
+            <div class="fila">
+              <div class="campo">
+                <label>Encalado (t/ha) <span class="opcional">(opcional)</span></label>
+                <input type="number" step="0.1" placeholder="0 si no encaló" value="${cultivo.encaladoTnHa || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'encaladoTnHa', this.value)">
+              </div>
+              <div class="campo">
+                <label>Fertilización <span class="opcional">(resumen)</span></label>
+                <input type="text" placeholder="Ej: 250 kg/ha 04-30-10 + 120 urea" value="${cultivo.fertilizacion || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fertilizacion', this.value)">
               </div>
             </div>
 
@@ -1544,13 +1620,16 @@
             estado: estado,
             cultivos: cultivosValidos.map(c => ({
               cultivo: c.cultivo,
-              variedad: c.variedad || '',
+              variedad: String(c.variedad || '').trim().replace(/\s+/g, ' '),
               superficie: c.superficie || '',
               fechaSiembra: c.fechaSiembra,
               fechaCosecha: c.fechaCosecha || '',
               densidad: c.densidad || '',
               espaciamiento: c.espaciamiento || '',
               rendimientoObj: c.rendimientoObj || '',
+              finalidad: c.finalidad || 'Granos Comercial',
+              encaladoTnHa: c.encaladoTnHa || '',
+              fertilizacion: String(c.fertilizacion || '').trim(),
               rendimientoReal: c.rendimientoReal || ''
             })),
             fechaModificacion: new Date().toISOString()
@@ -1577,13 +1656,16 @@
           estado: estado,
           cultivos: cultivosValidos.map(c => ({
             cultivo: c.cultivo,
-            variedad: c.variedad || '',
+            variedad: String(c.variedad || '').trim().replace(/\s+/g, ' '),
             superficie: c.superficie || '',
             fechaSiembra: c.fechaSiembra,
             fechaCosecha: c.fechaCosecha || '',
             densidad: c.densidad || '',
             espaciamiento: c.espaciamiento || '',
             rendimientoObj: c.rendimientoObj || '',
+            finalidad: c.finalidad || 'Granos Comercial',
+            encaladoTnHa: c.encaladoTnHa || '',
+            fertilizacion: String(c.fertilizacion || '').trim(),
             rendimientoReal: c.rendimientoReal || ''
           })),
           fechaCreacion: new Date().toISOString()

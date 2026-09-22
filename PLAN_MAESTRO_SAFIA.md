@@ -3,7 +3,7 @@
 
 > Documento de referencia del proyecto. Ubicar en la raíz del repositorio.
 > Toda decisión de producto, diseño y código debe ser coherente con este documento.
-> Versión 1.0 — Septiembre 2026
+> Versión 1.1 — 22 de septiembre de 2026
 
 ---
 
@@ -70,7 +70,7 @@ Para cada campaña cosechada del cliente: su rinde contra la referencia regional
 ### Motor 3 · Evaluar proyecto nuevo — HECHO
 Para un prospecto: se cargan ubicación, cultivos con producción esperada y análisis de suelo. SAFIA busca los **casos reales más parecidos** (similitud por suelo 50 %, distancia 30 %, altitud 10 %, época 10 %), estima el **potencial** por cultivo, dice si el objetivo es alcanzable, y muestra **"tu suelo vs el de los que más rinden"** parámetro por parámetro.
 
-### Motor 4 · Evolución y decisiones del cliente — A CONSTRUIR (prioridad)
+### Motor 4 · Evolución y decisiones del cliente — HECHO
 Para el cliente que **ya riega**, campaña tras campaña:
 - **Suelo:** ¿mejoró o empeoró? Cada parámetro contra el análisis anterior (ya existe la tabla de evolución; falta el veredicto).
 - **Rinde:** ¿mejoró o empeoró? Por cultivo, año contra año, contra su propio promedio y contra el mejor de su localidad.
@@ -100,7 +100,11 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Comparador "tu rinde vs tu zona" | ✅ |
 | Evaluar proyecto (varios cultivos) + Banco de casos exportable | ✅ |
 | Clima y predicción 7 días (Open-Meteo) | ✅ |
-| **Evolución y decisiones del cliente (Motor 4)** | ⬜ siguiente |
+| Evolución y decisiones del cliente (Motor 4) | ✅ |
+| Rankings de producción (nacional, departamental, local, variedades, épocas, productores) | ✅ |
+| Finalidad, variedad con lista, encalado y fertilización en la campaña; cosecha por cultivo | ✅ |
+| Catálogo de cultivos compartido (funciona en cualquier navegador) | ✅ |
+| Historial anterior a SAFIA (ciclos manuales) alimenta el motor | ✅ |
 | Permisos por rol | ⬜ |
 | Sincronización por registro (no por colección) | ⬜ antes de roles |
 | Publicación en Vercel (uso desde celular) | ⬜ |
@@ -108,6 +112,9 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Consultor en vivo (Motor 5) | ⬜ |
 | Asistente IA agronómico | ⬜ |
 | Geocodificar las 43 localidades de la referencia (comparar por cercanía también contra la base regional) | ⬜ |
+| Reemplazar alert()/confirm() nativos por avisos en pantalla (56 + 9 lugares) | ⬜ |
+| Comparación de ids uniforme (mismoId) en todas las pantallas | ⬜ |
+| Menú lateral estándar en clima.html y prediccion.html | ⬜ |
 
 ## 7. Reglas de negocio clave
 
@@ -144,8 +151,7 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 
 ## 11. Próximos pasos
 
-1. **Motor 4 — Evolución y decisiones del cliente** (siguiente entrega).
-2. Cargar 4–6 clientes completos (Irrigar) para darle fuerza estadística al banco.
+1. Cargar 4–6 clientes completos (Irrigar) para darle fuerza estadística al banco.
 3. Sincronización por registro → permisos por rol → acceso a encargados y operadores.
 4. Publicar en Vercel para uso desde el celular.
 5. Estación meteorológica y satélite → Motor 5.

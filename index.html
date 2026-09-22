@@ -325,6 +325,8 @@
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
+<script src="safia-cultivos-fao.js"></script>
+<script src="safia-casos.js"></script>
 </head>
 <body>
 
@@ -365,9 +367,6 @@
       </a>
       <a href="mis-campanas.html" class="sidebar-link">
         <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></span><span>Campañas</span>
-      </a>
-      <a href="analisis.html" class="sidebar-link">
-        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></span><span>Análisis y Docs</span>
       </a>
       <a href="banco.html" class="sidebar-link">
         <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg></span><span>Banco Agronómico</span>
@@ -433,6 +432,7 @@
       </div>
 
       <div id="dashboardContenido"></div>
+      <div id="bancoResumen"></div>
 
     </main>
 
@@ -1156,6 +1156,40 @@
     }
 
     window.onload = cargarDashboard;
+  </script>
+
+  <script>
+    /* Tarjeta del Banco Agronómico en el dashboard: cuántos casos hay y accesos a los motores. */
+    (function () {
+      function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+      function fmt(n){ return n==null||isNaN(n)?'—':Number(n).toLocaleString('es-PY',{maximumFractionDigits:0}); }
+      function pintar(){
+        var cont=document.getElementById('bancoResumen'); if(!cont||!window.SafiaCasos) return;
+        var casos=SafiaCasos.armarCasos();
+        var clientes={}, localidades={}, cultivos={};
+        casos.forEach(function(c){ if(c.cliente)clientes[c.cliente]=1; if(c.localidad)localidades[c.localidad.toLowerCase()]=1; if(c.cultivo)cultivos[c.cultivo]=1; });
+        var ultimas=casos.filter(function(c){return c.cosecha;}).sort(function(a,b){return String(b.cosecha).localeCompare(String(a.cosecha));}).slice(0,3);
+        var accesos='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+          '<a class="btn green" href="banco.html">🧪 Banco Agronómico</a>'+
+          '<a class="btn" href="evaluar.html">🔎 Evaluar proyecto</a>'+
+          '<a class="btn" href="rankings.html">🏆 Rankings</a>'+
+          '<a class="btn" href="referencia.html">📊 Base de Referencia</a></div>';
+        if(!casos.length){
+          cont.innerHTML='<div class="card" style="margin-top:14px;"><div class="card-h"><h3>🧠 Inteligencia agronómica</h3></div>'+
+            '<div class="kpi-sub">El banco de casos se llena solo con cada campaña que cerrás con su rendimiento. Mientras tanto ya podés usar la Base de Referencia (948 registros del Paraguay) y evaluar proyectos.</div>'+accesos+'</div>';
+          return;
+        }
+        cont.innerHTML='<div class="card" style="margin-top:14px;"><div class="card-h"><h3>🧠 Inteligencia agronómica</h3><span class="muted">casos reales cosechados</span></div>'+
+          '<div class="statbar" style="margin:0 0 4px;">'+
+          '<div class="stat"><div class="sl">Casos</div><div class="sv green">'+casos.length+'</div></div>'+
+          '<div class="stat"><div class="sl">Clientes</div><div class="sv">'+Object.keys(clientes).length+'</div></div>'+
+          '<div class="stat"><div class="sl">Localidades</div><div class="sv">'+Object.keys(localidades).length+'</div></div>'+
+          '<div class="stat"><div class="sl">Cultivos</div><div class="sv">'+Object.keys(cultivos).length+'</div></div></div>'+
+          (ultimas.length?'<div class="kpi-sub" style="margin-top:8px;"><b>Últimas cosechas:</b> '+ultimas.map(function(c){return esc(c.cliente)+' · '+esc(c.cultivo)+(c.variedad?' '+esc(c.variedad):'')+' <b>'+fmt(c.rindeKgHa)+' kg/ha</b>'+(c.aguaTotalMM!=null?' ('+fmt(c.aguaTotalMM)+' mm)':'');}).join(' · ')+'</div>':'')+
+          accesos+'</div>';
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',pintar); else pintar();
+    })();
   </script>
 
 </body>

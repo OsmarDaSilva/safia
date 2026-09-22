@@ -196,12 +196,23 @@
     return cadena.then(function () {
       marcarEstado(true);
       if (huboCambios) {
-        // recargar UNA vez para que la página muestre los datos nuevos
+        // Recargar UNA vez para que la página muestre los datos nuevos.
+        // Protección contra bucle: si una diferencia es permanente (ej. un
+        // valor que Postgres devuelve distinto), no recargamos más de 3
+        // veces seguidas en la misma página; avisamos y seguimos.
         var ultima = parseFloat(sessionStorage.getItem('safia_recarga') || '0');
-        if (Date.now() - ultima > 5000) {
+        var seguidas = parseInt(sessionStorage.getItem('safia_recargas_seguidas') || '0', 10);
+        if (Date.now() - ultima > 60000) seguidas = 0; // pasó un minuto: empezamos de nuevo
+        if (seguidas >= 3) {
+          console.warn('SAFIA sync: los datos locales y los de la nube difieren de forma persistente; no se recarga más para evitar un bucle.');
+          sessionStorage.setItem('safia_recargas_seguidas', '0');
+        } else if (Date.now() - ultima > 5000) {
           sessionStorage.setItem('safia_recarga', String(Date.now()));
+          sessionStorage.setItem('safia_recargas_seguidas', String(seguidas + 1));
           location.reload();
         }
+      } else {
+        sessionStorage.setItem('safia_recargas_seguidas', '0');
       }
     }).catch(function (e) {
       console.error('SAFIA sync (bajada):', e);

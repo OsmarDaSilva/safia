@@ -96,13 +96,16 @@
         if (!rinde || rinde <= 0) return; // solo campañas cosechadas
 
         var siembra = cu.fechaSiembra || null;
-        var cosecha = cu.fechaCosecha || (c.cosecha && c.cosecha.fecha) || null;
+        var cosecha = cu.fechaCosecha || ((c.cosechas && c.cosechas[i] && c.cosechas[i].fecha)) || (i === 0 && c.cosecha && c.cosecha.fecha) || null;
         var dias = (siembra && cosecha) ? Math.round((new Date(cosecha) - new Date(siembra)) / 86400000) : null;
 
+        // Cosecha de ESTE cultivo (campañas mixtas guardan una por cultivo);
+        // para campañas viejas, la cosecha única de la campaña vale para el primero.
+        var cos = (c.cosechas && c.cosechas[i]) || (i === 0 ? c.cosecha : null) || null;
         // Agua: el total cargado en la cosecha manda; si no, la suma de eventos del ciclo.
         var deEventos = aguaDeEventos(c.equipoId, siembra, cosecha);
-        var lluvia = (c.cosecha && c.cosecha.lluviaMM != null) ? num(c.cosecha.lluviaMM) : (deEventos.nLluvia ? deEventos.lluvia : null);
-        var riego  = (c.cosecha && c.cosecha.riegoMM  != null) ? num(c.cosecha.riegoMM)  : (deEventos.nRiego  ? deEventos.riego  : null);
+        var lluvia = (cos && cos.lluviaMM != null) ? num(cos.lluviaMM) : (deEventos.nLluvia ? deEventos.lluvia : null);
+        var riego  = (cos && cos.riegoMM  != null) ? num(cos.riegoMM)  : (deEventos.nRiego  ? deEventos.riego  : null);
 
         var suelo = campo ? sueloDelCampo(campo.id, cosecha) : null;
 
@@ -125,10 +128,13 @@
           tipoSuelo: campo ? (campo.tipoSuelo || '') : '',
           cultivo: cu.cultivo || '',
           variedad: cu.variedad || '',
+          finalidad: cu.finalidad || 'Granos Comercial',
           epoca: epocaDeSiembra(siembra),
           siembra: siembra, cosecha: cosecha, dias: dias,
           superficie: num(cu.superficie),
           densidad: num(cu.densidad),
+          encaladoTnHa: num(cu.encaladoTnHa),
+          fertilizacion: cu.fertilizacion || '',
           rindeKgHa: rinde,
           objetivoKgHa: num(cu.rendimientoObj),
           lluviaMM: lluvia, riegoMM: riego,
@@ -164,7 +170,7 @@
         localidad: campo ? (campo.localidad || '') : '', departamento: campo ? (campo.departamento || '') : '',
         lat: campo ? num(campo.latitud) : null, lon: campo ? num(campo.longitud) : null, altitud: campo ? num(campo.altitud) : null,
         tipoSuelo: campo ? (campo.tipoSuelo || '') : '',
-        cultivo: ci.cultivo || '', variedad: ci.variedad || '', epoca: epocaDeSiembra(siembra),
+        cultivo: ci.cultivo || '', variedad: ci.variedad || '', finalidad: ci.finalidad || 'Granos Comercial', epoca: epocaDeSiembra(siembra),
         siembra: siembra, cosecha: cosecha,
         dias: (siembra && cosecha) ? Math.round((new Date(cosecha) - new Date(siembra)) / 86400000) : null,
         superficie: null, densidad: null,

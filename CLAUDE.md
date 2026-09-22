@@ -44,14 +44,13 @@
   Open-Meteo directo).
 - GitHub: https://github.com/OsmarDaSilva/safia (rama main).
 
-## Estado y plan (a agosto 2026)
-- HOY todos los datos se guardan solo en localStorage del navegador:
-  no hay base de datos, ni login, ni datos compartidos entre aparatos.
-- PRÓXIMO PASO decidido por Osmar: conectar SAFIA a Supabase
-  (tablas para campos, campañas, cultivos, equipos, eventos, clientes)
-  y agregar usuarios con roles (propietario, encargado, operador).
-  Al migrar, no perder los datos ya cargados en el navegador
-  (backup.html sirve para exportarlos).
+## Estado (sep-2026)
+- Datos en Supabase (proyecto btwxhsaarfopyjhmydlw, el de AGROinvest360;
+  distinto del de SIGA) con login; safia-sync.js sincroniza cada
+  colección. safia-casos.js es el motor de casos. Ver PLAN_MAESTRO_SAFIA.md
+  para el estado de cada módulo y los próximos pasos.
+- Prueba SIEMPRE sin escribir datos desde el navegador de pruebas mientras
+  Osmar carga (el sync sube la colección entera y se pisan).
 
 ## Forma de trabajo
 - SQL de Supabase: bloques IDEMPOTENTES ("seguro de correr más de una
