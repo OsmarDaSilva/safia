@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Base de Referencia</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    .cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:14px;}
+    .cmp .card{text-align:left;}
+    .cmp .kpi-v.big{font-size:34px;}
+    .delta-pos{color:var(--green-d);} .delta-neg{color:var(--red);}
+    .origen{font-size:12px;color:var(--label);margin-bottom:14px;}
+    .barwrap{background:var(--bd2);border-radius:6px;height:10px;overflow:hidden;min-width:80px;}
+    .bar{height:100%;border-radius:6px;}
+    .bar.secano{background:var(--amber);}
+    .bar.riego{background:var(--green);}
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
+  <div class="app">
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="analisis.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg>Análisis y Docs</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Base de Referencia</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Inicio · <b>Base de Referencia</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Base de Referencia</h2>
+          <div class="sub">Rindes de referencia del Paraguay — cuánto rinde cada cultivo con y sin riego, por zona</div>
+        </div>
+      </div>
+
+      <div class="note info">Comparamos <b>siempre dentro de la misma finalidad</b> (grano con grano, ensilaje con ensilaje). Elegí cultivo y finalidad para ver el salto de rinde que da el riego en cada zona.</div>
+
+      <div class="toolbar">
+        <div class="filter"><span class="fl">Cultivo</span><select id="fCultivo"></select></div>
+        <div class="filter"><span class="fl">Finalidad</span><select id="fFinalidad"></select></div>
+        <div class="filter"><span class="fl">Departamento</span><select id="fDepto"></select></div>
+        <div class="filter"><span class="fl">Época de siembra</span><select id="fEpoca"></select></div>
+      </div>
+
+      <div class="origen" id="origen">Cargando base de referencia…</div>
+
+      <div class="cmp" id="tarjetas" style="display:none;">
+        <div class="card"><div class="kpi-l">Rinde promedio SECANO</div><div class="kpi-v big amber" id="kSecano">—</div><div class="kpi-sub" id="kSecanoN"></div></div>
+        <div class="card"><div class="kpi-l">Rinde promedio CON RIEGO</div><div class="kpi-v big green" id="kRiego">—</div><div class="kpi-sub" id="kRiegoN"></div></div>
+        <div class="card"><div class="kpi-l">Lo que suma el riego</div><div class="kpi-v big" id="kDelta">—</div><div class="kpi-sub" id="kDeltaPct"></div></div>
+      </div>
+
+      <div class="tablewrap" id="wrapTabla" style="display:none;">
+        <div class="tablescroll">
+          <table class="tbl">
+            <thead><tr>
+              <th>Departamento</th><th>Localidad</th><th>Época</th>
+              <th class="r">Secano t/ha</th><th class="r">Riego t/ha</th><th class="r">Gana con riego</th>
+            </tr></thead>
+            <tbody id="cuerpo"></tbody>
+          </table>
+        </div>
+        <div class="tfoot"><span id="pieTabla"></span></div>
+      </div>
+
+      <div class="empty" id="vacio" style="display:none;">
+        <div class="eico">🔎</div>
+        <div class="etxt">No hay registros de referencia para esa combinación.<br>Probá con otro cultivo, finalidad o zona.</div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n))return '—'; return Number(n).toLocaleString('es-PY',{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d}); }
+  function toast(m,err){var t=document.getElementById('toast');t.textContent=m;t.className='toast visible '+(err?'error':'ok');setTimeout(function(){t.className='toast';},3500);}
+
+  var side=document.getElementById('sideNav'),overlay=document.getElementById('sideOverlay');
+  document.getElementById('menuToggle').addEventListener('click',function(){side.classList.toggle('abierto');overlay.classList.toggle('visible');document.body.classList.toggle('menu-abierto');});
+  overlay.addEventListener('click',function(){side.classList.remove('abierto');overlay.classList.remove('visible');document.body.classList.remove('menu-abierto');});
+
+  var TODOS = leerFiltro();
+  var datos = [];
+
+  function leerFiltro(){ return { cultivo:'Soja', finalidad:'Granos Comercial', depto:'', epoca:'' }; }
+
+  function opciones(sel, valores, incluirTodos, etiquetaTodos){
+    var html = incluirTodos ? '<option value="">'+etiquetaTodos+'</option>' : '';
+    html += valores.map(function(v){ return '<option value="'+esc(v)+'">'+esc(v)+'</option>'; }).join('');
+    sel.innerHTML = html;
+  }
+
+  function distintos(campo, filtro){
+    var s = {};
+    datos.forEach(function(r){
+      if (filtro && !filtro(r)) return;
+      if (r[campo] != null && r[campo] !== '') s[r[campo]] = 1;
+    });
+    return Object.keys(s).sort(function(a,b){return a.localeCompare(b);});
+  }
+
+  function armarFiltros(){
+    opciones(document.getElementById('fCultivo'), distintos('cultivo'), false);
+    document.getElementById('fCultivo').value = distintos('cultivo').indexOf('Soja')>=0 ? 'Soja' : distintos('cultivo')[0];
+    refrescarDependientes();
+  }
+
+  function refrescarDependientes(){
+    var cultivo = document.getElementById('fCultivo').value;
+    var porCultivo = function(r){ return r.cultivo === cultivo; };
+    var fins = distintos('finalidad', porCultivo);
+    opciones(document.getElementById('fFinalidad'), fins, false);
+    // preferir una finalidad de grano si existe
+    var prefe = fins.filter(function(f){ return /grano/i.test(f); })[0] || fins[0];
+    document.getElementById('fFinalidad').value = prefe;
+
+    opciones(document.getElementById('fDepto'), distintos('departamento', porCultivo), true, 'Todos los departamentos');
+    opciones(document.getElementById('fEpoca'), distintos('epoca_siembra', porCultivo), true, 'Todas las épocas');
+    render();
+  }
+
+  function filasFiltradas(){
+    var cultivo = document.getElementById('fCultivo').value;
+    var finalidad = document.getElementById('fFinalidad').value;
+    var depto = document.getElementById('fDepto').value;
+    var epoca = document.getElementById('fEpoca').value;
+    return datos.filter(function(r){
+      if (r.cultivo !== cultivo) return false;
+      if (finalidad && r.finalidad !== finalidad) return false;
+      if (depto && r.departamento !== depto) return false;
+      if (epoca && r.epoca_siembra !== epoca) return false;
+      return r.prod_ton_ha != null;
+    });
+  }
+
+  function promedio(arr){ return arr.length ? arr.reduce(function(a,b){return a+b;},0)/arr.length : null; }
+
+  function render(){
+    var filas = filasFiltradas();
+    var vacio = document.getElementById('vacio');
+    var wrap = document.getElementById('wrapTabla');
+    var tarjetas = document.getElementById('tarjetas');
+
+    if (!filas.length){
+      vacio.style.display=''; wrap.style.display='none'; tarjetas.style.display='none';
+      return;
+    }
+    vacio.style.display='none'; wrap.style.display=''; tarjetas.style.display='';
+
+    var secano = filas.filter(function(r){return !r.riego;}).map(function(r){return Number(r.prod_ton_ha);});
+    var riego  = filas.filter(function(r){return r.riego;}).map(function(r){return Number(r.prod_ton_ha);});
+    var pSec = promedio(secano), pRie = promedio(riego);
+
+    document.getElementById('kSecano').textContent = pSec==null?'—':fmt(pSec)+' t';
+    document.getElementById('kSecanoN').textContent = secano.length+' registros';
+    document.getElementById('kRiego').textContent = pRie==null?'—':fmt(pRie)+' t';
+    document.getElementById('kRiegoN').textContent = riego.length+' registros';
+
+    var kD=document.getElementById('kDelta'), kP=document.getElementById('kDeltaPct');
+    if (pSec!=null && pRie!=null){
+      var d = pRie-pSec, pct = pSec>0 ? (d/pSec*100) : null;
+      kD.textContent = (d>=0?'+':'')+fmt(d)+' t/ha';
+      kD.className = 'kpi-v big ' + (d>=0?'delta-pos':'delta-neg');
+      kP.textContent = pct==null?'':((d>=0?'+':'')+fmt(pct,0)+'% vs secano');
+    } else {
+      kD.textContent='—'; kD.className='kpi-v big'; kP.textContent='faltan datos de una de las dos formas';
+    }
+
+    // agrupar por localidad+época para la tabla comparativa
+    var grupos = {};
+    filas.forEach(function(r){
+      var k = r.departamento+'|'+r.localidad+'|'+r.epoca_siembra;
+      if(!grupos[k]) grupos[k]={depto:r.departamento,loc:r.localidad,epoca:r.epoca_siembra,sec:[],rie:[]};
+      (r.riego?grupos[k].rie:grupos[k].sec).push(Number(r.prod_ton_ha));
+    });
+    var lista = Object.keys(grupos).map(function(k){
+      var g=grupos[k]; g.pSec=promedio(g.sec); g.pRie=promedio(g.rie);
+      g.gana=(g.pSec!=null&&g.pRie!=null)?(g.pRie-g.pSec):null; return g;
+    }).sort(function(a,b){ return (b.gana==null?-1:b.gana)-(a.gana==null?-1:a.gana); });
+
+    var maxV = Math.max.apply(null, lista.map(function(g){return Math.max(g.pSec||0,g.pRie||0);}).concat([1]));
+    document.getElementById('cuerpo').innerHTML = lista.map(function(g){
+      function celda(v,clase){
+        if(v==null) return '<td class="r muted">—</td>';
+        var w=Math.round((v/maxV)*100);
+        return '<td class="r"><div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;"><span class="num">'+fmt(v)+'</span><span class="barwrap" style="flex:0 0 70px;"><span class="bar '+clase+'" style="width:'+w+'%"></span></span></div></td>';
+      }
+      var ganaTxt = g.gana==null ? '<span class="muted">—</span>'
+        : '<span class="badge '+(g.gana>=0?'green':'red')+'">'+(g.gana>=0?'+':'')+fmt(g.gana)+' t</span>';
+      return '<tr><td>'+esc(g.depto)+'</td><td><span class="fecha">'+esc(g.loc)+'</span></td><td>'+esc(g.epoca)+'</td>'+
+        celda(g.pSec,'secano')+celda(g.pRie,'riego')+'<td class="r">'+ganaTxt+'</td></tr>';
+    }).join('');
+
+    document.getElementById('pieTabla').textContent = lista.length+' zonas · '+filas.length+' registros de referencia';
+  }
+
+  ['fCultivo'].forEach(function(id){ document.getElementById(id).addEventListener('change', refrescarDependientes); });
+  ['fFinalidad','fDepto','fEpoca'].forEach(function(id){ document.getElementById(id).addEventListener('change', render); });
+
+  function cargar(){
+    if (!window.safiaSupabase){ document.getElementById('origen').textContent='Sin conexión a internet: la base de referencia necesita conexión.'; return; }
+    window.safiaSupabase.from('safia_ref_produccion')
+      .select('departamento,localidad,anio,cultivo,finalidad,epoca_siembra,forma_cultivo,riego,prod_ton_ha')
+      .then(function(r){
+        if (r.error){ document.getElementById('origen').textContent='No se pudo cargar la base de referencia.'; toast('Error al cargar referencia',true); return; }
+        datos = r.data || [];
+        var anios = {}; datos.forEach(function(x){ if(x.anio) anios[x.anio]=1; });
+        document.getElementById('origen').textContent = datos.length+' registros de referencia (Paraguay, '+Object.keys(anios).join('/')+') · base propia de SAFIA';
+        armarFiltros();
+      });
+  }
+  cargar();
+})();
+</script>
+</body>
+</html>
