@@ -1348,7 +1348,9 @@
       }
       var top = pool.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
       var difR = mioMejor.rindeKgHa - top.rindeKgHa;
-      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + esc(top.cliente) + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">Sos el mejor de la zona</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha') + '</tr>');
+      // Si este lote es el que más rinde, el de la columna pasa a ser "el siguiente" de la zona.
+      var otro = difR >= 0 ? 'el siguiente' : 'el mejor';
+      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + esc(top.cliente) + (difR >= 0 ? ' · el siguiente de la zona' : ' · el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">🏆 Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
       filasB.push('<tr>' + td('') + td('Agua total mm') + td(fmt(mioMejor.aguaTotalMM, 0), 1) + td(fmt(top.aguaTotalMM, 0), 1) + td(flecha(mioMejor.aguaTotalMM != null && top.aguaTotalMM != null ? mioMejor.aguaTotalMM - top.aguaTotalMM : null, 0), 1) + td('') + '</tr>');
       filasB.push('<tr>' + td('') + td('Variedad · época') + td(esc(mioMejor.variedad || '—') + ' · ' + esc(mioMejor.epoca || '—')) + td(esc(top.variedad || '—') + ' · ' + esc(top.epoca || '—')) + td('') + td('') + '</tr>');
       if (mioMejor.suelo && top.suelo) {
@@ -1357,13 +1359,13 @@
           if (a == null || b == null) return;
           var d = a - b, rel = b ? d / Math.abs(b) : 0;
           var falta = (p.k === 'ph') ? (d < -0.3) : (rel < -0.15);
-          filasB.push('<tr>' + td('') + td(p.n) + td(fmt(a, p.dec), 1) + td(fmt(b, p.dec), 1) + td(flecha(d, p.dec), 1) + td(falta ? '<span class="evo-peor">🔻 Te falta ' + esc(p.n.toLowerCase()) + '</span>' : '<span class="muted">ok</span>') + '</tr>');
+          filasB.push('<tr>' + td('') + td(p.n) + td(fmt(a, p.dec), 1) + td(fmt(b, p.dec), 1) + td(flecha(d, p.dec), 1) + td(falta ? '<span class="evo-peor">🔻 Menos ' + esc(p.n) + ' que ' + otro + '</span>' : '<span class="muted">ok</span>') + '</tr>');
         });
       } else {
         filasB.push('<tr>' + td('') + td('Suelo') + '<td colspan="4" class="muted">Para comparar el suelo hacen falta análisis en los dos lotes.</td></tr>');
       }
     });
-    html += tabla([{ t: 'Cultivo' }, { t: '' }, { t: 'Tu mejor campaña', r: 1 }, { t: 'El mejor de la zona', r: 1 }, { t: 'Diferencia', r: 1 }, { t: 'Lectura' }], filasB);
+    html += tabla([{ t: 'Cultivo' }, { t: '' }, { t: 'Tu mejor campaña', r: 1 }, { t: 'El mejor de la zona (u otro cliente)', r: 1 }, { t: 'Diferencia', r: 1 }, { t: 'Lectura' }], filasB);
     html += '<div class="note warn" style="margin-top:12px;">SAFIA <b>compara</b> con casos reales; cuánto corregir en suelo, riego o manejo lo define el agrónomo.</div>';
 
     cont.innerHTML = html;
