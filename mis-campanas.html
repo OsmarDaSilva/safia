@@ -413,7 +413,16 @@
 
     .cierre-acciones {
       display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;
+      align-items: center; flex-wrap: wrap;
     }
+    /* Botones con texto dentro de una campaña cerrada (no son círculos) */
+    .cierre-boton {
+      border: 1px solid rgba(0,0,0,.12); background: #fff; color: #3A3E41;
+      height: 34px; padding: 0 13px; border-radius: 17px; cursor: pointer;
+      font-size: 12.5px; font-weight: 600; font-family: inherit;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .cierre-boton:hover { background: #F4F6F4; border-color: rgba(0,0,0,.2); }
 
     /* ===== MODAL COSECHA ===== */
     .modal-overlay {
@@ -826,6 +835,24 @@
         </div>
       </div>
 
+      <div class="campo" style="background:#F4F8F4;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:12px 14px;">
+        <label style="margin-bottom:8px;display:block;">🌧️ Agua del ciclo (siembra → cosecha)</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:130px;">
+            <label style="font-size:11px;font-weight:600;color:#6B6356;">Riego aplicado (mm)</label>
+            <input type="number" id="cosechaRiego" placeholder="Ej: 320" step="0.1" min="0">
+          </div>
+          <div style="flex:1;min-width:130px;">
+            <label style="font-size:11px;font-weight:600;color:#6B6356;">Lluvia del ciclo (mm)</label>
+            <input type="number" id="cosechaLluvia" placeholder="Se trae del clima" step="0.1" min="0">
+          </div>
+        </div>
+        <div style="margin-top:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button type="button" class="cierre-boton" id="btnTraerLluvia" onclick="traerLluviaDelClima()">☁️ Traer la lluvia del clima</button>
+          <span style="font-size:11.5px;color:#6B6356;" id="lluviaHint">Usa las coordenadas del campo y las fechas del ciclo.</span>
+        </div>
+      </div>
+
       <div class="campo">
         <label>🚛 Destino del grano</label>
         <select id="cosechaDestino">
@@ -1063,13 +1090,18 @@
         document.getElementById('cosechaProduccion').value = yaCosechada.produccionKg || '';
         document.getElementById('cosechaHumedad').value = yaCosechada.humedad != null ? yaCosechada.humedad : '14';
         document.getElementById('cosechaObs').value = yaCosechada.observaciones || '';
+        document.getElementById('cosechaRiego').value = yaCosechada.riegoMM != null ? yaCosechada.riegoMM : '';
+        document.getElementById('cosechaLluvia').value = yaCosechada.lluviaMM != null ? yaCosechada.lluviaMM : '';
       } else {
         document.getElementById('cosechaSuperficie').value = sup;
         document.getElementById('cosechaFecha').valueAsDate = new Date();
         document.getElementById('cosechaProduccion').value = '';
         document.getElementById('cosechaHumedad').value = '14';
         document.getElementById('cosechaObs').value = '';
+        document.getElementById('cosechaRiego').value = '';
+        document.getElementById('cosechaLluvia').value = '';
       }
+      document.getElementById('lluviaHint').textContent = 'Usa las coordenadas del campo y las fechas del ciclo.';
       document.getElementById('kpiPreview').classList.remove('visible');
       if (yaCosechada) calcularRendimiento();
 
@@ -1104,6 +1136,61 @@
       }
     }
 
+    /* Trae la lluvia acumulada del ciclo desde Open-Meteo (histórico real),
+       usando las coordenadas del campo del equipo y las fechas siembra→cosecha. */
+    function traerLluviaDelClima() {
+      const hint = document.getElementById('lluviaHint');
+      const boton = document.getElementById('btnTraerLluvia');
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const campana = campanas.find(c => c.id === cosechandoCampanaId);
+      if (!campana) return;
+
+      const cultivo = (campana.cultivos || [])[0];
+      const siembra = cultivo && cultivo.fechaSiembra;
+      const hasta = document.getElementById('cosechaFecha').value || (cultivo && cultivo.fechaCosecha);
+      if (!siembra) { hint.textContent = '⚠️ Falta la fecha de siembra en la campaña.'; return; }
+      if (!hasta) { hint.textContent = '⚠️ Cargá primero la fecha de cosecha.'; return; }
+      if (hasta < siembra) { hint.textContent = '⚠️ La cosecha no puede ser anterior a la siembra.'; return; }
+
+      // Coordenadas: equipo de la campaña → campo → lat/long
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const equipo = equipos.find(e => String(e.id) === String(campana.equipoId));
+      const campo = equipo ? campos.find(c => String(c.id) === String(equipo.campoId)) : null;
+      const lat = campo && parseFloat(String(campo.latitud).replace(',', '.'));
+      const lon = campo && parseFloat(String(campo.longitud).replace(',', '.'));
+      if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+        hint.textContent = '⚠️ El campo no tiene coordenadas cargadas. Cargalas en Campos.';
+        return;
+      }
+
+      boton.disabled = true;
+      hint.textContent = 'Buscando la lluvia real del período…';
+
+      const url = 'https://archive-api.open-meteo.com/v1/archive'
+        + '?latitude=' + lat + '&longitude=' + lon
+        + '&start_date=' + siembra + '&end_date=' + hasta
+        + '&daily=precipitation_sum&timezone=auto';
+
+      fetch(url)
+        .then(r => r.json())
+        .then(j => {
+          const dias = (j && j.daily && j.daily.precipitation_sum) || null;
+          if (!dias || !dias.length) {
+            hint.textContent = 'No hay datos de lluvia para ese período (el histórico tarda unos días en publicarse).';
+            return;
+          }
+          const validos = dias.filter(v => v !== null && !isNaN(v));
+          const total = validos.reduce((s, v) => s + v, 0);
+          const conLluvia = validos.filter(v => v > 0).length;
+          document.getElementById('cosechaLluvia').value = Math.round(total * 10) / 10;
+          hint.textContent = '✓ ' + Math.round(total) + ' mm en ' + validos.length + ' días ('
+            + conLluvia + ' días con lluvia). Podés corregirlo a mano.';
+        })
+        .catch(() => { hint.textContent = 'No se pudo consultar el clima. Revisá tu internet.'; })
+        .finally(() => { boton.disabled = false; });
+    }
+
     function guardarCosecha() {
       const fecha = document.getElementById('cosechaFecha').value;
       const superficie = parseFloat(document.getElementById('cosechaSuperficie').value);
@@ -1118,6 +1205,9 @@
 
       const rendimientoNeto = Math.round(produccion / superficie);
 
+      const riegoMM = parseFloat(document.getElementById('cosechaRiego').value);
+      const lluviaMM = parseFloat(document.getElementById('cosechaLluvia').value);
+
       const cosecha = {
         fecha,
         superficie,
@@ -1126,6 +1216,8 @@
         rendimientoNeto,
         destino,
         observaciones: obs,
+        riegoMM: isNaN(riegoMM) ? null : riegoMM,
+        lluviaMM: isNaN(lluviaMM) ? null : lluviaMM,
         fechaRegistro: new Date().toISOString()
       };
 
@@ -1565,12 +1657,18 @@
 
           // Estadísticas de eventos de este equipo durante la campaña
           const eventsEquipo = eventos.filter(e => e.equipoId === campana.equipoId);
-          const totalRiegoMM = eventsEquipo
-            .filter(e => e.tipo === 'riego')
-            .reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
-          const totalLluviaMM = eventsEquipo
-            .filter(e => e.tipo === 'lluvia')
-            .reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
+          // Si la cosecha trae el total del ciclo cargado, ese manda;
+          // si no, se suman los eventos diarios del equipo.
+          const totalRiegoMM = (cosecha && cosecha.riegoMM != null)
+            ? cosecha.riegoMM
+            : eventsEquipo
+                .filter(e => e.tipo === 'riego')
+                .reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
+          const totalLluviaMM = (cosecha && cosecha.lluviaMM != null)
+            ? cosecha.lluviaMM
+            : eventsEquipo
+                .filter(e => e.tipo === 'lluvia')
+                .reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
           const totalAplicaciones = eventsEquipo.filter(e => e.tipo === 'aplicacion').length;
 
           // Rendimiento vs objetivo
@@ -1665,8 +1763,8 @@
               ` : ''}
 
               <div class="cierre-acciones">
-                <button class="item-boton" onclick="abrirModalCosecha(${campana.id})" title="Corregir los datos de la cosecha (fecha, kilos, superficie)">📝 Corregir cosecha</button>
-                <button class="item-boton" onclick="editarCampana(${campana.id})" title="Editar la campaña (nombre, cultivo, fechas de siembra)">✏️ Editar campaña</button>
+                <button class="cierre-boton" onclick="abrirModalCosecha(${campana.id})" title="Corregir la cosecha: fecha, kilos, superficie, riego y lluvia">📝 Corregir cosecha</button>
+                <button class="cierre-boton" onclick="editarCampana(${campana.id})" title="Editar la campaña (nombre, cultivo, fechas de siembra)">✏️ Editar campaña</button>
                 <button class="item-boton item-borrar" onclick="borrarCampana(${campana.id})" title="Borrar campaña">×</button>
               </div>
             </div>
