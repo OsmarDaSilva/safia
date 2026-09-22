@@ -180,6 +180,7 @@
               <div class="field"><label>Fecha de siembra *</label><input type="date" id="cSiembra"></div>
               <div class="field"><label>Fecha de cosecha</label><input type="date" id="cCosecha"><span class="hint">Vacío si todavía está en pie</span></div>
               <div class="field"><label>Rinde (kg/ha)</label><input type="number" id="cRinde" step="1" min="0" placeholder="Ej.: 4200"></div>
+              <div class="field"><label>¿Con riego o secano?</label><select id="cConRiego"><option value="si">💧 Con riego</option><option value="no">🌾 Secano (sin riego)</option></select></div>
               <div class="field"><label>Riego del ciclo (mm)</label><input type="number" id="cRiego" step="0.1" min="0"><span class="hint">Podés calcularlo de los eventos ↓</span></div>
               <div class="field"><label>Lluvia del ciclo (mm)</label><input type="number" id="cLluvia" step="0.1" min="0"></div>
               <div class="field"><label>Encalado (t/ha)</label><input type="number" id="cEncalado" step="0.1" min="0" placeholder="0 si no encaló"></div>
@@ -491,7 +492,7 @@
         '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + '</td>' +
         '<td>' + fmtFecha(c.fechaSiembra) + ' → ' + (c.fechaCosecha ? fmtFecha(c.fechaCosecha) : '<span class="badge green">en pie</span>') + '</td>' +
         '<td class="r"><span class="num">' + fmt(c.rindeKgHa, 0) + '</span></td>' +
-        '<td class="r">' + fmt(c.mmRiego) + '</td>' +
+        '<td class="r">' + (c.conRiego === 'no' ? '<span class="badge amber">secano</span>' : fmt(c.mmRiego)) + '</td>' +
         '<td class="r">' + fmt(c.mmLluvia) + '</td>' +
         '<td class="r">' + fmt(c.encaladoTnHa) + '</td>' +
         '<td>' + (c.fertilizacion ? esc(c.fertilizacion) : '<span class="muted">—</span>') + '</td>' +
@@ -547,6 +548,7 @@
     document.getElementById('cSiembra').value = c.fechaSiembra || '';
     document.getElementById('cCosecha').value = c.fechaCosecha || '';
     document.getElementById('cRinde').value = c.rindeKgHa != null ? c.rindeKgHa : '';
+    document.getElementById('cConRiego').value = c.conRiego || (num(c.mmRiego) === 0 ? 'no' : 'si');
     document.getElementById('cRiego').value = c.mmRiego != null ? c.mmRiego : '';
     document.getElementById('cLluvia').value = c.mmLluvia != null ? c.mmLluvia : '';
     document.getElementById('cEncalado').value = c.encaladoTnHa != null ? c.encaladoTnHa : '';
@@ -591,7 +593,8 @@
     item.fechaSiembra = siembra;
     item.fechaCosecha = document.getElementById('cCosecha').value || null;
     item.rindeKgHa = num(document.getElementById('cRinde').value);
-    item.mmRiego = num(document.getElementById('cRiego').value);
+    item.conRiego = document.getElementById('cConRiego').value;
+    item.mmRiego = item.conRiego === 'no' ? 0 : num(document.getElementById('cRiego').value);
     item.mmLluvia = num(document.getElementById('cLluvia').value);
     item.encaladoTnHa = num(document.getElementById('cEncalado').value);
     item.fertilizacion = document.getElementById('cFert').value.trim();
@@ -625,16 +628,18 @@
 
   // Campañas cosechadas de los equipos de este campo.
   function campanasDelCampo() {
-    var idsEquipos = leer('equipos')
-      .filter(function (e) { return String(e.campoId) === String(campoActual.id); })
-      .map(function (e) { return String(e.id); });
+    var equiposCampo = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
+    var idsEquipos = equiposCampo.map(function (e) { return String(e.id); });
     var salida = [];
     leer('campanas').forEach(function (c) {
       if (idsEquipos.indexOf(String(c.equipoId)) === -1) return;
+      var eq = equiposCampo.find(function (e) { return String(e.id) === String(c.equipoId); });
       (c.cultivos || []).forEach(function (cu) {
         var rinde = parseFloat(cu.rendimientoReal);
         if (!rinde || rinde <= 0) return;   // solo campañas ya cosechadas
         salida.push({
+          equipo: eq ? eq.nombre : '',
+          riego: !(eq && eq.tipo === 'secano'),
           campana: c.nombre || '—',
           cultivo: cu.cultivo || '—',
           variedad: cu.variedad || '',
@@ -733,9 +738,11 @@
     document.getElementById('cuerpoComparativo').innerHTML = filas.map(function (f) {
       var c = f.c, r = f.ref;
       var celdaRiego = (r && r.riego != null)
-        ? '<span class="num">' + fmt(r.riego) + '</span>' + (c.rindeTonHa >= r.riego ? ' <span class="evo-mejor">▲</span>' : ' <span class="evo-peor">▼</span>')
+        ? '<span class="num">' + fmt(r.riego) + '</span>' + (c.riego ? (c.rindeTonHa >= r.riego ? ' <span class="evo-mejor">▲</span>' : ' <span class="evo-peor">▼</span>') : '')
         : '<span class="muted">—</span>';
-      var celdaSecano = (r && r.secano != null) ? '<span class="num">' + fmt(r.secano) + '</span>' : '<span class="muted">—</span>';
+      var celdaSecano = (r && r.secano != null)
+        ? '<span class="num">' + fmt(r.secano) + '</span>' + (!c.riego ? (c.rindeTonHa >= r.secano ? ' <span class="evo-mejor">▲</span>' : ' <span class="evo-peor">▼</span>') : '')
+        : '<span class="muted">—</span>';
       var gana = '<span class="muted">—</span>';
       if (r && r.secano != null && r.secano > 0) {
         var d = c.rindeTonHa - r.secano;
@@ -745,7 +752,7 @@
       return '<tr>' +
         '<td>' + esc(c.campana) + '<div class="sub">' + fmtFecha(c.siembra) + ' → ' + fmtFecha(c.cosecha) + (f.epoca ? ' · ' + esc(f.epoca) : '') + '</div></td>' +
         '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + '</td>' +
-        '<td class="r"><span class="num">' + fmt(c.rindeTonHa) + '</span><div class="sub">t/ha</div></td>' +
+        '<td class="r"><span class="num">' + fmt(c.rindeTonHa) + '</span><div class="sub">t/ha · ' + (c.riego ? '<span class="badge green">riego</span>' : '<span class="badge amber">secano</span>') + (c.equipo ? ' ' + esc(c.equipo) : '') + '</div></td>' +
         '<td class="r">' + celdaRiego + '</td>' +
         '<td class="r">' + celdaSecano + '</td>' +
         '<td class="r">' + gana + '</td>' +
@@ -755,7 +762,7 @@
     // Pie: cuánto suma el riego en toneladas sobre la superficie del cliente
     var extra = 0, hubo = false;
     filas.forEach(function (f) {
-      if (f.ref && f.ref.secano != null && f.c.superficie) {
+      if (f.c.riego && f.ref && f.ref.secano != null && f.c.superficie) {
         extra += (f.c.rindeTonHa - f.ref.secano) * f.c.superficie; hubo = true;
       }
     });
@@ -1275,6 +1282,42 @@
     });
     html += tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Agua total mm', r: 1 }, { t: 'Rinde kg/ha', r: 1 }, { t: 'kg por mm', r: 1 }, { t: 'Clima', r: 1 }], filasA);
     if (reglas.length) html += '<div class="note ok" style="margin-top:10px;"><b>Regla práctica para decidir el riego:</b><ul style="margin:6px 0 0 18px;">' + reglas.join('') + '</ul></div>';
+
+    /* ---- 5b. Riego vs secano del mismo cliente ---- */
+    html += h3evo('💧 Riego vs secano', '¿cuánto suma el riego? mismo cliente, mismo cultivo, misma campaña');
+    var delCliente = todos.filter(function (c) { return String(c.clienteId) === String(campoActual.clienteId); });
+    var conR = delCliente.filter(function (c) { return c.riego !== false; });
+    var sinR = delCliente.filter(function (c) { return c.riego === false; });
+    if (!conR.length || !sinR.length) {
+      html += '<div class="note">' + (sinR.length
+        ? 'Este cliente solo tiene campañas de <b>secano</b> cosechadas. Cuando cierre una campaña con riego del mismo cultivo, acá vas a ver cuánto sumó el riego.'
+        : 'Todas las campañas cosechadas de este cliente son <b>con riego</b>. Para medir cuánto suma el riego, cargá también un <b>lote de secano</b> del mismo cliente (en <a href="mis-equipos.html">Equipos</a>, tipo "Lote de secano") y cerrá sus campañas: SAFIA compara solo, mismo cultivo y misma campaña.') + '</div>';
+    } else {
+      var pares = [];
+      conR.forEach(function (r) {
+        sinR.forEach(function (s) {
+          if (norm(r.cultivo) !== norm(s.cultivo)) return;
+          if (!r.siembra || !s.siembra) return;
+          var dif = Math.abs(new Date(r.siembra) - new Date(s.siembra)) / 86400000;
+          if (dif > 75) return; // misma campaña: sembrados con menos de ~2 meses y medio de diferencia
+          pares.push({ r: r, s: s, dif: r.rindeKgHa - s.rindeKgHa, pct: s.rindeKgHa ? (r.rindeKgHa - s.rindeKgHa) / s.rindeKgHa * 100 : null });
+        });
+      });
+      if (!pares.length) {
+        html += '<div class="note">Hay campañas con riego y de secano, pero no del <b>mismo cultivo en la misma campaña</b>. Cuando coincidan (por ejemplo soja con riego y soja en secano sembradas la misma primavera), acá aparece la diferencia.</div>';
+      } else {
+        var filasRS = pares.map(function (p) {
+          return '<tr>' + td(esc(p.r.cultivo) + '<div class="sub">' + esc(p.r.campana) + '</div>') +
+            td('<span class="num">' + fmt(p.r.rindeKgHa, 0) + '</span><div class="sub">' + esc(p.r.equipo || p.r.campo) + (p.r.riegoMM != null ? ' · 💧 ' + fmt(p.r.riegoMM, 0) + ' mm' : '') + '</div>', 1) +
+            td('<span class="num">' + fmt(p.s.rindeKgHa, 0) + '</span><div class="sub">' + esc(p.s.equipo || p.s.campo) + '</div>', 1) +
+            td('<span class="badge ' + (p.dif >= 0 ? 'green' : 'red') + '">' + (p.dif >= 0 ? '+' : '') + fmt(p.dif, 0) + ' kg/ha' + (p.pct != null ? ' · ' + (p.pct >= 0 ? '+' : '') + fmt(p.pct, 0) + '%' : '') + '</span>', 1) +
+            td(p.r.riegoMM != null && p.r.riegoMM > 0 ? fmt(p.dif / p.r.riegoMM, 1) + ' kg/mm' : '—', 1) + '</tr>';
+        });
+        var promDif = prom(pares.map(function (p) { return p.dif; })), promPct = prom(pares.map(function (p) { return p.pct; }));
+        html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo · campaña</th><th class="r">Con riego</th><th class="r">Secano</th><th class="r">Diferencia</th><th class="r">Por mm regado</th></tr></thead><tbody>' + filasRS.join('') + '</tbody></table></div></div>' +
+          '<div class="note ok" style="margin-top:8px;">En ' + pares.length + ' comparación(es) reales de este cliente, el riego sumó en promedio <b>' + (promDif >= 0 ? '+' : '') + fmt(promDif, 0) + ' kg/ha</b>' + (promPct != null ? ' (<b>' + (promPct >= 0 ? '+' : '') + fmt(promPct, 0) + '%</b>)' : '') + ' sobre el secano del mismo cultivo y la misma campaña.</div>';
+      }
+    }
 
     /* ---- 6. Fertirriego y aplicaciones ---- */
     html += h3evo('🧴 Fertirriego y aplicaciones', '¿las campañas con aplicaciones registradas rindieron más?');

@@ -59,6 +59,8 @@ Todo el motor gira sobre el **caso** = una campaña cosechada con todo lo que la
 
 **Regla de la finalidad:** al comparar rindes, siempre dentro de la misma finalidad (grano con grano, ensilaje con ensilaje).
 
+**Regla riego / secano:** un mismo cliente puede tener lotes **con riego** y lotes **de secano** (en Equipos, tipo "Lote de secano"). Los dos se cargan igual (campañas, cosechas, lluvia) y todo análisis muestra el comparativo: cada caso lleva `riego: true/false`, los rankings y la referencia separan riego de secano, y el Banco mide cuánto sumó el riego (mismo cliente, mismo cultivo, misma campaña). Así la base crece año a año, cosecha tras cosecha, con datos reales de las dos condiciones.
+
 ## 5. Los cinco motores de análisis
 
 ### Motor 1 · Referencia regional — HECHO

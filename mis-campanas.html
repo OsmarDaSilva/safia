@@ -870,6 +870,7 @@
           <div style="flex:1;min-width:130px;">
             <label style="font-size:11px;font-weight:600;color:#6B6356;">Riego aplicado (mm)</label>
             <input type="number" id="cosechaRiego" placeholder="Ej: 320" step="0.1" min="0">
+            <div id="riegoHint" style="display:none;font-size:11px;color:#6B6356;margin-top:4px;">🌾 Lote de secano: se guarda 0 mm de riego.</div>
           </div>
           <div style="flex:1;min-width:130px;">
             <label style="font-size:11px;font-weight:600;color:#6B6356;">Lluvia del ciclo (mm)</label>
@@ -1156,6 +1157,14 @@
         document.getElementById('cosechaLluvia').value = '';
       }
       document.getElementById('lluviaHint').textContent = 'Usa las coordenadas del campo y las fechas del ciclo.';
+      // Lote de secano: no hay riego que cargar
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const equipoCos = equipos.find(e => String(e.id) === String(campana.equipoId));
+      const esSecano = !!(equipoCos && equipoCos.tipo === 'secano');
+      const inpRiego = document.getElementById('cosechaRiego');
+      inpRiego.disabled = esSecano;
+      if (esSecano) inpRiego.value = '0';
+      document.getElementById('riegoHint').style.display = esSecano ? '' : 'none';
       document.getElementById('kpiPreview').classList.remove('visible');
       if (yaCosechada) calcularRendimiento();
 
@@ -1391,6 +1400,12 @@
       }
     }
 
+    // Cómo se nombra un equipo en pantalla: los lotes de secano se distinguen del riego.
+    function etiquetaEquipo(equipo) {
+      if (!equipo) return '?';
+      return equipo.tipo === 'secano' ? '🌾 ' + equipo.nombre + ' (secano, sin riego)' : '💧 ' + equipo.nombre;
+    }
+
     function cargarSelectorEquipos() {
       const select = document.getElementById('equipo');
       while (select.options.length > 1) select.remove(1);
@@ -1404,7 +1419,7 @@
         const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
         const option = document.createElement('option');
         option.value = equipo.id;
-        option.textContent = `${equipo.nombre} (${campo ? campo.nombre : '?'} - ${cliente ? cliente.nombre : '?'})`;
+        option.textContent = `${etiquetaEquipo(equipo)} (${campo ? campo.nombre : '?'} - ${cliente ? cliente.nombre : '?'})`;
         select.appendChild(option);
       });
     }
@@ -1796,7 +1811,7 @@
       selEq.innerHTML = '<option value="">Todos los equipos</option>' +
         equiposVisibles.map(e => {
           const info = clienteDelEquipo(e.id, equipos, campos, clientes);
-          return `<option value="${e.id}">${e.nombre}${info.campo ? ' · ' + info.campo.nombre : ''}${!selCli.value && info.cliente ? ' (' + info.cliente.nombre + ')' : ''}</option>`;
+          return `<option value="${e.id}">${etiquetaEquipo(e)}${info.campo ? ' · ' + info.campo.nombre : ''}${!selCli.value && info.cliente ? ' (' + info.cliente.nombre + ')' : ''}</option>`;
         }).join('');
       selEq.value = equiposVisibles.some(e => String(e.id) === String(f.equipoId)) ? String(f.equipoId) : '';
       guardarFiltro();
@@ -1877,7 +1892,7 @@
             <tr class="${claseEditando}">
               <td><span class="num">${campana.nombre}</span></td>
               <td>${cultivosTexto ? `<span class="badge blue">${cultivosTexto}</span>` : '<span class="muted">Sin cultivos</span>'}</td>
-              <td>${equipo ? equipo.nombre : '?'}</td>
+              <td>${etiquetaEquipo(equipo)}</td>
               <td>${campo ? campo.nombre : '?'}</td>
               <td>${cliente ? cliente.nombre : '?'}</td>
               <td class="r"><span class="rowact">
@@ -1976,7 +1991,7 @@
                   </div>
                   <div class="cierre-sub">
                     <span>${cultivoNombre}</span>
-                    <span>💧 ${equipo ? equipo.nombre : '?'}</span>
+                    <span>${etiquetaEquipo(equipo)}</span>
                     <span>👤 ${cliente ? cliente.nombre : '?'}</span>
                     ${cosecha ? `<span>📅 Cosecha: ${new Date(cosecha.fecha + 'T12:00:00').toLocaleDateString('es-PY', {day:'2-digit',month:'2-digit',year:'numeric'})}</span>` : ''}
                   </div>
@@ -1993,7 +2008,7 @@
                   <div class="cierre-kpi-label">Duración ciclo</div>
                 </div>
                 <div class="cierre-kpi">
-                  <div class="cierre-kpi-valor">${totalRiegoMM.toFixed(0)} mm</div>
+                  <div class="cierre-kpi-valor">${equipo && equipo.tipo === 'secano' ? 'Secano' : totalRiegoMM.toFixed(0) + ' mm'}</div>
                   <div class="cierre-kpi-label">Riego total</div>
                 </div>
                 <div class="cierre-kpi">

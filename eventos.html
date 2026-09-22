@@ -439,7 +439,7 @@
         // No repetimos el nombre si el equipo se llama igual que el campo
         const mismoNombre = campo && String(e.nombre).trim().toLowerCase() === String(campo.nombre).trim().toLowerCase();
         const queEs = mismoNombre ? (e.tipo ? e.tipo.charAt(0).toUpperCase() + e.tipo.slice(1) : 'Equipo') : e.nombre;
-        const etiqueta = [cli && cli.nombre, campo && campo.nombre, queEs].filter(Boolean).join(' · ');
+        const etiqueta = [cli && cli.nombre, campo && campo.nombre, queEs].filter(Boolean).join(' · ') + (e.tipo === 'secano' ? ' 🌾 secano' : '');
         return `<option value="${e.id}">${etiqueta}</option>`;
       }).join('');
 

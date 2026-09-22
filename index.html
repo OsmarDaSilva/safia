@@ -1182,6 +1182,7 @@
         cont.innerHTML='<div class="card" style="margin-top:14px;"><div class="card-h"><h3>🧠 Inteligencia agronómica</h3><span class="muted">casos reales cosechados</span></div>'+
           '<div class="statbar" style="margin:0 0 4px;">'+
           '<div class="stat"><div class="sl">Casos</div><div class="sv green">'+casos.length+'</div></div>'+
+          '<div class="stat"><div class="sl">Riego / secano</div><div class="sv">'+casos.filter(function(c){return c.riego!==false;}).length+' / '+casos.filter(function(c){return c.riego===false;}).length+'</div></div>'+
           '<div class="stat"><div class="sl">Clientes</div><div class="sv">'+Object.keys(clientes).length+'</div></div>'+
           '<div class="stat"><div class="sl">Localidades</div><div class="sv">'+Object.keys(localidades).length+'</div></div>'+
           '<div class="stat"><div class="sl">Cultivos</div><div class="sv">'+Object.keys(cultivos).length+'</div></div></div>'+

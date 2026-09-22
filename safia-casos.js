@@ -119,6 +119,8 @@
           campoId: campo ? campo.id : null,
           equipo: equipo ? (equipo.nombre || '') : '',
           equipoId: c.equipoId,
+          // Un "equipo" de tipo secano es un lote sin riego del mismo cliente: sirve para comparar.
+          riego: !(equipo && equipo.tipo === 'secano'),
           pais: campo ? (campo.pais || 'Paraguay') : 'Paraguay',
           localidad: campo ? (campo.localidad || '') : '',
           departamento: campo ? (campo.departamento || '') : '',
@@ -166,6 +168,8 @@
         cliente: cliente ? (cliente.nombre || '') : '', clienteId: cliente ? cliente.id : null,
         campo: campo ? (campo.nombre || '') : '', campoId: campo ? campo.id : null,
         equipo: '', equipoId: null,
+        // conRiego explícito ('si'/'no'); si falta, 0 mm de riego cargados = secano, sin dato = con riego.
+        riego: ci.conRiego === 'no' ? false : (ci.conRiego === 'si' ? true : num(ci.mmRiego) !== 0),
         pais: campo ? (campo.pais || 'Paraguay') : 'Paraguay',
         localidad: campo ? (campo.localidad || '') : '', departamento: campo ? (campo.departamento || '') : '',
         lat: campo ? num(campo.latitud) : null, lon: campo ? num(campo.longitud) : null, altitud: campo ? num(campo.altitud) : null,
@@ -252,7 +256,11 @@
     var radioKm = opciones.radioKm || 300;
 
     var candidatos = casos.filter(function (c) {
-      return !prospecto.cultivo || norm(c.cultivo) === norm(prospecto.cultivo);
+      if (prospecto.cultivo && norm(c.cultivo) !== norm(prospecto.cultivo)) return false;
+      // opciones.riego: true = solo casos con riego, false = solo secano, sin definir = todos
+      if (opciones.riego === true && c.riego === false) return false;
+      if (opciones.riego === false && c.riego !== false) return false;
+      return true;
     });
 
     var puntuados = candidatos.map(function (c) {

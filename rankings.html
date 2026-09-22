@@ -122,7 +122,7 @@
   function cargarDatos(){
     var casos=SafiaCasos.armarCasos().map(function(c){ return {
       fuente:'caso', pais:c.pais||'Paraguay', departamento:c.departamento||'', localidad:c.localidad||'', cultivo:c.cultivo||'',
-      finalidad:c.finalidad||'Granos Comercial', epoca:c.epoca||'', riego:true, variedad:c.variedad||'', rindeKgHa:c.rindeKgHa,
+      finalidad:c.finalidad||'Granos Comercial', epoca:c.epoca||'', riego:c.riego!==false, variedad:c.variedad||'', rindeKgHa:c.rindeKgHa,
       cliente:c.cliente, campo:c.campo, campana:c.campana, anio:c.cosecha?parseInt(c.cosecha.slice(0,4),10):null,
       aguaTotalMM:c.aguaTotalMM, altitud:c.altitud
     }; });

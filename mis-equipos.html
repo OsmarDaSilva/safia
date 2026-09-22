@@ -217,6 +217,7 @@
     .tarjeta-sub{color:#8C9196 !important;}
     .seccion{border-top-color:#E1E4E7 !important;}
     .seccion-titulo{color:#2E3236 !important;}
+    .solo-riego.oculto{display:none !important;}
     .seccion-titulo .badge{background:#EEF0F2 !important;color:#8C9196 !important;}
     .campo label{color:#8C9196 !important;}
     .campo input,.campo select,.campo textarea{border:1px solid #E1E4E7 !important;border-radius:7px !important;background:#F2F3F5 !important;color:#2E3236 !important;padding:11px 12px !important;font-size:14px !important;}
@@ -349,6 +350,9 @@
               <optgroup label="Riego por superficie">
                 <option value="superficie">Superficie (surcos / inundación / bordes / mantos)</option>
               </optgroup>
+              <optgroup label="Sin riego (para comparar)">
+                <option value="secano">Lote de secano (sin riego)</option>
+              </optgroup>
               <option value="otro">Otro</option>
             </select>
           </div>
@@ -358,7 +362,11 @@
             <input type="text" id="nombre" placeholder="Ej: Pivote Norte / Pivote 1 / Goteo Tomate">
           </div>
 
-          <div class="note info" style="border:1px solid var(--bd);border-left:4px solid var(--green);background:var(--green-t);border-radius:8px;padding:13px 16px;margin:6px 0 14px;">
+          <div class="alerta" id="avisoSecano" style="display:none;">
+            🌾 <strong>Lote de secano:</strong> un área del mismo cliente que se produce <b>sin riego</b>. Cargale sus campañas y cosechas igual que a un pivot: SAFIA compara solo, mismo cultivo y misma campaña, cuánto suma el riego.
+          </div>
+
+          <div class="note info solo-riego" style="border:1px solid var(--bd);border-left:4px solid var(--green);background:var(--green-t);border-radius:8px;padding:13px 16px;margin:6px 0 14px;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <span style="flex:1;min-width:210px;font-size:13px;color:var(--green-d);">
                 📄 <strong>¿Tenés la ficha técnica del equipo?</strong> Subí la foto o el PDF y la IA completa los datos técnicos sola.
@@ -369,7 +377,7 @@
             <div class="ayuda" id="fichaHint" style="margin-top:8px;">Revisá los valores cargados antes de guardar.</div>
           </div>
 
-          <div class="fila">
+          <div class="fila solo-riego">
             <div class="campo">
               <label>Marca</label>
               <select id="marca">
@@ -395,7 +403,7 @@
             </div>
           </div>
 
-          <div class="fila">
+          <div class="fila solo-riego">
             <div class="campo">
               <label>Número de serie <span class="opcional">(opcional)</span></label>
               <input type="text" id="numeroSerie" placeholder="Ej: ZM-2018-A12345">
@@ -421,7 +429,7 @@
             </div>
           </div>
 
-          <div class="seccion">
+          <div class="seccion solo-riego">
             <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg> Energía y agua</div>
             <div class="fila">
               <div class="campo">
@@ -955,6 +963,11 @@
     function mostrarSeccionTipo() {
       const tipo = document.getElementById('tipo').value;
       document.querySelectorAll('.seccion-tipo').forEach(s => s.classList.remove('visible'));
+      // Lote de secano: no tiene marca, bomba ni energía; solo nombre, superficie y GPS.
+      const esSecano = tipo === 'secano';
+      document.querySelectorAll('.solo-riego').forEach(s => s.classList.toggle('oculto', esSecano));
+      document.getElementById('nombre').placeholder = esSecano ? 'Ej: Lote secano norte / Lote 3 sin riego' : 'Ej: Pivote Norte / Pivote 1 / Goteo Tomate';
+      document.getElementById('avisoSecano').style.display = esSecano ? '' : 'none';
       if (tipo === 'pivote') document.getElementById('seccion-pivote').classList.add('visible');
       else if (tipo === 'goteo' || tipo === 'microaspersion') document.getElementById('seccion-goteo').classList.add('visible');
       else if (tipo === 'canon') document.getElementById('seccion-canon').classList.add('visible');
@@ -1033,6 +1046,7 @@
       if (!equipo) return;
       document.getElementById('campo').value = equipo.campoId || '';
       document.getElementById('tipo').value = equipo.tipo || '';
+      mostrarSeccionTipo();
       document.getElementById('nombre').value = equipo.nombre || '';
       document.getElementById('marca').value = equipo.marca || '';
       document.getElementById('modelo').value = equipo.modelo || '';
@@ -1086,12 +1100,12 @@
     }
 
     function iconoTipo(tipo) {
-      const iconos = { pivote:'🌀', canon:'💦', goteo:'💧', microaspersion:'💧', aspersion:'🚿', superficie:'🌊' };
+      const iconos = { pivote:'🌀', canon:'💦', goteo:'💧', microaspersion:'💧', aspersion:'🚿', superficie:'🌊', secano:'🌾' };
       return iconos[tipo] || '⚙️';
     }
 
     function nombreTipo(tipo) {
-      const nombres = { pivote:'Pivote', canon:'Cañón', goteo:'Goteo', microaspersion:'Microaspersión', aspersion:'Aspersión', superficie:'Superficie', otro:'Otro' };
+      const nombres = { pivote:'Pivote', canon:'Cañón', goteo:'Goteo', microaspersion:'Microaspersión', aspersion:'Aspersión', superficie:'Superficie', secano:'Secano (sin riego)', otro:'Otro' };
       return nombres[tipo] || tipo;
     }
 

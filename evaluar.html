@@ -333,7 +333,8 @@
     if(r.potencial){
       var nota = r.potencial.nCasos<3 ? '⚠️ Basado en solo '+r.potencial.nCasos+' caso(s): es una orientación, no una predicción.' : 'Promedio ponderado por similitud de '+r.potencial.nCasos+' casos reales.';
       potHTML='<div class="potencial">'+fmt(r.potencial.estimado,0)+'</div><div class="rango">Entre '+fmt(r.potencial.min,0)+' y '+fmt(r.potencial.max,0)+' kg/ha en los casos parecidos</div><div class="kpi-sub" style="margin-top:8px;">'+nota+'</div>';
-    } else potHTML='<div class="potencial">—</div><div class="kpi-sub">Todavía no hay casos cosechados de '+esc(p.cultivo)+' en el banco.</div>';
+    } else potHTML='<div class="potencial">—</div><div class="kpi-sub">Todavía no hay casos con riego cosechados de '+esc(p.cultivo)+' en el banco.</div>';
+    if(r.secano) potHTML+='<div class="kpi-sub" style="margin-top:8px;">🌾 Casos reales de <b>secano</b> parecidos: <b>'+fmt(r.secano.estimado,0)+' kg/ha</b> ('+r.secano.nCasos+' caso(s))'+(r.potencial?' → el riego sumaría <b>'+(r.potencial.estimado-r.secano.estimado>=0?'+':'')+fmt(r.potencial.estimado-r.secano.estimado,0)+' kg/ha</b>':'')+'</div>';
 
     var refHTML = ref ? '<div style="display:flex;gap:22px;flex-wrap:wrap;"><div><div class="kpi-v green" style="font-size:26px;">'+fmt(ref.riego,0)+'</div><div class="kpi-sub">kg/ha con riego</div></div><div><div class="kpi-v amber" style="font-size:26px;">'+fmt(ref.secano,0)+'</div><div class="kpi-sub">kg/ha secano</div></div></div><div class="kpi-sub" style="margin-top:8px;">'+esc(ref.ambito)+' · grano · '+ref.n+' registros</div>'
       : '<span class="muted">Sin datos regionales para esta zona y cultivo.</span>';
@@ -401,7 +402,10 @@
     var cadena=Promise.resolve();
     filas.forEach(function(f, idx){
       var p={ lat:base.lat, lon:base.lon, altitud:base.altitud, suelo:base.suelo, cultivo:f.cultivo, epoca:f.epoca, objetivoKgHa:f.objetivoKgHa };
-      var r=SafiaCasos.evaluar(p,casos,{maxCasos:5,radioKm:300});
+      // Potencial con riego (casos con riego) y, aparte, qué dan los casos de secano parecidos
+      var r=SafiaCasos.evaluar(p,casos,{maxCasos:5,radioKm:300,riego:true});
+      var rs=SafiaCasos.evaluar(p,casos,{maxCasos:5,radioKm:300,riego:false});
+      r.secano=rs.potencial;
       cadena=cadena.then(function(){ return referenciaRegional(localidad,depto,p.cultivo,p.epoca).then(function(ref){
         resumen.innerHTML+='<tr><td><span class="fecha">'+esc(p.cultivo)+'</span>'+(p.epoca?'<div class="sub">'+esc(p.epoca)+'</div>':'')+'</td>'+
           '<td class="r">'+fmt(p.objetivoKgHa,0)+'</td>'+
@@ -417,7 +421,7 @@
   /* ---------- banco de casos ---------- */
   var COLS=[
     ['Cliente',function(c){return c.cliente;}],['Campo',function(c){return c.campo;}],['Localidad',function(c){return c.localidad;}],
-    ['Alt. m',function(c){return c.altitud;}],['Campaña',function(c){return c.campana;}],['Cultivo',function(c){return c.cultivo;}],
+    ['Alt. m',function(c){return c.altitud;}],['Campaña',function(c){return c.campana;}],['Cultivo',function(c){return c.cultivo;}],['Riego',function(c){return c.riego===false?'secano':'riego';}],
     ['Variedad',function(c){return c.variedad;}],['Época',function(c){return c.epoca;}],['Siembra',function(c){return fmtFecha(c.siembra);}],
     ['Cosecha',function(c){return fmtFecha(c.cosecha);}],['Días',function(c){return c.dias;}],['Rinde kg/ha',function(c){return c.rindeKgHa;}],
     ['Lluvia mm',function(c){return c.lluviaMM;}],['Riego mm',function(c){return c.riegoMM;}],['Agua mm',function(c){return c.aguaTotalMM;}],
