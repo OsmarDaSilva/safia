@@ -224,6 +224,16 @@
       aplicarFiltros();
     }
 
+    function limpiarFiltros() {
+      document.getElementById('fTipo').value = 'todos';
+      document.getElementById('fPeriodo').value = 'todo';
+      document.getElementById('filtroEquipo').value = '';
+      document.getElementById('fOrigen').value = 'todos';
+      const buscador = document.querySelector('.search input');
+      if (buscador) buscador.value = '';
+      onFiltroChange();
+    }
+
     function cargarSelectorEquipos() {
       const select = document.getElementById('filtroEquipo');
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
@@ -235,7 +245,12 @@
         const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
         const opt = document.createElement('option');
         opt.value = eq.id;
-        opt.textContent = `${eq.nombre} (${campo ? campo.nombre : '?'} · ${cliente ? cliente.nombre : '?'})`;
+        // Si el equipo se llama igual que el campo, no repetimos el nombre:
+        // mostramos el tipo de equipo para que se entienda qué es.
+        const nombreCampo = campo ? campo.nombre : '?';
+        const mismoNombre = campo && String(eq.nombre).trim().toLowerCase() === String(campo.nombre).trim().toLowerCase();
+        const queEs = mismoNombre ? (eq.tipo ? eq.tipo.charAt(0).toUpperCase() + eq.tipo.slice(1) : 'Equipo') : eq.nombre;
+        opt.textContent = `${queEs} — ${nombreCampo}${cliente ? ' · ' + cliente.nombre : ''}`;
         select.appendChild(opt);
       });
     }
@@ -299,7 +314,16 @@
       const botones = document.querySelectorAll('.boton-export');
 
       if (filtrados.length === 0) {
-        lista.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="eico">📭</div><div class="etxt">No hay eventos con estos filtros.</div></div></td></tr>`;
+        // Si hay eventos cargados pero los filtros no muestran ninguno, lo avisamos:
+        // si no, parece que no se guardó nada.
+        const totalCargados = JSON.parse(localStorage.getItem('eventos') || '[]').length;
+        lista.innerHTML = totalCargados
+          ? `<tr><td colspan="8"><div class="empty"><div class="eico">🔎</div><div class="etxt">
+               <b>Tenés ${totalCargados} evento(s) cargados</b>, pero ninguno coincide con estos filtros.<br>
+               <span class="muted">Revisá el equipo, el período, el origen o el buscador.</span><br>
+               <button class="btn green" style="margin-top:12px;" onclick="limpiarFiltros()">Limpiar filtros y ver todo</button>
+             </div></div></td></tr>`
+          : `<tr><td colspan="8"><div class="empty"><div class="eico">📭</div><div class="etxt">Todavía no hay eventos cargados.</div></div></td></tr>`;
         botones.forEach(b => b.disabled = true);
         return;
       }
@@ -409,7 +433,10 @@
       sel.innerHTML = equipos.map(e => {
         const campo = campos.find(c => String(c.id) === String(e.campoId));
         const cli = campo ? clientes.find(x => String(x.id) === String(campo.clienteId)) : null;
-        const etiqueta = [cli && cli.nombre, campo && campo.nombre, e.nombre].filter(Boolean).join(' · ');
+        // No repetimos el nombre si el equipo se llama igual que el campo
+        const mismoNombre = campo && String(e.nombre).trim().toLowerCase() === String(campo.nombre).trim().toLowerCase();
+        const queEs = mismoNombre ? (e.tipo ? e.tipo.charAt(0).toUpperCase() + e.tipo.slice(1) : 'Equipo') : e.nombre;
+        const etiqueta = [cli && cli.nombre, campo && campo.nombre, queEs].filter(Boolean).join(' · ');
         return `<option value="${e.id}">${etiqueta}</option>`;
       }).join('');
 
