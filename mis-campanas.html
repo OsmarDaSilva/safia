@@ -597,6 +597,10 @@
     .alerta a{color:#C0392B !important;}
     .alerta-edicion{background:#E7F6EA !important;border-left-color:#22A93A !important;color:#178029 !important;}
     .lista-titulo{color:#8C9196 !important;}
+    .filtro-campanas{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;}
+    .filtro-campanas .campo{margin:0;flex:1;min-width:200px;}
+    .filtro-resumen{flex-basis:100%;font-size:12px;color:#8C9196;}
+    .filtro-resumen button{background:none;border:none;color:#1565C0;font-weight:600;cursor:pointer;font-size:12px;padding:0;margin-left:6px;}
     /* Campañas: badges, cultivo-bloque, cards cerradas, modales */
     .badge-activa{background:#E7F6EA !important;color:#178029 !important;}
     .badge-cerrada{background:#EEF0F2 !important;color:#8C9196 !important;}
@@ -745,7 +749,7 @@
 
           <div class="campo">
             <label>Equipo de riego</label>
-            <select id="equipo">
+            <select id="equipo" onchange="fijarFiltroPorEquipo(this.value)">
               <option value="">Seleccionar equipo...</option>
             </select>
           </div>
@@ -789,6 +793,21 @@
         </div>
 
         <div class="lista-titulo">Campañas cargadas</div>
+        <div class="filtro-campanas">
+          <div class="campo">
+            <label>Ver campañas de</label>
+            <select id="filtroCliente" onchange="alCambiarFiltroCliente()">
+              <option value="">Todos los clientes</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Equipo</label>
+            <select id="filtroEquipo" onchange="guardarFiltro(); mostrarCampanas();">
+              <option value="">Todos los equipos</option>
+            </select>
+          </div>
+          <div class="filtro-resumen" id="filtroResumen"></div>
+        </div>
         <div id="listaCampanas"></div>
 
       </div>
@@ -1359,6 +1378,7 @@
     window.onload = function() {
       verificarEquipos();
       cargarSelectorEquipos();
+      cargarFiltros();
       mostrarCampanas();
       agregarCultivo();
     };
@@ -1686,6 +1706,7 @@
       if (!campana) return;
 
       document.getElementById('equipo').value = campana.equipoId || '';
+      fijarFiltroPorEquipo(campana.equipoId);
       document.getElementById('nombre').value = campana.nombre || '';
       document.getElementById('estado').value = campana.estado || 'Activa';
 
@@ -1734,16 +1755,104 @@
       agregarCultivo();
     }
 
+    /* ---------- filtro de la lista por cliente / equipo ----------
+       El selector del formulario es para crear o editar; este filtro decide
+       qué campañas se ven abajo. Se guarda en el navegador (no se sincroniza). */
+    function leerFiltro() {
+      try { return JSON.parse(localStorage.getItem('campanas_filtro') || '{}') || {}; } catch (e) { return {}; }
+    }
+    function guardarFiltro() {
+      try {
+        localStorage.setItem('campanas_filtro', JSON.stringify({
+          clienteId: document.getElementById('filtroCliente').value,
+          equipoId: document.getElementById('filtroEquipo').value
+        }));
+      } catch (e) {}
+    }
+    function clienteDelEquipo(equipoId, equipos, campos, clientes) {
+      const equipo = equipos.find(e => String(e.id) === String(equipoId));
+      const campo = equipo ? campos.find(c => String(c.id) === String(equipo.campoId)) : null;
+      const cliente = campo ? clientes.find(cl => String(cl.id) === String(campo.clienteId)) : null;
+      return { equipo, campo, cliente };
+    }
+    function cargarFiltros(seleccion) {
+      const selCli = document.getElementById('filtroCliente');
+      const selEq = document.getElementById('filtroEquipo');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const f = seleccion || leerFiltro();
+
+      selCli.innerHTML = '<option value="">Todos los clientes</option>' +
+        clientes.slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'))
+          .map(cl => `<option value="${cl.id}">${cl.nombre}</option>`).join('');
+      selCli.value = clientes.some(cl => String(cl.id) === String(f.clienteId)) ? String(f.clienteId) : '';
+
+      const equiposVisibles = equipos.filter(e => {
+        if (!selCli.value) return true;
+        const info = clienteDelEquipo(e.id, equipos, campos, clientes);
+        return info.cliente && String(info.cliente.id) === selCli.value;
+      });
+      selEq.innerHTML = '<option value="">Todos los equipos</option>' +
+        equiposVisibles.map(e => {
+          const info = clienteDelEquipo(e.id, equipos, campos, clientes);
+          return `<option value="${e.id}">${e.nombre}${info.campo ? ' · ' + info.campo.nombre : ''}${!selCli.value && info.cliente ? ' (' + info.cliente.nombre + ')' : ''}</option>`;
+        }).join('');
+      selEq.value = equiposVisibles.some(e => String(e.id) === String(f.equipoId)) ? String(f.equipoId) : '';
+      guardarFiltro();
+    }
+    function alCambiarFiltroCliente() {
+      cargarFiltros({ clienteId: document.getElementById('filtroCliente').value, equipoId: '' });
+      mostrarCampanas();
+    }
+    function verTodosLosClientes() {
+      cargarFiltros({ clienteId: '', equipoId: '' });
+      mostrarCampanas();
+    }
+    // Al elegir un equipo en el formulario, la lista pasa a mostrar ese cliente
+    function fijarFiltroPorEquipo(equipoId) {
+      if (!equipoId) return;
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const info = clienteDelEquipo(equipoId, equipos, campos, clientes);
+      cargarFiltros({ clienteId: info.cliente ? info.cliente.id : '', equipoId: '' });
+      mostrarCampanas();
+    }
+
     function mostrarCampanas() {
       const lista = document.getElementById('listaCampanas');
-      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const todas = JSON.parse(localStorage.getItem('campanas') || '[]');
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const resumen = document.getElementById('filtroResumen');
+
+      if (todas.length === 0) {
+        resumen.textContent = '';
+        lista.innerHTML = `<div class="empty"><div class="eico">🌿</div><div class="etxt">Todavía no cargaste ninguna campaña.<br>Creá la primera arriba.</div></div>`;
+        return;
+      }
+
+      // Aplicar el filtro de cliente / equipo
+      const filtroCli = document.getElementById('filtroCliente').value;
+      const filtroEq = document.getElementById('filtroEquipo').value;
+      const clienteFiltrado = clientes.find(cl => String(cl.id) === filtroCli) || null;
+      const nombreDe = c => { const i = clienteDelEquipo(c.equipoId, equipos, campos, clientes); return i.cliente ? i.cliente.nombre : ''; };
+      const campanas = todas.filter(c => {
+        if (filtroEq) return String(c.equipoId) === filtroEq;
+        if (filtroCli) { const i = clienteDelEquipo(c.equipoId, equipos, campos, clientes); return i.cliente && String(i.cliente.id) === filtroCli; }
+        return true;
+      }).sort((a, b) => nombreDe(a).localeCompare(nombreDe(b), 'es') || String(b.id).localeCompare(String(a.id)));
+
+      resumen.innerHTML = clienteFiltrado
+        ? `Mostrando ${campanas.length} campaña${campanas.length === 1 ? '' : 's'} de <b>${clienteFiltrado.nombre}</b>` +
+          (todas.length > campanas.length ? `<button type="button" onclick="verTodosLosClientes()">Ver todos los clientes (${todas.length})</button>` : '')
+        : `Mostrando ${campanas.length} campaña${campanas.length === 1 ? '' : 's'} de todos los clientes`;
 
       if (campanas.length === 0) {
-        lista.innerHTML = `<div class="empty"><div class="eico">🌿</div><div class="etxt">Todavía no cargaste ninguna campaña.<br>Creá la primera arriba.</div></div>`;
+        lista.innerHTML = `<div class="empty"><div class="eico">🌿</div><div class="etxt"><b>${clienteFiltrado ? clienteFiltrado.nombre : 'Este equipo'}</b> todavía no tiene campañas cargadas.<br>Creá la primera arriba eligiendo su equipo de riego.</div></div>`;
         return;
       }
 
