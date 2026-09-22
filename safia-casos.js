@@ -116,6 +116,7 @@
           campoId: campo ? campo.id : null,
           equipo: equipo ? (equipo.nombre || '') : '',
           equipoId: c.equipoId,
+          pais: campo ? (campo.pais || 'Paraguay') : 'Paraguay',
           localidad: campo ? (campo.localidad || '') : '',
           departamento: campo ? (campo.departamento || '') : '',
           lat: campo ? num(campo.latitud) : null,
