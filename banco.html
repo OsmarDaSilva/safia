@@ -26,6 +26,26 @@
     .btn.mini{padding:5px 10px;font-size:11.5px;}
     .subiendo{opacity:.55;pointer-events:none;}
     .sinlinea{border:none;background:transparent;}
+    /* Agua mes a mes */
+    .celda-agua{font-variant-numeric:tabular-nums;}
+    .agua-nada{color:var(--label);}
+    .fila-total td{background:var(--bg);font-weight:700;}
+    table.tbl td.mes{font-weight:600;color:var(--head);}
+    /* Impresión: solo la tabla de agua, sin menú ni botones */
+    @media print{
+      .side,.side-overlay,.menu-toggle,.tabs,.toolbar,.no-print,.ptop .actions,
+      #safiaSyncBarra,.crumb,#tarjetaComparativo,#notaComparativo{display:none !important;}
+      .app{display:block;}
+      .main{padding:0;}
+      .panel{display:none !important;}
+      .panel#panel-agua{display:block !important;}
+      .print-encabezado{display:block !important;margin-bottom:12px;}
+      .print-encabezado h2{font-size:18px;color:#000;}
+      .print-encabezado div{font-size:12px;color:#444;margin-top:3px;}
+      .tablewrap{border:1px solid #999;}
+      table.tbl thead th{background:#eee !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .statbar,.empty{display:none !important;}
+    }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
@@ -112,6 +132,7 @@
         <div class="tabs">
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
           <button data-tab="analisis">Análisis de suelo</button>
+          <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="archivos">Archivos y mapas</button>
         </div>
 
@@ -230,6 +251,39 @@
           <div class="empty" id="vacioAnalisis" style="display:none;">
             <div class="eico">🧪</div>
             <div class="etxt">Todavía no hay análisis de suelo en este lote.<br>El primer análisis es la línea de base: todo lo que mejore se va a medir contra él.</div>
+          </div>
+        </section>
+
+        <!-- ================= TAB AGUA MES A MES ================= -->
+        <section class="panel" id="panel-agua">
+          <div class="toolbar no-print">
+            <div class="filter">
+              <span class="fl">Qué mostrar</span>
+              <select id="aguaTipo">
+                <option value="total">Lluvia + riego (agua total)</option>
+                <option value="lluvia">Solo lluvia</option>
+                <option value="riego">Solo riego</option>
+              </select>
+            </div>
+            <div class="spacer" style="flex:1"></div>
+            <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+          </div>
+
+          <div id="zonaImprimible">
+            <div class="print-encabezado" style="display:none;">
+              <h2 id="printTitulo"></h2>
+              <div id="printSub"></div>
+            </div>
+            <div class="tablewrap" id="wrapAgua">
+              <div class="tablescroll"><table class="tbl" id="tablaAgua"></table></div>
+              <div class="tfoot"><span id="pieAgua"></span></div>
+            </div>
+          </div>
+
+          <div class="empty" id="vacioAgua" style="display:none;">
+            <div class="eico">💧</div>
+            <div class="etxt">Todavía no hay lluvias ni riegos cargados en este lote.<br>
+              Cargalos en <a href="eventos.html"><b>Eventos</b></a>, o traé las lluvias del clima desde ahí.</div>
           </div>
         </section>
 
@@ -370,7 +424,7 @@
     document.getElementById('fLng').textContent = campoActual.longitud || '—';
     document.getElementById('fAltitud').value = campoActual.altitud != null ? campoActual.altitud : '';
     cerrarFormCiclo(); cerrarFormAnalisis();
-    pintarCiclos(); pintarAnalisis(); pintarArchivos();
+    pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
       pintarComparativo();
@@ -962,6 +1016,122 @@
       toast('No se pudo subir el PDF: ' + (e && e.message ? e.message : 'error'), true);
     }).finally(function () { boton.disabled = false; });
   });
+
+  /* ============================================================
+     AGUA MES A MES
+     Matriz meses × años con la lluvia y el riego del lote, sumando
+     los eventos de todos los equipos del campo. Sirve para comparar
+     años entre sí y para imprimir.
+     ============================================================ */
+  var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  function eventosAguaDelCampo() {
+    var idsEquipos = leer('equipos')
+      .filter(function (e) { return String(e.campoId) === String(campoActual.id); })
+      .map(function (e) { return String(e.id); });
+    return leer('eventos').filter(function (ev) {
+      return idsEquipos.indexOf(String(ev.equipoId)) !== -1
+        && (ev.tipo === 'riego' || ev.tipo === 'lluvia');
+    });
+  }
+
+  function pintarAgua() {
+    var evs = eventosAguaDelCampo();
+    var wrap = document.getElementById('wrapAgua');
+    var vacio = document.getElementById('vacioAgua');
+
+    if (!evs.length) {
+      wrap.style.display = 'none'; vacio.style.display = '';
+      document.getElementById('pieAgua').textContent = '';
+      return;
+    }
+    wrap.style.display = ''; vacio.style.display = 'none';
+
+    var tipo = document.getElementById('aguaTipo').value; // total | lluvia | riego
+
+    // Acumulado por año → mes
+    var datos = {}, anios = {};
+    evs.forEach(function (ev) {
+      var f = String(ev.fecha || '').slice(0, 10);
+      var anio = parseInt(f.slice(0, 4), 10);
+      var mes = parseInt(f.slice(5, 7), 10) - 1;
+      if (!anio || mes < 0 || mes > 11) return;
+      if (tipo !== 'total' && ev.tipo !== tipo) return;
+      var mm = parseFloat(ev.cantidad) || 0;
+      anios[anio] = 1;
+      if (!datos[anio]) datos[anio] = {};
+      if (!datos[anio][mes]) datos[anio][mes] = { mm: 0, dias: 0, lluvia: 0, riego: 0 };
+      datos[anio][mes].mm += mm;
+      datos[anio][mes].dias++;
+      datos[anio][mes][ev.tipo] += mm;
+    });
+
+    var listaAnios = Object.keys(anios).map(Number).sort();
+    if (!listaAnios.length) {
+      wrap.style.display = 'none'; vacio.style.display = '';
+      return;
+    }
+
+    // Encabezado
+    var enc = '<thead><tr><th>Mes</th>' + listaAnios.map(function (a) {
+      return '<th class="r">' + a + '</th>';
+    }).join('') + '<th class="r">Promedio</th></tr></thead>';
+
+    // Filas por mes
+    var filas = MESES.map(function (nombreMes, m) {
+      var valores = listaAnios.map(function (a) {
+        return datos[a] && datos[a][m] ? datos[a][m] : null;
+      });
+      var conDato = valores.filter(function (v) { return v; });
+      var prom = conDato.length
+        ? conDato.reduce(function (s, v) { return s + v.mm; }, 0) / conDato.length
+        : null;
+
+      var celdas = valores.map(function (v) {
+        if (!v) return '<td class="r agua-nada">—</td>';
+        var detalle = (tipo === 'total' && (v.lluvia || v.riego))
+          ? '<div class="sub">🌧 ' + fmt(v.lluvia, 0) + ' · 💧 ' + fmt(v.riego, 0) + '</div>'
+          : '<div class="sub">' + v.dias + ' día' + (v.dias === 1 ? '' : 's') + '</div>';
+        return '<td class="r celda-agua"><span class="num">' + fmt(v.mm, 0) + '</span>' + detalle + '</td>';
+      }).join('');
+
+      return '<tr><td class="mes">' + nombreMes + '</td>' + celdas +
+        '<td class="r celda-agua">' + (prom == null ? '<span class="agua-nada">—</span>' : '<span class="num">' + fmt(prom, 0) + '</span>') + '</td></tr>';
+    }).join('');
+
+    // Total por año
+    var totalesAnio = listaAnios.map(function (a) {
+      var t = 0;
+      for (var m = 0; m < 12; m++) if (datos[a] && datos[a][m]) t += datos[a][m].mm;
+      return t;
+    });
+    var promAnual = totalesAnio.length
+      ? totalesAnio.reduce(function (s, v) { return s + v; }, 0) / totalesAnio.length : 0;
+
+    var filaTotal = '<tr class="fila-total"><td>Total del año</td>' +
+      totalesAnio.map(function (t) { return '<td class="r"><span class="num">' + fmt(t, 0) + '</span></td>'; }).join('') +
+      '<td class="r"><span class="num">' + fmt(promAnual, 0) + '</span></td></tr>';
+
+    document.getElementById('tablaAgua').innerHTML = enc + '<tbody>' + filas + filaTotal + '</tbody>';
+
+    var etiqueta = tipo === 'total' ? 'lluvia + riego' : (tipo === 'lluvia' ? 'lluvia' : 'riego');
+    var origenes = {};
+    evs.forEach(function (ev) { origenes[ev.cargadoPor || 'manual'] = 1; });
+    var nombresOrigen = { manual: 'manual', voz: 'voz', meteo: 'clima', estacion: 'estación' };
+    document.getElementById('pieAgua').textContent =
+      'Milímetros de ' + etiqueta + ' por mes · ' + evs.length + ' registros · origen: ' +
+      Object.keys(origenes).map(function (o) { return nombresOrigen[o] || o; }).join(', ');
+
+    // Encabezado que sale al imprimir
+    var cli = nombreCliente(campoActual.clienteId);
+    document.getElementById('printTitulo').textContent =
+      'Agua mes a mes — ' + (campoActual.nombre || '');
+    document.getElementById('printSub').textContent =
+      [cli, campoActual.localidad, campoActual.departamento].filter(Boolean).join(' · ') +
+      ' · ' + etiqueta + ' (mm) · emitido ' + new Date().toLocaleDateString('es-PY');
+  }
+
+  document.getElementById('aguaTipo').addEventListener('change', pintarAgua);
 
   /* ============================================================
      ARCHIVOS Y MAPAS DE COSECHA
