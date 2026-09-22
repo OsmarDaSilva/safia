@@ -120,6 +120,10 @@
             <input type="text" id="departamento" placeholder="Ej: Canindeyú">
           </div>
           <div class="field">
+            <label>Localidad / Ciudad</label>
+            <input type="text" id="localidad" placeholder="Ej: Katueté">
+          </div>
+          <div class="field">
             <label>País</label>
             <select id="pais">
               <option value="">Seleccionar...</option>
@@ -161,6 +165,11 @@
         <div class="suelo-info" id="suelo-info"></div>
 
         <div class="section-title" style="margin-top:18px;"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> Coordenadas GPS · importante para clima</div>
+        <div class="note info" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <span style="flex:1;min-width:200px;">📍 Cargá la <strong>localidad</strong> arriba y traé una coordenada aproximada del pueblo. Después ajustala al campo exacto del cliente pegando el punto de Google Maps.</span>
+          <button type="button" class="btn green" id="btnBuscarLocalidad" onclick="buscarCoordenadasLocalidad()">Buscar por localidad</button>
+        </div>
+        <div id="localidadResultados"></div>
         <div class="form-grid">
           <div class="field">
             <label>Latitud</label>
@@ -311,6 +320,66 @@
       }
     }
 
+    // Busca coordenadas aproximadas a partir de la localidad + departamento (Open-Meteo geocoding).
+    const COD_PAIS = { Paraguay:'PY', Brasil:'BR', Argentina:'AR', Bolivia:'BO', Uruguay:'UY' };
+    function normalizarTexto(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+
+    function buscarCoordenadasLocalidad() {
+      const localidad = document.getElementById('localidad').value.trim();
+      const depto = document.getElementById('departamento').value.trim();
+      const pais = document.getElementById('pais').value;
+      const cont = document.getElementById('localidadResultados');
+      if (!localidad) { alert('Cargá primero la localidad / ciudad (ej: Katueté).'); return; }
+
+      const boton = document.getElementById('btnBuscarLocalidad');
+      boton.disabled = true; boton.textContent = 'Buscando…';
+      cont.innerHTML = '';
+
+      let url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(localidad)}&count=10&language=es`;
+      if (COD_PAIS[pais]) url += `&countryCode=${COD_PAIS[pais]}`;
+
+      fetch(url).then(r => r.json()).then(j => {
+        let res = j.results || [];
+        // si hay departamento cargado, priorizar los que coinciden
+        if (depto) {
+          const d = normalizarTexto(depto);
+          const coinciden = res.filter(x => normalizarTexto(x.admin1).indexOf(d) !== -1 || d.indexOf(normalizarTexto(x.admin1)) !== -1);
+          if (coinciden.length) res = coinciden;
+        }
+        if (!res.length) {
+          cont.innerHTML = '<div class="note warn">No se encontró esa localidad. Revisá el nombre, o pegá el punto de Google Maps abajo.</div>';
+          return;
+        }
+        if (res.length === 1) { usarResultadoGeo(res[0]); return; }
+        // varias opciones: mostrar para elegir
+        cont.innerHTML = '<div class="note info"><b>Elegí la localidad correcta:</b></div>' +
+          '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">' +
+          res.map((x, i) =>
+            `<button type="button" class="btn" style="justify-content:flex-start;" data-i="${i}">`+
+            `📍 ${x.name} — ${x.admin1 || ''} <span class="muted" style="margin-left:6px;">(${x.latitude.toFixed(4)}, ${x.longitude.toFixed(4)})</span></button>`
+          ).join('') + '</div>';
+        cont.querySelectorAll('button[data-i]').forEach(b => {
+          b.addEventListener('click', () => { usarResultadoGeo(res[parseInt(b.dataset.i)]); });
+        });
+      }).catch(() => {
+        cont.innerHTML = '<div class="note danger">No se pudo buscar (sin internet). Pegá el punto de Google Maps abajo.</div>';
+      }).finally(() => {
+        boton.disabled = false; boton.textContent = 'Buscar por localidad';
+      });
+    }
+
+    function usarResultadoGeo(x) {
+      document.getElementById('latitud').value = x.latitude;
+      document.getElementById('longitud').value = x.longitude;
+      document.getElementById('gpsCompleto').value = x.latitude + ', ' + x.longitude;
+      // la localidad encontrada también corrige el nombre si estaba distinto
+      if (x.name) document.getElementById('localidad').value = x.name;
+      document.getElementById('altitud').value = ''; // dejar que se recalcule para este punto
+      validarGPS(x.latitude, x.longitude);
+      const cont = document.getElementById('localidadResultados');
+      cont.innerHTML = '<div class="note ok">✓ Coordenada aproximada de <b>' + (x.name||'') + '</b> cargada. Ajustala al campo exacto del cliente pegando el punto de Google Maps si querés más precisión.</div>';
+    }
+
     // Si cargás latitud y longitud a mano (sin pegar), también valida y busca altitud.
     function latLonManual() {
       const lat = parseFloat(document.getElementById('latitud').value);
@@ -358,6 +427,7 @@
       const nombre = document.getElementById('nombre').value.trim();
       const superficie = document.getElementById('superficie').value;
       const departamento = document.getElementById('departamento').value.trim();
+      const localidad = document.getElementById('localidad').value.trim();
       const pais = document.getElementById('pais').value;
       const actividad = document.getElementById('actividad').value;
       const tipoSuelo = document.getElementById('tipoSuelo').value;
@@ -384,7 +454,7 @@
         if (index !== -1) {
           campos[index] = {
             ...campos[index],
-            clienteId: parseInt(clienteId), nombre, superficie, departamento, pais, actividad,
+            clienteId: parseInt(clienteId), nombre, superficie, departamento, localidad, pais, actividad,
             tipoSuelo, latitud, longitud, altitud, observaciones, fechaModificacion: new Date().toISOString()
           };
           localStorage.setItem('campos', JSON.stringify(campos));
@@ -395,7 +465,7 @@
         const existe = campos.find(c => c.clienteId === parseInt(clienteId) && c.nombre.toLowerCase() === nombre.toLowerCase());
         if (existe) { alert('Este cliente ya tiene un campo con ese nombre.'); return; }
         const campo = {
-          id: Date.now(), clienteId: parseInt(clienteId), nombre, superficie, departamento, pais, actividad,
+          id: Date.now(), clienteId: parseInt(clienteId), nombre, superficie, departamento, localidad, pais, actividad,
           tipoSuelo, latitud, longitud, altitud, observaciones, fechaCreacion: new Date().toISOString()
         };
         campos.push(campo);
@@ -417,6 +487,7 @@
       document.getElementById('nombre').value = campo.nombre || '';
       document.getElementById('superficie').value = campo.superficie || '';
       document.getElementById('departamento').value = campo.departamento || '';
+      document.getElementById('localidad').value = campo.localidad || '';
       document.getElementById('pais').value = campo.pais || '';
       document.getElementById('actividad').value = campo.actividad || '';
       document.getElementById('tipoSuelo').value = campo.tipoSuelo || '';
@@ -463,6 +534,7 @@
       document.getElementById('nombre').value = '';
       document.getElementById('superficie').value = '';
       document.getElementById('departamento').value = '';
+      document.getElementById('localidad').value = '';
       document.getElementById('pais').value = '';
       document.getElementById('actividad').value = '';
       document.getElementById('tipoSuelo').value = '';
