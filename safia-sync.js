@@ -26,7 +26,9 @@
     equipos:         'safia_equipos',
     cultivos_custom: 'safia_cultivos',
     campanas:        'safia_campanas',
-    eventos:         'safia_eventos'
+    eventos:         'safia_eventos',
+    ciclos:          'safia_ciclos',
+    analisis_suelo:  'safia_analisis'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);

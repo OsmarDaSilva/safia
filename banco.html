@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Banco Agronómico</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+    .tabs button{font-family:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:100px;border:1px solid var(--bd);background:#fff;color:var(--label);cursor:pointer;}
+    .tabs button.on{background:var(--green);border-color:var(--green);color:#fff;}
+    .panel{display:none;} .panel.on{display:block;}
+    .formcard{display:none;} .formcard.visible{display:block;}
+    .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+    .chip{background:#fff;border:1px solid var(--bd);border-radius:100px;padding:6px 13px;font-size:12px;font-weight:700;color:var(--head);}
+    .chip .anio{color:var(--label);font-weight:600;margin-left:5px;}
+    .chip-flecha{color:var(--label);font-weight:700;}
+    .evo-mejor{color:var(--green-d);font-size:11px;font-weight:700;}
+    .evo-peor{color:var(--red);font-size:11px;font-weight:700;}
+    .ficha-edit input{width:90px;font-family:inherit;font-size:13px;font-weight:700;color:var(--head);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;background:var(--bg);}
+    .ficha-edit input:focus{outline:none;border-color:var(--green);background:#fff;}
+    .btn.mini{padding:5px 10px;font-size:11.5px;}
+    .subiendo{opacity:.55;pointer-events:none;}
+    .sinlinea{border:none;background:transparent;}
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+</head>
+<body>
+
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
+
+  <div class="app">
+
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="analisis.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg>Análisis y Docs</a>
+        <a href="banco.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Inicio · <b>Banco Agronómico</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Banco Agronómico</h2>
+          <div class="sub">El expediente completo del lote: suelo, cultivos, riego, cosechas y archivos</div>
+        </div>
+      </div>
+
+      <div class="note info" id="notaVacio" style="display:none;">
+        Todavía no hay campos cargados. Primero cargá un campo en <a href="mis-campos.html"><b>Campos</b></a> y después registrá acá su historia agronómica.
+      </div>
+
+      <div id="contenido" style="display:none;">
+
+        <div class="toolbar">
+          <div class="filter">
+            <span class="fl">Campo / Lote</span>
+            <select id="selCampo"></select>
+          </div>
+        </div>
+
+        <!-- Ficha del campo -->
+        <div class="statbar" id="fichaCampo">
+          <div class="stat"><div class="sl">Superficie</div><div class="sv" id="fSuperficie">—</div></div>
+          <div class="stat"><div class="sl">Tipo de suelo</div><div class="sv" id="fSuelo" style="font-size:15px;">—</div></div>
+          <div class="stat"><div class="sl">Latitud</div><div class="sv" id="fLat" style="font-size:15px;">—</div></div>
+          <div class="stat"><div class="sl">Longitud</div><div class="sv" id="fLng" style="font-size:15px;">—</div></div>
+          <div class="stat ficha-edit">
+            <div class="sl">Altitud (msnm)</div>
+            <div style="display:flex;gap:6px;align-items:center;margin-top:2px;">
+              <input type="number" id="fAltitud" placeholder="—" step="1">
+              <button class="btn mini green" id="btnAltitud">Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
+          <button data-tab="analisis">Análisis de suelo</button>
+          <button data-tab="archivos">Archivos y mapas</button>
+        </div>
+
+        <!-- ================= TAB CICLOS ================= -->
+        <section class="panel on" id="panel-ciclos">
+          <div class="chips" id="chipsRotacion"></div>
+
+          <div style="margin-bottom:12px;"><button class="btn green" id="btnNuevoCiclo">+ Agregar ciclo de cultivo</button></div>
+
+          <div class="formcard" id="formCiclo">
+            <h3 id="tituloFormCiclo">Nuevo ciclo de cultivo</h3>
+            <div class="formsub">Un ciclo = un cultivo en este lote, de siembra a cosecha. Esto alimenta el banco comparativo.</div>
+            <div class="form-grid">
+              <div class="field"><label>Cultivo *</label><input list="listaCultivos" id="cCultivo" placeholder="Soja, Maíz…"><datalist id="listaCultivos"></datalist></div>
+              <div class="field"><label>Variedad / Híbrido</label><input id="cVariedad" placeholder="Ej.: DM 60i62"></div>
+              <div class="field"><label>Fecha de siembra *</label><input type="date" id="cSiembra"></div>
+              <div class="field"><label>Fecha de cosecha</label><input type="date" id="cCosecha"><span class="hint">Vacío si todavía está en pie</span></div>
+              <div class="field"><label>Rinde (kg/ha)</label><input type="number" id="cRinde" step="1" min="0" placeholder="Ej.: 4200"></div>
+              <div class="field"><label>Riego del ciclo (mm)</label><input type="number" id="cRiego" step="0.1" min="0"><span class="hint">Podés calcularlo de los eventos ↓</span></div>
+              <div class="field"><label>Lluvia del ciclo (mm)</label><input type="number" id="cLluvia" step="0.1" min="0"></div>
+              <div class="field"><label>Encalado (t/ha)</label><input type="number" id="cEncalado" step="0.1" min="0" placeholder="0 si no encaló"></div>
+              <div class="field full"><label>Fertilización</label><input id="cFert" placeholder="Ej.: 250 kg/ha 04-30-10 base + 120 kg/ha urea V6"></div>
+              <div class="field full"><label>Observaciones</label><textarea id="cObs" placeholder="Rotación, problemas, heladas, plagas…"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <button class="btn" id="btnCalcularEventos">⚡ Calcular riego y lluvia de los eventos</button>
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn" id="btnCancelarCiclo">Cancelar</button>
+              <button class="btn green" id="btnGuardarCiclo">Guardar ciclo</button>
+            </div>
+          </div>
+
+          <div class="tablewrap" id="wrapCiclos">
+            <div class="tablescroll">
+              <table class="tbl">
+                <thead><tr>
+                  <th>Cultivo</th><th>Siembra → Cosecha</th><th class="r">Rinde kg/ha</th>
+                  <th class="r">Riego mm</th><th class="r">Lluvia mm</th><th class="r">Encalado t/ha</th>
+                  <th>Fertilización</th><th></th>
+                </tr></thead>
+                <tbody id="cuerpoCiclos"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="empty" id="vacioCiclos" style="display:none;">
+            <div class="eico">🌱</div>
+            <div class="etxt">Todavía no hay ciclos registrados en este lote.<br>Cada ciclo que cargues suma memoria al banco agronómico.</div>
+          </div>
+        </section>
+
+        <!-- ================= TAB ANÁLISIS ================= -->
+        <section class="panel" id="panel-analisis">
+          <div style="margin-bottom:12px;"><button class="btn green" id="btnNuevoAnalisis">+ Agregar análisis de suelo</button></div>
+
+          <div class="formcard" id="formAnalisis">
+            <h3 id="tituloFormAnalisis">Nuevo análisis de suelo</h3>
+            <div class="formsub">Cargá los valores del laboratorio y adjuntá el PDF original. Con dos o más análisis vas a ver la evolución del suelo.</div>
+            <div class="form-grid">
+              <div class="field"><label>Fecha del análisis *</label><input type="date" id="aFecha"></div>
+              <div class="field"><label>Profundidad</label><input id="aProf" placeholder="Ej.: 0-20 cm"></div>
+              <div class="field"><label>pH</label><input type="number" id="aPh" step="0.1" min="0" max="14"></div>
+              <div class="field"><label>Materia orgánica (%)</label><input type="number" id="aMo" step="0.01" min="0"></div>
+              <div class="field"><label>Fósforo P (ppm)</label><input type="number" id="aP" step="0.1" min="0"></div>
+              <div class="field"><label>Potasio K (cmolc/dm³)</label><input type="number" id="aK" step="0.01" min="0"></div>
+              <div class="field"><label>Calcio Ca (cmolc/dm³)</label><input type="number" id="aCa" step="0.01" min="0"></div>
+              <div class="field"><label>Magnesio Mg (cmolc/dm³)</label><input type="number" id="aMg" step="0.01" min="0"></div>
+              <div class="field"><label>CIC (cmolc/dm³)</label><input type="number" id="aCic" step="0.01" min="0"></div>
+              <div class="field"><label>Saturación de bases (%)</label><input type="number" id="aSat" step="0.1" min="0" max="100"></div>
+              <div class="field"><label>Arena (%)</label><input type="number" id="aArena" step="0.1" min="0" max="100"></div>
+              <div class="field"><label>Limo (%)</label><input type="number" id="aLimo" step="0.1" min="0" max="100"></div>
+              <div class="field"><label>Arcilla (%)</label><input type="number" id="aArcilla" step="0.1" min="0" max="100"></div>
+              <div class="field"><label>PDF del laboratorio</label><input type="file" id="aArchivo" accept=".pdf,image/*"><span class="hint" id="aArchivoActual"></span></div>
+              <div class="field full"><label>Observaciones</label><textarea id="aObs"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn" id="btnCancelarAnalisis">Cancelar</button>
+              <button class="btn green" id="btnGuardarAnalisis">Guardar análisis</button>
+            </div>
+          </div>
+
+          <div class="tablewrap" id="wrapEvolucion">
+            <div class="tablescroll"><table class="tbl" id="tablaEvolucion"></table></div>
+          </div>
+          <div class="empty" id="vacioAnalisis" style="display:none;">
+            <div class="eico">🧪</div>
+            <div class="etxt">Todavía no hay análisis de suelo en este lote.<br>El primer análisis es la línea de base: todo lo que mejore se va a medir contra él.</div>
+          </div>
+        </section>
+
+        <!-- ================= TAB ARCHIVOS ================= -->
+        <section class="panel" id="panel-archivos">
+          <div class="note info">Acá podés guardar <b>mapas de cosecha de la cosechadora</b> (ZIP, shape, ISO-XML, imágenes), PDF de análisis, facturas de fertilizantes y cualquier documento del lote. Quedan guardados en la nube, atados a este campo.</div>
+          <div class="formcard visible sinlinea" style="display:block;background:#fff;border:1px solid var(--bd);">
+            <div class="form-grid">
+              <div class="field"><label>Tipo de archivo</label>
+                <select id="arTipo">
+                  <option value="mapa_cosecha">Mapa de cosecha</option>
+                  <option value="analisis">Análisis / laboratorio</option>
+                  <option value="fertilizacion">Fertilización / insumos</option>
+                  <option value="otro">Otro documento</option>
+                </select>
+              </div>
+              <div class="field"><label>Archivo(s)</label><input type="file" id="arArchivos" multiple></div>
+              <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnSubir">⬆ Subir</button></div>
+            </div>
+          </div>
+          <div class="tablewrap">
+            <div class="tablescroll">
+              <table class="tbl">
+                <thead><tr><th>Archivo</th><th>Tipo</th><th class="r">Tamaño</th><th>Subido</th><th></th></tr></thead>
+                <tbody id="cuerpoArchivos"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="empty" id="vacioArchivos" style="display:none;">
+            <div class="eico">📁</div>
+            <div class="etxt">Todavía no hay archivos en este lote.</div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- utilidades ---------- */
+  function leer(clave) {
+    try { var l = JSON.parse(localStorage.getItem(clave) || '[]'); return Array.isArray(l) ? l : []; }
+    catch (e) { return []; }
+  }
+  function guardar(clave, lista) { localStorage.setItem(clave, JSON.stringify(lista)); }
+  function esc(t) {
+    return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
+  function fmt(n, dec) {
+    if (n === null || n === undefined || n === '' || isNaN(n)) return '—';
+    return Number(n).toLocaleString('es-PY', { maximumFractionDigits: dec === undefined ? 1 : dec });
+  }
+  function fmtFecha(f) {
+    if (!f) return '—';
+    var p = String(f).slice(0, 10).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f;
+  }
+  function hoyISO() { return new Date().toISOString().slice(0, 10); }
+  function toast(m, err) {
+    var t = document.getElementById('toast');
+    t.textContent = m;
+    t.className = 'toast visible ' + (err ? 'error' : 'ok');
+    setTimeout(function () { t.className = 'toast'; }, 3500);
+  }
+
+  /* doble clic para borrar: primer clic pide confirmación */
+  function armarBorrado(boton, accion) {
+    if (boton.dataset.confirmando === '1') { accion(); return; }
+    boton.dataset.confirmando = '1';
+    var original = boton.innerHTML;
+    boton.innerHTML = '¿Seguro?';
+    boton.style.width = 'auto';
+    boton.style.color = 'var(--red)';
+    setTimeout(function () {
+      boton.dataset.confirmando = '';
+      boton.innerHTML = original;
+      boton.style.color = '';
+      boton.style.width = '';
+    }, 3000);
+  }
+
+  /* ---------- menú lateral (celular) ---------- */
+  var side = document.getElementById('sideNav'), overlay = document.getElementById('sideOverlay');
+  document.getElementById('menuToggle').addEventListener('click', function () {
+    side.classList.toggle('abierto');
+    overlay.classList.toggle('visible');
+    document.body.classList.toggle('menu-abierto');
+  });
+  overlay.addEventListener('click', function () {
+    side.classList.remove('abierto'); overlay.classList.remove('visible'); document.body.classList.remove('menu-abierto');
+  });
+
+  /* ---------- estado ---------- */
+  var campos = [], clientes = [], equipos = [], eventos = [];
+  var campoActual = null;
+  var editandoCicloId = null, editandoAnalisisId = null;
+
+  function cargarDatos() {
+    campos = leer('campos'); clientes = leer('clientes');
+    equipos = leer('equipos'); eventos = leer('eventos');
+  }
+  function nombreCliente(id) {
+    var c = clientes.find(function (x) { return String(x.id) === String(id); });
+    return c ? (c.nombre || c.razonSocial || 'Cliente') : '';
+  }
+
+  /* ---------- selector de campo + ficha ---------- */
+  function armarSelector() {
+    var sel = document.getElementById('selCampo');
+    sel.innerHTML = campos.map(function (c) {
+      var cli = nombreCliente(c.clienteId);
+      return '<option value="' + esc(c.id) + '">' + esc((cli ? cli + ' — ' : '') + c.nombre) + '</option>';
+    }).join('');
+    var guardado = null;
+    try { guardado = sessionStorage.getItem('banco_campo'); } catch (e) {}
+    if (guardado && campos.some(function (c) { return String(c.id) === guardado; })) sel.value = guardado;
+    sel.addEventListener('change', function () {
+      try { sessionStorage.setItem('banco_campo', sel.value); } catch (e) {}
+      seleccionarCampo(sel.value);
+    });
+    seleccionarCampo(sel.value);
+  }
+
+  function seleccionarCampo(id) {
+    campoActual = campos.find(function (c) { return String(c.id) === String(id); }) || null;
+    if (!campoActual) return;
+    document.getElementById('fSuperficie').textContent = campoActual.superficie ? fmt(campoActual.superficie, 0) + ' ha' : '—';
+    document.getElementById('fSuelo').textContent = campoActual.tipoSuelo || '—';
+    document.getElementById('fLat').textContent = campoActual.latitud || '—';
+    document.getElementById('fLng').textContent = campoActual.longitud || '—';
+    document.getElementById('fAltitud').value = campoActual.altitud != null ? campoActual.altitud : '';
+    cerrarFormCiclo(); cerrarFormAnalisis();
+    pintarCiclos(); pintarAnalisis(); pintarArchivos();
+  }
+
+  document.getElementById('btnAltitud').addEventListener('click', function () {
+    if (!campoActual) return;
+    var v = num(document.getElementById('fAltitud').value);
+    var lista = leer('campos');
+    var c = lista.find(function (x) { return String(x.id) === String(campoActual.id); });
+    if (!c) return;
+    c.altitud = v;
+    guardar('campos', lista);
+    campoActual.altitud = v;
+    toast('Altitud guardada: ' + (v === null ? '—' : v + ' msnm'));
+  });
+
+  /* ---------- pestañas ---------- */
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (x) { x.classList.remove('on'); });
+      document.querySelectorAll('.panel').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      document.getElementById('panel-' + b.dataset.tab).classList.add('on');
+    });
+  });
+
+  /* ============================================================
+     CICLOS DE CULTIVO
+     ============================================================ */
+  function ciclosDelCampo() {
+    return leer('ciclos').filter(function (c) { return String(c.campoId) === String(campoActual.id); })
+      .sort(function (a, b) { return String(a.fechaSiembra).localeCompare(String(b.fechaSiembra)); });
+  }
+
+  function pintarCiclos() {
+    var lista = ciclosDelCampo();
+    var chips = document.getElementById('chipsRotacion');
+    chips.innerHTML = lista.length < 1 ? '' :
+      '<span class="fl" style="font-size:10px;letter-spacing:.6px;text-transform:uppercase;font-weight:700;color:var(--label);margin-right:4px;">Sucesión:</span>' +
+      lista.map(function (c) {
+        return '<span class="chip">' + esc(c.cultivo) + '<span class="anio">' + esc(String(c.fechaSiembra || '').slice(0, 4)) + '</span></span>';
+      }).join('<span class="chip-flecha">→</span>');
+
+    var cuerpo = document.getElementById('cuerpoCiclos');
+    document.getElementById('wrapCiclos').style.display = lista.length ? '' : 'none';
+    document.getElementById('vacioCiclos').style.display = lista.length ? 'none' : '';
+    cuerpo.innerHTML = lista.map(function (c) {
+      return '<tr data-id="' + esc(c.id) + '">' +
+        '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + '</td>' +
+        '<td>' + fmtFecha(c.fechaSiembra) + ' → ' + (c.fechaCosecha ? fmtFecha(c.fechaCosecha) : '<span class="badge green">en pie</span>') + '</td>' +
+        '<td class="r"><span class="num">' + fmt(c.rindeKgHa, 0) + '</span></td>' +
+        '<td class="r">' + fmt(c.mmRiego) + '</td>' +
+        '<td class="r">' + fmt(c.mmLluvia) + '</td>' +
+        '<td class="r">' + fmt(c.encaladoTnHa) + '</td>' +
+        '<td>' + (c.fertilizacion ? esc(c.fertilizacion) : '<span class="muted">—</span>') + '</td>' +
+        '<td><span class="rowact">' +
+          '<button class="edit" title="Editar">✏️</button>' +
+          '<button class="del" title="Eliminar">🗑</button>' +
+        '</span></td></tr>';
+    }).join('');
+
+    cuerpo.querySelectorAll('button.edit').forEach(function (b) {
+      b.addEventListener('click', function () { editarCiclo(b.closest('tr').dataset.id); });
+    });
+    cuerpo.querySelectorAll('button.del').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.closest('tr').dataset.id;
+        armarBorrado(b, function () {
+          guardar('ciclos', leer('ciclos').filter(function (c) { return String(c.id) !== String(id); }));
+          toast('Ciclo eliminado');
+          pintarCiclos();
+        });
+      });
+    });
+  }
+
+  function abrirFormCiclo() {
+    var dl = document.getElementById('listaCultivos');
+    var nombres = {};
+    leer('cultivos_fao').concat(leer('cultivos_custom')).forEach(function (c) {
+      if (c && c.nombre) nombres[c.nombre] = 1;
+    });
+    dl.innerHTML = Object.keys(nombres).sort().map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
+    document.getElementById('formCiclo').classList.add('visible');
+  }
+  function cerrarFormCiclo() {
+    document.getElementById('formCiclo').classList.remove('visible');
+    editandoCicloId = null;
+    document.getElementById('tituloFormCiclo').textContent = 'Nuevo ciclo de cultivo';
+    ['cCultivo','cVariedad','cSiembra','cCosecha','cRinde','cRiego','cLluvia','cEncalado','cFert','cObs'].forEach(function (i) {
+      document.getElementById(i).value = '';
+    });
+  }
+  document.getElementById('btnNuevoCiclo').addEventListener('click', function () { cerrarFormCiclo(); abrirFormCiclo(); });
+  document.getElementById('btnCancelarCiclo').addEventListener('click', cerrarFormCiclo);
+
+  function editarCiclo(id) {
+    var c = leer('ciclos').find(function (x) { return String(x.id) === String(id); });
+    if (!c) return;
+    abrirFormCiclo();
+    editandoCicloId = c.id;
+    document.getElementById('tituloFormCiclo').textContent = 'Editar ciclo: ' + c.cultivo;
+    document.getElementById('cCultivo').value = c.cultivo || '';
+    document.getElementById('cVariedad').value = c.variedad || '';
+    document.getElementById('cSiembra').value = c.fechaSiembra || '';
+    document.getElementById('cCosecha').value = c.fechaCosecha || '';
+    document.getElementById('cRinde').value = c.rindeKgHa != null ? c.rindeKgHa : '';
+    document.getElementById('cRiego').value = c.mmRiego != null ? c.mmRiego : '';
+    document.getElementById('cLluvia').value = c.mmLluvia != null ? c.mmLluvia : '';
+    document.getElementById('cEncalado').value = c.encaladoTnHa != null ? c.encaladoTnHa : '';
+    document.getElementById('cFert').value = c.fertilizacion || '';
+    document.getElementById('cObs').value = c.observaciones || '';
+    document.getElementById('formCiclo').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  document.getElementById('btnCalcularEventos').addEventListener('click', function () {
+    var siembra = document.getElementById('cSiembra').value;
+    if (!siembra) { toast('Primero cargá la fecha de siembra', true); return; }
+    var hasta = document.getElementById('cCosecha').value || hoyISO();
+    var idsEquipos = equipos.filter(function (e) { return String(e.campoId) === String(campoActual.id); })
+      .map(function (e) { return String(e.id); });
+    var riego = 0, lluvia = 0, n = 0;
+    eventos.forEach(function (ev) {
+      if (idsEquipos.indexOf(String(ev.equipoId)) === -1) return;
+      var f = String(ev.fecha || '').slice(0, 10);
+      if (f < siembra || f > hasta) return;
+      var mm = parseFloat(ev.cantidad) || 0;
+      if (ev.tipo === 'riego') { riego += mm; n++; }
+      if (ev.tipo === 'lluvia') { lluvia += mm; n++; }
+    });
+    document.getElementById('cRiego').value = Math.round(riego * 10) / 10;
+    document.getElementById('cLluvia').value = Math.round(lluvia * 10) / 10;
+    toast(n ? ('Calculado de ' + n + ' eventos: ' + fmt(riego) + ' mm de riego y ' + fmt(lluvia) + ' mm de lluvia')
+            : 'No hay eventos de riego/lluvia en ese período', !n);
+  });
+
+  document.getElementById('btnGuardarCiclo').addEventListener('click', function () {
+    var cultivo = document.getElementById('cCultivo').value.trim();
+    var siembra = document.getElementById('cSiembra').value;
+    if (!cultivo) { toast('Cargá el cultivo', true); return; }
+    if (!siembra) { toast('Cargá la fecha de siembra', true); return; }
+    var lista = leer('ciclos');
+    var item = editandoCicloId
+      ? lista.find(function (x) { return String(x.id) === String(editandoCicloId); })
+      : { id: Date.now(), campoId: campoActual.id, fechaCreacion: new Date().toISOString() };
+    if (!item) return;
+    item.cultivo = cultivo;
+    item.variedad = document.getElementById('cVariedad').value.trim();
+    item.fechaSiembra = siembra;
+    item.fechaCosecha = document.getElementById('cCosecha').value || null;
+    item.rindeKgHa = num(document.getElementById('cRinde').value);
+    item.mmRiego = num(document.getElementById('cRiego').value);
+    item.mmLluvia = num(document.getElementById('cLluvia').value);
+    item.encaladoTnHa = num(document.getElementById('cEncalado').value);
+    item.fertilizacion = document.getElementById('cFert').value.trim();
+    item.observaciones = document.getElementById('cObs').value.trim();
+    if (!editandoCicloId) lista.push(item);
+    guardar('ciclos', lista);
+    toast(editandoCicloId ? 'Ciclo actualizado' : 'Ciclo guardado en el banco');
+    cerrarFormCiclo();
+    pintarCiclos();
+  });
+
+  /* ============================================================
+     ANÁLISIS DE SUELO
+     ============================================================ */
+  var PARAMS = [
+    { k: 'ph',      n: 'pH',                 dec: 1 },
+    { k: 'mo',      n: 'Materia orgánica %', dec: 2 },
+    { k: 'p',       n: 'Fósforo P (ppm)',    dec: 1 },
+    { k: 'k',       n: 'Potasio K',          dec: 2 },
+    { k: 'ca',      n: 'Calcio Ca',          dec: 2 },
+    { k: 'mg',      n: 'Magnesio Mg',        dec: 2 },
+    { k: 'cic',     n: 'CIC',                dec: 2 },
+    { k: 'satBases',n: 'Sat. de bases %',    dec: 1 },
+    { k: 'arena',   n: 'Arena %',            dec: 1 },
+    { k: 'limo',    n: 'Limo %',             dec: 1 },
+    { k: 'arcilla', n: 'Arcilla %',          dec: 1 }
+  ];
+
+  function analisisDelCampo() {
+    return leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); })
+      .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+  }
+
+  function pintarAnalisis() {
+    var lista = analisisDelCampo();
+    document.getElementById('wrapEvolucion').style.display = lista.length ? '' : 'none';
+    document.getElementById('vacioAnalisis').style.display = lista.length ? 'none' : '';
+    if (!lista.length) return;
+
+    var t = document.getElementById('tablaEvolucion');
+    var enc = '<thead><tr><th>Parámetro</th>' + lista.map(function (a) {
+      return '<th class="r">' + fmtFecha(a.fecha) + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + '</th>';
+    }).join('') + '</tr></thead>';
+
+    var filas = PARAMS.map(function (p) {
+      var celdas = lista.map(function (a, i) {
+        var v = a[p.k];
+        if (v === null || v === undefined || v === '') return '<td class="r muted">—</td>';
+        var delta = '';
+        for (var j = i - 1; j >= 0; j--) {
+          var ant = lista[j][p.k];
+          if (ant !== null && ant !== undefined && ant !== '') {
+            var d = Number(v) - Number(ant);
+            if (Math.abs(d) > 0.0001) {
+              delta = d > 0 ? ' <span class="evo-mejor">▲</span>' : ' <span class="evo-peor">▼</span>';
+            }
+            break;
+          }
+        }
+        return '<td class="r"><span class="num">' + fmt(v, p.dec) + '</span>' + delta + '</td>';
+      }).join('');
+      return '<tr><td>' + p.n + '</td>' + celdas + '</tr>';
+    }).join('');
+
+    var acciones = '<tr><td class="muted">Acciones</td>' + lista.map(function (a) {
+      return '<td class="r"><span class="rowact">' +
+        (a.archivoRuta ? '<button class="pdf" data-id="' + esc(a.id) + '" title="Ver PDF">📄</button>' : '') +
+        '<button class="edit" data-id="' + esc(a.id) + '" title="Editar">✏️</button>' +
+        '<button class="del" data-id="' + esc(a.id) + '" title="Eliminar">🗑</button>' +
+      '</span></td>';
+    }).join('') + '</tr>';
+
+    t.innerHTML = enc + '<tbody>' + filas + acciones + '</tbody>';
+
+    t.querySelectorAll('button.pdf').forEach(function (b) {
+      b.addEventListener('click', function () { verArchivoDeAnalisis(b.dataset.id); });
+    });
+    t.querySelectorAll('button.edit').forEach(function (b) {
+      b.addEventListener('click', function () { editarAnalisis(b.dataset.id); });
+    });
+    t.querySelectorAll('button.del').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.dataset.id;
+        armarBorrado(b, function () {
+          guardar('analisis_suelo', leer('analisis_suelo').filter(function (a) { return String(a.id) !== String(id); }));
+          toast('Análisis eliminado');
+          pintarAnalisis();
+        });
+      });
+    });
+  }
+
+  function verArchivoDeAnalisis(id) {
+    var a = leer('analisis_suelo').find(function (x) { return String(x.id) === String(id); });
+    if (!a || !a.archivoRuta) return;
+    if (!window.safiaSupabase) { toast('Sin conexión: no se puede abrir el PDF', true); return; }
+    window.safiaSupabase.storage.from('safia').createSignedUrl(a.archivoRuta, 3600).then(function (r) {
+      if (r.error || !r.data) { toast('No se pudo abrir el archivo', true); return; }
+      window.open(r.data.signedUrl, '_blank');
+    });
+  }
+
+  function abrirFormAnalisis() { document.getElementById('formAnalisis').classList.add('visible'); }
+  function cerrarFormAnalisis() {
+    document.getElementById('formAnalisis').classList.remove('visible');
+    editandoAnalisisId = null;
+    document.getElementById('tituloFormAnalisis').textContent = 'Nuevo análisis de suelo';
+    document.getElementById('aArchivoActual').textContent = '';
+    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aArena','aLimo','aArcilla','aObs','aArchivo'].forEach(function (i) {
+      document.getElementById(i).value = '';
+    });
+  }
+  document.getElementById('btnNuevoAnalisis').addEventListener('click', function () { cerrarFormAnalisis(); abrirFormAnalisis(); });
+  document.getElementById('btnCancelarAnalisis').addEventListener('click', cerrarFormAnalisis);
+
+  function editarAnalisis(id) {
+    var a = leer('analisis_suelo').find(function (x) { return String(x.id) === String(id); });
+    if (!a) return;
+    abrirFormAnalisis();
+    editandoAnalisisId = a.id;
+    document.getElementById('tituloFormAnalisis').textContent = 'Editar análisis del ' + fmtFecha(a.fecha);
+    document.getElementById('aFecha').value = a.fecha || '';
+    document.getElementById('aProf').value = a.profundidad || '';
+    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','arena|aArena','limo|aLimo','arcilla|aArcilla'].forEach(function (par) {
+      var pp = par.split('|');
+      document.getElementById(pp[1]).value = a[pp[0]] != null ? a[pp[0]] : '';
+    });
+    document.getElementById('aObs').value = a.observaciones || '';
+    document.getElementById('aArchivoActual').textContent = a.archivoNombre ? ('Actual: ' + a.archivoNombre + ' (subí otro para reemplazar)') : '';
+    document.getElementById('formAnalisis').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function limpiarNombre(n) {
+    return String(n).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80);
+  }
+
+  function subirAStorage(ruta, archivo) {
+    return window.safiaSupabase.storage.from('safia').upload(ruta, archivo, { upsert: false }).then(function (r) {
+      if (r.error) throw r.error;
+      return ruta;
+    });
+  }
+
+  document.getElementById('btnGuardarAnalisis').addEventListener('click', function () {
+    var fecha = document.getElementById('aFecha').value;
+    if (!fecha) { toast('Cargá la fecha del análisis', true); return; }
+    var archivoInput = document.getElementById('aArchivo');
+    var archivo = archivoInput.files && archivoInput.files[0];
+    if (archivo && !window.safiaSupabase) { toast('Sin conexión: guardá sin PDF y adjuntalo después', true); return; }
+
+    var boton = this;
+    boton.disabled = true;
+
+    var pre = archivo
+      ? subirAStorage('campo_' + campoActual.id + '/analisis/' + Date.now() + '_' + limpiarNombre(archivo.name), archivo)
+      : Promise.resolve(null);
+
+    pre.then(function (ruta) {
+      var lista = leer('analisis_suelo');
+      var item = editandoAnalisisId
+        ? lista.find(function (x) { return String(x.id) === String(editandoAnalisisId); })
+        : { id: Date.now(), campoId: campoActual.id, fechaCreacion: new Date().toISOString() };
+      if (!item) return;
+      item.fecha = fecha;
+      item.profundidad = document.getElementById('aProf').value.trim();
+      item.ph = num(document.getElementById('aPh').value);
+      item.mo = num(document.getElementById('aMo').value);
+      item.p = num(document.getElementById('aP').value);
+      item.k = num(document.getElementById('aK').value);
+      item.ca = num(document.getElementById('aCa').value);
+      item.mg = num(document.getElementById('aMg').value);
+      item.cic = num(document.getElementById('aCic').value);
+      item.satBases = num(document.getElementById('aSat').value);
+      item.arena = num(document.getElementById('aArena').value);
+      item.limo = num(document.getElementById('aLimo').value);
+      item.arcilla = num(document.getElementById('aArcilla').value);
+      item.observaciones = document.getElementById('aObs').value.trim();
+      if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
+      if (!editandoAnalisisId) lista.push(item);
+      guardar('analisis_suelo', lista);
+      toast(editandoAnalisisId ? 'Análisis actualizado' : 'Análisis guardado en el banco');
+      cerrarFormAnalisis();
+      pintarAnalisis();
+    }).catch(function (e) {
+      console.error(e);
+      toast('No se pudo subir el PDF: ' + (e && e.message ? e.message : 'error'), true);
+    }).finally(function () { boton.disabled = false; });
+  });
+
+  /* ============================================================
+     ARCHIVOS Y MAPAS DE COSECHA
+     ============================================================ */
+  var ETIQUETA_TIPO = {
+    mapa_cosecha: ['Mapa de cosecha', 'green'],
+    analisis: ['Análisis', 'blue'],
+    fertilizacion: ['Fertilización', 'amber'],
+    otro: ['Documento', 'muted']
+  };
+  function fmtTamano(b) {
+    if (!b && b !== 0) return '—';
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+  }
+
+  function pintarArchivos() {
+    var cuerpo = document.getElementById('cuerpoArchivos');
+    var vacio = document.getElementById('vacioArchivos');
+    if (!window.safiaSupabase) {
+      cuerpo.innerHTML = '';
+      vacio.style.display = '';
+      vacio.querySelector('.etxt').innerHTML = 'Sin conexión a internet: los archivos se ven y se suben cuando haya conexión.';
+      return;
+    }
+    window.safiaSupabase.from('safia_archivos')
+      .select('id,tipo,nombre,ruta,tamano,subido_en')
+      .eq('campo_id', String(campoActual.id))
+      .order('subido_en', { ascending: false })
+      .then(function (r) {
+        if (r.error) { toast('No se pudieron cargar los archivos', true); return; }
+        var lista = r.data || [];
+        vacio.style.display = lista.length ? 'none' : '';
+        cuerpo.innerHTML = lista.map(function (a) {
+          var et = ETIQUETA_TIPO[a.tipo] || ETIQUETA_TIPO.otro;
+          return '<tr data-id="' + esc(a.id) + '" data-ruta="' + esc(a.ruta) + '">' +
+            '<td><span class="fecha">' + esc(a.nombre) + '</span></td>' +
+            '<td><span class="badge ' + et[1] + '">' + et[0] + '</span></td>' +
+            '<td class="r">' + fmtTamano(a.tamano) + '</td>' +
+            '<td>' + fmtFecha(a.subido_en) + '</td>' +
+            '<td><span class="rowact">' +
+              '<button class="dl" title="Descargar / ver">⬇</button>' +
+              '<button class="del" title="Eliminar">🗑</button>' +
+            '</span></td></tr>';
+        }).join('');
+
+        cuerpo.querySelectorAll('button.dl').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var ruta = b.closest('tr').dataset.ruta;
+            window.safiaSupabase.storage.from('safia').createSignedUrl(ruta, 3600).then(function (r2) {
+              if (r2.error || !r2.data) { toast('No se pudo abrir el archivo', true); return; }
+              window.open(r2.data.signedUrl, '_blank');
+            });
+          });
+        });
+        cuerpo.querySelectorAll('button.del').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var tr = b.closest('tr');
+            armarBorrado(b, function () {
+              window.safiaSupabase.storage.from('safia').remove([tr.dataset.ruta]).then(function () {
+                return window.safiaSupabase.from('safia_archivos').delete().eq('id', tr.dataset.id);
+              }).then(function (r3) {
+                if (r3 && r3.error) throw r3.error;
+                toast('Archivo eliminado');
+                pintarArchivos();
+              }).catch(function () { toast('No se pudo eliminar', true); });
+            });
+          });
+        });
+      });
+  }
+
+  document.getElementById('btnSubir').addEventListener('click', function () {
+    var input = document.getElementById('arArchivos');
+    var archivos = Array.prototype.slice.call(input.files || []);
+    if (!archivos.length) { toast('Elegí uno o más archivos primero', true); return; }
+    if (!window.safiaSupabase) { toast('Sin conexión a internet', true); return; }
+    var tipo = document.getElementById('arTipo').value;
+    var boton = this;
+    boton.disabled = true;
+    boton.textContent = 'Subiendo…';
+
+    var cadena = Promise.resolve();
+    var subidos = 0, fallados = 0;
+    archivos.forEach(function (archivo) {
+      cadena = cadena.then(function () {
+        var ruta = 'campo_' + campoActual.id + '/' + tipo + '/' + Date.now() + '_' + limpiarNombre(archivo.name);
+        return subirAStorage(ruta, archivo).then(function () {
+          return window.safiaSupabase.from('safia_archivos').insert({
+            campo_id: String(campoActual.id), tipo: tipo, nombre: archivo.name, ruta: ruta, tamano: archivo.size
+          });
+        }).then(function (r) {
+          if (r.error) throw r.error;
+          subidos++;
+        }).catch(function (e) { console.error(e); fallados++; });
+      });
+    });
+
+    cadena.then(function () {
+      boton.disabled = false;
+      boton.textContent = '⬆ Subir';
+      input.value = '';
+      toast(fallados ? (subidos + ' subidos, ' + fallados + ' con error') : (subidos + ' archivo(s) guardado(s) en la nube'), !!fallados);
+      pintarArchivos();
+    });
+  });
+
+  /* ---------- arranque ---------- */
+  function iniciar() {
+    cargarDatos();
+    if (!campos.length) {
+      document.getElementById('notaVacio').style.display = '';
+      return;
+    }
+    document.getElementById('contenido').style.display = '';
+    armarSelector();
+  }
+  iniciar();
+})();
+</script>
+</body>
+</html>
