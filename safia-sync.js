@@ -115,8 +115,21 @@
   function subirColeccion(clave, lista) {
     var tabla = TABLAS[clave];
     var conId = lista.filter(function (x) { return x && x.id !== undefined && x.id !== null; });
-    var ids = conId.map(function (x) { return String(x.id); });
-    var filas = conId.map(function (x) {
+
+    // Red de seguridad: si dos elementos tienen el MISMO id, Postgres
+    // rechaza el upsert entero ("cannot affect row a second time") y se
+    // perdería todo lo que el usuario acaba de cargar. Nos quedamos con
+    // el último de cada id y avisamos por consola.
+    var porId = {};
+    conId.forEach(function (x) { porId[String(x.id)] = x; });
+    var unicos = Object.keys(porId).map(function (k) { return porId[k]; });
+    if (unicos.length !== conId.length) {
+      console.warn('SAFIA sync (' + clave + '): ' + (conId.length - unicos.length) +
+        ' elemento(s) con id repetido; se subió el último de cada uno.');
+    }
+
+    var ids = unicos.map(function (x) { return String(x.id); });
+    var filas = unicos.map(function (x) {
       return { id: String(x.id), datos: x, actualizado_en: new Date().toISOString() };
     });
     var idsAnteriores = leerSnap(clave);
