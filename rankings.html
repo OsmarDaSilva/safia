@@ -212,6 +212,27 @@
     return tabla(enc, html);
   }
 
+  // Los promedios solo tienen sentido dentro del mismo cultivo: si no hay un
+  // cultivo elegido, se arma UNA tabla por cultivo (soja aparte de maíz, etc.).
+  function porCultivo(lista, cul, armar){
+    if(cul) return armar(lista, cul);
+    var g=agrupar(lista, function(f){return nombreCultivo(f.cultivo);});
+    var cultivos=Object.keys(g).sort(function(a,b){ return g[b].length-g[a].length || a.localeCompare(b,'es'); });
+    if(!cultivos.length) return armar([], '');
+    return cultivos.map(function(c){
+      return '<h3 style="font-size:15px;margin:18px 0 8px;">🌱 '+esc(c)+' <span class="muted" style="font-weight:500;font-size:12px;">'+g[c].length+' registro'+(g[c].length===1?'':'s')+'</span></h3>'+armar(g[c], c);
+    }).join('');
+  }
+
+  function tablaProductores(casos){
+    var g=agrupar(casos, function(f){return f.cliente+' · '+f.campo;});
+    var items=Object.keys(g).map(function(k){ var st=stats(g[k]); var mejor=g[k].reduce(function(a,b){return b.rindeKgHa>a.rindeKgHa?b:a;}); return {k:k, st:st, mejor:mejor}; }).sort(function(a,b){return b.mejor.rindeKgHa-a.mejor.rindeKgHa;});
+    var max=items.length?items[0].mejor.rindeKgHa:0;
+    var ambos=document.getElementById('fRiego').value==='ambos';
+    return tabla([{t:'#'},{t:'Productor · campo'},{t:'Localidad'},{t:'Mejor campaña'},{t:'Mejor rinde',r:1}].concat(ambos?[{t:'Prom. con riego',r:1},{t:'Prom. secano',r:1}]:[{t:'Promedio',r:1}]).concat([{t:'Agua mm',r:1},{t:'Campañas',r:1}]),
+      items.map(function(it,i){ return '<tr>'+td(pos(i))+td('<span class="fecha">'+esc(it.k)+'</span>')+td(esc(it.mejor.localidad||it.mejor.departamento||''))+td(esc(nombreCultivo(it.mejor.cultivo))+(it.mejor.variedad?' '+esc(it.mejor.variedad):'')+'<div class="sub">'+esc(it.mejor.campana)+(it.mejor.riego?'':' · secano')+'</div>')+td('<span class="num">'+fmt(it.mejor.rindeKgHa)+'</span>'+barra(it.mejor.rindeKgHa,max),1)+(ambos?td(fmt(it.st.promRiego),1)+td(fmt(it.st.promSecano),1):td(fmt(it.st.prom),1))+td(fmt(it.mejor.aguaTotalMM),1)+td(it.st.n,1)+'</tr>'; }));
+  }
+
   function render(){
     var l=filtradas(), out=document.getElementById('salida');
     var pais=document.getElementById('fPais').value||'todos los países', cul=document.getElementById('fCultivo').value;
@@ -222,29 +243,24 @@
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Ranking nacional por cultivo — cuál rinde más en '+esc(pais)+'.</div>'+
         rankingPor(l, function(f){return nombreCultivo(f.cultivo);}, 'Cultivo');
     } else if(tabActual==='departamentos'){
-      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué departamento/provincia rinde más'+(cul?' en '+esc(cul):' (elegí un cultivo para comparar bien)')+'.</div>'+
-        rankingPor(l, function(f){return f.departamento;}, 'Departamento / Provincia');
+      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué departamento/provincia rinde más'+(cul?' en '+esc(cul):', cultivo por cultivo')+'.</div>'+
+        porCultivo(l, cul, function(sub){ return rankingPor(sub, function(f){return f.departamento;}, 'Departamento / Provincia'); });
     } else if(tabActual==='localidades'){
-      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué localidad rinde más'+(cul?' en '+esc(cul):' (elegí un cultivo para comparar bien)')+'.</div>'+
-        rankingPor(l, function(f){return f.localidad;}, 'Localidad', {enc:[{t:'Departamento'}], celdas:function(m){return td(esc(m.departamento));}});
+      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué localidad rinde más'+(cul?' en '+esc(cul):', cultivo por cultivo')+'.</div>'+
+        porCultivo(l, cul, function(sub){ return rankingPor(sub, function(f){return f.localidad;}, 'Localidad', {enc:[{t:'Departamento'}], celdas:function(m){return td(esc(m.departamento));}}); });
     } else if(tabActual==='variedades'){
       var conVar=l.filter(function(f){return f.variedad;});
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué variedad / material rinde más. <b>Solo casos reales</b>: la base de referencia no registra variedades.</div>'+
-        rankingPor(conVar, function(f){return nombreCultivo(f.cultivo)+' · '+f.variedad;}, 'Cultivo · Variedad', {enc:[{t:'Dónde'}], celdas:function(m){return td(esc(m.localidad||m.departamento||''));}})+
+        porCultivo(conVar, cul, function(sub){ return rankingPor(sub, function(f){return f.variedad;}, 'Variedad / material', {enc:[{t:'Dónde'}], celdas:function(m){return td(esc(m.localidad||m.departamento||''));}}); })+
         (conVar.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay campañas cosechadas con variedad cargada. Cada campaña que cierres con su variedad entra acá.</div>');
     } else if(tabActual==='epocas'){
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué época de siembra rinde más'+(cul?' en '+esc(cul):', por cultivo')+'.</div>'+
-        rankingPor(l.filter(function(f){return f.epoca;}), function(f){return (cul?'':nombreCultivo(f.cultivo)+' · ')+f.epoca;}, cul?'Época de siembra':'Cultivo · Época');
+        porCultivo(l.filter(function(f){return f.epoca;}), cul, function(sub){ return rankingPor(sub, function(f){return f.epoca;}, 'Época de siembra'); });
     } else if(tabActual==='productores'){
       var casos=l.filter(function(f){return f.fuente==='caso';});
-      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué productor rinde más (casos reales). Ordenado por su <b>mejor</b> campaña.</div>'+
-        (function(){
-          var g=agrupar(casos, function(f){return f.cliente+' · '+f.campo;});
-          var items=Object.keys(g).map(function(k){ var st=stats(g[k]); var mejor=g[k].reduce(function(a,b){return b.rindeKgHa>a.rindeKgHa?b:a;}); return {k:k, st:st, mejor:mejor}; }).sort(function(a,b){return b.mejor.rindeKgHa-a.mejor.rindeKgHa;});
-          var max=items.length?items[0].mejor.rindeKgHa:0;
-          return tabla([{t:'#'},{t:'Productor · campo'},{t:'Localidad'},{t:'Mejor campaña'},{t:'Mejor rinde',r:1},{t:'Promedio',r:1},{t:'Agua mm',r:1},{t:'Campañas',r:1}],
-            items.map(function(it,i){ return '<tr>'+td(pos(i))+td('<span class="fecha">'+esc(it.k)+'</span>')+td(esc(it.mejor.localidad||it.mejor.departamento||''))+td(esc(nombreCultivo(it.mejor.cultivo))+(it.mejor.variedad?' '+esc(it.mejor.variedad):'')+'<div class="sub">'+esc(it.mejor.campana)+'</div>')+td('<span class="num">'+fmt(it.mejor.rindeKgHa)+'</span>'+barra(it.mejor.rindeKgHa,max),1)+td(fmt(it.st.prom),1)+td(fmt(it.mejor.aguaTotalMM),1)+td(it.st.n,1)+'</tr>'; }));
-        })()+(casos.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay casos reales con estos filtros. Se llena con cada campaña cosechada de tus clientes.</div>');
+      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué productor rinde más (casos reales)'+(cul?' en '+esc(cul):', cultivo por cultivo')+'. Ordenado por su <b>mejor</b> campaña; el promedio es de ese cultivo.</div>'+
+        porCultivo(casos, cul, function(sub){ return tablaProductores(sub); })+
+        (casos.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay casos reales con estos filtros. Se llena con cada campaña cosechada de tus clientes.</div>');
     } else if(tabActual==='top'){
       var top=l.slice().sort(function(a,b){return b.rindeKgHa-a.rindeKgHa;}).slice(0,25);
       var max=top.length?top[0].rindeKgHa:0;
