@@ -58,12 +58,17 @@
 
   /* Último análisis de suelo del campo con fecha hasta la cosecha
      (si no hay ninguno anterior, el más reciente que exista). */
-  function sueloDelCampo(campoId, hastaFecha) {
-    var lista = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoId); });
-    if (!lista.length) return null;
-    lista.sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
-    var previos = hastaFecha ? lista.filter(function (a) { return String(a.fecha) <= String(hastaFecha); }) : lista;
-    return (previos.length ? previos : lista).slice(-1)[0];
+  function sueloDelCampo(campoId, hastaFecha, equipoId) {
+    var todos = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoId); });
+    if (!todos.length) return null;
+    // Prioridad: análisis del mismo lote/equipo; si no hay, los de "todo el campo"; si no, cualquiera del campo.
+    var delLote = equipoId ? todos.filter(function (a) { return String(a.equipoId || '') === String(equipoId); }) : [];
+    var generales = todos.filter(function (a) { return !a.equipoId; });
+    // Primero el que ya existía a la fecha de cosecha (del lote, si no del campo);
+    // si ninguno es anterior, el más viejo disponible del lote o del campo.
+    function orden(l) { return l.slice().sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }); }
+    function previoA(l) { if (!hastaFecha) return orden(l).slice(-1)[0] || null; var pr = orden(l).filter(function (a) { return String(a.fecha) <= String(hastaFecha); }); return pr.length ? pr.slice(-1)[0] : null; }
+    return previoA(delLote) || previoA(generales) || (delLote.length ? orden(delLote)[0] : null) || (generales.length ? orden(generales)[0] : null) || orden(todos)[0];
   }
 
   /* Suma de eventos del equipo entre dos fechas, por tipo. */
@@ -107,7 +112,7 @@
         var lluvia = (cos && cos.lluviaMM != null) ? num(cos.lluviaMM) : (deEventos.nLluvia ? deEventos.lluvia : null);
         var riego  = (cos && cos.riegoMM  != null) ? num(cos.riegoMM)  : (deEventos.nRiego  ? deEventos.riego  : null);
 
-        var suelo = campo ? sueloDelCampo(campo.id, cosecha) : null;
+        var suelo = campo ? sueloDelCampo(campo.id, cosecha, c.equipoId) : null;
 
         casos.push({
           id: String(c.id) + '-' + i,

@@ -227,6 +227,7 @@
             <div class="form-grid">
               <div class="field"><label>Fecha del análisis *</label><input type="date" id="aFecha"></div>
               <div class="field"><label>Profundidad</label><input id="aProf" placeholder="Ej.: 0-20 cm"></div>
+              <div class="field"><label>Lote / equipo</label><select id="aEquipo"><option value="">Todo el campo</option></select><span class="hint">Si el análisis es de un pivot o lote puntual, elegilo: así no se mezcla con los otros lotes del campo.</span></div>
               <div class="field"><label>pH</label><input type="number" id="aPh" step="0.1" min="0" max="14"></div>
               <div class="field"><label>Materia orgánica (%)</label><input type="number" id="aMo" step="0.01" min="0"></div>
               <div class="field"><label>Fósforo P (ppm)</label><input type="number" id="aP" step="0.1" min="0"></div>
@@ -464,6 +465,16 @@
   /* ---------- estado ---------- */
   var campos = [], clientes = [], equipos = [], eventos = [];
   var campoActual = null;
+  function nombreLote(equipoId) {
+    if (!equipoId) return '';
+    var e = leer('equipos').find(function (x) { return String(x.id) === String(equipoId); });
+    return e ? e.nombre + (e.tipo === 'secano' ? ' (secano)' : '') : '';
+  }
+  function llenarLotesAnalisis() {
+    var sel = document.getElementById('aEquipo'); if (!sel || !campoActual) return;
+    var eq = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
+    sel.innerHTML = '<option value="">Todo el campo</option>' + eq.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + (e.tipo === 'secano' ? ' (secano)' : '') + '</option>'; }).join('');
+  }
   // Puente para safia-mapas.js (pestaña Mapas georreferenciados)
   window.SafiaBanco = {
     campoActual: function () { return campoActual; },
@@ -509,6 +520,7 @@
     cerrarFormCiclo(); cerrarFormAnalisis();
     pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
     if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
+    llenarLotesAnalisis();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
       pintarComparativo();
@@ -892,7 +904,7 @@
 
     var t = document.getElementById('tablaEvolucion');
     var enc = '<thead><tr><th>Parámetro</th>' + lista.map(function (a) {
-      return '<th class="r">' + fmtFecha(a.fecha) + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + '</th>';
+      return '<th class="r">' + fmtFecha(a.fecha) + (a.equipoId ? '<div style="font-weight:600;text-transform:none;color:var(--green);">' + esc(nombreLote(a.equipoId)) + '</div>' : '<div style="font-weight:500;text-transform:none;">todo el campo</div>') + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + '</th>';
     }).join('') + '</tr></thead>';
 
     var filas = PARAMS.map(function (p) {
@@ -974,6 +986,8 @@
     document.getElementById('tituloFormAnalisis').textContent = 'Editar análisis del ' + fmtFecha(a.fecha);
     document.getElementById('aFecha').value = a.fecha || '';
     document.getElementById('aProf').value = a.profundidad || '';
+    llenarLotesAnalisis();
+    document.getElementById('aEquipo').value = a.equipoId ? String(a.equipoId) : '';
     ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','arena|aArena','limo|aLimo','arcilla|aArcilla'].forEach(function (par) {
       var pp = par.split('|');
       document.getElementById(pp[1]).value = a[pp[0]] != null ? a[pp[0]] : '';
@@ -1100,6 +1114,7 @@
       if (!item) return;
       item.fecha = fecha;
       item.profundidad = document.getElementById('aProf').value.trim();
+      item.equipoId = document.getElementById('aEquipo').value || null;
       item.ph = num(document.getElementById('aPh').value);
       item.mo = num(document.getElementById('aMo').value);
       item.p = num(document.getElementById('aP').value);
@@ -1289,7 +1304,10 @@
     if (analisis.length < 2) {
       html += '<div class="note">Hay ' + analisis.length + ' análisis de suelo. Con el próximo vas a ver qué parámetros subieron y cuáles bajaron.</div>';
     } else {
-      var ant = analisis[analisis.length - 2], ult = analisis[analisis.length - 1];
+      var ult = analisis[analisis.length - 1];
+      var mismos = analisis.filter(function (a) { return String(a.equipoId || '') === String(ult.equipoId || ''); });
+      var ant = mismos.length >= 2 ? mismos[mismos.length - 2] : analisis[analisis.length - 2];
+      if (ult.equipoId) html += '<div class="muted" style="font-size:12px;margin-bottom:6px;">Comparando el lote <b>' + esc(nombreLote(ult.equipoId)) + '</b>: ' + fmtFecha(ant.fecha) + ' → ' + fmtFecha(ult.fecha) + (String(ant.equipoId || '') !== String(ult.equipoId || '') ? ' (el anterior es de todo el campo)' : '') + '.</div>';
       var mejor = 0, peor = 0;
       var filasS = SafiaCasos.PARAMS_SUELO.map(function (p) {
         var a = num(ant[p.k]), b = num(ult[p.k]);

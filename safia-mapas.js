@@ -377,7 +377,7 @@
   /* ---------- promedio del mapa → análisis de suelo del lote ---------- */
   function usarComoAnalisis(id) {
     cargarCapa(id).then(function (c) {
-      var item = { id: Date.now(), campoId: B().campoActual().id, fecha: c.meta.fecha || new Date().toISOString().slice(0, 10), profundidad: '0-20 cm (promedio del mapa)', origen: 'mapa', mapaId: id,
+      var item = { id: Date.now(), campoId: B().campoActual().id, equipoId: c.meta.equipoId || null, fecha: c.meta.fecha || new Date().toISOString().slice(0, 10), profundidad: '0-20 cm (promedio del mapa)', origen: 'mapa', mapaId: id,
         observaciones: 'Promedio de ' + c.puntos.length + ' puntos del mapa "' + c.meta.nombre + '"' + (c.meta.campana ? ' · ' + c.meta.campana : ''), fechaCreacion: new Date().toISOString() };
       var alguno = false;
       PARAMS_SUELO.forEach(function (p) {
