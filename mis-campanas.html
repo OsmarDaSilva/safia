@@ -1051,14 +1051,27 @@
       document.getElementById('modalCosechaSub').textContent =
         `${campana.nombre} · ${cultivoNombre}${diasCampana}`;
 
-      // Pre-llenar superficie del cultivo
+      // Si la campaña YA tiene cosecha cargada, abrimos para corregirla.
+      const yaCosechada = campana.cosecha || null;
       const sup = cultivo && cultivo.superficie ? cultivo.superficie : '';
-      document.getElementById('cosechaSuperficie').value = sup;
-      document.getElementById('cosechaFecha').valueAsDate = new Date();
-      document.getElementById('cosechaProduccion').value = '';
-      document.getElementById('cosechaHumedad').value = '14';
-      document.getElementById('cosechaObs').value = '';
+
+      if (yaCosechada) {
+        document.getElementById('modalCosechaSub').textContent =
+          `✏️ Corrigiendo la cosecha de ${campana.nombre} · ${cultivoNombre}`;
+        document.getElementById('cosechaSuperficie').value = yaCosechada.superficie || sup;
+        document.getElementById('cosechaFecha').value = yaCosechada.fecha || '';
+        document.getElementById('cosechaProduccion').value = yaCosechada.produccionKg || '';
+        document.getElementById('cosechaHumedad').value = yaCosechada.humedad != null ? yaCosechada.humedad : '14';
+        document.getElementById('cosechaObs').value = yaCosechada.observaciones || '';
+      } else {
+        document.getElementById('cosechaSuperficie').value = sup;
+        document.getElementById('cosechaFecha').valueAsDate = new Date();
+        document.getElementById('cosechaProduccion').value = '';
+        document.getElementById('cosechaHumedad').value = '14';
+        document.getElementById('cosechaObs').value = '';
+      }
       document.getElementById('kpiPreview').classList.remove('visible');
+      if (yaCosechada) calcularRendimiento();
 
       // Guardar rendimiento objetivo para comparación
       window._rendimientoObj = cultivo && cultivo.rendimientoObj ? parseFloat(cultivo.rendimientoObj) : null;
@@ -1121,7 +1134,8 @@
       if (idx !== -1) {
         campanas[idx].cosecha = cosecha;
         campanas[idx].estado = 'Cerrada';
-        campanas[idx].fechaCierre = new Date().toISOString();
+        // Si ya estaba cerrada, conservamos la fecha de cierre original.
+        if (!campanas[idx].fechaCierre) campanas[idx].fechaCierre = new Date().toISOString();
         // Guardar rendimiento real en el cultivo también
         if (campanas[idx].cultivos && campanas[idx].cultivos[0]) {
           campanas[idx].cultivos[0].rendimientoReal = rendimientoNeto;
@@ -1651,6 +1665,8 @@
               ` : ''}
 
               <div class="cierre-acciones">
+                <button class="item-boton" onclick="abrirModalCosecha(${campana.id})" title="Corregir los datos de la cosecha (fecha, kilos, superficie)">📝 Corregir cosecha</button>
+                <button class="item-boton" onclick="editarCampana(${campana.id})" title="Editar la campaña (nombre, cultivo, fechas de siembra)">✏️ Editar campaña</button>
                 <button class="item-boton item-borrar" onclick="borrarCampana(${campana.id})" title="Borrar campaña">×</button>
               </div>
             </div>
