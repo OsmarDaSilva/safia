@@ -151,9 +151,10 @@
         <b>No pisa</b> las lluvias que ya cargaste a mano o con la estación: esas mandan siempre.
       </div>
       <div class="form-grid">
-        <div class="field full"><label>Equipo / lote</label><select id="lluviaEquipo"></select></div>
+        <div class="field full"><label>Equipo / lote</label><select id="lluviaEquipo" onchange="sugerirPeriodoDelEquipo()"></select></div>
         <div class="field"><label>Desde</label><input type="date" id="lluviaDesde"></div>
         <div class="field"><label>Hasta</label><input type="date" id="lluviaHasta"></div>
+        <div class="field full"><span class="hint" id="lluviaPista"></span></div>
       </div>
       <div id="lluviaResultado" style="margin-top:12px;"></div>
       <div class="modal-actions">
@@ -440,17 +441,54 @@
         return `<option value="${e.id}">${etiqueta}</option>`;
       }).join('');
 
+      // Si ya venías filtrando por un equipo, arrancamos con ese elegido.
+      const equipoFiltrado = document.getElementById('filtroEquipo').value;
+      if (equipoFiltrado && [...sel.options].some(o => o.value === String(equipoFiltrado))) {
+        sel.value = String(equipoFiltrado);
+      }
+
       // Por defecto: los últimos 12 meses (o hasta ayer, que es lo que hay publicado)
       const hasta = new Date(); hasta.setDate(hasta.getDate() - 1);
       const desde = new Date(hasta); desde.setFullYear(desde.getFullYear() - 1);
       document.getElementById('lluviaHasta').value = hasta.toISOString().slice(0, 10);
       document.getElementById('lluviaDesde').value = desde.toISOString().slice(0, 10);
+      sugerirPeriodoDelEquipo();
       document.getElementById('lluviaResultado').innerHTML = '';
       document.getElementById('modalLluviasOverlay').classList.add('visible');
     }
 
     function cerrarModalLluvias() {
       document.getElementById('modalLluviasOverlay').classList.remove('visible');
+    }
+
+    /* Propone el período según las campañas de ese equipo: desde la
+       siembra más vieja hasta la cosecha más nueva. Es lo que uno quiere
+       cargar casi siempre, en vez de "los últimos 12 meses". */
+    function sugerirPeriodoDelEquipo() {
+      const equipoId = document.getElementById('lluviaEquipo').value;
+      const pista = document.getElementById('lluviaPista');
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]')
+        .filter(c => String(c.equipoId) === String(equipoId));
+
+      let siembra = null, cosecha = null, nombres = [];
+      campanas.forEach(c => {
+        (c.cultivos || []).forEach(cu => {
+          if (cu.fechaSiembra && (!siembra || cu.fechaSiembra < siembra)) siembra = cu.fechaSiembra;
+          if (cu.fechaCosecha && (!cosecha || cu.fechaCosecha > cosecha)) cosecha = cu.fechaCosecha;
+          if (cu.cultivo) nombres.push(cu.cultivo);
+        });
+      });
+
+      if (siembra) {
+        const ayer = new Date(); ayer.setDate(ayer.getDate() - 1);
+        const tope = ayer.toISOString().slice(0, 10);
+        document.getElementById('lluviaDesde').value = siembra;
+        document.getElementById('lluviaHasta').value = (cosecha && cosecha < tope) ? cosecha : tope;
+        pista.textContent = 'Período sugerido: cubre las campañas de este equipo'
+          + (nombres.length ? ' (' + [...new Set(nombres)].join(', ') + ')' : '') + '. Podés cambiarlo.';
+      } else {
+        pista.textContent = 'Este equipo no tiene campañas cargadas: se propone el último año.';
+      }
     }
 
     function importarLluvias() {
