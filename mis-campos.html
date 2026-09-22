@@ -177,6 +177,11 @@
             <input type="text" id="gpsCompleto" placeholder="Ej: -24.3572, -54.4869" oninput="parsearGPS()">
             <div class="hint">Pegá lo que copiaste con clic derecho en Google Maps. Se separa solo.</div>
           </div>
+          <div class="field">
+            <label>Altitud <span class="opcional">(metros sobre el nivel del mar)</span></label>
+            <input type="number" id="altitud" placeholder="Ej: 220" step="any">
+            <div class="hint">Importante para comparar rindes entre zonas</div>
+          </div>
         </div>
         <div class="note info">
           📍 <strong>¿Cómo obtener las coordenadas?</strong> Andá a <a href="https://www.google.com/maps" target="_blank" style="font-weight:700;text-decoration:underline;">Google Maps</a>, buscá tu campo, hacé <strong>clic derecho</strong> sobre el centro y tocá las coordenadas para copiarlas. Pegalas arriba.
@@ -325,6 +330,7 @@
       const tipoSuelo = document.getElementById('tipoSuelo').value;
       const latitud = document.getElementById('latitud').value;
       const longitud = document.getElementById('longitud').value;
+      const altitud = document.getElementById('altitud').value;
       const observaciones = document.getElementById('observaciones').value.trim();
 
       if (!clienteId || !nombre) { alert('Por favor seleccioná un cliente y completá el nombre del campo.'); return; }
@@ -346,7 +352,7 @@
           campos[index] = {
             ...campos[index],
             clienteId: parseInt(clienteId), nombre, superficie, departamento, pais, actividad,
-            tipoSuelo, latitud, longitud, observaciones, fechaModificacion: new Date().toISOString()
+            tipoSuelo, latitud, longitud, altitud, observaciones, fechaModificacion: new Date().toISOString()
           };
           localStorage.setItem('campos', JSON.stringify(campos));
           alert('¡Campo actualizado!');
@@ -357,7 +363,7 @@
         if (existe) { alert('Este cliente ya tiene un campo con ese nombre.'); return; }
         const campo = {
           id: Date.now(), clienteId: parseInt(clienteId), nombre, superficie, departamento, pais, actividad,
-          tipoSuelo, latitud, longitud, observaciones, fechaCreacion: new Date().toISOString()
+          tipoSuelo, latitud, longitud, altitud, observaciones, fechaCreacion: new Date().toISOString()
         };
         campos.push(campo);
         localStorage.setItem('campos', JSON.stringify(campos));
@@ -383,6 +389,7 @@
       document.getElementById('tipoSuelo').value = campo.tipoSuelo || '';
       document.getElementById('latitud').value = campo.latitud || '';
       document.getElementById('longitud').value = campo.longitud || '';
+      document.getElementById('altitud').value = campo.altitud || '';
       document.getElementById('observaciones').value = campo.observaciones || '';
 
       mostrarInfoSuelo();
@@ -428,6 +435,7 @@
       document.getElementById('tipoSuelo').value = '';
       document.getElementById('latitud').value = '';
       document.getElementById('longitud').value = '';
+      document.getElementById('altitud').value = '';
       document.getElementById('gpsCompleto').value = '';
       document.getElementById('observaciones').value = '';
       document.getElementById('gpsValidacion').innerHTML = '';
