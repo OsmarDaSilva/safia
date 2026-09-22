@@ -70,6 +70,7 @@
           <div class="sub">Todos los riegos, lluvias y aplicaciones cargados en SAFIA</div>
         </div>
         <div class="actions">
+          <button class="btn green" onclick="abrirModalLluvias()" title="Cargar las lluvias día por día desde el servicio de clima">☁️ Traer lluvias del clima</button>
           <button class="btn boton-export" onclick="exportarExcel()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.5h16M9.5 9.5V20"/></svg>Excel</button>
           <button class="btn boton-export" onclick="exportarCSV()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>CSV</button>
         </div>
@@ -106,6 +107,8 @@
             <option value="todos">Todos</option>
             <option value="manual">Manual</option>
             <option value="voz">Voz</option>
+            <option value="meteo">Clima (estimado)</option>
+            <option value="estacion">Estación</option>
           </select>
         </div>
         <div class="spacer"></div>
@@ -137,6 +140,27 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- MODAL TRAER LLUVIAS DEL CLIMA -->
+  <div class="modal-overlay" id="modalLluviasOverlay" onclick="if(event.target===this) cerrarModalLluvias()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-titulo">☁️ Traer lluvias del clima</div>
+      <div class="note info" style="margin-bottom:14px;">
+        Carga la lluvia <b>día por día</b> desde el servicio de clima, usando las coordenadas del campo.
+        <b>No pisa</b> las lluvias que ya cargaste a mano o con la estación: esas mandan siempre.
+      </div>
+      <div class="form-grid">
+        <div class="field full"><label>Equipo / lote</label><select id="lluviaEquipo"></select></div>
+        <div class="field"><label>Desde</label><input type="date" id="lluviaDesde"></div>
+        <div class="field"><label>Hasta</label><input type="date" id="lluviaHasta"></div>
+      </div>
+      <div id="lluviaResultado" style="margin-top:12px;"></div>
+      <div class="modal-actions">
+        <button class="btn" onclick="cerrarModalLluvias()">Cerrar</button>
+        <button class="btn green" id="btnImportarLluvias" onclick="importarLluvias()">☁️ Traer lluvias</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL EDICIÓN -->
@@ -297,7 +321,11 @@
 
         const origenBadge = ev.cargadoPor === 'voz'
           ? '<span class="badge info">🎤 Voz</span>'
-          : '<span class="badge muted">⌨️ Manual</span>';
+          : ev.cargadoPor === 'meteo'
+            ? '<span class="badge amber" title="Estimado del clima (Open-Meteo). Si tenés el dato real, editalo y pasa a Manual.">☁️ Clima</span>'
+            : ev.cargadoPor === 'estacion'
+              ? '<span class="badge green" title="Medido por la estación meteorológica">📡 Estación</span>'
+              : '<span class="badge muted">⌨️ Manual</span>';
 
         const obsTitle = ev.observaciones ? ` title="${String(ev.observaciones).replace(/"/g, '&quot;')}"` : '';
         const claseEditando = ev.id === editandoId ? 'editando' : '';
@@ -360,6 +388,121 @@
     function cerrarModal() {
       document.getElementById('modalOverlay').classList.remove('visible');
       editandoId = null;
+    }
+
+    /* ============================================================
+       TRAER LLUVIAS DEL CLIMA (día por día)
+       Crea un evento de lluvia por día con origen "meteo".
+       Nunca pisa un día que ya tiene lluvia cargada a mano, por voz
+       o por la estación: el dato real siempre manda sobre el estimado.
+       ============================================================ */
+    function abrirModalLluvias() {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const sel = document.getElementById('lluviaEquipo');
+
+      if (!equipos.length) {
+        alert('Primero cargá un equipo de riego en "Equipos".');
+        return;
+      }
+      sel.innerHTML = equipos.map(e => {
+        const campo = campos.find(c => String(c.id) === String(e.campoId));
+        const cli = campo ? clientes.find(x => String(x.id) === String(campo.clienteId)) : null;
+        const etiqueta = [cli && cli.nombre, campo && campo.nombre, e.nombre].filter(Boolean).join(' · ');
+        return `<option value="${e.id}">${etiqueta}</option>`;
+      }).join('');
+
+      // Por defecto: los últimos 12 meses (o hasta ayer, que es lo que hay publicado)
+      const hasta = new Date(); hasta.setDate(hasta.getDate() - 1);
+      const desde = new Date(hasta); desde.setFullYear(desde.getFullYear() - 1);
+      document.getElementById('lluviaHasta').value = hasta.toISOString().slice(0, 10);
+      document.getElementById('lluviaDesde').value = desde.toISOString().slice(0, 10);
+      document.getElementById('lluviaResultado').innerHTML = '';
+      document.getElementById('modalLluviasOverlay').classList.add('visible');
+    }
+
+    function cerrarModalLluvias() {
+      document.getElementById('modalLluviasOverlay').classList.remove('visible');
+    }
+
+    function importarLluvias() {
+      const res = document.getElementById('lluviaResultado');
+      const boton = document.getElementById('btnImportarLluvias');
+      const equipoId = document.getElementById('lluviaEquipo').value;
+      const desde = document.getElementById('lluviaDesde').value;
+      const hasta = document.getElementById('lluviaHasta').value;
+
+      if (!desde || !hasta) { res.innerHTML = '<div class="note warn">Cargá las dos fechas.</div>'; return; }
+      if (hasta < desde) { res.innerHTML = '<div class="note warn">La fecha "hasta" no puede ser anterior a "desde".</div>'; return; }
+
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const equipo = equipos.find(e => String(e.id) === String(equipoId));
+      const campo = equipo ? campos.find(c => String(c.id) === String(equipo.campoId)) : null;
+      const lat = campo && parseFloat(String(campo.latitud).replace(',', '.'));
+      const lon = campo && parseFloat(String(campo.longitud).replace(',', '.'));
+      if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
+        res.innerHTML = '<div class="note warn">El campo de este equipo no tiene coordenadas. Cargalas en <a href="mis-campos.html"><b>Campos</b></a>.</div>';
+        return;
+      }
+
+      boton.disabled = true;
+      res.innerHTML = '<div class="note info">Consultando el clima día por día…</div>';
+
+      const url = 'https://archive-api.open-meteo.com/v1/archive'
+        + '?latitude=' + lat + '&longitude=' + lon
+        + '&start_date=' + desde + '&end_date=' + hasta
+        + '&daily=precipitation_sum&timezone=auto';
+
+      fetch(url).then(r => r.json()).then(j => {
+        const fechas = j && j.daily && j.daily.time;
+        const mm = j && j.daily && j.daily.precipitation_sum;
+        if (!fechas || !fechas.length) {
+          res.innerHTML = '<div class="note warn">No hay datos de clima para ese período.</div>';
+          return;
+        }
+
+        const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+        // Días que YA tienen lluvia cargada para este equipo (cualquier origen)
+        const yaTiene = {};
+        eventos.forEach(e => {
+          if (e.tipo === 'lluvia' && String(e.equipoId) === String(equipoId)) {
+            yaTiene[String(e.fecha).slice(0, 10)] = e.cargadoPor || 'manual';
+          }
+        });
+
+        let nuevos = 0, respetados = 0, secos = 0, total = 0;
+        fechas.forEach((f, i) => {
+          const v = mm[i];
+          if (v === null || isNaN(v)) return;
+          if (v <= 0) { secos++; return; }          // no creamos eventos de días sin lluvia
+          if (yaTiene[f]) { respetados++; return; } // el dato real manda
+          eventos.push({
+            id: Date.now() + Math.random(),
+            fecha: f,
+            equipoId: isNaN(Number(equipoId)) ? equipoId : Number(equipoId),
+            tipo: 'lluvia',
+            cantidad: Math.round(v * 10) / 10,
+            unidad: 'mm',
+            cargadoPor: 'meteo',
+            observaciones: 'Estimado del servicio de clima',
+            fechaCreacion: new Date().toISOString()
+          });
+          nuevos++; total += v;
+        });
+
+        if (nuevos) localStorage.setItem('eventos', JSON.stringify(eventos));
+
+        res.innerHTML =
+          '<div class="note ok"><b>' + nuevos + ' días de lluvia cargados</b> (' + Math.round(total) + ' mm en total).' +
+          (respetados ? '<br>Se respetaron <b>' + respetados + ' días</b> que ya tenías cargados.' : '') +
+          '<br><span class="muted">' + secos + ' días sin lluvia (no se cargan para no llenar el historial).</span></div>';
+
+        if (typeof onFiltroChange === 'function') onFiltroChange();
+      }).catch(() => {
+        res.innerHTML = '<div class="note danger">No se pudo consultar el clima. Revisá tu internet.</div>';
+      }).finally(() => { boton.disabled = false; });
     }
 
     function cerrarModalSiClickFuera(event) {
