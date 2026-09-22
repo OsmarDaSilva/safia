@@ -9,6 +9,10 @@
 - Verificá vos mismo todo lo que puedas ANTES de pedirle que pruebe.
   Si algo no lo podés verificar, decíselo explícitamente.
 
+## ANTES de tocar nada, leé PLAN_MAESTRO_SAFIA.md (en la raíz del repo):
+## ahí están la visión, el modelo del "caso", los cinco motores, el
+## estado de cada módulo, las reglas de negocio y los próximos pasos.
+
 ## La visión (definida por Osmar, sep-2026)
 - SAFIA es un producto agronómico y de riego: ayuda a regar, pero el
   ACTIVO es el banco de datos agronómico que se va formando.

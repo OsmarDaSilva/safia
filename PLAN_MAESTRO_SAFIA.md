@@ -1,0 +1,152 @@
+# PLAN MAESTRO — SAFIA
+## Smart Agro Intelligence · Inteligencia agronómica para riego
+
+> Documento de referencia del proyecto. Ubicar en la raíz del repositorio.
+> Toda decisión de producto, diseño y código debe ser coherente con este documento.
+> Versión 1.0 — Septiembre 2026
+
+---
+
+## 1. Visión
+
+SAFIA es un producto de riego que, mientras ayuda a regar, **construye un banco de datos agronómico que aprende**. Cada campaña de cada cliente deja su historia completa —suelo, agua, clima, manejo y resultado— y con esa memoria SAFIA se convierte en **consultor**: le muestra a cada cliente cómo evoluciona, le dice qué está funcionando y qué no, compara contra los mejores de su zona, y estima el potencial de proyectos nuevos.
+
+**Principio rector: el riego es el producto, el banco de datos es el activo.** Cuantos más clientes riegan con SAFIA, mejor analiza, mejor recomienda y mejor vende Irrigar.
+
+**Segundo principio: SAFIA compara, el agrónomo prescribe.** SAFIA muestra señales fundadas en casos reales ("los que más rinden tienen este suelo; el tuyo difiere en esto"). Cuánto encalar, cuánto fertilizar o cuánto regar lo decide el criterio agronómico. Nunca se promete una receta automática.
+
+**Tercer principio: honestidad con los datos.** SAFIA dice siempre en cuántos casos se basa y de dónde sale cada número (medido, cargado a mano o estimado). Con pocos casos avisa que es una orientación, no una predicción.
+
+## 2. Identidad de marca
+
+- **Nombre:** SAFIA — Smart Agro Intelligence
+- **Símbolo:** gota / hoja en verde sobre gris oscuro
+- **Color primario:** Verde `#22A93A` (oscuro `#178029`, tinte `#E7F6EA`)
+- **Gris institucional:** `#3A3E41` (barra lateral)
+- **Tipografía:** Plus Jakarta Sans
+- **Tono:** español del Paraguay con voseo, simple, sin jerga; pensado para productores, encargados y operadores que no son técnicos en software.
+
+## 3. Usuarios y roles
+
+| Rol | Quién | Qué hace en SAFIA |
+|---|---|---|
+| **Irrigar (administrador)** | Osmar y su equipo | Carga clientes, campos, equipos; evalúa proyectos nuevos; usa el banco para vender y asesorar |
+| **Propietario** | Dueño del campo cliente | Ve su expediente, sus campañas, su evolución y las recomendaciones |
+| **Encargado** | Responsable del campo | Carga campañas, cosechas, análisis de suelo, riego del ciclo |
+| **Operador** | Quien maneja el pivote | Registra riegos, lluvias y aplicaciones día a día (a mano o por voz) |
+
+Hoy todos entran con usuario y contraseña de Supabase y ven todo. **Pendiente: permisos por rol** (que cada uno vea lo suyo). Debe hacerse **antes** de dar acceso a varias personas a la vez (ver riesgo de sincronización en §10).
+
+## 4. El "caso": la unidad de conocimiento
+
+Todo el motor gira sobre el **caso** = una campaña cosechada con todo lo que la rodea:
+
+| Grupo | Datos | Quién lo carga |
+|---|---|---|
+| **Ubicación** | localidad, departamento, país, latitud, longitud | Cliente/Irrigar (listas para elegir; punto de Google Maps) |
+| | altitud | **Automático** (de las coordenadas) |
+| **Suelo** | pH, materia orgánica, P, K, Ca, Mg, CIC, saturación de bases, arena/limo/arcilla, con fecha | Cliente sube foto/PDF del laboratorio → **la IA lo lee** |
+| **Equipo** | tipo, marca, modelo, caudal, presión, lámina, torres, bomba… | Cliente sube ficha técnica → **la IA la lee** |
+| **Manejo** | cultivo, variedad, época y fecha de siembra, densidad, fertilización, encalado | Cliente, al abrir la campaña |
+| **Agua** | riego del ciclo (mm) | Cliente / operador (día a día o total) |
+| | lluvia del ciclo (mm), día a día | **Automático** (clima) o real (pluviómetro / estación) |
+| **Clima** | temperatura media/máx/mín, días ≥35°, grados-día, ET₀, radiación del ciclo | **Automático** (clima) |
+| **Resultado** | rinde real (kg/ha), fecha de cosecha, humedad, producción total | Cliente, al cerrar la campaña |
+
+**Regla de captura:** todo dato agronómico entra **estructurado** (campos tipados, unidades consistentes), nunca como texto libre. Sin eso no hay comparación posible.
+
+**Regla del agua:** el dato **real** (estación, pluviómetro, manual) siempre manda sobre el **estimado** (clima). Cada registro guarda su origen (`manual`, `voz`, `meteo`, `estacion`).
+
+**Regla de la finalidad:** al comparar rindes, siempre dentro de la misma finalidad (grano con grano, ensilaje con ensilaje).
+
+## 5. Los cinco motores de análisis
+
+### Motor 1 · Referencia regional — HECHO
+Base propia de SAFIA con 948 registros del Paraguay (sembrada desde SIGA): rinde por localidad, cultivo, finalidad y época, **secano vs con riego**. Es la vara de comparación y el argumento de venta de riego ("en Katueté, la soja con riego rinde +72% que en secano").
+
+### Motor 2 · Tu rinde vs tu zona — HECHO
+Para cada campaña cosechada del cliente: su rinde contra la referencia regional con riego y secano, y cuántas toneladas de más produjo frente al secano de su zona.
+
+### Motor 3 · Evaluar proyecto nuevo — HECHO
+Para un prospecto: se cargan ubicación, cultivos con producción esperada y análisis de suelo. SAFIA busca los **casos reales más parecidos** (similitud por suelo 50 %, distancia 30 %, altitud 10 %, época 10 %), estima el **potencial** por cultivo, dice si el objetivo es alcanzable, y muestra **"tu suelo vs el de los que más rinden"** parámetro por parámetro.
+
+### Motor 4 · Evolución y decisiones del cliente — A CONSTRUIR (prioridad)
+Para el cliente que **ya riega**, campaña tras campaña:
+- **Suelo:** ¿mejoró o empeoró? Cada parámetro contra el análisis anterior (ya existe la tabla de evolución; falta el veredicto).
+- **Rinde:** ¿mejoró o empeoró? Por cultivo, año contra año, contra su propio promedio y contra el mejor de su localidad.
+- **Variedades / materiales:** ranking de rinde por variedad, dentro de cada cultivo.
+- **Época de siembra:** rinde según la fecha/época en que sembró.
+- **Fertirriego y manejo:** campañas con fertirriego o aplicaciones vs sin, y su rinde.
+- **Agua → rinde:** con cuántos mm (lluvia + riego) se alcanzaron los rindes máximos; cuánta agua por kilo produjo. Base para la regla "si el año viene más seco, regá hasta llegar a los mm de tu mejor campaña".
+- **Benchmark local:** el mejor productor de su localidad como referencia: qué suelo tiene, cuánta agua usó, qué variedad y época; y qué le falta al cliente para acercarse.
+
+### Motor 5 · Consultor en vivo — FUTURO
+Durante la campaña, con estación meteorológica y satélite (NDVI): comparar las condiciones de **hoy** (agua acumulada vs demanda, grados-día, verdor) contra la **campaña modelo** que alcanzó el objetivo, **alineado por etapa del cultivo** (no por fecha del calendario), y alertar a tiempo para corregir (foliar, fertirriego, más riego).
+
+### Asistente IA agronómico — FUTURO
+Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **sobre los datos del banco**: "¿qué variedad de soja me rindió mejor?", "¿con cuántos mm hice mi mejor maíz?", "¿qué le falta a este suelo comparado con los mejores de Canindeyú?". Regla de oro heredada de SIGA: **todo número sale de los datos, nunca se inventa**.
+
+## 6. Módulos y estado
+
+| Módulo | Estado |
+|---|---|
+| Datos en la nube (Supabase) + login | ✅ |
+| Clientes, campos (con coordenadas y altitud automática), equipos, cultivos | ✅ |
+| Campañas con cierre de cosecha (rinde, agua del ciclo, clima del ciclo) | ✅ |
+| Eventos día a día (riego, lluvia, aplicaciones; manual, voz, clima) | ✅ |
+| Lectura con IA: análisis de suelo y ficha técnica de equipos | ✅ |
+| Banco Agronómico por lote: sucesión de cultivos, suelo, agua mes a mes, archivos y mapas de cosecha | ✅ |
+| Base de Referencia (948 registros, secano vs riego) | ✅ |
+| Comparador "tu rinde vs tu zona" | ✅ |
+| Evaluar proyecto (varios cultivos) + Banco de casos exportable | ✅ |
+| Clima y predicción 7 días (Open-Meteo) | ✅ |
+| **Evolución y decisiones del cliente (Motor 4)** | ⬜ siguiente |
+| Permisos por rol | ⬜ |
+| Sincronización por registro (no por colección) | ⬜ antes de roles |
+| Publicación en Vercel (uso desde celular) | ⬜ |
+| Estación meteorológica e imágenes satelitales | ⬜ |
+| Consultor en vivo (Motor 5) | ⬜ |
+| Asistente IA agronómico | ⬜ |
+| Geocodificar las 43 localidades de la referencia (comparar por cercanía también contra la base regional) | ⬜ |
+
+## 7. Reglas de negocio clave
+
+1. **Real manda sobre estimado** (agua, clima).
+2. **Grano con grano, ensilaje con ensilaje** (finalidad).
+3. **SAFIA compara, el agrónomo prescribe.**
+4. **Decir siempre cuántos casos respaldan** una estimación; con menos de 3, avisar que es orientación.
+5. **Todo dato tiene origen** (medido / cargado / estimado) y se muestra.
+6. **Nada se borra en silencio**: los cierres se pueden corregir; la sincronización no debe pisar cambios ajenos.
+7. **El cliente es dueño de su expediente**; Irrigar usa el agregado (casos anonimizables) para asesorar y vender.
+
+## 8. Arquitectura técnica
+
+- **Front:** páginas HTML estáticas + JavaScript, sin framework ni build. Se abren desde archivo o servidor estático. Tema compartido `safia-theme.css`.
+- **Datos:** localStorage como caché local; `safia-sync.js` sincroniza cada colección con Supabase (proyecto `btwxhsaarfopyjhmydlw`, el mismo de AGROinvest360; **distinto** del de SIGA). Tablas `safia_*` con formato `(id, datos jsonb)`; referencia en `safia_ref_produccion`, `safia_ref_forraje_*`; archivos en el bucket privado `safia`.
+- **Motor:** `safia-casos.js` — arma los casos, trae el clima del ciclo, evalúa por similitud, listas de ubicación.
+- **IA:** edge functions en Supabase (Deno) que llaman a Claude vía Anthropic (`ANTHROPIC_API_KEY` en los secrets del proyecto): `safia-leer-analisis`, `safia-leer-ficha-equipo`. Patrón repetible para cualquier documento.
+- **Clima:** Open-Meteo (pronóstico, histórico diario, elevación, geocodificación). Sin llave.
+- **Repositorio:** GitHub `OsmarDaSilva/safia`, rama `main`.
+
+## 9. Modelo de negocio (para Irrigar)
+
+- **Venta de riego:** el banco de casos y la referencia regional son el argumento (potencial estimado con casos reales de la zona).
+- **Retención:** el cliente que ve su evolución y recibe orientación no se va.
+- **Servicio:** asesoría agronómica basada en datos (Motor 4 y 5) como valor agregado del equipo vendido; potencialmente suscripción.
+- **Red:** cada cliente nuevo mejora el análisis de todos.
+
+## 10. Riesgos principales
+
+- **Pocos casos al inicio:** el motor es tan bueno como la cantidad de casos. Mitigación: mostrar siempre el N, cargar clientes existentes con su historia, arrancar por referencia regional.
+- **Sincronización por colección:** dos personas cargando a la vez pueden pisarse (el último que guarda gana). Mitigación: sync por registro con marca de tiempo **antes** de habilitar roles.
+- **Calidad de carga:** nombres de localidad o variedad inconsistentes rompen las comparaciones. Mitigación: listas para elegir, normalización de acentos, lectura por IA.
+- **Dependencia de la llave de IA:** si vence, la lectura automática cae (no el resto). Mitigación: la llave válida vive en `mi-app-agroinvest360/.env`; Supabase no la muestra una vez guardada.
+
+## 11. Próximos pasos
+
+1. **Motor 4 — Evolución y decisiones del cliente** (siguiente entrega).
+2. Cargar 4–6 clientes completos (Irrigar) para darle fuerza estadística al banco.
+3. Sincronización por registro → permisos por rol → acceso a encargados y operadores.
+4. Publicar en Vercel para uso desde el celular.
+5. Estación meteorológica y satélite → Motor 5.
+6. Asistente IA agronómico sobre el banco.
