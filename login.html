@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAFIA · Iniciar sesión</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+<style>
+  :root{
+    --green:#22A93A; --green-d:#178029; --green-t:#E7F6EA;
+    --gray:#3A3E41; --bg:#F2F3F5; --card:#FFFFFF; --bd:#E1E4E7;
+    --label:#8C9196; --body:#41464B; --head:#2E3236; --red:#C0392B; --red-t:#FBECEA;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,#2E3236 0%,#3A3E41 55%,#178029 140%);
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--body);padding:20px;}
+  .card{width:100%;max-width:380px;background:var(--card);border-radius:16px;
+    box-shadow:0 18px 60px rgba(10,20,15,.35);padding:34px 30px 30px;}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+  .brand .mark{width:44px;height:44px;border-radius:12px;background:var(--green);
+    display:flex;align-items:center;justify-content:center;font-size:22px;}
+  .brand .bname{font-weight:800;font-size:22px;color:var(--head);letter-spacing:.3px;}
+  .brand .btag{font-size:9px;letter-spacing:1.6px;color:var(--label);margin-top:3px;}
+  .sub{font-size:13.5px;color:#5b636d;margin:14px 0 22px;}
+  label{display:block;font-size:11px;font-weight:700;letter-spacing:.8px;
+    color:var(--label);text-transform:uppercase;margin:0 0 6px 2px;}
+  input{width:100%;padding:12px 14px;border:1.5px solid var(--bd);border-radius:10px;
+    font:500 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--head);
+    background:#FAFBFC;outline:none;margin-bottom:16px;}
+  input:focus{border-color:var(--green);background:#fff;}
+  button{width:100%;padding:13px;border:0;border-radius:10px;background:var(--green);
+    color:#fff;font:700 15px 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;}
+  button:hover{background:var(--green-d);}
+  button:disabled{opacity:.6;cursor:wait;}
+  .error{display:none;background:var(--red-t);color:var(--red);border-radius:9px;
+    padding:11px 13px;font-size:13px;font-weight:600;margin-bottom:16px;}
+  .error.visible{display:block;}
+  .pie{margin-top:18px;font-size:12px;color:var(--label);text-align:center;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="mark">💧</div>
+      <div>
+        <div class="bname">SAFIA</div>
+        <div class="btag">SMART · AGRO · INTELLIGENCE</div>
+      </div>
+    </div>
+    <p class="sub">Ingresá con tu usuario para ver los datos de riego.</p>
+    <div class="error" id="mensajeError"></div>
+    <form id="formLogin">
+      <label for="correo">Correo</label>
+      <input type="email" id="correo" autocomplete="username" required>
+      <label for="contrasena">Contraseña</label>
+      <input type="password" id="contrasena" autocomplete="current-password" required>
+      <button type="submit" id="botonEntrar">Entrar</button>
+    </form>
+    <p class="pie">Es el mismo usuario y contraseña de tus otras apps (SIGA / AGROinvest360).</p>
+  </div>
+
+<script>
+  var form = document.getElementById('formLogin');
+  var boton = document.getElementById('botonEntrar');
+  var cajaError = document.getElementById('mensajeError');
+
+  function mostrarError(msj) {
+    cajaError.textContent = msj;
+    cajaError.classList.add('visible');
+  }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    cajaError.classList.remove('visible');
+
+    if (!window.safiaSupabase) {
+      mostrarError('No hay conexión a internet. Revisá la conexión y volvé a intentar.');
+      return;
+    }
+    boton.disabled = true;
+    boton.textContent = 'Entrando…';
+
+    window.safiaSupabase.auth.signInWithPassword({
+      email: document.getElementById('correo').value.trim(),
+      password: document.getElementById('contrasena').value
+    }).then(function (r) {
+      if (r.error) {
+        var m = (r.error.message || '').toLowerCase();
+        if (m.indexOf('invalid') !== -1) mostrarError('Correo o contraseña incorrectos.');
+        else if (m.indexOf('confirm') !== -1) mostrarError('Ese correo todavía no fue confirmado.');
+        else mostrarError('No se pudo entrar: ' + r.error.message);
+        boton.disabled = false;
+        boton.textContent = 'Entrar';
+        return;
+      }
+      location.replace('index.html');
+    }).catch(function () {
+      mostrarError('No se pudo conectar. Revisá tu internet y volvé a intentar.');
+      boton.disabled = false;
+      boton.textContent = 'Entrar';
+    });
+  });
+</script>
+</body>
+</html>
