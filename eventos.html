@@ -472,6 +472,16 @@
           }
         });
 
+        // IDs únicos y seguros: al crear decenas de eventos de una vez,
+        // Date.now()+Math.random() puede repetirse y perder registros.
+        const idsUsados = new Set(eventos.map(e => Number(e.id)));
+        let proximoId = Date.now();
+        const nuevoId = () => {
+          while (idsUsados.has(proximoId)) proximoId++;
+          idsUsados.add(proximoId);
+          return proximoId++;
+        };
+
         let nuevos = 0, respetados = 0, secos = 0, total = 0;
         fechas.forEach((f, i) => {
           const v = mm[i];
@@ -479,7 +489,7 @@
           if (v <= 0) { secos++; return; }          // no creamos eventos de días sin lluvia
           if (yaTiene[f]) { respetados++; return; } // el dato real manda
           eventos.push({
-            id: Date.now() + Math.random(),
+            id: nuevoId(),
             fecha: f,
             equipoId: isNaN(Number(equipoId)) ? equipoId : Number(equipoId),
             tipo: 'lluvia',
@@ -494,10 +504,21 @@
 
         if (nuevos) localStorage.setItem('eventos', JSON.stringify(eventos));
 
+        // Mostramos el período y el equipo recién cargados, si no el filtro
+        // de "30 días" los esconde y parece que no se guardó nada.
+        if (nuevos) {
+          document.getElementById('fPeriodo').value = 'todo';
+          document.getElementById('filtroEquipo').value = equipoId;
+          document.getElementById('fTipo').value = 'lluvia';
+        }
+
         res.innerHTML =
-          '<div class="note ok"><b>' + nuevos + ' días de lluvia cargados</b> (' + Math.round(total) + ' mm en total).' +
+          '<div class="note ok"><b>✓ Guardado: ' + nuevos + ' días de lluvia</b> (' + Math.round(total) + ' mm en total).' +
           (respetados ? '<br>Se respetaron <b>' + respetados + ' días</b> que ya tenías cargados.' : '') +
-          '<br><span class="muted">' + secos + ' días sin lluvia (no se cargan para no llenar el historial).</span></div>';
+          '<br><span class="muted">' + secos + ' días sin lluvia (no se cargan para no llenar el historial).</span>' +
+          (nuevos ? '<br><br>Ya están en el historial. Cerrá esta ventana para verlas.' : '') +
+          '</div>' +
+          (nuevos ? '<button class="btn green" style="margin-top:10px;" onclick="cerrarModalLluvias()">Ver en el historial</button>' : '');
 
         if (typeof onFiltroChange === 'function') onFiltroChange();
       }).catch(() => {
