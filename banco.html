@@ -53,6 +53,7 @@
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-agronomia.js"></script>
+<script src="safia-mapas.js"></script>
 </head>
 <body>
 
@@ -140,7 +141,8 @@
           <button data-tab="analisis">Análisis de suelo</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="evolucion">📈 Evolución y decisiones</button>
-          <button data-tab="archivos">Archivos y mapas</button>
+          <button data-tab="mapas">Mapas georreferenciados</button>
+          <button data-tab="archivos">Archivos y documentos</button>
         </div>
 
         <!-- ================= TAB CICLOS ================= -->
@@ -304,9 +306,67 @@
           <div class="no-print" style="display:flex;gap:8px;margin-top:6px;"><button class="btn" onclick="window.print()">🖨️ Imprimir informe</button></div>
         </section>
 
+        <!-- ================= TAB MAPAS ================= -->
+        <section class="panel" id="panel-mapas">
+          <div class="note info">Mapas de <b>rinde de la cosechadora</b>, <b>grillas de fertilidad</b> (análisis de suelo por punto) e índices satelitales, todo georreferenciado. Formatos: CSV/TXT con columnas de latitud y longitud, GeoJSON, KML o ZIP de shapefile (.shp + .dbf + .shx). Coordenadas en grados (WGS84). SAFIA los muestra en el mapa, calcula zonas y cruza rinde con suelo para decir <b>qué parámetro explica más el rinde dentro del lote</b>.</div>
+          <div class="formcard visible sinlinea" style="display:block;background:#fff;border:1px solid var(--bd);">
+            <div class="form-grid">
+              <div class="field"><label>Tipo de mapa</label>
+                <select id="geoTipo">
+                  <option value="rinde">Mapa de rinde (cosechadora)</option>
+                  <option value="suelo">Grilla de fertilidad (análisis por punto)</option>
+                  <option value="ndvi">Índice satelital (NDVI u otro)</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div class="field"><label>Lote / equipo</label><select id="geoEquipo"><option value="">Todo el campo</option></select></div>
+              <div class="field"><label>Campaña</label><input id="geoCampana" list="geoListaCampanas" placeholder="Ej.: Zafra 2025/26"><datalist id="geoListaCampanas"></datalist></div>
+              <div class="field"><label>Cultivo</label><input id="geoCultivo" list="listaCultivos" placeholder="Soja, Maíz…"></div>
+              <div class="field"><label>Fecha</label><input type="date" id="geoFecha"></div>
+              <div class="field"><label>Archivo</label><input type="file" id="geoArchivo" accept=".csv,.txt,.json,.geojson,.kml,.zip"></div>
+              <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnGeoLeer">Leer archivo</button></div>
+            </div>
+            <div id="geoPreview" style="display:none;margin-top:10px;border-top:1px solid var(--bd);padding-top:10px;">
+              <div class="form-grid">
+                <div class="field"><label>Columna de latitud</label><select id="geoLat"></select></div>
+                <div class="field"><label>Columna de longitud</label><select id="geoLon"></select></div>
+                <div class="field"><label>Valor principal (color del mapa)</label><select id="geoValor"></select></div>
+                <div class="field"><label>Nombre del mapa</label><input id="geoNombre"></div>
+              </div>
+              <div id="geoMapeo" style="font-size:12px;margin:6px 0;"></div>
+              <div class="form-actions"><span id="geoResumenLectura" class="muted" style="flex:1"></span><button class="btn" id="btnGeoDibujar">Ver en el mapa</button><button class="btn green" id="btnGeoGuardar">Guardar en la nube</button></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="card-h"><h3>Mapa</h3><span class="muted" id="geoTituloMapa">Leé un archivo o elegí un mapa guardado</span></div>
+            <div id="mapaGeo" style="height:420px;border-radius:8px;background:#EEF0F2;"></div>
+            <div id="geoStats" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="card-h"><h3>Mapas guardados de este campo</h3></div>
+            <div class="tablewrap"><div class="tablescroll"><table class="tbl">
+              <thead><tr><th>Mapa</th><th>Tipo</th><th>Campaña</th><th>Fecha</th><th class="r">Puntos</th><th class="r">Promedio</th><th></th></tr></thead>
+              <tbody id="cuerpoGeoCapas"></tbody>
+            </table></div></div>
+            <div class="muted" id="geoCapasVacio" style="display:none;padding:8px 0;">Todavía no hay mapas guardados en este campo.</div>
+          </div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="card-h"><h3>Cruce rinde × suelo</h3><span class="muted">qué parámetro del suelo explica más el rinde dentro del lote</span></div>
+            <div class="form-grid">
+              <div class="field"><label>Mapa de rinde</label><select id="cruceRinde"></select></div>
+              <div class="field"><label>Grilla de fertilidad</label><select id="cruceSuelo"></select></div>
+              <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnCruzar">Cruzar</button></div>
+            </div>
+            <div id="cruceResultado"></div>
+          </div>
+        </section>
+
         <!-- ================= TAB ARCHIVOS ================= -->
         <section class="panel" id="panel-archivos">
-          <div class="note info">Acá podés guardar <b>mapas de cosecha de la cosechadora</b> (ZIP, shape, ISO-XML, imágenes), PDF de análisis, facturas de fertilizantes y cualquier documento del lote. Quedan guardados en la nube, atados a este campo.</div>
+          <div class="note info">Acá se guardan los <b>documentos</b> del lote: PDF de análisis, facturas de fertilizantes, fotos y archivos originales de la cosechadora (ISO-XML, imágenes). Para que SAFIA <b>lea</b> un mapa de rinde o una grilla de fertilidad, usá la pestaña <b>Mapas georreferenciados</b>.</div>
           <div class="formcard visible sinlinea" style="display:block;background:#fff;border:1px solid var(--bd);">
             <div class="form-grid">
               <div class="field"><label>Tipo de archivo</label>
@@ -404,6 +464,12 @@
   /* ---------- estado ---------- */
   var campos = [], clientes = [], equipos = [], eventos = [];
   var campoActual = null;
+  // Puente para safia-mapas.js (pestaña Mapas georreferenciados)
+  window.SafiaBanco = {
+    campoActual: function () { return campoActual; },
+    leer: leer, guardar: guardar, toast: toast,
+    refrescar: function () { pintarAnalisis(); pintarEvolucion(); }
+  };
   var editandoCicloId = null, editandoAnalisisId = null;
 
   function cargarDatos() {
@@ -442,6 +508,7 @@
     document.getElementById('fAltitud').value = campoActual.altitud != null ? campoActual.altitud : '';
     cerrarFormCiclo(); cerrarFormAnalisis();
     pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
+    if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
       pintarComparativo();
@@ -467,6 +534,7 @@
       document.querySelectorAll('.panel').forEach(function (x) { x.classList.remove('on'); });
       b.classList.add('on');
       document.getElementById('panel-' + b.dataset.tab).classList.add('on');
+      if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
     });
   });
 

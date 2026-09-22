@@ -89,6 +89,10 @@ Para el cliente que **ya riega**, campaña tras campaña:
 - **Qué hacer:** encalado (t/ha y tipo de calcáreo), P₂O₅ correctivo + manutención por tonelada objetivo, K₂O correctivo gradual, materia orgánica. Siempre con la fuente. SAFIA interpreta; el agrónomo prescribe.
 - **Dónde:** Banco → Evolución (sección "Diagnóstico agronómico" por cultivo, contra el mejor de la zona), Banco → Análisis de suelo ("Lectura agronómica del último análisis"), Evaluar proyecto ("Lectura agronómica del suelo" del prospecto).
 
+### Motor 7 · Datos georreferenciados: mapas de rinde y grillas de fertilidad — HECHO (base)
+`safia-mapas.js` + pestaña **Mapas georreferenciados** del Banco. Importa CSV/TXT (lat/lon, decimales con coma), GeoJSON, KML y ZIP shapefile (shpjs); detecta columnas (lat, lon, rinde, pH, MO, P, K, Ca, Mg, CIC, V%, arcilla); mapa Leaflet con 5 clases por quintiles; estadísticas (media, mediana, P10–P90, CV) y zonas por tercios; guarda en Supabase (`safia_geo_capas` + `safia_geo_puntos`, hasta 80.000 puntos por mapa); **cruce rinde × suelo**: cada punto de la grilla recibe el rinde promedio de la cosechadora a menos de 150 m; correlación de Pearson por parámetro, rinde en tercio bajo vs alto y contra el umbral agronómico (P crítico, K, pH, V%). "Usar como análisis": el promedio de la grilla entra como análisis de suelo del lote (origen `mapa`) y alimenta los motores 3, 4 y 6.
+Próximos pasos: polígonos de lote (dibujar o desde shapefile) para superficie por zona y prescripción variable; capas satelitales (NDVI) por fecha; zonas de manejo estables (varios años de rinde); calibración del análisis por punto vs promedio.
+
 ### Motor 5 · Consultor en vivo — FUTURO
 Durante la campaña, con estación meteorológica y satélite (NDVI): comparar las condiciones de **hoy** (agua acumulada vs demanda, grados-día, verdor) contra la **campaña modelo** que alcanzó el objetivo, **alineado por etapa del cultivo** (no por fecha del calendario), y alertar a tiempo para corregir (foliar, fertirriego, más riego).
 
