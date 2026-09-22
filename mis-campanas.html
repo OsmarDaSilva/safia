@@ -816,7 +816,7 @@
       <div class="fila">
         <div class="campo">
           <label>📅 Fecha de cosecha</label>
-          <input type="date" id="cosechaFecha">
+          <input type="date" id="cosechaFecha" onchange="alCambiarFechaCosecha()">
         </div>
         <div class="campo">
           <label>📐 Superficie cosechada (ha)</label>
@@ -844,7 +844,7 @@
           </div>
           <div style="flex:1;min-width:130px;">
             <label style="font-size:11px;font-weight:600;color:#6B6356;">Lluvia del ciclo (mm)</label>
-            <input type="number" id="cosechaLluvia" placeholder="Se trae del clima" step="0.1" min="0">
+            <input type="number" id="cosechaLluvia" placeholder="Se trae sola del clima" step="0.1" min="0" oninput="lluviaEsAutomatica = false;">
           </div>
         </div>
         <div style="margin-top:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -1105,6 +1105,10 @@
       document.getElementById('kpiPreview').classList.remove('visible');
       if (yaCosechada) calcularRendimiento();
 
+      // La lluvia se trae SOLA del clima si todavía no está cargada.
+      lluviaEsAutomatica = !document.getElementById('cosechaLluvia').value;
+      if (lluviaEsAutomatica) traerLluviaDelClima(true);
+
       // Guardar rendimiento objetivo para comparación
       window._rendimientoObj = cultivo && cultivo.rendimientoObj ? parseFloat(cultivo.rendimientoObj) : null;
 
@@ -1136,9 +1140,24 @@
       }
     }
 
+    /* ¿El valor de lluvia lo puso el sistema (true) o lo escribió el usuario (false)? */
+    let lluviaEsAutomatica = true;
+
+    /* Si cambia la fecha de cosecha, el período cambió: volvemos a traer la
+       lluvia, salvo que el usuario la haya escrito a mano. */
+    function alCambiarFechaCosecha() {
+      if (lluviaEsAutomatica) {
+        traerLluviaDelClima(true);
+      } else {
+        document.getElementById('lluviaHint').textContent =
+          '⚠️ Cambiaste el período. Tocá "Traer la lluvia del clima" para actualizarla.';
+      }
+    }
+
     /* Trae la lluvia acumulada del ciclo desde Open-Meteo (histórico real),
-       usando las coordenadas del campo del equipo y las fechas siembra→cosecha. */
-    function traerLluviaDelClima() {
+       usando las coordenadas del campo del equipo y las fechas siembra→cosecha.
+       auto=true cuando la dispara el sistema (no el usuario). */
+    function traerLluviaDelClima(auto) {
       const hint = document.getElementById('lluviaHint');
       const boton = document.getElementById('btnTraerLluvia');
       const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
@@ -1184,8 +1203,10 @@
           const total = validos.reduce((s, v) => s + v, 0);
           const conLluvia = validos.filter(v => v > 0).length;
           document.getElementById('cosechaLluvia').value = Math.round(total * 10) / 10;
-          hint.textContent = '✓ ' + Math.round(total) + ' mm en ' + validos.length + ' días ('
-            + conLluvia + ' días con lluvia). Podés corregirlo a mano.';
+          lluviaEsAutomatica = true;
+          hint.textContent = (auto ? '☁️ Lluvia traída del clima: ' : '✓ ')
+            + Math.round(total) + ' mm en ' + validos.length + ' días ('
+            + conLluvia + ' días con lluvia). Podés corregirla a mano.';
         })
         .catch(() => { hint.textContent = 'No se pudo consultar el clima. Revisá tu internet.'; })
         .finally(() => { boton.disabled = false; });
