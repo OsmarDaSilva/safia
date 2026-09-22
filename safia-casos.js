@@ -143,6 +143,41 @@
         });
       });
     });
+    // Historial anterior a SAFIA: ciclos cargados a mano en el Banco Agronómico
+    // (campañas viejas del cliente). También son casos: valen igual que las
+    // campañas cerradas en la app, con origen 'historial'.
+    leer('ciclos').forEach(function (ci) {
+      var rinde = num(ci.rindeKgHa);
+      if (!rinde || rinde <= 0) return;
+      var campo = campos.find(function (x) { return String(x.id) === String(ci.campoId); });
+      var cliente = campo ? clientes.find(function (x) { return String(x.id) === String(campo.clienteId); }) : null;
+      var siembra = ci.fechaSiembra || null, cosecha = ci.fechaCosecha || null;
+      var lluvia = num(ci.mmLluvia), riego = num(ci.mmRiego);
+      var suelo = campo ? sueloDelCampo(campo.id, cosecha) : null;
+      casos.push({
+        id: 'hist-' + String(ci.id), campanaId: null, origen: 'historial',
+        campana: 'Historial ' + String(siembra || '').slice(0, 4),
+        cliente: cliente ? (cliente.nombre || '') : '', clienteId: cliente ? cliente.id : null,
+        campo: campo ? (campo.nombre || '') : '', campoId: campo ? campo.id : null,
+        equipo: '', equipoId: null,
+        pais: campo ? (campo.pais || 'Paraguay') : 'Paraguay',
+        localidad: campo ? (campo.localidad || '') : '', departamento: campo ? (campo.departamento || '') : '',
+        lat: campo ? num(campo.latitud) : null, lon: campo ? num(campo.longitud) : null, altitud: campo ? num(campo.altitud) : null,
+        tipoSuelo: campo ? (campo.tipoSuelo || '') : '',
+        cultivo: ci.cultivo || '', variedad: ci.variedad || '', epoca: epocaDeSiembra(siembra),
+        siembra: siembra, cosecha: cosecha,
+        dias: (siembra && cosecha) ? Math.round((new Date(cosecha) - new Date(siembra)) / 86400000) : null,
+        superficie: null, densidad: null,
+        rindeKgHa: rinde, objetivoKgHa: null,
+        lluviaMM: lluvia, riegoMM: riego,
+        aguaTotalMM: (lluvia != null || riego != null) ? (lluvia || 0) + (riego || 0) : null,
+        encaladoTnHa: num(ci.encaladoTnHa), fertilizacion: ci.fertilizacion || '',
+        clima: ci.clima || null,
+        suelo: suelo ? { fecha: suelo.fecha, ph: num(suelo.ph), mo: num(suelo.mo), p: num(suelo.p), k: num(suelo.k), ca: num(suelo.ca), mg: num(suelo.mg), cic: num(suelo.cic), satBases: num(suelo.satBases), arena: num(suelo.arena), limo: num(suelo.limo), arcilla: num(suelo.arcilla) } : null,
+        tieneCoordenadas: !!(campo && num(campo.latitud) != null && num(campo.longitud) != null)
+      });
+    });
+
     return casos;
   }
 

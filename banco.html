@@ -167,11 +167,12 @@
 
           <div class="chips" id="chipsRotacion"></div>
 
-          <div style="margin-bottom:12px;"><button class="btn green" id="btnNuevoCiclo">+ Agregar ciclo de cultivo</button></div>
+          <div class="note info" style="margin-bottom:12px;"><b>Las campañas que cerrás en <a href="mis-campanas.html">Campañas</a> son la fuente principal</b> (aparecen arriba en el comparador y en Evolución). Esta sección es para cargar el <b>historial anterior a SAFIA</b>: campañas viejas del cliente que no pasaron por la app. También alimentan el banco y los rankings.</div>
+          <div style="margin-bottom:12px;"><button class="btn green" id="btnNuevoCiclo">+ Agregar campaña del historial</button></div>
 
           <div class="formcard" id="formCiclo">
-            <h3 id="tituloFormCiclo">Nuevo ciclo de cultivo</h3>
-            <div class="formsub">Un ciclo = un cultivo en este lote, de siembra a cosecha. Esto alimenta el banco comparativo.</div>
+            <h3 id="tituloFormCiclo">Campaña del historial (anterior a SAFIA)</h3>
+            <div class="formsub">Una campaña vieja de este lote, de siembra a cosecha, con su rinde. Vale como caso para comparar igual que las campañas cerradas en la app.</div>
             <div class="form-grid">
               <div class="field"><label>Cultivo *</label><input list="listaCultivos" id="cCultivo" placeholder="Soja, Maíz…"><datalist id="listaCultivos"></datalist></div>
               <div class="field"><label>Variedad / Híbrido</label><input id="cVariedad" placeholder="Ej.: DM 60i62"></div>
@@ -206,7 +207,7 @@
           </div>
           <div class="empty" id="vacioCiclos" style="display:none;">
             <div class="eico">🌱</div>
-            <div class="etxt">Todavía no hay ciclos registrados en este lote.<br>Cada ciclo que cargues suma memoria al banco agronómico.</div>
+            <div class="etxt">Todavía no hay campañas del historial cargadas en este lote.<br>Si el cliente tiene años de datos anteriores a SAFIA, cargalos acá: suman al banco.</div>
           </div>
         </section>
 
@@ -526,7 +527,7 @@
   function cerrarFormCiclo() {
     document.getElementById('formCiclo').classList.remove('visible');
     editandoCicloId = null;
-    document.getElementById('tituloFormCiclo').textContent = 'Nuevo ciclo de cultivo';
+    document.getElementById('tituloFormCiclo').textContent = 'Campaña del historial (anterior a SAFIA)';
     ['cCultivo','cVariedad','cSiembra','cCosecha','cRinde','cRiego','cLluvia','cEncalado','cFert','cObs'].forEach(function (i) {
       document.getElementById(i).value = '';
     });
@@ -539,7 +540,7 @@
     if (!c) return;
     abrirFormCiclo();
     editandoCicloId = c.id;
-    document.getElementById('tituloFormCiclo').textContent = 'Editar ciclo: ' + c.cultivo;
+    document.getElementById('tituloFormCiclo').textContent = 'Editar campaña del historial: ' + c.cultivo;
     document.getElementById('cCultivo').value = c.cultivo || '';
     document.getElementById('cVariedad').value = c.variedad || '';
     document.getElementById('cSiembra').value = c.fechaSiembra || '';
