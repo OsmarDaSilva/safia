@@ -622,6 +622,7 @@
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
+<script src="safia-casos.js"></script>
 </head>
 <body>
 
@@ -1212,6 +1213,41 @@
         .finally(() => { boton.disabled = false; });
     }
 
+    /* Trae el resumen climático del ciclo (siembra → cosecha) desde el
+       histórico de Open-Meteo y lo guarda en la campaña. Si forzar=false y
+       ya está cargado para esas mismas fechas, no vuelve a consultar. */
+    function traerClimaDeCampana(campanaId, forzar) {
+      if (!window.SafiaCasos) return;
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const idx = campanas.findIndex(c => c.id === campanaId);
+      if (idx === -1) return;
+      const c = campanas[idx];
+      const cu = (c.cultivos || [])[0];
+      const desde = cu && cu.fechaSiembra;
+      const hasta = (cu && cu.fechaCosecha) || (c.cosecha && c.cosecha.fecha);
+      if (!desde || !hasta || hasta < desde) return;
+      if (!forzar && c.clima && c.clima.desde === desde && c.clima.hasta === hasta) return;
+
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const equipo = equipos.find(e => String(e.id) === String(c.equipoId));
+      const campo = equipo ? campos.find(x => String(x.id) === String(equipo.campoId)) : null;
+      const lat = campo && parseFloat(String(campo.latitud).replace(',', '.'));
+      const lon = campo && parseFloat(String(campo.longitud).replace(',', '.'));
+      if (!lat || !lon || isNaN(lat) || isNaN(lon)) return;
+
+      SafiaCasos.climaDelCiclo(lat, lon, desde, hasta).then(clima => {
+        if (!clima) return;
+        // Releemos por si cambió algo mientras consultábamos
+        const lista = JSON.parse(localStorage.getItem('campanas') || '[]');
+        const i = lista.findIndex(x => x.id === campanaId);
+        if (i === -1) return;
+        lista[i].clima = clima;
+        localStorage.setItem('campanas', JSON.stringify(lista));
+        mostrarCampanas();
+      });
+    }
+
     function guardarCosecha() {
       const fecha = document.getElementById('cosechaFecha').value;
       const superficie = parseFloat(document.getElementById('cosechaSuperficie').value);
@@ -1259,6 +1295,9 @@
 
       cerrarModalCosecha();
       mostrarCampanas();
+      // El clima del ciclo se trae solo (temperatura, grados-día, ET0) y se
+      // guarda en la campaña: es parte de la "ficha del caso".
+      traerClimaDeCampana(cosechandoCampanaId);
       mostrarToast('🌾 ¡Cosecha registrada! Campaña cerrada.');
     }
 
@@ -1767,6 +1806,22 @@
               </div>
 
               ${barraHTML}
+
+              ${campana.clima ? `
+                <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#6B6356;padding:9px 12px;background:#F4F6F4;border-radius:8px;margin-bottom:8px;">
+                  <span title="Temperatura media del ciclo">🌡️ <b>${campana.clima.tempMedia}°</b> media</span>
+                  <span title="Máxima media / mínima media">↑ ${campana.clima.tempMaxMedia}° · ↓ ${campana.clima.tempMinMedia}°</span>
+                  <span title="Días con máxima de 35° o más (estrés por calor)">🔥 <b>${campana.clima.diasMayor35}</b> días ≥35°</span>
+                  <span title="Grados-día acumulados (base 10°, tope 30°)">📈 <b>${campana.clima.gradosDia}</b> grados-día</span>
+                  <span title="Evapotranspiración de referencia acumulada">💨 ET₀ <b>${campana.clima.et0Total}</b> mm</span>
+                  <span class="muted" style="margin-left:auto;">clima del ciclo · ${campana.clima.fuente}</span>
+                </div>
+              ` : `
+                <div style="font-size:12px;color:#6B6356;padding:8px 12px;background:#FAF6EC;border-radius:8px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span>🌡️ Falta el clima del ciclo (temperatura, grados-día, ET₀).</span>
+                  <button class="cierre-boton" onclick="traerClimaDeCampana(${campana.id}, true)">☀️ Traer clima</button>
+                </div>
+              `}
 
               ${cosecha && cosecha.observaciones ? `
                 <div style="font-size:12px; color:#6B6356; padding: 8px 12px; background:#FAF6EC; border-radius:8px; margin-bottom:8px;">
