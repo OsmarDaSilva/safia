@@ -356,6 +356,17 @@
             <input type="text" id="nombre" placeholder="Ej: Pivote Norte / Pivote 1 / Goteo Tomate">
           </div>
 
+          <div class="note info" style="border:1px solid var(--bd);border-left:4px solid var(--green);background:var(--green-t);border-radius:8px;padding:13px 16px;margin:6px 0 14px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <span style="flex:1;min-width:210px;font-size:13px;color:var(--green-d);">
+                📄 <strong>¿Tenés la ficha técnica del equipo?</strong> Subí la foto o el PDF y la IA completa los datos técnicos sola.
+              </span>
+              <input type="file" id="fichaArchivo" accept=".pdf,image/*" style="max-width:230px;">
+              <button type="button" class="btn green" id="btnLeerFicha">✨ Leer ficha</button>
+            </div>
+            <div class="ayuda" id="fichaHint" style="margin-top:8px;">Revisá los valores cargados antes de guardar.</div>
+          </div>
+
           <div class="fila">
             <div class="campo">
               <label>Marca</label>
@@ -1128,6 +1139,117 @@
       localStorage.setItem('equipos', JSON.stringify(equipos));
       mostrarEquipos();
     }
+
+    /* ============================================================
+       Leer la ficha técnica del equipo con IA y autocompletar
+       ============================================================ */
+    function comprimirImagenFicha(archivo, maxLado, calidad) {
+      return new Promise(function (res, rej) {
+        const img = new Image();
+        const url = URL.createObjectURL(archivo);
+        img.onload = function () {
+          const esc = Math.min(1, maxLado / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * esc);
+          c.height = Math.round(img.height * esc);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          res(c.toDataURL('image/jpeg', calidad).split(',')[1]);
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('No se pudo leer la imagen')); };
+        img.src = url;
+      });
+    }
+    function fichaABase64(archivo) {
+      return new Promise(function (res, rej) {
+        const fr = new FileReader();
+        fr.onload = function () { res(String(fr.result).split(',')[1]); };
+        fr.onerror = rej;
+        fr.readAsDataURL(archivo);
+      });
+    }
+
+    // Pone un valor en un input o select solo si vino con dato.
+    function ponerCampo(id, valor) {
+      if (valor === null || valor === undefined || valor === '') return false;
+      const el = document.getElementById(id);
+      if (!el) return false;
+      if (el.tagName === 'SELECT') {
+        // buscar la opción que coincida (sin distinguir mayúsculas/acentos)
+        const norm = function (t) { return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); };
+        const buscado = norm(valor);
+        const op = [...el.options].find(function (o) {
+          const v = norm(o.value || o.text);
+          return v === buscado || v.indexOf(buscado) !== -1 || buscado.indexOf(v) !== -1;
+        });
+        if (!op) return false;
+        el.value = op.value || op.text;
+      } else {
+        el.value = valor;
+      }
+      if (typeof el.onchange === 'function') el.onchange();
+      el.dispatchEvent(new Event('change'));
+      return true;
+    }
+
+    function volcarFicha(d) {
+      let n = 0;
+      const mapa = [
+        ['marca', d.marca], ['modelo', d.modelo], ['anio', d.anio],
+        ['superficie', d.superficie_ha], ['eficiencia', d.eficiencia_pct],
+        ['pivote-caudal', d.caudal_m3h], ['pivote-presion', d.presion_bar],
+        ['pivote-lamina100', d.lamina_100_mm], ['pivote-vuelta100', d.vuelta_100_h],
+        ['pivote-capacidad', d.capacidad_mm_dia], ['pivote-largo', d.largo_m],
+        ['pivote-torres', d.torres], ['pivote-angulo', d.angulo],
+        ['pivote-corner', d.corner], ['pivote-aspersores', d.aspersores],
+        ['pivote-altura', d.altura_aspersores], ['pivote-controlador', d.controlador],
+        ['pivote-vri', d.vri], ['pivote-fertirrigacion', d.fertirrigacion],
+        ['pivote-telemetria', d.telemetria], ['pivote-bomba-marca', d.bomba_marca],
+        ['pivote-bomba-potencia', d.bomba_potencia_hp], ['pivote-bomba-tipo', d.bomba_tipo]
+      ];
+      mapa.forEach(function (par) { if (ponerCampo(par[0], par[1])) n++; });
+      if (d.observaciones) {
+        const obs = document.getElementById('observaciones');
+        if (obs) obs.value = obs.value ? (obs.value + ' · ' + d.observaciones) : d.observaciones;
+      }
+      return n;
+    }
+
+    (function () {
+      const boton = document.getElementById('btnLeerFicha');
+      if (!boton) return;
+      boton.addEventListener('click', function () {
+        const input = document.getElementById('fichaArchivo');
+        const hint = document.getElementById('fichaHint');
+        const archivo = input.files && input.files[0];
+        if (!archivo) { alert('Elegí primero la foto o el PDF de la ficha técnica.'); return; }
+        if (!window.safiaSupabase) { alert('Sin conexión a internet.'); return; }
+
+        const esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
+        boton.disabled = true; boton.textContent = '✨ Leyendo…';
+        hint.textContent = 'Leyendo la ficha técnica con IA, esto tarda unos segundos…';
+
+        const prep = esPdf ? fichaABase64(archivo) : comprimirImagenFicha(archivo, 2000, 0.85);
+        prep.then(function (b64) {
+          return window.safiaSupabase.functions.invoke('safia-leer-ficha-equipo', {
+            body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64 }
+          });
+        }).then(function (r) {
+          if (r.error) throw r.error;
+          const d = r.data && r.data.datos;
+          if (!d) throw new Error('sin datos');
+          const n = volcarFicha(d);
+          hint.textContent = n
+            ? ('✓ ' + n + ' dato(s) cargados desde la ficha. Revisalos y corregí si hace falta antes de guardar.')
+            : 'La IA no encontró datos técnicos reconocibles en ese archivo. Cargalos a mano.';
+        }).catch(function (e) {
+          console.error(e);
+          hint.textContent = 'No se pudo leer la ficha automáticamente. Cargá los datos a mano.';
+        }).finally(function () {
+          boton.disabled = false; boton.textContent = '✨ Leer ficha';
+        });
+      });
+    })();
   </script>
   <script>
     /* SAFIA · control del menú móvil */
