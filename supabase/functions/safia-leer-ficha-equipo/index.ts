@@ -1,7 +1,7 @@
 // SAFIA · Edge Function: leer-ficha-equipo
-// Lee una foto o PDF de la ficha técnica de un equipo de riego (pivote,
-// goteo, cañón) y devuelve los datos técnicos en JSON para autocompletar
-// el formulario de Equipos.
+// Lee una foto o PDF de la ficha técnica / planilla de dimensionamiento de
+// un equipo de riego y devuelve los datos técnicos en JSON para
+// autocompletar el formulario de Equipos.
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -10,43 +10,50 @@ const CORS = {
 };
 
 const ESQUEMA = `{
-  "marca": "marca del equipo (Valley, Lindsay/Zimmatic, Reinke, Bauer, Irrigar, Fockink, Krebs, Otro) o null",
-  "modelo": "modelo tal cual figura (ej '8500', 'DLS') o null",
-  "anio": "año de fabricación como número entero o null",
-  "superficie_ha": "área irrigada en hectáreas como número o null",
-  "caudal_m3h": "caudal en m³/h como número; si viene en L/s multiplicá por 3.6; o null",
-  "presion_bar": "presión de trabajo en bar; si viene en mca/m dividí por 10.2; si viene en psi dividí por 14.5; o null",
-  "lamina_100_mm": "lámina de agua aplicada al 100% de velocidad, en mm, o null",
-  "vuelta_100_h": "tiempo de una vuelta completa al 100% de velocidad, en horas, o null",
-  "capacidad_mm_dia": "capacidad máxima diaria en mm/24h, o null",
-  "largo_m": "largo/radio del pivote en metros, o null",
-  "torres": "cantidad de torres como número entero, o null",
+  "marca": "marca del equipo. Usá EXACTAMENTE una de: 'Lindsay / Zimmatic', 'Valley', 'Reinke', 'Bauer', 'Irrigar', 'Fockink', 'Krebs', 'Otro'. o null",
+  "modelo": "modelo o configuración del equipo tal cual figura, o null",
+  "numero_serie": "número de serie, o si no hay, el número de propuesta/proposta (ej '2024-038 Pv2'), o null",
+  "anio": "año de fabricación o instalación como entero; si solo hay un nº de propuesta que empieza con el año (ej 2024-038), usá ese año; o null",
+  "superficie_ha": "área total irrigada en hectáreas ('área total irrigada', 'área circular irrigada'), o null",
+  "caudal_m3h": "caudal/vazão en m³/h; si viene en L/s multiplicá por 3.6; o null",
+  "presion_bar": "presión DE TRABAJO EN LA ENTRADA DEL PIVOTE ('Pressão na entrada do Pivô' / 'presión en el pivote'), en bar. Convertí: mca÷10.2, psi÷14.5. o null",
+  "lamina_100_mm": "lámina bruta aplicada en una vuelta al 100% de velocidad, en mm, o null",
+  "vuelta_100_h": "tiempo mínimo de una vuelta completa al 100% de velocidad, en horas, o null",
+  "capacidad_mm_dia": "capacidad máxima diaria en mm/día (mm/24h), o null",
+  "largo_m": "largo del EQUIPO: comprimento total do equipamento (CTE) o raio até a última torre (R.U.T.), en metros. NO incluyas el alcance del cañón final. o null",
+  "radio_efectivo_m": "raio efetivo da área irrigada (incluye el alcance del cañón final), en metros, o null",
+  "torres": "cantidad de TORRES de sustentación como entero, o null",
   "angulo": "ángulo de giro en grados (360 si es círculo completo), o null",
-  "corner": "'Sí' si tiene corner extensible, 'No' si no, o null",
-  "aspersores": "tipo de aspersores: Impacto, Rotator, Spray, LDN o Mixto; o null",
-  "altura_aspersores": "'Sobre dosel' o 'Bajo dosel (paddle)', o null",
-  "controlador": "controlador inteligente: FieldNET (Lindsay), AgSense (Valley), ICON (Valley), RPM Connect (Reinke), SmartTouch (Bauer), Otro, o 'No' si no tiene; o null",
-  "vri": "'Sí' o 'No' si tiene riego de tasa variable (VRI), o null",
-  "fertirrigacion": "'Sí' o 'No' si tiene fertirrigación/inyección, o null",
-  "telemetria": "'Sí' o 'No' si tiene telemetría o GPS, o null",
-  "bomba_marca": "marca de la bomba o null",
-  "bomba_potencia_hp": "potencia del motor en HP como número; si viene en kW multiplicá por 1.341; o null",
+  "corner": "'Sí' si tiene corner extensible, 'No' si dice que no tiene, null si no se menciona",
+  "aspersores": "tipo de emisores: Impacto, Rotator, Spray, LDN o Mixto. null si no se menciona explícitamente",
+  "altura_aspersores": "'Sobre dosel' o 'Bajo dosel (paddle)'. null si no se menciona explícitamente",
+  "controlador": "panel/controlador: 'FieldNET (Lindsay)', 'AgSense (Valley)', 'ICON (Valley)', 'RPM Connect (Reinke)', 'SmartTouch (Bauer)', 'Otro' si es otro panel (ej FieldVision, 712C), 'No' si dice que no tiene, null si no se menciona",
+  "vri": "'Sí' o 'No' si tiene riego de tasa variable (VRI). null si no se menciona",
+  "fertirrigacion": "'Sí' o 'No' si tiene fertirrigación/inyectora. null si no se menciona",
+  "telemetria": "'Sí' o 'No' si tiene telemetría/GPS/monitoreo remoto. null si no se menciona",
+  "bomba_marca": "marca de la bomba, o null",
+  "bomba_potencia_hp": "potencia del MOTOR en HP/cv; si viene en kW multiplicá por 1.341; o null",
   "bomba_tipo": "Centrífuga, Sumergible o Turbina vertical; o null",
-  "eficiencia_pct": "eficiencia de aplicación en %, o null",
-  "observaciones": "otros datos técnicos útiles en texto corto (nº de serie, tramos, diámetro de tubería, tensión, caudal por torre, etc.) o null"
+  "eficiencia_pct": "eficiencia de APLICACIÓN del sistema de riego en %. o null",
+  "observaciones": "resumen corto con el resto de los datos técnicos útiles: altura manométrica total, rendimiento de la bomba, modelo de bomba, motor (marca/rpm/polos/tensión), tubería adutora, transformadores, panel, cantidad de outlets, desnivel, velocidad de la última torre, alcance del cañón, distribuidor, etc. o null"
 }`;
 
-const SYSTEM = `Sos un técnico en riego que lee fichas técnicas, planillas de dimensionamiento y hojas de datos de equipos de riego (pivotes centrales, goteo, cañones), a veces en español, portugués o inglés.
+const SYSTEM = `Sos un ingeniero especialista en riego que lee fichas técnicas y planillas de dimensionamiento de equipos de riego (pivotes centrales, goteo, cañones). Muchas vienen en PORTUGUÉS (Brasil/Paraguay) o mezcla de portugués y español, con marcas Zimmatic, Valley, Reinke, Bauer, Fockink, Krebs, Irrigar.
 
 Devolvé SOLO un objeto JSON con EXACTAMENTE este esquema, sin texto alrededor, sin explicaciones, sin markdown:
 ${ESQUEMA}
 
-Reglas:
-- Los números pueden venir con coma decimal (ej "3,5"): devolvelos con punto (3.5).
-- CONVERTÍ unidades a las pedidas: caudal a m³/h (L/s × 3.6), presión a bar (mca ÷ 10.2, psi ÷ 14.5), potencia a HP (kW × 1.341).
-- Si un dato no está en la ficha, poné null. NUNCA inventes ni estimes valores.
-- Para los campos de Sí/No devolvé exactamente "Sí" o "No".
-- Para marca, modelo y controlador usá exactamente una de las opciones listadas cuando coincida; si es otra marca, poné "Otro".
+REGLAS CRÍTICAS (no te confundas con estos, son los errores más comunes):
+1. PRESIÓN: "presion_bar" es la presión EN LA ENTRADA DEL PIVOTE ("Pressão na entrada do Pivô"). NUNCA uses la "Altura Manométrica Total" (HMT), ni la presión/altura de la bomba, ni las pérdidas de carga. La HMT va en observaciones.
+2. EFICIENCIA: "eficiencia_pct" es la eficiencia de APLICACIÓN del sistema de riego. NUNCA uses el "rendimento"/eficiencia de la BOMBA ni del MOTOR (esos van en observaciones). Si la ficha no da la eficiencia de aplicación, poné null.
+3. LARGO: "largo_m" es el largo del equipo (CTE / comprimento total do equipamento, o R.U.T. = raio até a última torre). El "raio efetivo da área irrigada", que incluye el alcance del canhão final, va en "radio_efectivo_m", NO en largo_m.
+4. TORRES: usá el valor del campo "torres de sustentação" si figura. Si no, contá los tramos (vãos) que llegan hasta la última torre, SIN contar el balanço/voladizo: si la composición dice "1 vão inicial + 8 intermediários + 1 vão" son 10 torres. Verificá que torres × largo del tramo ≈ R.U.T. NO deduzcas la cantidad del número en el modelo (ej "PC 09"): no es confiable.
+5. NO INVENTES: si un dato NO figura explícitamente en el documento, poné null. Esto vale especialmente para aspersores, altura de aspersores, VRI, fertirrigación, telemetría y corner: si la ficha no los menciona, poné null, NO pongas "No".
+
+Otras reglas:
+- Números con coma decimal ("3,46") van con punto (3.46). Ignorá el separador de miles.
+- Convertí unidades: caudal a m³/h (L/s × 3.6), presión a bar (mca ÷ 10.2, psi ÷ 14.5), potencia a HP (kW × 1.341; cv ≈ HP, dejalo igual).
+- Glosario PT→ES: vazão=caudal, pressão=presión, lâmina=lámina, raio=radio, vão=tramo, balanço=voladizo, torres de sustentação=torres, altura manométrica=altura manométrica, rendimento=rendimiento, adutora=tubería de conducción, canhão final=cañón final, área irrigada=área regada, painel=panel.
 - Si el documento no es una ficha de equipo de riego, devolvé todos los campos en null.`;
 
 Deno.serve(async (req: Request) => {
@@ -84,12 +91,12 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        max_tokens: 2000,
         thinking: { type: 'disabled' },
         system: SYSTEM,
         messages: [{
           role: 'user',
-          content: [bloque, { type: 'text', text: 'Extraé los datos técnicos de este equipo de riego en el JSON pedido.' }],
+          content: [bloque, { type: 'text', text: 'Extraé los datos técnicos de este equipo de riego en el JSON pedido. Respetá las reglas críticas sobre presión, eficiencia, largo y torres.' }],
         }],
       }),
     });

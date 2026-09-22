@@ -1196,6 +1196,7 @@
       let n = 0;
       const mapa = [
         ['marca', d.marca], ['modelo', d.modelo], ['anio', d.anio],
+        ['numeroSerie', d.numero_serie],
         ['superficie', d.superficie_ha], ['eficiencia', d.eficiencia_pct],
         ['pivote-caudal', d.caudal_m3h], ['pivote-presion', d.presion_bar],
         ['pivote-lamina100', d.lamina_100_mm], ['pivote-vuelta100', d.vuelta_100_h],
@@ -1208,9 +1209,14 @@
         ['pivote-bomba-potencia', d.bomba_potencia_hp], ['pivote-bomba-tipo', d.bomba_tipo]
       ];
       mapa.forEach(function (par) { if (ponerCampo(par[0], par[1])) n++; });
-      if (d.observaciones) {
+      // Datos que no tienen casillero propio van a observaciones.
+      const extra = [];
+      if (d.radio_efectivo_m) extra.push('Radio efectivo regado (con cañón final): ' + d.radio_efectivo_m + ' m');
+      if (d.observaciones) extra.push(d.observaciones);
+      if (extra.length) {
         const obs = document.getElementById('observaciones');
-        if (obs) obs.value = obs.value ? (obs.value + ' · ' + d.observaciones) : d.observaciones;
+        const txt = extra.join(' · ');
+        if (obs) obs.value = obs.value ? (obs.value + ' · ' + txt) : txt;
       }
       return n;
     }
