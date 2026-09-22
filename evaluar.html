@@ -421,7 +421,7 @@
   });
 
   /* ---------- arranque ---------- */
-  SafiaCasos.conectarListasUbicacion(document.getElementById('pDepto'), document.getElementById('pLocalidad'));
+  SafiaCasos.conectarListasUbicacion(document.getElementById('pDepto'), document.getElementById('pLocalidad'), document.getElementById('pPais'));
   recargarCasos();
   var cultivos={}; casos.forEach(function(c){ if(c.cultivo)cultivos[c.cultivo]=1; }); ['Soja','Maíz','Trigo'].forEach(function(x){cultivos[x]=1;});
   var lc=Object.keys(cultivos).sort();

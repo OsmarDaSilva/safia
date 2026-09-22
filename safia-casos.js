@@ -287,69 +287,109 @@
      Junta los departamentos y localidades de la base de referencia
      (safia_ref_produccion) con los de los campos ya cargados.
      Devuelve Promise<{ departamentos: [..], localidades: [{localidad, departamento}] }> */
-  var _cacheUbic = null;
-  function listasUbicacion() {
-    if (_cacheUbic) return Promise.resolve(_cacheUbic);
-    var pares = {};          // clave normalizada "dep|loc" -> {localidad, departamento}
+  /* Listas oficiales de departamentos/provincias/estados por país. */
+  var DIVISIONES_PAIS = {
+    'Paraguay': ['Alto Paraguay', 'Alto Paraná', 'Amambay', 'Asunción', 'Boquerón', 'Caaguazú', 'Caazapá', 'Canindeyú',
+      'Central', 'Concepción', 'Cordillera', 'Guairá', 'Itapúa', 'Misiones', 'Ñeembucú', 'Paraguarí', 'Presidente Hayes', 'San Pedro'],
+    'Brasil': ['Acre', 'Alagoas', 'Amapá', 'Amazonas', 'Bahia', 'Ceará', 'Distrito Federal', 'Espírito Santo', 'Goiás', 'Maranhão',
+      'Mato Grosso', 'Mato Grosso do Sul', 'Minas Gerais', 'Pará', 'Paraíba', 'Paraná', 'Pernambuco', 'Piauí', 'Rio de Janeiro',
+      'Rio Grande do Norte', 'Rio Grande do Sul', 'Rondônia', 'Roraima', 'Santa Catarina', 'São Paulo', 'Sergipe', 'Tocantins'],
+    'Argentina': ['Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Ciudad de Buenos Aires', 'Córdoba', 'Corrientes', 'Entre Ríos',
+      'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan', 'San Luis',
+      'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego', 'Tucumán'],
+    'Bolivia': ['Beni', 'Chuquisaca', 'Cochabamba', 'La Paz', 'Oruro', 'Pando', 'Potosí', 'Santa Cruz', 'Tarija'],
+    'Uruguay': ['Artigas', 'Canelones', 'Cerro Largo', 'Colonia', 'Durazno', 'Flores', 'Florida', 'Lavalleja', 'Maldonado',
+      'Montevideo', 'Paysandú', 'Río Negro', 'Rivera', 'Rocha', 'Salto', 'San José', 'Soriano', 'Tacuarembó', 'Treinta y Tres']
+  };
+  // Nombres mal escritos en la base de referencia → nombre oficial
+  var ALIAS_DEPTO = { 'coordillera': 'Cordillera', 'nuembucu': 'Ñeembucú', 'neembucu': 'Ñeembucú', 'parana': 'Paraná' };
+
+  var _cacheUbic = {};
+  function listasUbicacion(pais) {
+    pais = String(pais || 'Paraguay').trim();
+    if (_cacheUbic[pais]) return Promise.resolve(_cacheUbic[pais]);
+
+    var oficiales = DIVISIONES_PAIS[pais] || [];
     var deps = {};           // clave normalizada -> nombre para mostrar
-    function agregar(loc, dep) {
-      loc = String(loc || '').trim(); dep = String(dep || '').trim();
-      if (dep) { var kd = norm(dep); if (!deps[kd] || /[áéíóúñ]/i.test(dep)) deps[kd] = dep; }
-      if (loc) {
-        var k = norm(dep) + '|' + norm(loc);
-        // preferimos la versión con acentos (la que cargó el usuario) si existe
-        if (!pares[k] || /[áéíóúñ]/i.test(loc)) pares[k] = { localidad: loc, departamento: dep };
-      }
+    oficiales.forEach(function (d) { deps[norm(d)] = d; });
+
+    function nombreDepto(dep) {
+      dep = String(dep || '').trim();
+      if (!dep) return '';
+      var k = norm(dep);
+      if (ALIAS_DEPTO[k]) k = norm(ALIAS_DEPTO[k]);
+      if (deps[k]) return deps[k];                 // ya existe (oficial o cargado): usamos ese nombre
+      var bonito = ALIAS_DEPTO[norm(dep)] || dep;
+      deps[k] = bonito;
+      return bonito;
     }
-    leer('campos').forEach(function (c) { agregar(c.localidad, c.departamento); });
+
+    var pares = {};          // "dep|loc" normalizado -> {localidad, departamento}
+    function agregar(loc, dep) {
+      loc = String(loc || '').trim();
+      var d = nombreDepto(dep);
+      if (!loc) return;
+      var k = norm(d) + '|' + norm(loc);
+      if (!pares[k] || /[áéíóúñ]/i.test(loc)) pares[k] = { localidad: loc, departamento: d };
+    }
+
+    leer('campos').forEach(function (c) {
+      if (norm(c.pais || 'Paraguay') === norm(pais)) agregar(c.localidad, c.departamento);
+    });
 
     var pedido = window.safiaSupabase
-      ? window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento')
-          .then(function (r) { (r.data || []).forEach(function (x) { agregar(x.localidad, x.departamento); }); })
-          .catch(function () {})
+      ? window.safiaSupabase.from('safia_ref_produccion').select('pais,localidad,departamento')
+          .then(function (r) {
+            (r.data || []).forEach(function (x) { if (norm(x.pais || 'Paraguay') === norm(pais)) agregar(x.localidad, x.departamento); });
+          }).catch(function () {})
       : Promise.resolve();
 
     return pedido.then(function () {
       var localidades = Object.keys(pares).map(function (k) { return pares[k]; })
         .sort(function (a, b) { return a.localidad.localeCompare(b.localidad); });
-      // corregir el nombre del departamento de cada localidad por la versión "bonita"
-      localidades.forEach(function (l) { var kd = norm(l.departamento); if (deps[kd]) l.departamento = deps[kd]; });
-      _cacheUbic = {
+      _cacheUbic[pais] = {
         departamentos: Object.keys(deps).map(function (k) { return deps[k]; }).sort(function (a, b) { return a.localeCompare(b); }),
         localidades: localidades
       };
-      return _cacheUbic;
+      return _cacheUbic[pais];
     });
   }
 
-  /* Conecta dos inputs (departamento y localidad) a listas para elegir.
-     Al elegir una localidad conocida, completa su departamento. */
-  function conectarListasUbicacion(inputDepto, inputLocalidad) {
-    return listasUbicacion().then(function (u) {
-      var dlD = document.createElement('datalist'); dlD.id = inputDepto.id + '_lista';
-      var dlL = document.createElement('datalist'); dlL.id = inputLocalidad.id + '_lista';
-      document.body.appendChild(dlD); document.body.appendChild(dlL);
-      inputDepto.setAttribute('list', dlD.id); inputLocalidad.setAttribute('list', dlL.id);
-      inputDepto.setAttribute('autocomplete', 'off'); inputLocalidad.setAttribute('autocomplete', 'off');
+  /* Conecta los inputs de departamento y localidad a listas para elegir,
+     según el país (input/select opcional). Al elegir una localidad
+     conocida, completa su departamento. Si cambia el país, se rearman. */
+  function conectarListasUbicacion(inputDepto, inputLocalidad, inputPais) {
+    var dlD = document.createElement('datalist'); dlD.id = inputDepto.id + '_lista';
+    var dlL = document.createElement('datalist'); dlL.id = inputLocalidad.id + '_lista';
+    document.body.appendChild(dlD); document.body.appendChild(dlL);
+    inputDepto.setAttribute('list', dlD.id); inputLocalidad.setAttribute('list', dlL.id);
+    inputDepto.setAttribute('autocomplete', 'off'); inputLocalidad.setAttribute('autocomplete', 'off');
 
+    var u = { departamentos: [], localidades: [] };
+
+    function pintarDeptos() {
       dlD.innerHTML = u.departamentos.map(function (d) { return '<option value="' + d.replace(/"/g, '&quot;') + '">'; }).join('');
+    }
+    function pintarLocalidades() {
+      var d = norm(inputDepto.value);
+      var lista = d ? u.localidades.filter(function (l) { return norm(l.departamento) === d; }) : u.localidades;
+      if (!lista.length) lista = u.localidades;
+      dlL.innerHTML = lista.map(function (l) {
+        return '<option value="' + l.localidad.replace(/"/g, '&quot;') + '">' + (d ? '' : l.departamento) + '</option>';
+      }).join('');
+    }
+    function cargar() {
+      var pais = inputPais ? (inputPais.value || 'Paraguay') : 'Paraguay';
+      return listasUbicacion(pais).then(function (r) { u = r; pintarDeptos(); pintarLocalidades(); return r; });
+    }
 
-      function pintarLocalidades() {
-        var d = norm(inputDepto.value);
-        var lista = d ? u.localidades.filter(function (l) { return norm(l.departamento) === d; }) : u.localidades;
-        if (!lista.length) lista = u.localidades;
-        dlL.innerHTML = lista.map(function (l) {
-          return '<option value="' + l.localidad.replace(/"/g, '&quot;') + '">' + (d ? '' : l.departamento) + '</option>';
-        }).join('');
-      }
-      pintarLocalidades();
-      inputDepto.addEventListener('input', pintarLocalidades);
-      inputLocalidad.addEventListener('change', function () {
-        var l = u.localidades.find(function (x) { return norm(x.localidad) === norm(inputLocalidad.value); });
-        if (l && l.departamento && !inputDepto.value.trim()) { inputDepto.value = l.departamento; pintarLocalidades(); }
-      });
-      return u;
+    inputDepto.addEventListener('input', pintarLocalidades);
+    inputLocalidad.addEventListener('change', function () {
+      var l = u.localidades.find(function (x) { return norm(x.localidad) === norm(inputLocalidad.value); });
+      if (l && l.departamento && !inputDepto.value.trim()) { inputDepto.value = l.departamento; pintarLocalidades(); }
     });
+    if (inputPais) inputPais.addEventListener('change', cargar);
+    return cargar();
   }
 
   window.SafiaCasos = {
