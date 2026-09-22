@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Evaluar proyecto</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+    .tabs button{font-family:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:100px;border:1px solid var(--bd);background:#fff;color:var(--label);cursor:pointer;}
+    .tabs button.on{background:var(--green);border-color:var(--green);color:#fff;}
+    .panel{display:none;} .panel.on{display:block;}
+    .senal-bajo{color:var(--red);font-weight:700;} .senal-alto{color:var(--blue);font-weight:700;} .senal-igual{color:var(--green-d);font-weight:700;}
+    .potencial{font-size:38px;font-weight:800;color:var(--green-d);line-height:1;}
+    .rango{font-size:13px;color:var(--label);margin-top:6px;}
+    .sim{display:inline-block;min-width:44px;text-align:center;padding:3px 8px;border-radius:100px;font-weight:700;font-size:12px;}
+    .sim.alta{background:var(--green-t);color:var(--green-d);} .sim.media{background:var(--amber-t);color:var(--amber);} .sim.baja{background:#EEF0F2;color:var(--label);}
+    .btn.mini{padding:5px 10px;font-size:11.5px;}
+    table.tbl td.num-c{font-variant-numeric:tabular-nums;text-align:right;}
+    @media print{
+      .side,.side-overlay,.menu-toggle,.tabs,.toolbar,.no-print,#safiaSyncBarra,.crumb{display:none !important;}
+      .app{display:block;} .main{padding:0;}
+      .panel{display:none !important;} .panel.on{display:block !important;}
+      table.tbl thead th{background:#eee !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    }
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+<script src="safia-casos.js"></script>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
+  <div class="app">
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="analisis.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6l-4.5 8A2 2 0 0 0 7.3 20h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg>Análisis y Docs</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Base de Referencia</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+        <a href="evaluar.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Evaluar proyecto</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>Respaldo</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Inteligencia · <b>Evaluar proyecto</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Evaluar proyecto</h2>
+          <div class="sub">Cargá el suelo y la ubicación de un proyecto y SAFIA lo compara con los casos reales que más se le parecen</div>
+        </div>
+      </div>
+
+      <div class="tabs no-print">
+        <button class="on" data-tab="evaluar">Evaluar un proyecto</button>
+        <button data-tab="casos">Banco de casos</button>
+      </div>
+
+      <!-- ================= EVALUAR ================= -->
+      <section class="panel on" id="panel-evaluar">
+        <div class="note info no-print" id="notaCasos"></div>
+
+        <div class="formcard">
+          <h3>1 · Ubicación del proyecto</h3>
+          <div class="formsub">Con la localidad alcanza para empezar; el punto exacto del lote lo pegás de Google Maps si lo tenés.</div>
+          <div class="form-grid">
+            <div class="field"><label>Localidad</label><input id="pLocalidad" placeholder="Ej: Katueté"></div>
+            <div class="field"><label>Departamento</label><input id="pDepto" placeholder="Ej: Canindeyú"></div>
+            <div class="field"><label>País</label><select id="pPais"><option>Paraguay</option><option>Brasil</option><option>Argentina</option><option>Bolivia</option><option>Uruguay</option></select></div>
+            <div class="field" style="justify-content:flex-end;"><button class="btn" id="btnGeo">📍 Buscar por localidad</button></div>
+            <div class="field full"><label>O pegar coordenadas de Google Maps</label><input id="pGps" placeholder="Ej: -24.2483, -54.7596"><span class="hint" id="geoHint"></span></div>
+            <div class="field"><label>Latitud</label><input type="number" id="pLat" step="any"></div>
+            <div class="field"><label>Longitud</label><input type="number" id="pLon" step="any"></div>
+            <div class="field"><label>Altitud (msnm)</label><input type="number" id="pAlt" step="1"><span class="hint" id="altHint">Se completa sola con las coordenadas</span></div>
+          </div>
+        </div>
+
+        <div class="formcard">
+          <h3>2 · Cultivo y objetivo</h3>
+          <div class="form-grid">
+            <div class="field"><label>Cultivo</label><input list="listaCultivos" id="pCultivo" placeholder="Soja, Maíz…"><datalist id="listaCultivos"></datalist></div>
+            <div class="field"><label>Época de siembra</label>
+              <select id="pEpoca"><option value="">Cualquiera</option><option>Primavera/Verano</option><option>Verano/Otoño</option><option>Otoño/Invierno</option></select></div>
+            <div class="field"><label>Rinde objetivo (kg/ha) <span class="hint">opcional</span></label><input type="number" id="pObjetivo" placeholder="Ej: 5000"></div>
+          </div>
+        </div>
+
+        <div class="formcard">
+          <h3>3 · Análisis de suelo del proyecto</h3>
+          <div class="formsub">Subí la foto o el PDF del laboratorio y la IA completa los valores, o cargalos a mano.</div>
+          <div class="form-grid">
+            <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;">
+              <input type="file" id="pArchivo" accept=".pdf,image/*" style="max-width:260px;">
+              <button class="btn green" id="btnLeerIA">✨ Leer análisis con IA</button>
+              <span class="hint" id="iaHint"></span>
+            </div>
+            <div class="field"><label>pH</label><input type="number" id="s_ph" step="0.1"></div>
+            <div class="field"><label>Materia orgánica (%)</label><input type="number" id="s_mo" step="0.01"></div>
+            <div class="field"><label>Fósforo P (ppm)</label><input type="number" id="s_p" step="0.1"></div>
+            <div class="field"><label>Potasio K (cmolc/dm³)</label><input type="number" id="s_k" step="0.01"></div>
+            <div class="field"><label>Calcio Ca (cmolc/dm³)</label><input type="number" id="s_ca" step="0.01"></div>
+            <div class="field"><label>Magnesio Mg (cmolc/dm³)</label><input type="number" id="s_mg" step="0.01"></div>
+            <div class="field"><label>CIC (cmolc/dm³)</label><input type="number" id="s_cic" step="0.01"></div>
+            <div class="field"><label>Saturación de bases (%)</label><input type="number" id="s_satBases" step="0.1"></div>
+            <div class="field"><label>Arena (%)</label><input type="number" id="s_arena" step="0.1"></div>
+            <div class="field"><label>Limo (%)</label><input type="number" id="s_limo" step="0.1"></div>
+            <div class="field"><label>Arcilla (%)</label><input type="number" id="s_arcilla" step="0.1"></div>
+          </div>
+          <div class="form-actions">
+            <span style="flex:1"></span>
+            <button class="btn green lg" id="btnEvaluar">🔎 Evaluar proyecto</button>
+          </div>
+        </div>
+
+        <!-- Resultados -->
+        <div id="resultados" style="display:none;">
+          <div class="grid cols-2">
+            <div class="card">
+              <div class="kpi-l">Potencial estimado (kg/ha)</div>
+              <div class="potencial" id="rPotencial">—</div>
+              <div class="rango" id="rRango"></div>
+              <div class="kpi-sub" id="rNota" style="margin-top:8px;"></div>
+            </div>
+            <div class="card">
+              <div class="kpi-l">Referencia regional (con riego / secano)</div>
+              <div id="rRegional" style="margin-top:6px;">—</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-h"><h3>Casos reales más parecidos</h3><span class="muted" id="rCasosSub"></span></div>
+            <div class="tablescroll">
+              <table class="tbl">
+                <thead><tr><th>Similitud</th><th>Cliente · campo</th><th class="r">Distancia</th><th class="r">Altitud</th><th>Campaña</th><th class="r">Rinde kg/ha</th><th class="r">Agua mm</th><th class="r">Temp. media</th></tr></thead>
+                <tbody id="rCasos"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:14px;">
+            <div class="card-h"><h3>Tu suelo vs el de los que más rinden</h3><span class="muted" id="rSueloSub"></span></div>
+            <div class="tablescroll">
+              <table class="tbl">
+                <thead><tr><th>Parámetro</th><th class="r">Tu suelo</th><th class="r">Los que más rinden</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead>
+                <tbody id="rSuelo"></tbody>
+              </table>
+            </div>
+            <div class="note warn" style="margin-top:12px;margin-bottom:0;">
+              SAFIA <b>compara</b> tu suelo con el de los casos reales que más rinden. Cuánto encalar o fertilizar lo define el agrónomo: esto es la señal, no la receta.
+            </div>
+          </div>
+          <div class="no-print" style="display:flex;gap:8px;"><button class="btn" onclick="window.print()">🖨️ Imprimir evaluación</button></div>
+        </div>
+      </section>
+
+      <!-- ================= BANCO DE CASOS ================= -->
+      <section class="panel" id="panel-casos">
+        <div class="toolbar no-print">
+          <div class="filter"><span class="fl">Cultivo</span><select id="fCasoCultivo"><option value="">Todos</option></select></div>
+          <div class="spacer" style="flex:1"></div>
+          <button class="btn" id="btnClimaFaltante">☀️ Completar clima faltante</button>
+          <button class="btn" id="btnCsv">⬇ Exportar CSV</button>
+          <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
+        </div>
+        <div class="note info" id="notaBanco"></div>
+        <div class="tablewrap">
+          <div class="tablescroll">
+            <table class="tbl" id="tablaCasos"></table>
+          </div>
+          <div class="tfoot"><span id="pieCasos"></span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  function esc(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function fmt(n,d){ if(n===null||n===undefined||isNaN(n))return '—'; return Number(n).toLocaleString('es-PY',{maximumFractionDigits:d===undefined?1:d}); }
+  function num(v){ var n=parseFloat(String(v==null?'':v).replace(',','.')); return isNaN(n)?null:n; }
+  function fmtFecha(f){ if(!f)return '—'; var p=String(f).slice(0,10).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:f; }
+  function toast(m,err){var t=document.getElementById('toast');t.textContent=m;t.className='toast visible '+(err?'error':'ok');setTimeout(function(){t.className='toast';},3500);}
+  function norm(t){return String(t==null?'':t).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();}
+
+  var side=document.getElementById('sideNav'),overlay=document.getElementById('sideOverlay');
+  document.getElementById('menuToggle').addEventListener('click',function(){side.classList.toggle('abierto');overlay.classList.toggle('visible');document.body.classList.toggle('menu-abierto');});
+  overlay.addEventListener('click',function(){side.classList.remove('abierto');overlay.classList.remove('visible');document.body.classList.remove('menu-abierto');});
+  document.querySelectorAll('.tabs button').forEach(function(b){ b.addEventListener('click',function(){
+    document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on');});
+    document.querySelectorAll('.panel').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on'); document.getElementById('panel-'+b.dataset.tab).classList.add('on');
+  });});
+
+  var casos = [];
+  function recargarCasos(){ casos = SafiaCasos.armarCasos(); }
+
+  /* ---------- ubicación ---------- */
+  var COD_PAIS={Paraguay:'PY',Brasil:'BR',Argentina:'AR',Bolivia:'BO',Uruguay:'UY'};
+  function autocompletarAltitud(lat,lon){
+    var alt=document.getElementById('pAlt'), hint=document.getElementById('altHint');
+    hint.textContent='Buscando altitud…';
+    fetch('https://api.open-meteo.com/v1/elevation?latitude='+lat+'&longitude='+lon).then(function(r){return r.json();}).then(function(j){
+      var m=j&&j.elevation&&j.elevation[0]; if(m!=null){ alt.value=Math.round(m); hint.textContent='✓ Altitud obtenida de las coordenadas'; } else hint.textContent='';
+    }).catch(function(){ hint.textContent='No se pudo obtener la altitud'; });
+  }
+  function ponerCoordenadas(lat,lon){
+    document.getElementById('pLat').value=lat; document.getElementById('pLon').value=lon;
+    document.getElementById('pGps').value=lat+', '+lon;
+    autocompletarAltitud(lat,lon);
+  }
+  document.getElementById('pGps').addEventListener('input',function(){
+    var partes=this.value.replace(/[°NSEWnsew]/g,'').replace(/\s+/g,'').split(',');
+    if(partes.length===2){ var la=parseFloat(partes[0]),lo=parseFloat(partes[1]); if(!isNaN(la)&&!isNaN(lo)) ponerCoordenadas(la,lo); }
+  });
+  document.getElementById('btnGeo').addEventListener('click',function(){
+    var loc=document.getElementById('pLocalidad').value.trim(), dep=document.getElementById('pDepto').value.trim(), pais=document.getElementById('pPais').value;
+    var hint=document.getElementById('geoHint');
+    if(!loc){ toast('Cargá la localidad',true); return; }
+    hint.textContent='Buscando…';
+    var url='https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(loc)+'&count=10&language=es'+(COD_PAIS[pais]?'&countryCode='+COD_PAIS[pais]:'');
+    fetch(url).then(function(r){return r.json();}).then(function(j){
+      var res=j.results||[];
+      if(dep){ var d=norm(dep); var c=res.filter(function(x){return norm(x.admin1).indexOf(d)!==-1||d.indexOf(norm(x.admin1))!==-1;}); if(c.length)res=c; }
+      if(!res.length){ hint.textContent='No se encontró esa localidad. Pegá el punto de Google Maps.'; return; }
+      var x=res[0]; ponerCoordenadas(x.latitude,x.longitude);
+      if(!dep && x.admin1) document.getElementById('pDepto').value=x.admin1;
+      hint.textContent='✓ '+x.name+(x.admin1?' — '+x.admin1:'')+' (aprox. del pueblo; ajustá con Google Maps si tenés el lote)';
+    }).catch(function(){ hint.textContent='No se pudo buscar.'; });
+  });
+
+  /* ---------- suelo con IA ---------- */
+  function comprimirImagen(archivo,maxLado,calidad){ return new Promise(function(res,rej){ var img=new Image(),url=URL.createObjectURL(archivo);
+    img.onload=function(){ var e=Math.min(1,maxLado/Math.max(img.width,img.height)); var c=document.createElement('canvas'); c.width=Math.round(img.width*e); c.height=Math.round(img.height*e); c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',calidad).split(',')[1]); };
+    img.onerror=function(){URL.revokeObjectURL(url);rej(new Error('imagen'));}; img.src=url; }); }
+  function aBase64(a){ return new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(String(fr.result).split(',')[1]);}; fr.onerror=rej; fr.readAsDataURL(a); }); }
+  document.getElementById('btnLeerIA').addEventListener('click',function(){
+    var f=document.getElementById('pArchivo').files[0], hint=document.getElementById('iaHint'), b=this;
+    if(!f){ toast('Elegí la foto o PDF del análisis',true); return; }
+    if(!window.safiaSupabase){ toast('Sin conexión',true); return; }
+    var esPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
+    b.disabled=true; b.textContent='✨ Leyendo…'; hint.textContent='Leyendo con IA…';
+    (esPdf?aBase64(f):comprimirImagen(f,2000,0.85)).then(function(b64){
+      return window.safiaSupabase.functions.invoke('safia-leer-analisis',{body:{mime:esPdf?'application/pdf':'image/jpeg',data_base64:b64}});
+    }).then(function(r){
+      if(r.error) throw r.error; var d=r.data&&r.data.datos; if(!d) throw new Error('sin datos');
+      var mapa={ph:'ph',mo:'materia_organica',p:'fosforo',k:'potasio',ca:'calcio',mg:'magnesio',cic:'cic',satBases:'saturacion_bases',arena:'arena',limo:'limo',arcilla:'arcilla'};
+      var n=0; Object.keys(mapa).forEach(function(k){ var v=d[mapa[k]]; if(v!==null&&v!==undefined&&v!==''){ document.getElementById('s_'+k).value=v; n++; } });
+      hint.textContent='✓ '+n+' valores cargados. Revisalos.';
+    }).catch(function(){ hint.textContent='No se pudo leer. Cargá los valores a mano.'; })
+    .finally(function(){ b.disabled=false; b.textContent='✨ Leer análisis con IA'; });
+  });
+
+  /* ---------- referencia regional ---------- */
+  function referenciaRegional(localidad,depto,cultivo,epoca){
+    var cont=document.getElementById('rRegional');
+    if(!window.safiaSupabase){ cont.textContent='Sin conexión'; return; }
+    window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha').then(function(r){
+      if(r.error||!r.data){ cont.textContent='—'; return; }
+      var filas=r.data.filter(function(x){ return norm(x.cultivo)===norm(cultivo) && /grano/i.test(x.finalidad||''); });
+      var ambito='';
+      var porLoc=localidad?filas.filter(function(x){return norm(x.localidad)===norm(localidad);}):[];
+      if(porLoc.length){ filas=porLoc; ambito=localidad; }
+      else { var porDep=depto?filas.filter(function(x){return norm(x.departamento)===norm(depto);}):[]; if(porDep.length){ filas=porDep; ambito=depto+' (promedio del departamento)'; } else { cont.innerHTML='<span class="muted">Sin datos regionales para esta zona y cultivo.</span>'; return; } }
+      if(epoca){ var pe=filas.filter(function(x){return norm(x.epoca_siembra)===norm(epoca);}); if(pe.length) filas=pe; }
+      function prom(l){ var v=l.map(function(x){return Number(x.prod_ton_ha);}).filter(function(n){return !isNaN(n);}); return v.length?v.reduce(function(a,b){return a+b;},0)/v.length:null; }
+      var pr=prom(filas.filter(function(x){return x.riego;})), ps=prom(filas.filter(function(x){return !x.riego;}));
+      cont.innerHTML='<div style="display:flex;gap:22px;flex-wrap:wrap;">'+
+        '<div><div class="kpi-v green" style="font-size:26px;">'+(pr==null?'—':fmt(pr*1000,0))+'</div><div class="kpi-sub">kg/ha con riego</div></div>'+
+        '<div><div class="kpi-v amber" style="font-size:26px;">'+(ps==null?'—':fmt(ps*1000,0))+'</div><div class="kpi-sub">kg/ha secano</div></div>'+
+        '</div><div class="kpi-sub" style="margin-top:8px;">'+esc(ambito)+' · '+esc(cultivo)+' · grano · '+filas.length+' registros de referencia</div>';
+    });
+  }
+
+  /* ---------- evaluar ---------- */
+  document.getElementById('btnEvaluar').addEventListener('click',function(){
+    recargarCasos();
+    var suelo={}; var hayS=false;
+    ['ph','mo','p','k','ca','mg','cic','satBases','arena','limo','arcilla'].forEach(function(k){ var v=num(document.getElementById('s_'+k).value); suelo[k]=v; if(v!=null)hayS=true; });
+    var prospecto={
+      lat:num(document.getElementById('pLat').value), lon:num(document.getElementById('pLon').value),
+      altitud:num(document.getElementById('pAlt').value),
+      cultivo:document.getElementById('pCultivo').value.trim(),
+      epoca:document.getElementById('pEpoca').value||null,
+      objetivoKgHa:num(document.getElementById('pObjetivo').value),
+      suelo:hayS?suelo:null
+    };
+    if(!prospecto.cultivo){ toast('Cargá el cultivo a evaluar',true); return; }
+    if(prospecto.lat==null && !prospecto.suelo){ toast('Cargá al menos la ubicación o el análisis de suelo',true); return; }
+
+    var r=SafiaCasos.evaluar(prospecto,casos,{maxCasos:5,radioKm:300});
+    document.getElementById('resultados').style.display='';
+
+    // Potencial
+    var pot=document.getElementById('rPotencial'), rango=document.getElementById('rRango'), nota=document.getElementById('rNota');
+    if(r.potencial){
+      pot.textContent=fmt(r.potencial.estimado,0);
+      rango.textContent='Entre '+fmt(r.potencial.min,0)+' y '+fmt(r.potencial.max,0)+' kg/ha en los casos parecidos';
+      nota.textContent= r.potencial.nCasos<3
+        ? '⚠️ Basado en solo '+r.potencial.nCasos+' caso(s): es una orientación, no una predicción. Cada cliente que cargues la mejora.'
+        : 'Promedio ponderado por similitud de '+r.potencial.nCasos+' casos reales.';
+    } else { pot.textContent='—'; rango.textContent=''; nota.textContent='Todavía no hay casos cosechados de '+prospecto.cultivo+' en el banco.'; }
+
+    referenciaRegional(document.getElementById('pLocalidad').value.trim(), document.getElementById('pDepto').value.trim(), prospecto.cultivo, prospecto.epoca);
+
+    // Casos similares
+    document.getElementById('rCasosSub').textContent=r.totalCandidatos+' caso(s) de '+prospecto.cultivo+' en el banco';
+    document.getElementById('rCasos').innerHTML = r.similares.length ? r.similares.map(function(t){
+      var c=t.caso; var cl=t.similitud>=70?'alta':(t.similitud>=45?'media':'baja');
+      return '<tr>'+
+        '<td><span class="sim '+cl+'">'+t.similitud+'%</span>'+(t.similitudSuelo!=null?'<div class="sub">suelo '+t.similitudSuelo+'% ('+t.paramsComparados+' par.)</div>':'<div class="sub">sin suelo</div>')+'</td>'+
+        '<td><span class="fecha">'+esc(c.cliente)+'</span><div class="sub">'+esc(c.campo)+(c.localidad?' · '+esc(c.localidad):'')+'</div></td>'+
+        '<td class="r">'+(t.distanciaKm==null?'—':fmt(t.distanciaKm,0)+' km')+'</td>'+
+        '<td class="r">'+(c.altitud==null?'—':fmt(c.altitud,0)+' m')+'</td>'+
+        '<td>'+esc(c.campana)+'<div class="sub">'+esc(c.cultivo)+(c.variedad?' '+esc(c.variedad):'')+(c.epoca?' · '+esc(c.epoca):'')+'</div></td>'+
+        '<td class="r"><span class="num">'+fmt(c.rindeKgHa,0)+'</span></td>'+
+        '<td class="r">'+(c.aguaTotalMM==null?'—':fmt(c.aguaTotalMM,0))+(c.lluviaMM!=null||c.riegoMM!=null?'<div class="sub">🌧 '+fmt(c.lluviaMM||0,0)+' · 💧 '+fmt(c.riegoMM||0,0)+'</div>':'')+'</td>'+
+        '<td class="r">'+(c.clima?fmt(c.clima.tempMedia)+'°<div class="sub">'+c.clima.gradosDia+' GD · ET₀ '+c.clima.et0Total+'</div>':'—')+'</td>'+
+      '</tr>';
+    }).join('') : '<tr><td colspan="8" class="muted">No hay casos comparables todavía.</td></tr>';
+
+    // Suelo
+    var ref=r.referenciaSuelo;
+    document.getElementById('rSueloSub').textContent = ref.length ? 'referencia: '+ref.map(function(c){return c.cliente+' ('+fmt(c.rindeKgHa,0)+' kg/ha)';}).join(', ') : 'sin casos con análisis de suelo';
+    document.getElementById('rSuelo').innerHTML = r.comparacionSuelo.map(function(x){
+      var p=x.param; var lect='—', cl='';
+      if(x.senal==='bajo'){ lect='🔻 Por debajo de los que más rinden'; cl='senal-bajo'; }
+      else if(x.senal==='alto'){ lect='🔺 Por encima'; cl='senal-alto'; }
+      else if(x.senal==='igual'){ lect='✔ Similar'; cl='senal-igual'; }
+      else if(x.mio==null && x.referencia!=null) lect='<span class="muted">sin dato tuyo</span>';
+      else if(x.mio!=null && x.referencia==null) lect='<span class="muted">sin referencia</span>';
+      return '<tr><td>'+esc(p.n)+(p.unidad?' <span class="sub">'+p.unidad+'</span>':'')+'</td>'+
+        '<td class="r"><span class="num">'+fmt(x.mio,p.dec)+'</span></td>'+
+        '<td class="r">'+fmt(x.referencia,p.dec)+(x.nRef?'<div class="sub">'+x.nRef+' caso(s)</div>':'')+'</td>'+
+        '<td class="r">'+(x.diferencia==null?'—':(x.diferencia>0?'+':'')+fmt(x.diferencia,p.dec))+'</td>'+
+        '<td class="'+cl+'">'+lect+'</td></tr>';
+    }).join('');
+
+    document.getElementById('resultados').scrollIntoView({behavior:'smooth'});
+  });
+
+  /* ---------- banco de casos ---------- */
+  var COLS=[
+    ['Cliente',function(c){return c.cliente;}],['Campo',function(c){return c.campo;}],['Localidad',function(c){return c.localidad;}],
+    ['Alt. m',function(c){return c.altitud;}],['Campaña',function(c){return c.campana;}],['Cultivo',function(c){return c.cultivo;}],
+    ['Variedad',function(c){return c.variedad;}],['Época',function(c){return c.epoca;}],['Siembra',function(c){return fmtFecha(c.siembra);}],
+    ['Cosecha',function(c){return fmtFecha(c.cosecha);}],['Días',function(c){return c.dias;}],['Rinde kg/ha',function(c){return c.rindeKgHa;}],
+    ['Lluvia mm',function(c){return c.lluviaMM;}],['Riego mm',function(c){return c.riegoMM;}],['Agua mm',function(c){return c.aguaTotalMM;}],
+    ['T media',function(c){return c.clima?c.clima.tempMedia:null;}],['Días ≥35°',function(c){return c.clima?c.clima.diasMayor35:null;}],
+    ['Grados-día',function(c){return c.clima?c.clima.gradosDia:null;}],['ET₀ mm',function(c){return c.clima?c.clima.et0Total:null;}],
+    ['pH',function(c){return c.suelo?c.suelo.ph:null;}],['MO %',function(c){return c.suelo?c.suelo.mo:null;}],['P',function(c){return c.suelo?c.suelo.p:null;}],
+    ['K',function(c){return c.suelo?c.suelo.k:null;}],['Ca',function(c){return c.suelo?c.suelo.ca:null;}],['Mg',function(c){return c.suelo?c.suelo.mg:null;}],
+    ['CIC',function(c){return c.suelo?c.suelo.cic:null;}],['Sat. bases %',function(c){return c.suelo?c.suelo.satBases:null;}],['Arcilla %',function(c){return c.suelo?c.suelo.arcilla:null;}]
+  ];
+  function casosFiltrados(){ var f=document.getElementById('fCasoCultivo').value; return casos.filter(function(c){return !f||norm(c.cultivo)===norm(f);}); }
+  function pintarBanco(){
+    recargarCasos();
+    var lista=casosFiltrados();
+    var t=document.getElementById('tablaCasos');
+    t.innerHTML='<thead><tr>'+COLS.map(function(c){return '<th>'+esc(c[0])+'</th>';}).join('')+'</tr></thead><tbody>'+
+      (lista.length? lista.map(function(c){ return '<tr>'+COLS.map(function(col){ var v=col[1](c); return '<td class="'+(typeof v==='number'?'num-c':'')+'">'+(v==null||v===''?'<span class="muted">—</span>':(typeof v==='number'?fmt(v,2):esc(v)))+'</td>'; }).join('')+'</tr>'; }).join('')
+      : '<tr><td colspan="'+COLS.length+'" class="muted">Todavía no hay campañas cosechadas con rendimiento.</td></tr>')+'</tbody>';
+    var sinClima=casos.filter(function(c){return !c.clima&&c.tieneCoordenadas&&c.siembra&&c.cosecha;}).length;
+    var sinSuelo=casos.filter(function(c){return !c.suelo;}).length, sinCoord=casos.filter(function(c){return !c.tieneCoordenadas;}).length;
+    document.getElementById('pieCasos').textContent=lista.length+' caso(s) · cada fila es una campaña cosechada con todo lo que la rodea';
+    var faltas=[]; if(sinSuelo)faltas.push(sinSuelo+' sin análisis de suelo'); if(sinCoord)faltas.push(sinCoord+' sin coordenadas'); if(sinClima)faltas.push(sinClima+' sin clima del ciclo');
+    document.getElementById('notaBanco').innerHTML = casos.length
+      ? '<b>'+casos.length+' caso(s)</b> en el banco.'+(faltas.length?' Para que comparen mejor, faltan: '+faltas.join(', ')+'.':' Todos completos.')
+      : 'El banco se llena solo con cada campaña que cerrás con su rendimiento en <a href="mis-campanas.html"><b>Campañas</b></a>.';
+    document.getElementById('btnClimaFaltante').style.display = sinClima?'':'none';
+  }
+  document.getElementById('fCasoCultivo').addEventListener('change',pintarBanco);
+  document.getElementById('btnCsv').addEventListener('click',function(){
+    var lista=casosFiltrados();
+    var filas=[COLS.map(function(c){return c[0];})].concat(lista.map(function(c){return COLS.map(function(col){var v=col[1](c); return v==null?'':String(v).replace(/"/g,'""');});}));
+    var csv='﻿'+filas.map(function(f){return f.map(function(v){return '"'+v+'"';}).join(';');}).join('\n');
+    var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='safia-banco-de-casos.csv'; a.click();
+  });
+  document.getElementById('btnClimaFaltante').addEventListener('click',function(){
+    var b=this; b.disabled=true; b.textContent='☀️ Trayendo clima…';
+    var pendientes=casos.filter(function(c){return !c.clima&&c.tieneCoordenadas&&c.siembra&&c.cosecha;});
+    var cadena=Promise.resolve(), hechos=0;
+    pendientes.forEach(function(c){ cadena=cadena.then(function(){ return SafiaCasos.climaDelCiclo(c.lat,c.lon,c.siembra,c.cosecha).then(function(clima){
+      if(!clima) return;
+      var lista=JSON.parse(localStorage.getItem('campanas')||'[]'); var i=lista.findIndex(function(x){return String(x.id)===String(c.campanaId);});
+      if(i===-1) return; lista[i].clima=clima; localStorage.setItem('campanas',JSON.stringify(lista)); hechos++;
+    }); }); });
+    cadena.then(function(){ toast('Clima cargado en '+hechos+' campaña(s)'); pintarBanco(); }).finally(function(){ b.disabled=false; b.textContent='☀️ Completar clima faltante'; });
+  });
+
+  /* ---------- arranque ---------- */
+  recargarCasos();
+  var cultivos={}; casos.forEach(function(c){ if(c.cultivo)cultivos[c.cultivo]=1; }); ['Soja','Maíz','Trigo'].forEach(function(x){cultivos[x]=1;});
+  var lc=Object.keys(cultivos).sort();
+  document.getElementById('listaCultivos').innerHTML=lc.map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  document.getElementById('fCasoCultivo').innerHTML='<option value="">Todos</option>'+lc.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
+  document.getElementById('notaCasos').innerHTML = casos.length
+    ? 'El banco tiene <b>'+casos.length+' caso(s) reales</b> cosechados. '+(casos.length<5?'Con pocos casos el resultado es una <b>orientación</b>; se vuelve confiable a medida que cargás clientes.':'')
+    : 'Todavía no hay campañas cosechadas en el banco: la evaluación va a mostrar solo la referencia regional.';
+  pintarBanco();
+})();
+</script>
+</body>
+</html>
