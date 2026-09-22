@@ -117,6 +117,29 @@
 
         <!-- ================= TAB CICLOS ================= -->
         <section class="panel on" id="panel-ciclos">
+
+          <!-- Comparador: tu rinde vs la referencia de tu zona -->
+          <div class="card" id="tarjetaComparativo" style="margin-bottom:14px;display:none;">
+            <div class="card-h">
+              <h3>📊 Tu rinde vs tu zona</h3>
+              <div class="filter" style="flex-direction:row;align-items:center;gap:7px;">
+                <span class="fl">Comparar como</span>
+                <select id="cmpFinalidad" style="min-width:150px;"></select>
+              </div>
+            </div>
+            <div class="tablescroll">
+              <table class="tbl">
+                <thead><tr>
+                  <th>Campaña</th><th>Cultivo</th><th class="r">Tu rinde</th>
+                  <th class="r">Zona con riego</th><th class="r">Zona secano</th><th class="r">vs secano</th>
+                </tr></thead>
+                <tbody id="cuerpoComparativo"></tbody>
+              </table>
+            </div>
+            <div class="kpi-sub" id="pieComparativo" style="margin-top:10px;"></div>
+          </div>
+          <div class="note info" id="notaComparativo" style="display:none;"></div>
+
           <div class="chips" id="chipsRotacion"></div>
 
           <div style="margin-bottom:12px;"><button class="btn green" id="btnNuevoCiclo">+ Agregar ciclo de cultivo</button></div>
@@ -348,6 +371,10 @@
     document.getElementById('fAltitud').value = campoActual.altitud != null ? campoActual.altitud : '';
     cerrarFormCiclo(); cerrarFormAnalisis();
     pintarCiclos(); pintarAnalisis(); pintarArchivos();
+    cargarReferenciaZona().then(function () {
+      armarSelectorFinalidad();
+      pintarComparativo();
+    });
   }
 
   document.getElementById('btnAltitud').addEventListener('click', function () {
@@ -508,6 +535,171 @@
     cerrarFormCiclo();
     pintarCiclos();
   });
+
+  /* ============================================================
+     COMPARADOR · tu rinde vs la referencia de tu zona
+     Lee las campañas reales (cultivo + rendimiento) de los equipos
+     de este campo y las cruza con safia_ref_produccion por localidad,
+     cultivo, época de siembra y finalidad (grano con grano).
+     ============================================================ */
+  var refZona = null;   // filas de referencia de la localidad/depto del campo
+  var refAmbito = '';   // 'localidad' | 'departamento' | ''
+
+  function norm(t) {
+    return String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  }
+  function epocaDeSiembra(fecha) {
+    var mes = parseInt(String(fecha || '').slice(5, 7), 10);
+    if (!mes) return null;
+    if (mes >= 9 && mes <= 12) return 'Primavera/Verano';
+    if (mes >= 1 && mes <= 4) return 'Verano/Otoño';
+    return 'Otoño/Invierno';
+  }
+
+  // Campañas cosechadas de los equipos de este campo.
+  function campanasDelCampo() {
+    var idsEquipos = leer('equipos')
+      .filter(function (e) { return String(e.campoId) === String(campoActual.id); })
+      .map(function (e) { return String(e.id); });
+    var salida = [];
+    leer('campanas').forEach(function (c) {
+      if (idsEquipos.indexOf(String(c.equipoId)) === -1) return;
+      (c.cultivos || []).forEach(function (cu) {
+        var rinde = parseFloat(cu.rendimientoReal);
+        if (!rinde || rinde <= 0) return;   // solo campañas ya cosechadas
+        salida.push({
+          campana: c.nombre || '—',
+          cultivo: cu.cultivo || '—',
+          variedad: cu.variedad || '',
+          siembra: cu.fechaSiembra || '',
+          cosecha: cu.fechaCosecha || '',
+          superficie: parseFloat(cu.superficie) || null,
+          rindeTonHa: rinde / 1000
+        });
+      });
+    });
+    return salida.sort(function (a, b) { return String(a.siembra).localeCompare(String(b.siembra)); });
+  }
+
+  // Trae de Supabase las filas de referencia de la zona del campo.
+  function cargarReferenciaZona() {
+    refZona = null; refAmbito = '';
+    if (!window.safiaSupabase || !campoActual) return Promise.resolve();
+    var loc = campoActual.localidad, dep = campoActual.departamento;
+    if (!loc && !dep) return Promise.resolve();
+
+    return window.safiaSupabase.from('safia_ref_produccion')
+      .select('localidad,departamento,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha')
+      .then(function (r) {
+        if (r.error || !r.data) return;
+        var todas = r.data;
+        if (loc) {
+          var porLoc = todas.filter(function (x) { return norm(x.localidad) === norm(loc); });
+          if (porLoc.length) { refZona = porLoc; refAmbito = 'localidad'; return; }
+        }
+        if (dep) {
+          var porDep = todas.filter(function (x) { return norm(x.departamento) === norm(dep); });
+          if (porDep.length) { refZona = porDep; refAmbito = 'departamento'; }
+        }
+      });
+  }
+
+  function armarSelectorFinalidad() {
+    var sel = document.getElementById('cmpFinalidad');
+    var fins = {};
+    (refZona || []).forEach(function (x) { if (x.finalidad) fins[x.finalidad] = 1; });
+    var lista = Object.keys(fins).sort();
+    if (!lista.length) { sel.innerHTML = ''; return; }
+    sel.innerHTML = lista.map(function (f) { return '<option>' + esc(f) + '</option>'; }).join('');
+    var grano = lista.filter(function (f) { return /grano/i.test(f); })[0];
+    sel.value = grano || lista[0];
+  }
+
+  function refPara(cultivo, epoca, finalidad) {
+    if (!refZona) return null;
+    var filas = refZona.filter(function (x) {
+      return norm(x.cultivo) === norm(cultivo)
+        && (!finalidad || norm(x.finalidad) === norm(finalidad))
+        && (!epoca || norm(x.epoca_siembra) === norm(epoca));
+    });
+    if (!filas.length) return null;
+    function prom(sub) {
+      var v = sub.map(function (x) { return Number(x.prod_ton_ha); }).filter(function (n) { return !isNaN(n); });
+      return v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length : null;
+    }
+    return {
+      secano: prom(filas.filter(function (x) { return !x.riego; })),
+      riego: prom(filas.filter(function (x) { return x.riego; }))
+    };
+  }
+
+  function pintarComparativo() {
+    var tarjeta = document.getElementById('tarjetaComparativo');
+    var nota = document.getElementById('notaComparativo');
+    var campanas = campanasDelCampo();
+
+    if (!campanas.length) {
+      tarjeta.style.display = 'none';
+      nota.style.display = '';
+      nota.innerHTML = 'Cuando cierres una campaña con su rendimiento real (en <a href="mis-campanas.html"><b>Campañas</b></a>), acá vas a ver cómo te fue comparado con el promedio de tu zona.';
+      return;
+    }
+    if (!refZona) {
+      tarjeta.style.display = 'none';
+      nota.style.display = '';
+      nota.innerHTML = campoActual.localidad || campoActual.departamento
+        ? 'Todavía no hay datos de referencia para <b>' + esc(campoActual.localidad || campoActual.departamento) + '</b> en la base. Igual tus campañas quedan guardadas en el banco.'
+        : 'Cargá la <b>localidad</b> de este campo en <a href="mis-campos.html">Campos</a> para poder compararlo con su zona.';
+      return;
+    }
+
+    nota.style.display = 'none';
+    tarjeta.style.display = '';
+    var finalidad = document.getElementById('cmpFinalidad').value;
+
+    var filas = campanas.map(function (c) {
+      var epoca = epocaDeSiembra(c.siembra);
+      var r = refPara(c.cultivo, epoca, finalidad) || refPara(c.cultivo, null, finalidad);
+      return { c: c, epoca: epoca, ref: r };
+    });
+
+    document.getElementById('cuerpoComparativo').innerHTML = filas.map(function (f) {
+      var c = f.c, r = f.ref;
+      var celdaRiego = (r && r.riego != null)
+        ? '<span class="num">' + fmt(r.riego) + '</span>' + (c.rindeTonHa >= r.riego ? ' <span class="evo-mejor">▲</span>' : ' <span class="evo-peor">▼</span>')
+        : '<span class="muted">—</span>';
+      var celdaSecano = (r && r.secano != null) ? '<span class="num">' + fmt(r.secano) + '</span>' : '<span class="muted">—</span>';
+      var gana = '<span class="muted">—</span>';
+      if (r && r.secano != null && r.secano > 0) {
+        var d = c.rindeTonHa - r.secano;
+        var pct = d / r.secano * 100;
+        gana = '<span class="badge ' + (d >= 0 ? 'green' : 'red') + '">' + (d >= 0 ? '+' : '') + fmt(d) + ' t · ' + (d >= 0 ? '+' : '') + fmt(pct, 0) + '%</span>';
+      }
+      return '<tr>' +
+        '<td>' + esc(c.campana) + '<div class="sub">' + fmtFecha(c.siembra) + ' → ' + fmtFecha(c.cosecha) + (f.epoca ? ' · ' + esc(f.epoca) : '') + '</div></td>' +
+        '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + '</td>' +
+        '<td class="r"><span class="num">' + fmt(c.rindeTonHa) + '</span><div class="sub">t/ha</div></td>' +
+        '<td class="r">' + celdaRiego + '</td>' +
+        '<td class="r">' + celdaSecano + '</td>' +
+        '<td class="r">' + gana + '</td>' +
+      '</tr>';
+    }).join('');
+
+    // Pie: cuánto suma el riego en toneladas sobre la superficie del cliente
+    var extra = 0, hubo = false;
+    filas.forEach(function (f) {
+      if (f.ref && f.ref.secano != null && f.c.superficie) {
+        extra += (f.c.rindeTonHa - f.ref.secano) * f.c.superficie; hubo = true;
+      }
+    });
+    document.getElementById('pieComparativo').innerHTML =
+      'Referencia de <b>' + esc(refAmbito === 'localidad' ? (campoActual.localidad || '') : (campoActual.departamento || '')) + '</b>' +
+      (refAmbito === 'departamento' ? ' (promedio del departamento, no hay datos de la localidad)' : '') +
+      ' · comparado como <b>' + esc(finalidad) + '</b>' +
+      (hubo ? ' · En total, tus campañas produjeron <b>' + fmt(extra, 0) + ' t</b> más que lo que daría el secano de tu zona.' : '');
+  }
+
+  document.getElementById('cmpFinalidad').addEventListener('change', pintarComparativo);
 
   /* ============================================================
      ANÁLISIS DE SUELO
