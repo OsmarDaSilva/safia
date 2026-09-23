@@ -98,7 +98,13 @@
     var s = caso.suelo || {}, actual = caso.rindeKgHa, metaT = meta / 1000;
     var bm = benchmark(caso, meta, casos || []);
     var items = [];
-    function item(o) { o.costo = o.costo || 0; o.costoCampana = o.costoCampana != null ? o.costoCampana : o.costo; o.aporteMin = o.aporteMin || 0; o.aporteMax = o.aporteMax || 0; items.push(o); }
+    function item(o) {
+      o.inversion = o.inversion || 0; o.recurrente = o.recurrente || 0; o.vidaUtil = o.vidaUtil || 4;
+      if (o.costo != null && !o.inversion && !o.recurrente) o.recurrente = o.costo;   // compatibilidad
+      o.costo = o.inversion + o.recurrente; o.costoCampana = o.inversion / o.vidaUtil + o.recurrente;
+      o.alcance = o.alcance || (o.tipo === 'suelo' ? 'lote' : 'cultivo');           // 'lote' beneficia a todos los cultivos del lote
+      o.aporteMin = o.aporteMin || 0; o.aporteMax = o.aporteMax || 0; items.push(o);
+    }
     var T = window.SafiaAgro ? SafiaAgro.TABLAS : null;
 
     /* 1. Encalado (V%) */
@@ -110,7 +116,7 @@
         var ap = v < 50 ? [0.10, 0.20] : (v < 60 ? [0.05, 0.12] : [0.02, 0.06]);
         item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : ''), objetivo: 'V% ' + vObj + (bm && bm.suelo.satBases ? ' (los que rinden ≥ meta: ' + fmt(bm.suelo.satBases, 0) + ')' : ''),
           accion: fmt(nc, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < 1.0) ? 'dolomítico' : 'calcítico o dolomítico') + ' (PRNT 100 %), en superficie en directa; efecto pleno en 6–12 meses',
-          costo: nc * pr.calcareoUSDt, costoCampana: nc * pr.calcareoUSDt / 3, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
+          inversion: nc * pr.calcareoUSDt, vidaUtil: 4, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
       } else item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1), objetivo: 'V% ' + vObj, accion: 'No hace falta: ya está en el objetivo. Repetir análisis cada 2 años', fuente: '[2]' });
     }
     /* 2. Perfil (yeso) */
@@ -119,10 +125,10 @@
     var dosisYeso = arc != null ? Math.round(50 * arc / 100) * 100 : null; // kg/ha, Embrapa: 50 × % arcilla
     if (prof.length) {
       var ult = prof[prof.length - 1], caProf = num(ult.ca);
-      if (caProf != null && caProf < 0.5) item({ k: 'yeso', tipo: 'suelo', nombre: 'Yeso agrícola (perfil 20–60 cm)', hoy: 'Ca ' + fmt(caProf, 2) + ' cmolc/dm³ en ' + esc(ult.profundidad), objetivo: 'Ca > 0,5 y Al < 20 % en profundidad', accion: fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla), al voleo con el encalado', costo: dosisYeso / 1000 * pr.yesoUSDt, costoCampana: dosisYeso / 1000 * pr.yesoUSDt / 4, aporteMin: 0.03, aporteMax: 0.10, fuente: '[3][7]' });
+      if (caProf != null && caProf < 0.5) item({ k: 'yeso', tipo: 'suelo', nombre: 'Yeso agrícola (perfil 20–60 cm)', hoy: 'Ca ' + fmt(caProf, 2) + ' cmolc/dm³ en ' + esc(ult.profundidad), objetivo: 'Ca > 0,5 y Al < 20 % en profundidad', accion: fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla), al voleo con el encalado', inversion: dosisYeso / 1000 * pr.yesoUSDt, vidaUtil: 5, aporteMin: 0.03, aporteMax: 0.10, fuente: '[3][7]' });
       else item({ k: 'yeso', tipo: 'suelo', nombre: 'Perfil (20–60 cm)', hoy: 'Ca ' + fmt(caProf, 2) + ' en ' + esc(ult.profundidad), objetivo: 'Ca > 0,5 cmolc/dm³', accion: 'El perfil está bien provisto de calcio: no hace falta yeso ahora', fuente: '[3]' });
     } else {
-      item({ k: 'yeso', tipo: 'suelo', nombre: 'Perfil profundo (20–40 y 40–60 cm)', hoy: 'sin análisis en profundidad', objetivo: 'Ca > 0,5 cmolc/dm³ y Al < 20 % hasta 60 cm', accion: 'Muestrear 20–40 y 40–60 cm. Si hay Ca bajo o Al alto: ' + (dosisYeso ? fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla)' : 'yeso = 50 × % arcilla kg/ha') + '. Hoy la corrección del perfil se hace con calcáreo + yeso en directa, no solo 0–20 cm', costo: pr.analisisPerfilUSD, costoCampana: pr.analisisPerfilUSD, aporteMin: 0, aporteMax: 0.08, condicional: true, fuente: '[3][7]' });
+      item({ k: 'yeso', tipo: 'suelo', nombre: 'Perfil profundo (20–40 y 40–60 cm)', hoy: 'sin análisis en profundidad', objetivo: 'Ca > 0,5 cmolc/dm³ y Al < 20 % hasta 60 cm', accion: 'Muestrear 20–40 y 40–60 cm. Si hay Ca bajo o Al alto: ' + (dosisYeso ? fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla)' : 'yeso = 50 × % arcilla kg/ha') + '. Hoy la corrección del perfil se hace con calcáreo + yeso en directa, no solo 0–20 cm', inversion: pr.analisisPerfilUSD, vidaUtil: 1, aporteMin: 0, aporteMax: 0.08, condicional: true, fuente: '[3][7]' });
     }
     /* 3. Fósforo */
     var p = num(s.p);
@@ -137,7 +143,7 @@
       var apP = { 'muy baja': [0.25, 0.45], baja: [0.10, 0.25], media: [0.03, 0.10], alta: [0, 0.03], 'muy alta': [0, 0] }[cat];
       item({ k: 'fosforo', tipo: 'suelo', nombre: 'Fósforo', hoy: fmt(p, 1) + ' mg/dm³ (' + cat + ')', objetivo: fmt(pObj, 0) + ' mg/dm³' + (bm && bm.suelo.p ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.p, 1) : ''),
         accion: (corr ? 'Corregir ' + fmt(corr, 0) + ' kg/ha de P₂O₅ (' + pc.kgPorMg + ' kg por mg/dm³, gradual en 3 cultivos) + ' : '') + 'manutención ' + fmt(manTotal, 0) + ' kg/ha de P₂O₅ para ' + fmt(meta, 0) + ' kg/ha (' + (cat === 'muy alta' ? 'solo reposición' : perfil.mP + ' kg/t × 1,25') + ')' + (aplicadoP != null ? ' — hoy aplicás ' + fmt(aplicadoP, 0) + ', faltan ' + fmt(man, 0) : ' — se cobra completo porque el manejo no está cargado; descontá lo que ya aplicás'),
-        costo: (corr + man) * pr.p2o5USDkg, costoCampana: (corr / 3 + man) * pr.p2o5USDkg, aporteMin: apP[0], aporteMax: apP[1], fuente: '[1]' });
+        inversion: corr * pr.p2o5USDkg, vidaUtil: 4, recurrente: man * pr.p2o5USDkg, aporteMin: apP[0], aporteMax: apP[1], fuente: '[1]' });
     }
     /* 4. Potasio */
     var k = num(s.k);
@@ -151,7 +157,7 @@
       var apK = { 'muy baja': [0.20, 0.45], baja: [0.10, 0.20], media: [0.03, 0.10], alta: [0, 0.03], 'muy alta': [0, 0] }[catK];
       item({ k: 'potasio', tipo: 'suelo', nombre: 'Potasio', hoy: fmt(kmg, 0) + ' mg/dm³ (' + catK + ')', objetivo: '> 75 mg/dm³' + (bm && bm.suelo.k ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.k * 391, 0) : ''),
         accion: (corrK ? 'Corregir ' + fmt(corrK, 0) + ' kg/ha de K₂O en 3 cultivos + ' : '') + (catK === 'muy alta' ? 'solo reponer lo exportado: ' : 'manutención ') + fmt(manKTotal, 0) + ' kg/ha de K₂O (KCl al voleo o por fertirriego)' + (aplicadoK != null ? ' — hoy aplicás ' + fmt(aplicadoK, 0) + ', faltan ' + fmt(manK, 0) : ' — se cobra completo porque el manejo no está cargado; descontá lo que ya aplicás'),
-        costo: (corrK + manK) * pr.k2oUSDkg, costoCampana: (corrK / 3 + manK) * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], fuente: '[1]' });
+        inversion: corrK * pr.k2oUSDkg, vidaUtil: 4, recurrente: manK * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], fuente: '[1]' });
     }
     /* 5. Nitrógeno (no soja) */
     if (N_POR_T[cu]) {
@@ -174,8 +180,8 @@
     }
     if (!(man.cargado && man.tratamientoSemilla)) item({ k: 'tratamiento', tipo: 'manejo', nombre: 'Tratamiento de semilla', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'fungicida + insecticida', accion: 'Tratar la semilla (fungicida + insecticida) para stand parejo', costo: pr.tratamientoSemillaUSDha, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa Soja / BASF PY' });
     var rot = caso.rotacion || {};
-    if (rot.cargada && !rot.conCobertura) item({ k: 'cobertura', tipo: 'manejo', nombre: 'Cobertura de invierno', hoy: 'sin cobertura', objetivo: (bm && bm.cobertura != null ? fmt(bm.cobertura * 100, 0) + ' % de los que rinden ≥ meta usan cobertura' : 'brachiaria, avena o mix'), accion: 'Sembrar cobertura después de la cosecha (brachiaria ruziziensis, avena, mix)', costo: pr.coberturaUSDha, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa (Santa Fe / ILP): MO, malezas, agua' });
-    if (rot.convencional) item({ k: 'directa', tipo: 'manejo', nombre: 'Siembra directa', hoy: 'convencional (rastroneada)', objetivo: 'directa sobre cobertura o rastrojo', accion: 'Pasar a siembra directa; si hay compactación, subsolar una vez y sembrar cobertura', costo: pr.subsoladoUSDha, costoCampana: pr.subsoladoUSDha / 3, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Manual RS/SC / Embrapa' });
+    if (rot.cargada && !rot.conCobertura) item({ k: 'cobertura', tipo: 'manejo', nombre: 'Cobertura de invierno', hoy: 'sin cobertura', objetivo: (bm && bm.cobertura != null ? fmt(bm.cobertura * 100, 0) + ' % de los que rinden ≥ meta usan cobertura' : 'brachiaria, avena o mix'), accion: 'Sembrar cobertura después de la cosecha (brachiaria ruziziensis, avena, mix)', recurrente: pr.coberturaUSDha, alcance: 'lote', aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa (Santa Fe / ILP): MO, malezas, agua' });
+    if (rot.convencional) item({ k: 'directa', tipo: 'manejo', nombre: 'Siembra directa', hoy: 'convencional (rastroneada)', objetivo: 'directa sobre cobertura o rastrojo', accion: 'Pasar a siembra directa; si hay compactación, subsolar una vez y sembrar cobertura', inversion: pr.subsoladoUSDha, vidaUtil: 3, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Manual RS/SC / Embrapa' });
     if (rot.sojaSobreSoja) item({ k: 'rotacion', tipo: 'manejo', nombre: 'Rotación', hoy: 'soja sobre soja', objetivo: 'maíz, trigo o gramínea antes de la soja', accion: 'Rotar: maíz zafriña o cobertura de gramínea entre sojas', costo: 0, aporteMin: 0.05, aporteMax: 0.12, fuente: 'Embrapa Soja: rotación con gramíneas' });
     var nFung = man.cargado ? (man.fungicidas || 0) : null, fungObj = cu === 'soja' ? 2 : 1;
     if (nFung != null && nFung < fungObj) item({ k: 'fungicidas', tipo: 'manejo', nombre: 'Fungicidas', hoy: nFung + ' aplicación(es)', objetivo: fungObj + '+ (' + (cu === 'soja' ? 'roya y mancha' : 'manchas foliares') + ')', accion: 'Sumar ' + (fungObj - nFung) + ' aplicación(es) preventiva(s) en R1–R5', costo: (fungObj - nFung) * pr.fungicidaUSDapl, aporteMin: 0.05, aporteMax: 0.15, fuente: 'Embrapa Soja (ensayos de roya)' });
@@ -197,6 +203,7 @@
     if (techo) potMax = Math.min(potMax, Math.round(Math.max(techo * 1.15, actual * 1.1)));   // no prometer mucho más que el mejor caso conocido
     if (potMin > potMax) potMin = potMax;
     var costoTotal = items.reduce(function (a, i) { return a + i.costo; }, 0), costoCampana = items.reduce(function (a, i) { return a + i.costoCampana; }, 0);
+    var inversionTotal = items.reduce(function (a, i) { return a + i.inversion; }, 0), recurrenteCultivo = items.reduce(function (a, i) { return a + (i.alcance === 'cultivo' ? i.recurrente : 0); }, 0), recurrenteLote = items.reduce(function (a, i) { return a + (i.alcance === 'lote' ? i.recurrente : 0); }, 0);
     var precio = pr.granoUSDt[cu] || pr.granoUSDt.otro;
     var kgExtra = meta - actual, ingresoExtra = kgExtra / 1000 * precio;
     var margen = ingresoExtra - costoCampana, costoPorKg = kgExtra > 0 ? costoCampana / kgExtra : null;
@@ -205,7 +212,66 @@
     var valorTierraEquiv = haEquivalentes != null ? haEquivalentes * pr.tierraUSDha : null;
     var veredicto = meta <= potMin ? 'alcanzable' : (meta <= potMax ? 'posible' : 'ambiciosa');
     return { cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, kgExtra: kgExtra, gapPct: actual ? kgExtra / actual * 100 : null, items: items, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo }, veredicto: veredicto,
-      economia: { precio: precio, costoTotal: costoTotal, costoCampana: costoCampana, ingresoExtra: ingresoExtra, margen: margen, costoPorKg: costoPorKg, pctTierra: pctTierra, haEquivalentes: haEquivalentes, valorTierraEquiv: valorTierraEquiv, tierra: pr.tierraUSDha, retornoSobreTierra: pr.tierraUSDha ? margen / pr.tierraUSDha * 100 : null } };
+      economia: { precio: precio, costoTotal: costoTotal, costoCampana: costoCampana, inversionTotal: inversionTotal, recurrenteCultivo: recurrenteCultivo, recurrenteLote: recurrenteLote, ingresoExtra: ingresoExtra, margen: margen, costoPorKg: costoPorKg, pctTierra: pctTierra, haEquivalentes: haEquivalentes, valorTierraEquiv: valorTierraEquiv, tierra: pr.tierraUSDha, retornoSobreTierra: pr.tierraUSDha ? margen / pr.tierraUSDha * 100 : null } };
+  }
+
+  /* ---------- proyección a varios años, con los otros cultivos del lote ---------- */
+  // otros: casos cosechados del mismo lote con otro cultivo (el mejor de cada uno). Las mejoras del suelo
+  // (alcance 'lote') también los benefician; las de manejo solo al cultivo del plan.
+  function proyeccion(pl, otros, pr, anios) {
+    anios = anios || 5; pr = pr || precios();
+    var e = pl.economia, actual = pl.actual;
+    var suelo = pl.items.filter(function (i) { return i.alcance === 'lote' && !i.condicional; }), manejo = pl.items.filter(function (i) { return i.alcance === 'cultivo' && !i.condicional; });
+    var mid = function (l) { return l.reduce(function (a, i) { return a + (i.aporteMin + i.aporteMax) / 2; }, 0); };
+    var apSuelo = Math.min(mid(suelo), 0.35), apManejo = Math.min(mid(manejo), 0.30);
+    var extraPleno = Math.min(pl.meta - actual, Math.round(actual * (apSuelo + apManejo)));   // kg/ha del cultivo del plan en régimen
+    var partSuelo = (apSuelo + apManejo) > 0 ? apSuelo / (apSuelo + apManejo) : 0;
+    var cultivosOtros = (otros || []).map(function (c) {
+      var cu = claveCultivo(c.cultivo), precio = pr.granoUSDt[cu] || pr.granoUSDt.otro;
+      var extra = Math.round(c.rindeKgHa * Math.min(apSuelo, 0.25));                          // solo mejoras del suelo
+      var perfil = window.SafiaAgro ? SafiaAgro.perfilCultivo(c.cultivo) : { expP: 10, expK: 10 };
+      var reposicion = extra / 1000 * (perfil.expP * pr.p2o5USDkg + perfil.expK * pr.k2oUSDkg + (N_POR_T[cu] || 0) * pr.nUSDkg); // reponer lo que se lleva el extra
+      return { cultivo: c.cultivo, actual: c.rindeKgHa, extraPleno: extra, precio: precio, reposicion: reposicion };
+    });
+    var filas = [], acumulado = 0, payback = null;
+    for (var y = 1; y <= anios; y++) {
+      var rampa = y === 1 ? 0.5 : 1;                                     // correctivos: medio efecto el 1er año
+      var inversion = 0;
+      pl.items.forEach(function (i) { if (i.inversion && (y === 1 || (i.vidaUtil > 1 && (y - 1) % i.vidaUtil === 0))) inversion += i.inversion; });
+      var extraPlan = Math.round(extraPleno * (partSuelo * rampa + (1 - partSuelo)));
+      var ingreso = extraPlan / 1000 * e.precio;
+      var recurrente = e.recurrenteCultivo + e.recurrenteLote;
+      var otrosFila = cultivosOtros.map(function (o) { var ex = Math.round(o.extraPleno * rampa); recurrente += o.reposicion * rampa; ingreso += ex / 1000 * o.precio; return { cultivo: o.cultivo, extra: ex, usd: ex / 1000 * o.precio }; });
+      var flujo = ingreso - recurrente - inversion; acumulado += flujo;
+      if (payback == null && acumulado >= 0 && y >= 1 && (inversion > 0 || y > 1 || flujo >= 0)) payback = y;
+      filas.push({ anio: y, inversion: inversion, recurrente: recurrente, extraPlan: extraPlan, usdPlan: extraPlan / 1000 * e.precio, otros: otrosFila, ingreso: ingreso, flujo: flujo, acumulado: acumulado });
+    }
+    var ingresoRegimen = filas[filas.length - 1].ingreso, recurrenteRegimen = filas[filas.length - 1].recurrente;
+    var kgTotalActual = actual + cultivosOtros.reduce(function (a, o) { return a + o.actual; }, 0);
+    var haTierra = e.inversionTotal && pr.tierraUSDha ? e.inversionTotal / pr.tierraUSDha : 0;           // cuánta tierra compra la misma inversión
+    var ingresoTierra = haTierra * (actual / 1000 * e.precio + cultivosOtros.reduce(function (a, o) { return a + o.actual / 1000 * o.precio; }, 0)); // ingreso bruto extra por año comprando esa tierra
+    return { anios: anios, filas: filas, extraPleno: extraPleno, apSuelo: apSuelo, apManejo: apManejo, otros: cultivosOtros, payback: payback, acumulado: acumulado, ingresoRegimen: ingresoRegimen, recurrenteRegimen: recurrenteRegimen, inversion: e.inversionTotal, haTierra: haTierra, ingresoTierra: ingresoTierra, kgTotalActual: kgTotalActual };
+  }
+  function proyeccionHTML(py, pl) {
+    var e = pl.economia, otros = py.otros;
+    var html = '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>Inversión o gasto: qué pasa en ' + py.anios + ' años, con los dos cultivos del lote</h3><span class="muted">' + esc(pl.cultivo) + (otros.length ? ' + ' + otros.map(function (o) { return esc(o.cultivo); }).join(' + ') : '') + '</span></div>';
+    html += '<div class="statbar" style="margin:0 0 10px;">' +
+      '<div class="stat"><div class="sl">Inversión (una vez)</div><div class="sv">US$ ' + fmt(py.inversion, 0) + '/ha</div></div>' +
+      '<div class="stat"><div class="sl">Gasto recurrente por año</div><div class="sv">US$ ' + fmt(py.recurrenteRegimen, 0) + '/ha</div></div>' +
+      '<div class="stat"><div class="sl">Ingreso extra por año (en régimen)</div><div class="sv green">US$ ' + fmt(py.ingresoRegimen, 0) + '/ha</div></div>' +
+      '<div class="stat"><div class="sl">Se recupera en</div><div class="sv ' + (py.payback ? 'green' : 'red') + '">' + (py.payback ? 'año ' + py.payback : 'no en ' + py.anios + ' años') + '</div></div>' +
+      '<div class="stat"><div class="sl">Acumulado a ' + py.anios + ' años</div><div class="sv ' + (py.acumulado >= 0 ? 'green' : 'red') + '">US$ ' + fmt(py.acumulado, 0) + '/ha</div></div></div>';
+    html += '<div style="font-size:13px;line-height:1.6;margin-bottom:8px;">' +
+      '<div><b>Inversión</b> = lo que se hace una vez y dura varios años (calcáreo 4, yeso 5, subsolado 3, corrección de P y K 4) y mejora el suelo para <b>todos</b> los cultivos del lote. <b>Gasto</b> = lo que se repite cada campaña (manutención de P y K, tratamiento de semilla, inoculación, fungicidas, cobertura, agua).</div>' +
+      '<div>El primer año los correctivos rinden a la mitad (el calcáreo tarda 6–12 meses); desde el segundo, pleno. En ' + esc(pl.cultivo).toLowerCase() + ' se estima <b>+' + fmt(py.extraPleno, 0) + ' kg/ha</b> en régimen' + (otros.length ? '; en ' + otros.map(function (o) { return esc(o.cultivo).toLowerCase() + ' <b>+' + fmt(o.extraPleno, 0) + ' kg/ha</b> (solo por la mejora del suelo)'; }).join(' y ') : '') + '.</div></div>';
+    html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Año</th><th class="r">Inversión</th><th class="r">Gasto recurrente</th><th class="r">Extra ' + esc(pl.cultivo) + '</th>' + otros.map(function (o) { return '<th class="r">Extra ' + esc(o.cultivo) + '</th>'; }).join('') + '<th class="r">Ingreso extra</th><th class="r">Resultado del año</th><th class="r">Acumulado</th></tr></thead><tbody>' +
+      py.filas.map(function (f) {
+        return '<tr><td><b>Año ' + f.anio + '</b></td><td class="r">' + (f.inversion ? 'US$ ' + fmt(f.inversion, 0) : '<span class="muted">—</span>') + '</td><td class="r">US$ ' + fmt(f.recurrente, 0) + '</td><td class="r">' + fmt(f.extraPlan, 0) + ' kg<div class="sub">US$ ' + fmt(f.usdPlan, 0) + '</div></td>' +
+          f.otros.map(function (o) { return '<td class="r">' + fmt(o.extra, 0) + ' kg<div class="sub">US$ ' + fmt(o.usd, 0) + '</div></td>'; }).join('') +
+          '<td class="r"><span class="num">US$ ' + fmt(f.ingreso, 0) + '</span></td><td class="r"><span class="badge ' + (f.flujo >= 0 ? 'green' : 'red') + '">' + (f.flujo >= 0 ? '+' : '') + fmt(f.flujo, 0) + '</span></td><td class="r"><b style="color:' + (f.acumulado >= 0 ? '#178029' : '#B3261E') + '">' + (f.acumulado >= 0 ? '+' : '') + fmt(f.acumulado, 0) + '</b></td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+    html += '<div class="note" style="margin-top:10px;"><b>Contra comprar tierra:</b> con los mismos US$ ' + fmt(py.inversion, 0) + '/ha de inversión se compraría el <b>' + fmt(py.haTierra * 100, 1) + ' %</b> de una hectárea (a US$ ' + fmt(e.tierra, 0) + '/ha), que produciría unos <b>US$ ' + fmt(py.ingresoTierra, 0) + '/ha por año</b> más de ingreso bruto (sin contar sus costos de producción); mejorar el lote deja <b>US$ ' + fmt(py.ingresoRegimen - py.recurrenteRegimen, 0) + '/ha por año</b> netos en régimen. ' + (py.ingresoRegimen - py.recurrenteRegimen > py.ingresoTierra ? 'Con estos números, <b>mejorar el lote rinde más que comprar tierra</b>.' : 'Con estos números, la diferencia es chica: revisar precios y metas.') + ' Todo es orientativo: los kilos extra son estimaciones y los precios cambian.</div>';
+    return html + '</div>';
   }
 
   /* ---------- HTML ---------- */
@@ -217,8 +283,8 @@
       '<div class="stat"><div class="sl">Meta</div><div class="sv green">' + fmt(pl.meta, 0) + '</div></div>' +
       '<div class="stat"><div class="sl">Potencial con el plan</div><div class="sv">' + fmt(pl.potencial.min, 0) + ' – ' + fmt(pl.potencial.max, 0) + '</div></div>' +
       (pl.potencial.techoZona ? '<div class="stat"><div class="sl">Mejor caso de referencia</div><div class="sv">' + fmt(pl.potencial.techoZona, 0) + '</div></div>' : '') +
-      '<div class="stat"><div class="sl">Costo del plan</div><div class="sv">US$ ' + fmt(e.costoTotal, 0) + '/ha</div></div>' +
-      '<div class="stat"><div class="sl">Por campaña</div><div class="sv">US$ ' + fmt(e.costoCampana, 0) + '/ha</div></div>' +
+      '<div class="stat"><div class="sl">Inversión (una vez)</div><div class="sv">US$ ' + fmt(e.inversionTotal, 0) + '/ha</div></div>' +
+      '<div class="stat"><div class="sl">Gasto por campaña</div><div class="sv">US$ ' + fmt(e.recurrenteCultivo + e.recurrenteLote, 0) + '/ha</div></div>' +
       '<div class="stat"><div class="sl">Ingreso extra</div><div class="sv green">US$ ' + fmt(e.ingresoExtra, 0) + '/ha</div></div>' +
       '<div class="stat"><div class="sl">Margen por campaña</div><div class="sv ' + (e.margen >= 0 ? 'green' : 'red') + '">US$ ' + fmt(e.margen, 0) + '/ha</div></div></div>';
     var ver = { alcanzable: ['ok', 'La meta parece <b>alcanzable</b>: incluso con el aporte mínimo estimado de cada ítem se llega.'], posible: ['ok', 'La meta es <b>posible</b>: entra en el rango estimado, pero depende de que varios ítems respondan.'], ambiciosa: ['warn', 'La meta es <b>ambiciosa</b> para este lote con lo que hoy se puede corregir: el rango estimado llega a ' + fmt(pl.potencial.max, 0) + ' kg/ha. Conviene ir por etapas.'] }[pl.veredicto];
@@ -232,7 +298,7 @@
     html += '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>¿Vale la pena?</h3><span class="muted">grano a US$ ' + fmt(e.precio, 0) + '/t · tierra a US$ ' + fmt(e.tierra, 0) + '/ha</span></div>' +
       '<div style="font-size:13px;line-height:1.6;">' +
       '<div>Pasar de <b>' + fmt(pl.actual, 0) + '</b> a <b>' + fmt(pl.meta, 0) + ' kg/ha</b> son <b>' + fmt(pl.kgExtra, 0) + ' kg/ha más</b> (' + fmt(pl.gapPct, 0) + ' %) = <b>US$ ' + fmt(e.ingresoExtra, 0) + '/ha por campaña</b>.</div>' +
-      '<div>El plan cuesta <b>US$ ' + fmt(e.costoTotal, 0) + '/ha</b> en total (calcáreo, yeso y subsolado duran 3–4 campañas), es decir <b>US$ ' + fmt(e.costoCampana, 0) + '/ha por campaña</b>' + (e.costoPorKg != null ? ' → <b>US$ ' + fmt(e.costoPorKg * 1000, 0) + ' por tonelada adicional</b>' : '') + (e.costoPorKg != null && e.precio ? (e.costoPorKg * 1000 < e.precio ? ', más barato que el precio del grano: <b>conviene</b>.' : ', más caro que el precio del grano: <b>no cierra</b> con estos precios.') : '.') + '</div>' +
+      '<div>El plan tiene <b>US$ ' + fmt(e.inversionTotal, 0) + '/ha de inversión</b> (una vez; calcáreo, yeso, subsolado y corrección de P/K duran 3–5 años) y <b>US$ ' + fmt(e.recurrenteCultivo + e.recurrenteLote, 0) + '/ha de gasto por campaña</b>; prorrateando la inversión son <b>US$ ' + fmt(e.costoCampana, 0) + '/ha por campaña</b>' + (e.costoPorKg != null ? ' → <b>US$ ' + fmt(e.costoPorKg * 1000, 0) + ' por tonelada adicional</b>' : '') + (e.costoPorKg != null && e.precio ? (e.costoPorKg * 1000 < e.precio ? ', más barato que el precio del grano: <b>conviene</b>.' : ', más caro que el precio del grano: <b>no cierra</b> con estos precios.') : '.') + '</div>' +
       (e.pctTierra != null ? '<div>El costo total del plan equivale al <b>' + fmt(e.pctTierra, 1) + ' %</b> del valor de una hectárea' + (e.retornoSobreTierra != null ? '; el margen extra por campaña es un <b>' + fmt(e.retornoSobreTierra, 1) + ' %</b> anual sobre el valor de la tierra' : '') + '.</div>' : '') +
       (e.haEquivalentes != null ? '<div>Producir esos ' + fmt(pl.kgExtra, 0) + ' kg comprando tierra en vez de mejorar el lote exigiría <b>' + fmt(e.haEquivalentes * 100, 0) + ' % más de superficie</b> (US$ ' + fmt(e.valorTierraEquiv, 0) + ' por cada hectárea actual): mejorar el lote es casi siempre más barato que comprar tierra.</div>' : '') +
       '</div></div>';
@@ -240,5 +306,5 @@
     return html;
   }
 
-  window.SafiaMeta = { PRECIOS_DEFAULT: PRECIOS_DEFAULT, precios: precios, guardarPrecios: guardarPrecios, benchmark: benchmark, plan: plan, informeHTML: informeHTML, claveCultivo: claveCultivo };
+  window.SafiaMeta = { PRECIOS_DEFAULT: PRECIOS_DEFAULT, precios: precios, guardarPrecios: guardarPrecios, benchmark: benchmark, plan: plan, informeHTML: informeHTML, proyeccion: proyeccion, proyeccionHTML: proyeccionHTML, claveCultivo: claveCultivo };
 })();

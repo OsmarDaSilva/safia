@@ -609,8 +609,14 @@
     if (!c) { toast('Este lote no tiene campañas cosechadas todavía', true); return; }
     if (!meta || meta <= c.rindeKgHa) { toast('La meta tiene que ser mayor al rinde actual (' + fmt(c.rindeKgHa, 0) + ')', true); return; }
     var prof = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); });
-    var pl = SafiaMeta.plan(c, meta, leerPreciosMeta(), metaCasos, prof);
-    out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + ' de ' + fmt(c.rindeKgHa, 0) + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' +
+    var pr = leerPreciosMeta();
+    var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof);
+    // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo
+    var otros = {};
+    metaCasos.filter(function (x) { return String(x.campoId) === String(campoActual.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && SafiaMeta.claveCultivo(x.cultivo) !== SafiaMeta.claveCultivo(c.cultivo); })
+      .forEach(function (x) { var k = SafiaMeta.claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
+    var py = SafiaMeta.proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5);
+    out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + ' de ' + fmt(c.rindeKgHa, 0) + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) +
       '<div style="margin-top:10px;"><button class="btn" onclick="window.print()">Imprimir plan</button></div>';
     out.scrollIntoView({ behavior: 'smooth' });
   });
