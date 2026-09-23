@@ -467,6 +467,20 @@
       font-size: 12px; opacity: 0.75; margin-top: 6px;
     }
 
+    .ins-seccion { border:1px solid #E1E4E7; border-radius:12px; padding:12px 14px; margin-bottom:12px; background:#fff; }
+    .ins-titulo { font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+    .ins-num { display:inline-flex; width:22px; height:22px; border-radius:50%; background:#22A93A; color:#fff; font-size:12px; align-items:center; justify-content:center; }
+    .ins-sub { font-weight:500; font-size:12px; color:#8C9196; }
+    .ins-tabla { width:100%; margin-bottom:8px; }
+    .ins-tabla tbody:empty { display:none; }
+    .ins-form { display:grid; grid-template-columns: 1.3fr 1.6fr .7fr .9fr auto; gap:6px; align-items:center; }
+    .ins-form-fert { grid-template-columns: 1fr 1.4fr .6fr .6fr 1.2fr 1fr .9fr auto; }
+    .ins-form-ciclo { grid-template-columns: 1.2fr 1.6fr .7fr .8fr 1fr .9fr auto; }
+    .ins-form input, .ins-form select { border:1px solid #E1E4E7; border-radius:7px; background:#F2F3F5; padding:9px 10px; font-size:13px; font-family:inherit; min-width:0; }
+    .ins-form .cierre-boton { white-space:nowrap; }
+    .ins-npk { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#2E3236; background:#E7F6EA; border-radius:8px; padding:8px 12px; margin-bottom:8px; }
+    .ins-npk b { font-size:14px; }
+    @media (max-width: 760px) { .ins-form, .ins-form-fert, .ins-form-ciclo { grid-template-columns: 1fr 1fr; } }
     .modal-botones {
       display: flex; gap: 10px; margin-top: 24px;
     }
@@ -909,47 +923,68 @@
 
   <!-- ===== MODAL MANEJO E INSUMOS ===== -->
   <div class="modal-overlay" id="modalInsumosOverlay" onclick="if(event.target.id==='modalInsumosOverlay') cerrarModalInsumos()">
-    <div class="modal" onclick="event.stopPropagation()" style="max-width:720px;">
+    <div class="modal" onclick="event.stopPropagation()" style="max-width:860px;">
       <div class="modal-titulo">Manejo e insumos</div>
       <div class="modal-sub" id="modalInsumosSub">—</div>
+      <div class="campo" id="campoInsCultivo" style="display:none;"><label>Cultivo al que corresponde</label><select id="insCultivoIdx"></select></div>
 
-      <div class="tablewrap" style="margin-bottom:14px;">
-        <div class="tablescroll">
-          <table class="tbl">
-            <thead><tr><th>Categoría</th><th>Producto</th><th class="r">Dosis</th><th>Etapa / fecha</th><th></th></tr></thead>
-            <tbody id="cuerpoInsumos"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="muted" id="insumosVacio" style="font-size:12px;margin:-6px 0 12px;">Todavía no hay insumos cargados en esta campaña. Cargá lo que se usó: tratamiento de semilla, inoculación, fertilización, foliares, fungicidas, insecticidas… Todo es opcional, pero cuanto más completo, mejor compara SAFIA.</div>
-
-      <div style="border:1px solid #E1E4E7;border-radius:10px;padding:12px;background:#F8F9FA;">
-        <div style="font-weight:700;margin-bottom:8px;">Agregar insumo</div>
-        <div class="fila">
-          <div class="campo"><label>Categoría</label><select id="insCategoria"></select></div>
-          <div class="campo" id="campoInsCultivo" style="display:none;"><label>Cultivo</label><select id="insCultivoIdx"></select></div>
-        </div>
-        <div class="fila">
-          <div class="campo"><label>Producto / mezcla</label><input type="text" id="insProducto" list="listaProductos" placeholder="Ej: Standak Top, Bradyrhizobium, 04-30-10, Cobre + Zinc"><datalist id="listaProductos"></datalist></div>
-          <div class="campo"><label>Dosis</label><div style="display:flex;gap:6px;"><input type="number" id="insDosis" step="0.01" min="0" placeholder="Ej: 250" style="flex:1;"><select id="insUnidad" style="flex:1;"></select></div></div>
-        </div>
-        <div class="fila">
-          <div class="campo"><label>Etapa del cultivo</label><select id="insEtapa"></select></div>
-          <div class="campo"><label>Fecha (opcional)</label><input type="date" id="insFecha"></div>
-        </div>
-        <div class="campo"><label>Observaciones (opcional)</label><input type="text" id="insObs" placeholder="Ej: mezcla de tanque con…"></div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-          <button type="button" class="cierre-boton" onclick="agregarInsumo()">+ Agregar a la campaña</button>
-          <span style="flex:1"></span>
-          <select id="insCopiarDe" style="max-width:260px;"><option value="">Copiar insumos de otra campaña…</option></select>
-          <button type="button" class="cierre-boton" onclick="copiarInsumos()">Copiar</button>
+      <!-- 1. Tratamiento de semilla -->
+      <div class="ins-seccion">
+        <div class="ins-titulo"><span class="ins-num">1</span> Tratamiento de semilla <span class="ins-sub">todo lo que se le puso a la semilla antes de sembrar</span></div>
+        <table class="tbl ins-tabla"><thead><tr><th>Qué</th><th>Producto</th><th class="r">Dosis</th><th></th></tr></thead><tbody id="insCuerpo_semilla"></tbody></table>
+        <div class="ins-form">
+          <select id="insCat_semilla"></select>
+          <input type="text" id="insProd_semilla" list="listaProductos" placeholder="Producto (ej: CoMo Nitragin, Standak Top, Cruiser)">
+          <input type="number" id="insDosis_semilla" step="0.01" min="0" placeholder="Dosis">
+          <select id="insUni_semilla"></select>
+          <button type="button" class="cierre-boton" onclick="agregarInsumo('semilla')">+ Agregar</button>
         </div>
       </div>
 
-      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;cursor:pointer;">
-        <input type="checkbox" id="insManejoCompleto" onchange="guardarManejoCompleto()"> Ya cargué todo lo que se usó en esta campaña (manejo completo)
-      </label>
-      <div class="ayuda" style="font-size:11px;">Marcalo cuando la lista esté completa: así SAFIA puede comparar "con" y "sin" cada práctica sin confundir "no cargado" con "no se usó".</div>
+      <!-- 2. Fertilización -->
+      <div class="ins-seccion">
+        <div class="ins-titulo"><span class="ins-num">2</span> Fertilización <span class="ins-sub">base a la siembra, voleo, cobertura, tasa variable, fertirriego</span></div>
+        <table class="tbl ins-tabla"><thead><tr><th>Momento</th><th>Fórmula / producto</th><th class="r">Dosis</th><th>Cómo</th><th>Cuándo</th><th class="r">N · P₂O₅ · K₂O</th><th></th></tr></thead><tbody id="insCuerpo_fertilizacion"></tbody></table>
+        <div id="insNPK" class="ins-npk"></div>
+        <div class="ins-form ins-form-fert">
+          <select id="insCat_fertilizacion"></select>
+          <input type="text" id="insProd_fertilizacion" list="listaFertilizantes" placeholder="Fórmula o producto (04-30-10, KCl, urea, MAP…)">
+          <input type="number" id="insDosis_fertilizacion" step="0.1" min="0" placeholder="kg/ha">
+          <select id="insUni_fertilizacion"></select>
+          <select id="insMetodo_fertilizacion"></select>
+          <select id="insEtapa_fertilizacion"></select>
+          <input type="date" id="insFecha_fertilizacion" title="Fecha (opcional)">
+          <button type="button" class="cierre-boton" onclick="agregarInsumo('fertilizacion')">+ Agregar</button>
+        </div>
+        <div class="ayuda" style="font-size:11px;">Escribí la fórmula (04-30-10) o el producto (urea, KCl, MAP, DAP, SSP, sulfato de amonio…): SAFIA calcula sola los kg/ha de N, P₂O₅ y K₂O.</div>
+      </div>
+
+      <!-- 3. Durante el ciclo -->
+      <div class="ins-seccion">
+        <div class="ins-titulo"><span class="ins-num">3</span> Durante el ciclo <span class="ins-sub">foliares, fungicidas, insecticidas, herbicidas</span></div>
+        <table class="tbl ins-tabla"><thead><tr><th>Qué</th><th>Producto</th><th class="r">Dosis</th><th>Etapa / fecha</th><th></th></tr></thead><tbody id="insCuerpo_ciclo"></tbody></table>
+        <div class="ins-form ins-form-ciclo">
+          <select id="insCat_ciclo"></select>
+          <input type="text" id="insProd_ciclo" list="listaProductos" placeholder="Producto o mezcla (ej: Fox Xpro, Engeo, Zn + Mn + B)">
+          <input type="number" id="insDosis_ciclo" step="0.01" min="0" placeholder="Dosis">
+          <select id="insUni_ciclo"></select>
+          <select id="insEtapa_ciclo"></select>
+          <input type="date" id="insFecha_ciclo" title="Fecha (opcional)">
+          <button type="button" class="cierre-boton" onclick="agregarInsumo('ciclo')">+ Agregar</button>
+        </div>
+      </div>
+
+      <datalist id="listaProductos"></datalist>
+      <datalist id="listaFertilizantes"></datalist>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;flex:1;min-width:260px;">
+          <input type="checkbox" id="insManejoCompleto" onchange="guardarManejoCompleto()"> Ya cargué todo lo que se usó en esta campaña (manejo completo)
+        </label>
+        <select id="insCopiarDe" style="max-width:280px;"><option value="">Copiar insumos de otra campaña…</option></select>
+        <button type="button" class="cierre-boton" onclick="copiarInsumos()">Copiar</button>
+      </div>
+      <div class="ayuda" style="font-size:11px;">Marcá "manejo completo" cuando la lista esté terminada: así SAFIA compara "con" y "sin" cada práctica sin confundir "no cargado" con "no se usó".</div>
 
       <div class="modal-botones">
         <button class="boton-cancelar-modal" onclick="cerrarModalInsumos()">Cerrar</button>
@@ -1040,6 +1075,13 @@
         }
       });
 
+      // Sumar la fertilización cargada en "Manejo e insumos" (N, P2O5 y K2O → P y K elementales)
+      let npkInsumos = null;
+      if (window.SafiaInsumos && campana.insumos && campana.insumos.length) {
+        npkInsumos = SafiaInsumos.totalesNPK(campana.insumos);
+        if (npkInsumos.items) { aplicadoN += npkInsumos.n; aplicadoP += npkInsumos.p2o5 * 0.436; aplicadoK += npkInsumos.k2o * 0.83; }
+      }
+
       // Renderizar modal
       const titulo = document.getElementById('npkTitulo');
       const cuerpo = document.getElementById('npkCuerpo');
@@ -1063,6 +1105,10 @@
         html += `<div style="background:rgba(212,162,76,0.12);border-radius:10px;padding:14px;font-size:13px;color:#8B6F00;margin-bottom:16px;">
           ⚠️ Cargá el <strong>rendimiento objetivo</strong> en la campaña para calcular la demanda.
         </div>`;
+      }
+
+      if (npkInsumos && npkInsumos.items) {
+        html += `<div style="font-size:12px;color:#2E3236;background:#E7F6EA;border-radius:8px;padding:8px 12px;margin-bottom:12px;">Desde <b>Manejo e insumos</b>: N <b>${Math.round(npkInsumos.n)}</b> · P₂O₅ <b>${Math.round(npkInsumos.p2o5)}</b> · K₂O <b>${Math.round(npkInsumos.k2o)}</b> kg/ha (${npkInsumos.items} fertilización(es)); se suman al aplicado como P y K elementales.</div>`;
       }
 
       if (ext && rendObj > 0) {
@@ -1432,20 +1478,34 @@
       const idx = campanas.findIndex(c => String(c.id) === String(insumosCampanaId));
       return { campanas, idx, campana: idx >= 0 ? campanas[idx] : null };
     }
+    function opcionesDe(lista, valorK, textoK) { return lista.map(x => '<option value="' + x[valorK] + '">' + x[textoK] + '</option>').join(''); }
+    function prepararFormulariosInsumos() {
+      if (document.getElementById('insCat_semilla').options.length) return;
+      SafiaInsumos.SECCIONES.forEach(s => {
+        document.getElementById('insCat_' + s.k).innerHTML = opcionesDe(SafiaInsumos.CATEGORIAS.filter(c => c.seccion === s.k), 'k', 'n');
+        document.getElementById('insUni_' + s.k).innerHTML = SafiaInsumos.UNIDADES[s.k].map(u => '<option>' + u + '</option>').join('');
+      });
+      document.getElementById('insMetodo_fertilizacion').innerHTML = opcionesDe(SafiaInsumos.METODOS, 'k', 'n');
+      document.getElementById('insEtapa_fertilizacion').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
+      document.getElementById('insEtapa_ciclo').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
+      document.getElementById('insEtapa_ciclo').value = 'V5–V8';
+      // el momento de la fertilización sugiere el método y la etapa
+      document.getElementById('insCat_fertilizacion').addEventListener('change', function () {
+        const m = document.getElementById('insMetodo_fertilizacion'), e = document.getElementById('insEtapa_fertilizacion');
+        if (this.value === 'fertirriego') { m.value = 'fertirriego'; e.value = 'V5–V8'; }
+        else if (this.value === 'fert_cobertura') { m.value = 'voleo_cobertura'; e.value = 'V5–V8'; }
+        else if (this.value === 'encalado') { m.value = 'voleo_presiembra'; e.value = 'Presiembra'; }
+        else { m.value = 'sembradora'; e.value = 'Siembra'; }
+      });
+      document.getElementById('listaFertilizantes').innerHTML = ['04-30-10', '02-20-20', '08-20-20', '05-25-25', '00-20-20', '10-30-10', '12-24-12', 'Urea', 'KCl', 'MAP', 'DAP', 'SSP', 'TSP', 'Sulfato de amonio', 'Sulfato de potasio', 'Yeso agrícola', 'Calcáreo dolomítico', 'Calcáreo calcítico'].map(f => '<option value="' + f + '">').join('');
+    }
     function abrirModalInsumos(campanaId) {
       insumosCampanaId = campanaId;
       const { campana, campanas } = campanaDeInsumos();
       if (!campana) return;
+      prepararFormulariosInsumos();
       const cultivos = (campana.cultivos || []).map(c => c.cultivo + (c.variedad ? ' ' + c.variedad : '')).join(' + ');
       document.getElementById('modalInsumosSub').textContent = campana.nombre + (cultivos ? ' · ' + cultivos : '');
-      const selCat = document.getElementById('insCategoria');
-      if (!selCat.options.length) {
-        const grupos = {};
-        SafiaInsumos.CATEGORIAS.forEach(c => { (grupos[c.grupo] = grupos[c.grupo] || []).push(c); });
-        selCat.innerHTML = Object.keys(grupos).map(g => '<optgroup label="' + g + '">' + grupos[g].map(c => '<option value="' + c.k + '">' + c.n + '</option>').join('') + '</optgroup>').join('');
-        document.getElementById('insUnidad').innerHTML = SafiaInsumos.UNIDADES.map(u => '<option>' + u + '</option>').join('');
-        document.getElementById('insEtapa').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
-      }
       const selCu = document.getElementById('insCultivoIdx');
       selCu.innerHTML = (campana.cultivos || []).map((c, i) => '<option value="' + i + '">' + c.cultivo + (c.variedad ? ' ' + c.variedad : '') + '</option>').join('');
       document.getElementById('campoInsCultivo').style.display = (campana.cultivos || []).length > 1 ? '' : 'none';
@@ -1454,26 +1514,33 @@
       campanas.forEach(c => (c.insumos || []).forEach(i => { if (i.producto) usados[i.producto] = 1; }));
       JSON.parse(localStorage.getItem('eventos') || '[]').forEach(e => { if (e.tipo === 'aplicacion' && e.producto) usados[e.producto] = 1; });
       document.getElementById('listaProductos').innerHTML = Object.keys(usados).sort().map(p => '<option value="' + p.replace(/"/g, '&quot;') + '">').join('');
-      // copiar de otra campaña
       document.getElementById('insCopiarDe').innerHTML = '<option value="">Copiar insumos de otra campaña…</option>' +
         campanas.filter(c => String(c.id) !== String(campanaId) && (c.insumos || []).length).map(c => '<option value="' + c.id + '">' + c.nombre + ' (' + (c.cultivos || []).map(x => x.cultivo).join('+') + ') · ' + c.insumos.length + ' insumos</option>').join('');
       document.getElementById('insManejoCompleto').checked = !!campana.manejoCompleto;
       pintarInsumos();
       document.getElementById('modalInsumosOverlay').classList.add('visible');
     }
+    function fmtDosis(i) { return (i.dosis != null && i.dosis !== '') ? i.dosis + ' ' + (i.unidad || '') : '—'; }
+    function fmtFechaCorta(f) { return f ? new Date(f + 'T12:00:00').toLocaleDateString('es-PY') : ''; }
     function pintarInsumos() {
       const { campana } = campanaDeInsumos();
       const lista = (campana && campana.insumos) || [];
-      const cuerpo = document.getElementById('cuerpoInsumos');
-      document.getElementById('insumosVacio').style.display = lista.length ? 'none' : '';
-      cuerpo.innerHTML = lista.map(i => {
-        const cu = campana.cultivos && campana.cultivos.length > 1 && i.cultivoIdx != null && campana.cultivos[i.cultivoIdx] ? '<div class="sub">' + campana.cultivos[i.cultivoIdx].cultivo + '</div>' : '';
-        return '<tr><td><span class="badge blue">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cu + '</td>' +
-          '<td><span class="num">' + (i.producto || '—') + '</span>' + (i.obs ? '<div class="sub">' + i.obs + '</div>' : '') + '</td>' +
-          '<td class="r">' + (i.dosis != null && i.dosis !== '' ? i.dosis + ' ' + (i.unidad || '') : '—') + '</td>' +
-          '<td>' + (i.etapa || '—') + (i.fecha ? '<div class="sub">' + new Date(i.fecha + 'T12:00:00').toLocaleDateString('es-PY') + '</div>' : '') + '</td>' +
-          '<td class="r"><button class="cierre-boton" onclick="quitarInsumo(' + i.id + ')" title="Quitar">Quitar</button></td></tr>';
+      const mixta = campana && campana.cultivos && campana.cultivos.length > 1;
+      const cultivoDe = i => (mixta && i.cultivoIdx != null && campana.cultivos[i.cultivoIdx]) ? '<div class="sub">' + campana.cultivos[i.cultivoIdx].cultivo + '</div>' : '';
+      const quitar = i => '<td class="r"><button class="cierre-boton" onclick="quitarInsumo(' + i.id + ')" title="Quitar">Quitar</button></td>';
+      const por = s => lista.filter(i => (i.seccion || SafiaInsumos.seccionDe(i.categoria)) === s);
+      document.getElementById('insCuerpo_semilla').innerHTML = por('semilla').map(i =>
+        '<tr><td><span class="badge blue">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td>' + (i.producto || '—') + '</td><td class="r">' + fmtDosis(i) + '</td>' + quitar(i) + '</tr>').join('');
+      document.getElementById('insCuerpo_fertilizacion').innerHTML = por('fertilizacion').map(i => {
+        const x = SafiaInsumos.npkDe(i);
+        return '<tr><td><span class="badge amber">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td><span class="num">' + (i.formula || i.producto || '—') + '</span></td><td class="r">' + fmtDosis(i) + '</td><td>' + SafiaInsumos.nombreMetodo(i.metodo) + '</td><td>' + (i.etapa || '—') + (i.fecha ? '<div class="sub">' + fmtFechaCorta(i.fecha) + '</div>' : '') + '</td>' +
+          '<td class="r">' + (x ? Math.round(x.n) + ' · ' + Math.round(x.p2o5) + ' · ' + Math.round(x.k2o) : '<span class="muted" title="No reconozco la fórmula: escribila como 04-30-10 o con el nombre del producto">?</span>') + '</td>' + quitar(i) + '</tr>';
       }).join('');
+      const t = SafiaInsumos.totalesNPK(por('fertilizacion'));
+      document.getElementById('insNPK').innerHTML = t.items ? '<span>Total aplicado:</span><span>N <b>' + Math.round(t.n) + '</b> kg/ha</span><span>P₂O₅ <b>' + Math.round(t.p2o5) + '</b> kg/ha</span><span>K₂O <b>' + Math.round(t.k2o) + '</b> kg/ha</span>' + (t.s ? '<span>S <b>' + Math.round(t.s) + '</b> kg/ha</span>' : '') : '';
+      document.getElementById('insNPK').style.display = t.items ? '' : 'none';
+      document.getElementById('insCuerpo_ciclo').innerHTML = por('ciclo').map(i =>
+        '<tr><td><span class="badge green">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td>' + (i.producto || '—') + (i.obs ? '<div class="sub">' + i.obs + '</div>' : '') + '</td><td class="r">' + fmtDosis(i) + '</td><td>' + (i.etapa || '—') + (i.fecha ? '<div class="sub">' + fmtFechaCorta(i.fecha) + '</div>' : '') + '</td>' + quitar(i) + '</tr>').join('');
     }
     function guardarCampanaInsumos(campanas, idx) {
       campanas[idx].fechaModificacion = new Date().toISOString();
@@ -1481,24 +1548,30 @@
       pintarInsumos();
       mostrarCampanas();
     }
-    function agregarInsumo() {
+    function agregarInsumo(seccion) {
       const { campanas, idx, campana } = campanaDeInsumos();
       if (!campana) return;
-      const producto = document.getElementById('insProducto').value.trim();
-      const categoria = document.getElementById('insCategoria').value;
-      if (!producto && categoria !== 'otro') { mostrarToast('Escribí el producto (o la mezcla) que se usó'); return; }
-      const dosis = document.getElementById('insDosis').value;
+      const g = id => document.getElementById(id + '_' + seccion);
+      const producto = g('insProd').value.trim();
+      const categoria = g('insCat').value;
+      if (!producto && !/otro$/.test(categoria)) { mostrarToast(seccion === 'fertilizacion' ? 'Escribí la fórmula o el producto (ej: 04-30-10, urea)' : 'Escribí el producto que se usó'); return; }
+      const dosis = g('insDosis').value;
       const item = {
-        id: Date.now(), categoria, producto,
-        dosis: dosis === '' ? null : parseFloat(dosis), unidad: document.getElementById('insUnidad').value,
-        etapa: document.getElementById('insEtapa').value, fecha: document.getElementById('insFecha').value || null,
-        cultivoIdx: (campana.cultivos || []).length > 1 ? parseInt(document.getElementById('insCultivoIdx').value || '0', 10) : null,
-        obs: document.getElementById('insObs').value.trim()
+        id: Date.now(), seccion, categoria,
+        producto: seccion === 'fertilizacion' ? producto : producto,
+        formula: seccion === 'fertilizacion' ? producto : undefined,
+        dosis: dosis === '' ? null : parseFloat(dosis), unidad: g('insUni').value,
+        metodo: seccion === 'fertilizacion' ? g('insMetodo').value : undefined,
+        etapa: seccion === 'semilla' ? 'Tratamiento de semilla' : g('insEtapa').value,
+        fecha: seccion === 'semilla' ? null : (g('insFecha').value || null),
+        cultivoIdx: (campana.cultivos || []).length > 1 ? parseInt(document.getElementById('insCultivoIdx').value || '0', 10) : null
       };
+      if (seccion === 'fertilizacion' && !SafiaInsumos.gradoDe(producto)) mostrarToast('Guardado. No reconozco la fórmula "' + producto + '": para que sume N-P-K escribila como 04-30-10 o con el nombre (urea, KCl, MAP…)');
       campanas[idx].insumos = (campanas[idx].insumos || []).concat([item]);
       guardarCampanaInsumos(campanas, idx);
-      document.getElementById('insProducto').value = ''; document.getElementById('insDosis').value = ''; document.getElementById('insObs').value = ''; document.getElementById('insFecha').value = '';
-      mostrarToast('Insumo agregado');
+      g('insProd').value = ''; g('insDosis').value = ''; if (seccion !== 'semilla') g('insFecha').value = '';
+      if (seccion === 'fertilizacion' && SafiaInsumos.gradoDe(producto)) mostrarToast('Agregado');
+      if (seccion !== 'fertilizacion') mostrarToast('Agregado');
     }
     function quitarInsumo(id) {
       const { campanas, idx, campana } = campanaDeInsumos();

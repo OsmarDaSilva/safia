@@ -1,51 +1,124 @@
 /* SAFIA — Manejo e insumos por campaña (catálogo compartido)
    -------------------------------------------------------------------
-   Cada campaña puede registrar, de forma estructurada y opcional, todo
-   lo que se usó: tratamiento de semilla (fungicida, insecticida,
-   micronutrientes), inoculación y co-inoculación, fertilización de base,
-   cobertura y fertirriego, foliares, fungicidas, insecticidas, herbicidas,
-   encalado. Se guarda en campana.insumos = [{ id, categoria, producto,
-   dosis, unidad, etapa, fecha, cultivoIdx, obs }]. El motor de casos lo
-   resume en "prácticas" (con / sin) para comparar rindes. */
+   Cada campaña registra, estructurado y opcional, todo lo que se usó,
+   en tres momentos:
+     1. Tratamiento de semilla: cobalto-molibdeno, inoculante,
+        co-inoculante, insecticida, fungicida, micronutrientes,
+        bioestimulante (dosis por kg de semilla).
+     2. Fertilización: fórmula o producto (04-30-10, KCl, urea, MAP…),
+        kg/ha, CÓMO se aplicó (sembradora en línea, voleo presiembra,
+        voleo en cobertura, tasa variable según mapa, fertirriego) y
+        cuándo. SAFIA calcula los kg/ha de N, P2O5 y K2O aplicados.
+     3. Durante el ciclo: foliares (micronutrientes, bioestimulantes),
+        fungicidas, insecticidas, herbicidas, con etapa fenológica.
+   Se guarda en campana.insumos = [{ id, seccion, categoria, producto,
+   formula, dosis, unidad, metodo, etapa, fecha, cultivoIdx, obs }].
+   El motor de casos lo resume en "prácticas" (con / sin). */
 (function () {
   'use strict';
 
-  var CATEGORIAS = [
-    { k: 'ts_fungicida',   n: 'Tratamiento de semilla · fungicida',                 grupo: 'Semilla',       practica: 'tratamientoSemilla' },
-    { k: 'ts_insecticida', n: 'Tratamiento de semilla · insecticida',               grupo: 'Semilla',       practica: 'tratamientoSemilla' },
-    { k: 'ts_micro',       n: 'Tratamiento de semilla · micronutrientes / bioestimulante', grupo: 'Semilla', practica: 'microSemilla' },
-    { k: 'inoculante',     n: 'Inoculante (Bradyrhizobium, Azospirillum…)',          grupo: 'Semilla',       practica: 'inoculacion' },
-    { k: 'coinoculante',   n: 'Co-inoculante',                                       grupo: 'Semilla',       practica: 'coinoculacion' },
-    { k: 'fert_base',      n: 'Fertilización de base (a la siembra)',               grupo: 'Fertilización', practica: 'fertBase' },
-    { k: 'fert_cobertura', n: 'Fertilización de cobertura',                          grupo: 'Fertilización', practica: 'fertCobertura' },
-    { k: 'fertirriego',    n: 'Fertirriego (por el equipo de riego)',                grupo: 'Fertilización', practica: 'fertirriego' },
-    { k: 'foliar_micro',   n: 'Foliar · micronutrientes',                            grupo: 'Foliar',        practica: 'foliares' },
-    { k: 'foliar_bio',     n: 'Foliar · bioestimulante / aminoácidos',               grupo: 'Foliar',        practica: 'foliares' },
-    { k: 'fungicida',      n: 'Fungicida',                                           grupo: 'Protección',    practica: 'fungicidas' },
-    { k: 'insecticida',    n: 'Insecticida',                                         grupo: 'Protección',    practica: 'insecticidas' },
-    { k: 'herbicida',      n: 'Herbicida',                                           grupo: 'Protección',    practica: 'herbicidas' },
-    { k: 'encalado',       n: 'Encalado / yeso agrícola',                            grupo: 'Suelo',         practica: 'encalado' },
-    { k: 'otro',           n: 'Otro',                                                grupo: 'Otro',          practica: null }
+  var SECCIONES = [
+    { k: 'semilla', n: 'Tratamiento de semilla', sub: 'Todo lo que se le puso a la semilla antes de sembrar' },
+    { k: 'fertilizacion', n: 'Fertilización', sub: 'Base a la siembra, voleo, cobertura, tasa variable y fertirriego' },
+    { k: 'ciclo', n: 'Durante el ciclo', sub: 'Foliares, fungicidas, insecticidas, herbicidas' }
   ];
-  var UNIDADES = ['kg/ha', 'L/ha', 'g/ha', 'mL/ha', 'mL/kg semilla', 'g/kg semilla', 'dosis/ha', 'kg N/ha', 't/ha', 'unidad/ha'];
-  var ETAPAS = ['Presiembra', 'Tratamiento de semilla', 'Siembra', 'Emergencia (VE)', 'V2–V4', 'V5–V8', 'Prefloración', 'Floración (R1–R2)', 'Llenado (R3–R6)', 'Madurez'];
+  var CATEGORIAS = [
+    // 1. Semilla
+    { k: 'ts_como',        seccion: 'semilla', n: 'Cobalto y molibdeno (CoMo)',        practica: 'microSemilla' },
+    { k: 'inoculante',     seccion: 'semilla', n: 'Inoculante (Bradyrhizobium, Azospirillum…)', practica: 'inoculacion' },
+    { k: 'coinoculante',   seccion: 'semilla', n: 'Co-inoculante',                     practica: 'coinoculacion' },
+    { k: 'ts_insecticida', seccion: 'semilla', n: 'Insecticida de semilla',            practica: 'tratamientoSemilla' },
+    { k: 'ts_fungicida',   seccion: 'semilla', n: 'Fungicida de semilla',              practica: 'tratamientoSemilla' },
+    { k: 'ts_micro',       seccion: 'semilla', n: 'Micronutrientes (Zn, Mn, B…)',       practica: 'microSemilla' },
+    { k: 'ts_bio',         seccion: 'semilla', n: 'Bioestimulante / aminoácidos / polímero', practica: 'bioSemilla' },
+    { k: 'ts_otro',        seccion: 'semilla', n: 'Otro en semilla',                   practica: null },
+    // 2. Fertilización
+    { k: 'fert_base',      seccion: 'fertilizacion', n: 'Base (presiembra o siembra)', practica: 'fertBase' },
+    { k: 'fert_cobertura', seccion: 'fertilizacion', n: 'Cobertura (durante el ciclo)', practica: 'fertCobertura' },
+    { k: 'fertirriego',    seccion: 'fertilizacion', n: 'Fertirriego (por el equipo de riego)', practica: 'fertirriego' },
+    { k: 'encalado',       seccion: 'fertilizacion', n: 'Encalado / yeso agrícola',    practica: 'encalado' },
+    // 3. Ciclo
+    { k: 'foliar_micro',   seccion: 'ciclo', n: 'Foliar · micronutrientes',           practica: 'foliares' },
+    { k: 'foliar_bio',     seccion: 'ciclo', n: 'Foliar · bioestimulante / aminoácidos', practica: 'foliares' },
+    { k: 'fungicida',      seccion: 'ciclo', n: 'Fungicida',                          practica: 'fungicidas' },
+    { k: 'insecticida',    seccion: 'ciclo', n: 'Insecticida',                        practica: 'insecticidas' },
+    { k: 'herbicida',      seccion: 'ciclo', n: 'Herbicida',                          practica: 'herbicidas' },
+    { k: 'otro',           seccion: 'ciclo', n: 'Otro',                               practica: null }
+  ];
+  var METODOS = [
+    { k: 'sembradora',       n: 'Sembradora (en la línea)' },
+    { k: 'voleo_presiembra', n: 'Al voleo antes de sembrar' },
+    { k: 'voleo_cobertura',  n: 'Al voleo en cobertura' },
+    { k: 'tasa_variable',    n: 'Tasa variable según mapa de fertilidad' },
+    { k: 'fertirriego',      n: 'Fertirriego por el pivot' },
+    { k: 'incorporado',      n: 'Incorporado con labranza' },
+    { k: 'otro',             n: 'Otro' }
+  ];
+  var UNIDADES = {
+    semilla: ['mL/kg semilla', 'g/kg semilla', 'mL/100 kg semilla', 'g/100 kg semilla', 'dosis/bolsa'],
+    fertilizacion: ['kg/ha', 't/ha', 'L/ha'],
+    ciclo: ['L/ha', 'kg/ha', 'mL/ha', 'g/ha', 'dosis/ha']
+  };
+  var ETAPAS = ['Presiembra', 'Siembra', 'Emergencia (VE)', 'V2–V4', 'V5–V8', 'Prefloración', 'Floración (R1–R2)', 'Llenado (R3–R6)', 'Madurez'];
   var PRACTICAS = [
-    { k: 'tratamientoSemilla', n: 'Tratamiento de semilla', peso: 0.35 },
-    { k: 'inoculacion',        n: 'Inoculación',            peso: 0.35 },
-    { k: 'coinoculacion',      n: 'Co-inoculación',         peso: 0.2 },
-    { k: 'microSemilla',       n: 'Micronutrientes en semilla', peso: 0.2 },
-    { k: 'fertBase',           n: 'Fertilización de base',  peso: 0.3 },
-    { k: 'fertCobertura',      n: 'Cobertura',              peso: 0.25 },
-    { k: 'fertirriego',        n: 'Fertirriego',            peso: 0.3 },
-    { k: 'foliares',           n: 'Foliares',               peso: 0.2 },
-    { k: 'fungicidas',         n: 'Fungicidas',             peso: 0.25 },
-    { k: 'insecticidas',       n: 'Insecticidas',           peso: 0.2 },
-    { k: 'herbicidas',         n: 'Herbicidas',             peso: 0.1 },
-    { k: 'encalado',           n: 'Encalado',               peso: 0.3 }
+    { k: 'tratamientoSemilla', n: 'Tratamiento de semilla (fungicida/insecticida)', peso: 0.35 },
+    { k: 'inoculacion',        n: 'Inoculación',                 peso: 0.35 },
+    { k: 'coinoculacion',      n: 'Co-inoculación',              peso: 0.2 },
+    { k: 'microSemilla',       n: 'CoMo / micronutrientes en semilla', peso: 0.2 },
+    { k: 'bioSemilla',         n: 'Bioestimulante en semilla',   peso: 0.15 },
+    { k: 'fertBase',           n: 'Fertilización de base',       peso: 0.3 },
+    { k: 'fertCobertura',      n: 'Cobertura',                   peso: 0.25 },
+    { k: 'fertirriego',        n: 'Fertirriego',                 peso: 0.3 },
+    { k: 'tasaVariable',       n: 'Fertilización a tasa variable', peso: 0.3 },
+    { k: 'foliares',           n: 'Foliares',                    peso: 0.2 },
+    { k: 'fungicidas',         n: 'Fungicidas',                  peso: 0.25 },
+    { k: 'insecticidas',       n: 'Insecticidas',                peso: 0.2 },
+    { k: 'herbicidas',         n: 'Herbicidas',                  peso: 0.1 },
+    { k: 'encalado',           n: 'Encalado',                    peso: 0.3 }
+  ];
+  // Fertilizantes comunes: % de N, P2O5, K2O (y S). Fuente: fichas técnicas habituales.
+  var FERTILIZANTES = [
+    { re: /^urea/i,                        n: 46, p: 0,  k: 0,  s: 0 },
+    { re: /(sulfato de amonio|SAM\b)/i,    n: 21, p: 0,  k: 0,  s: 24 },
+    { re: /(nitrato de amonio)/i,          n: 33, p: 0,  k: 0,  s: 0 },
+    { re: /(^MAP\b|fosfato monoam)/i,      n: 11, p: 52, k: 0,  s: 0 },
+    { re: /(^DAP\b|fosfato diam)/i,        n: 18, p: 46, k: 0,  s: 0 },
+    { re: /(^SSP\b|super ?fosfato simple)/i, n: 0, p: 18, k: 0, s: 12 },
+    { re: /(^TSP\b|super ?fosfato triple)/i, n: 0, p: 46, k: 0, s: 0 },
+    { re: /(^KCl\b|cloruro de potasio|muriato)/i, n: 0, p: 0, k: 60, s: 0 },
+    { re: /(sulfato de potasio|SOP\b)/i,   n: 0,  p: 0,  k: 50, s: 18 },
+    { re: /(sulpomag|sulfato de potasio y magnesio)/i, n: 0, p: 0, k: 22, s: 22 },
+    { re: /(yeso|gypsum)/i,                n: 0,  p: 0,  k: 0,  s: 17 },
+    { re: /(calc[aá]reo|cal agr|dolom)/i,   n: 0,  p: 0,  k: 0,  s: 0 }
   ];
   var POR_K = {}; CATEGORIAS.forEach(function (c) { POR_K[c.k] = c; });
+  var METODO_POR_K = {}; METODOS.forEach(function (m) { METODO_POR_K[m.k] = m; });
 
   function nombreCategoria(k) { return POR_K[k] ? POR_K[k].n : (k || 'Otro'); }
+  function nombreMetodo(k) { return METODO_POR_K[k] ? METODO_POR_K[k].n : (k || ''); }
+  function seccionDe(categoria) { return POR_K[categoria] ? POR_K[categoria].seccion : 'ciclo'; }
+
+  /* Grado NPK de un fertilizante: por fórmula "04-30-10" (o "4-30-10", "04-30-10+5S") o por nombre conocido. */
+  function gradoDe(texto) {
+    var t = String(texto || '').trim();
+    var m = t.match(/(\d{1,2}(?:[.,]\d)?)\s*-\s*(\d{1,2}(?:[.,]\d)?)\s*-\s*(\d{1,2}(?:[.,]\d)?)/);
+    if (m) return { n: parseFloat(m[1].replace(',', '.')), p: parseFloat(m[2].replace(',', '.')), k: parseFloat(m[3].replace(',', '.')), s: (t.match(/\+\s*(\d+)\s*S/i) ? parseFloat(RegExp.$1) : 0), origen: 'fórmula' };
+    for (var i = 0; i < FERTILIZANTES.length; i++) if (FERTILIZANTES[i].re.test(t)) return { n: FERTILIZANTES[i].n, p: FERTILIZANTES[i].p, k: FERTILIZANTES[i].k, s: FERTILIZANTES[i].s, origen: 'producto' };
+    return null;
+  }
+  /* kg/ha de N, P2O5, K2O que aporta un insumo de fertilización */
+  function npkDe(insumo) {
+    if (!insumo || seccionDe(insumo.categoria) !== 'fertilizacion') return null;
+    var g = gradoDe(insumo.formula || insumo.producto); if (!g) return null;
+    var dosis = parseFloat(insumo.dosis); if (isNaN(dosis)) return null;
+    var kg = insumo.unidad === 't/ha' ? dosis * 1000 : dosis;   // L/ha se toma como kg/ha (densidad ~1)
+    return { n: kg * g.n / 100, p2o5: kg * g.p / 100, k2o: kg * g.k / 100, s: kg * (g.s || 0) / 100, grado: g };
+  }
+  function totalesNPK(insumos) {
+    var t = { n: 0, p2o5: 0, k2o: 0, s: 0, items: 0 };
+    (insumos || []).forEach(function (i) { var x = npkDe(i); if (!x) return; t.n += x.n; t.p2o5 += x.p2o5; t.k2o += x.k2o; t.s += x.s; t.items++; });
+    return t;
+  }
 
   /* Resumen de manejo de una campaña: cuenta por práctica.
      aplicaciones = eventos tipo 'aplicacion' del Operador dentro del ciclo (sin categoría). */
@@ -56,9 +129,11 @@
     insumos.forEach(function (i) {
       var c = POR_K[i.categoria];
       if (c && c.practica) r[c.practica] = (r[c.practica] || 0) + 1;
-      if (i.producto) r.productos.push(i.producto);
+      if (i.metodo === 'tasa_variable') r.tasaVariable = (r.tasaVariable || 0) + 1;
+      if (i.producto || i.formula) r.productos.push(i.producto || i.formula);
     });
     aplicaciones.forEach(function (a) { if (a.producto) r.productos.push(a.producto); });
+    r.npk = totalesNPK(insumos);
     return r;
   }
   function tiene(manejo, practica) { return !!(manejo && manejo[practica] > 0); }
@@ -68,9 +143,11 @@
     if (!manejo || !manejo.cargado) return '';
     var partes = [];
     PRACTICAS.forEach(function (p) { var n = manejo[p.k]; if (n > 0) partes.push(n > 1 && /s$/.test(p.n) ? n + ' ' + p.n.toLowerCase() : p.n); });
+    if (manejo.npk && manejo.npk.items) partes.push('N ' + Math.round(manejo.npk.n) + ' · P₂O₅ ' + Math.round(manejo.npk.p2o5) + ' · K₂O ' + Math.round(manejo.npk.k2o) + ' kg/ha');
     if (manejo.aplicacionesOperador) partes.push(manejo.aplicacionesOperador + ' aplic. del Operador');
     return partes.join(' · ') || 'sin insumos (manejo completo)';
   }
 
-  window.SafiaInsumos = { CATEGORIAS: CATEGORIAS, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, nombreCategoria: nombreCategoria, resumen: resumen, tiene: tiene, textoCorto: textoCorto };
+  window.SafiaInsumos = { SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
+    nombreCategoria: nombreCategoria, nombreMetodo: nombreMetodo, seccionDe: seccionDe, gradoDe: gradoDe, npkDe: npkDe, totalesNPK: totalesNPK, resumen: resumen, tiene: tiene, textoCorto: textoCorto };
 })();
