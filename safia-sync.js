@@ -29,7 +29,8 @@
     eventos:         'safia_eventos',
     ciclos:          'safia_ciclos',
     analisis_suelo:  'safia_analisis',
-    planes_rotacion: 'safia_planes'
+    planes_rotacion: 'safia_planes',
+    analisis_foliar: 'safia_foliar'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);

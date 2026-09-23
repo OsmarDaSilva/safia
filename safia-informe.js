@@ -176,6 +176,19 @@
     return html;
   }
 
+  function secFoliar() {
+    if (!window.SafiaFoliar) return '';
+    var lotes = lotesDelCampo(), html = '<h2>Análisis foliar: lo que absorbió la planta</h2>', alguno = false;
+    lotes.forEach(function (l) {
+      var a = SafiaFoliar.ultimoDelLote(l.id); if (!a || String(a.equipoId || '') !== String(l.id) && SafiaFoliar.lista().some(function (x) { return x.equipoId; })) return;
+      alguno = true;
+      var suelo = sueloActual(analisisDelLote(l.id));
+      var est = SafiaFoliar.estadiosDe(a.cultivo).find(function (e) { return e.k === a.estadio; });
+      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · ' + esc(a.cultivo || '') + ' · muestreo del ' + fmtF(a.fecha) + (est ? ' · ' + esc(est.n) : '') + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</h3><div class="interp">' + SafiaFoliar.htmlLectura(a, suelo) + '</div></div>';
+    });
+    if (!alguno) html += '<div class="note">No hay análisis foliares cargados' + (equipoSel ? ' para este lote' : '') + '. Muestreando la hoja índice en floración, SAFIA compara con los rangos de Embrapa/Fertilizar y cruza con el suelo.</div>';
+    return html;
+  }
   function secNDVI() {
     if (!window.SafiaNDVI) return '';
     var lotes = lotesDelCampo(), html = '<h2>Vigor satelital (NDVI)</h2>', alguno = false;
@@ -248,7 +261,8 @@
       // El plan mira hacia adelante: usa el análisis más reciente del lote (o del campo), no el que había al cosechar
       var ultimo = sueloActual(analisisDelLote(id));
       if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
-      var pl; try { pl = SafiaMeta.plan(c, meta, pr, cx.todos, prof, {}); } catch (e) { return; }
+      var opc = {}; if (window.SafiaFoliar) opc.foliar = SafiaFoliar.ultimoDelLote(id);
+      var pl; try { pl = SafiaMeta.plan(c, meta, pr, cx.todos, prof, opc); } catch (e) { return; }
       var faltan = c.suelo ? SafiaAgro.interpretarSuelo(c.suelo, c.cultivo).filter(function (i) { return i.alcanzaAlto === false; }) : [];
       html += '<div class="card seccion"><div class="card-h"><h3>' + esc(l ? l.nombre : 'Campo') + ' · ' + esc(c.cultivo) + ' ' + esc(c.campana) + ' · hoy ' + fmt(c.rindeKgHa, 0) + ' kg/ha → meta ' + fmt(meta, 0) + '</h3></div>' +
         (c.suelo ? '<div class="note info" style="margin:6px 0 8px;"><b>Suelo hoy contra el de los lotes de 6–7 t/ha</b> (CESB, Embrapa, UNL): ' + (faltan.length ? 'faltan <b>' + faltan.map(function (i) { return esc(i.n.replace(/\s*\([^)]*\)$/, '')) + ' (' + fmt(i.valor, i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 's' || i.k.indexOf('rel') === 0 ? 1 : 2) + ' → ' + esc(i.objetivo) + ')'; }).join(', ') + '</b>. El resto ya está en el rango de alto rinde.' : 'todos los parámetros analizados ya están en el rango de alto rinde.') + '</div>' : '<div class="note warn">Sin análisis de suelo para este lote: el plan solo puede usar agua y manejo.</div>') +
@@ -273,6 +287,7 @@
     if (s.campanas) html += secCampanas(cx);
     if (s.agua) html += secAgua(cx);
     if (s.suelo) html += secSuelo(cx);
+    if (s.foliar) html += secFoliar();
     if (s.ndvi) html += secNDVI();
     if (s.rotacion) html += secRotacion();
     if (s.diagnostico) html += '<div class="salto"></div>' + secDiagnostico(cx);

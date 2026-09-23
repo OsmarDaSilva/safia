@@ -66,6 +66,7 @@
 <script src="safia-ndvi.js"></script>
 <script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
+<script src="safia-foliar.js"></script>
 </head>
 <body>
 
@@ -153,6 +154,7 @@
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
           <button data-tab="rotacion">Plan de rotación</button>
           <button data-tab="analisis">Análisis de suelo</button>
+          <button data-tab="foliar">Análisis foliar</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="evolucion">📈 Evolución y decisiones</button>
           <button data-tab="meta">Meta de rinde</button>
@@ -305,6 +307,60 @@
           <div class="empty" id="vacioAnalisis" style="display:none;">
             <div class="eico">🧪</div>
             <div class="etxt">Todavía no hay análisis de suelo en este lote.<br>El primer análisis es la línea de base: todo lo que mejore se va a medir contra él.</div>
+          </div>
+        </section>
+
+        <!-- ================= TAB ANÁLISIS FOLIAR ================= -->
+        <section class="panel" id="panel-foliar">
+          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="btnNuevoFoliar">+ Agregar análisis foliar</button><span class="muted" style="font-size:12px;">El suelo dice qué hay; la hoja dice qué absorbió la planta. Con los dos, SAFIA distingue si falta en el suelo o si la planta no lo toma.</span></div>
+
+          <div class="formcard" id="formFoliar">
+            <h3 id="tituloFormFoliar">Nuevo análisis foliar</h3>
+            <div class="formsub">Macronutrientes en g/kg (si el laboratorio informa en %, multiplicá por 10: 4,8 % = 48 g/kg). Micronutrientes en mg/kg (= ppm). Cargá también el SPAD si medís clorofila.</div>
+            <div class="form-grid">
+              <div class="field"><label>Fecha del muestreo *</label><input type="date" id="fFecha"></div>
+              <div class="field"><label>Lote / equipo</label><select id="fEquipo"><option value="">Todo el campo</option></select></div>
+              <div class="field"><label>Cultivo</label><select id="fCultivo"></select></div>
+              <div class="field"><label>Estadio del muestreo</label><select id="fEstadio"></select><span class="hint" id="fEstadioHint"></span></div>
+              <div class="field"><label>Hoja / muestra</label><input id="fHoja" placeholder="Ej.: 3er trifolio, muestra M1"></div>
+              <div class="field"><label>Laboratorio</label><input id="fLab" placeholder="Ej.: BIOSOLLO"></div>
+              <div class="field"><label>N (g/kg)</label><input type="number" id="fN" step="0.1" min="0"></div>
+              <div class="field"><label>P (g/kg)</label><input type="number" id="fP" step="0.1" min="0"></div>
+              <div class="field"><label>K (g/kg)</label><input type="number" id="fK" step="0.1" min="0"></div>
+              <div class="field"><label>Ca (g/kg)</label><input type="number" id="fCa" step="0.1" min="0"></div>
+              <div class="field"><label>Mg (g/kg)</label><input type="number" id="fMg" step="0.1" min="0"></div>
+              <div class="field"><label>S (g/kg)</label><input type="number" id="fS" step="0.1" min="0"></div>
+              <div class="field"><label>B (mg/kg)</label><input type="number" id="fB" step="0.1" min="0"></div>
+              <div class="field"><label>Cu (mg/kg)</label><input type="number" id="fCu" step="0.1" min="0"></div>
+              <div class="field"><label>Fe (mg/kg)</label><input type="number" id="fFe" step="1" min="0"></div>
+              <div class="field"><label>Mn (mg/kg)</label><input type="number" id="fMn" step="0.1" min="0"></div>
+              <div class="field"><label>Mo (mg/kg)</label><input type="number" id="fMo" step="0.01" min="0"></div>
+              <div class="field"><label>Zn (mg/kg)</label><input type="number" id="fZn" step="0.1" min="0"></div>
+              <div class="field"><label>SPAD del lote (clorofilómetro)</label><input type="number" id="fSpad" step="0.1" min="0"><span class="hint">Promedio de 20–30 lecturas en la hoja índice.</span></div>
+              <div class="field"><label>SPAD de la franja de referencia</label><input type="number" id="fSpadRef" step="0.1" min="0"><span class="hint">Franja con N sin límite o la zona más verde del lote; ISN = lote / referencia (INTA).</span></div>
+              <div class="field full">
+                <label>Foto o PDF del laboratorio</label>
+                <input type="file" id="fArchivo" accept=".pdf,image/*">
+                <span class="hint" id="fArchivoActual"></span>
+                <div style="margin-top:8px;">
+                  <button type="button" class="btn green" id="btnLeerFoliarIA">Leer análisis foliar con IA y completar solo</button>
+                  <span class="hint" id="leerFoliarHint" style="display:block;margin-top:6px;">Subí la foto o PDF del laboratorio y tocá el botón: la IA completa los casilleros (convierte % a g/kg). Revisá antes de guardar.</span>
+                  <div id="muestrasFoliarIA" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+                </div>
+              </div>
+              <div class="field full"><label>Observaciones</label><textarea id="fObs"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn" id="btnCancelarFoliar">Cancelar</button>
+              <button class="btn green" id="btnGuardarFoliar">Guardar análisis foliar</button>
+            </div>
+          </div>
+
+          <div id="listaFoliar"></div>
+          <div id="lecturaFoliar"></div>
+          <div class="empty" id="vacioFoliar" style="display:none;">
+            <div class="etxt">Todavía no hay análisis foliares en este campo.<br>Muestreá la hoja índice en el estadio indicado (soja: 3er trifolio en plena floración) y cargá el resultado: SAFIA lo lee contra los rangos de Embrapa y lo cruza con el suelo.</div>
           </div>
         </section>
 
@@ -645,6 +701,7 @@
     if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
     if (window.SafiaNDVI) SafiaNDVI.alCambiarCampo();
     if (window.SafiaRotacion) SafiaRotacion.alCambiarCampo();
+    if (window.SafiaFoliar) SafiaFoliar.alCambiarCampo();
     llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
@@ -712,6 +769,7 @@
     var ultimo = recientes.slice(-1)[0];
     if (ultimo && !ultimo.esPromedio) { var mismos = recientes.filter(function (a) { return String(a.fecha) === String(ultimo.fecha); }); if (mismos.length > 1) ultimo = Object.assign({}, ultimo, promediarAnalisis(mismos), { esPromedio: true, nMuestras: mismos.length, muestra: '' }); }
     if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
+    if (window.SafiaFoliar) opciones.foliar = SafiaFoliar.ultimoDelLote(c.equipoId);   // último análisis foliar del lote: deficiencias en hoja que el plan tiene que mirar
     var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
     // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo
     var otros = {};
@@ -740,6 +798,7 @@
       if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
       if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
       if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
+      if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
       if (b.dataset.tab === 'meta') activarMeta();
     });
   });
@@ -1383,7 +1442,7 @@
   }
 
   // Datos que la IA lee pero el formulario no tiene casillero: se guardan igual en el análisis y en Observaciones.
-  var EXTRAS_IA = [['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³']];
+  var EXTRAS_IA = [['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³']];
   var extrasIA = null;
   function extrasDeMuestra(m) {
     var o = {}, hay = false;

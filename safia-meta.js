@@ -52,7 +52,10 @@
    [16] Embrapa Cerrados (micronutrientes): B 1–2 kg/ha, Zn 6, Cu 1–2, Mn 6
         kg/ha al suelo cada 4–5 años (¼ si el tenor es medio). S < 10
         mg/dm³ (Embrapa 2020) → reponer ≈ 5 kg S por t (Fertilizar).
-   Validación completa en FUNDAMENTOS_META_RINDE.md y FUNDAMENTOS_ALTO_RINDE.md. */
+   [17] Embrapa Soja, Comunicado Técnico 75 (Hungria, Campo, Franchini &
+        Loureiro 2001) y Embrapa Cerrados (Mendes, Reis Jr., Hungria, Sousa
+        & Campo 2008, PAB): no aplicar N a la soja en ningún estadio.
+   Validación completa en FUNDAMENTOS_META_RINDE.md, FUNDAMENTOS_ALTO_RINDE.md y FUNDAMENTOS_FOLIAR.md. */
 (function () {
   'use strict';
 
@@ -225,6 +228,15 @@
     if (bSuelo != null && bSuelo < (AR ? AR.b : 0.5)) item({ k: 'boro', tipo: 'suelo', nombre: 'Boro', hoy: fmt(bSuelo, 2) + ' mg/dm³ (' + (bSuelo < 0.3 ? 'bajo' : 'medio') + ')', objetivo: '≥ 0,5 mg/dm³ (campeones 0,7–1,0)', accion: (bSuelo < 0.3 ? '1–2 kg B/ha' : '0,5 kg B/ha (tenor medio)') + ' al suelo (bórax o ulexita, dura 4–5 años) o foliar en floración según el agrónomo; franja estrecha con la toxicidad, no exceder', inversion: (bSuelo < 0.3 ? 1.5 : 0.5) * pr.boroUSDkg + 6, vidaUtil: 4, aporteMin: bSuelo < 0.3 ? 0.04 : 0.02, aporteMax: bSuelo < 0.3 ? 0.10 : 0.05, fuente: '[14][16]' });
     if (znSuelo != null && znSuelo < (AR ? AR.zn : 1.5)) item({ k: 'zinc_suelo', tipo: 'suelo', nombre: 'Zinc (suelo)', hoy: fmt(znSuelo, 2) + ' mg/dm³ (' + (znSuelo < 1.0 ? 'bajo' : 'medio') + ')', objetivo: '≥ 1,5 mg/dm³', accion: znSuelo < 1.0 ? '6 kg Zn/ha al suelo (sulfato de zinc ~30 kg/ha), dura 4–5 años' : '1,5 kg Zn/ha al suelo (¼ de la dosis, tenor medio) o zinc en semilla + foliar', inversion: (znSuelo < 1.0 ? 6 : 1.5) * pr.znSueloUSDkg + 6, vidaUtil: 4, aporteMin: znSuelo < 1.0 ? 0.03 : 0.01, aporteMax: znSuelo < 1.0 ? 0.08 : 0.04, fuente: '[16]' });
     if (cuSuelo != null && cuSuelo < (AR ? AR.cu : 0.8)) item({ k: 'cobre', tipo: 'suelo', nombre: 'Cobre', hoy: fmt(cuSuelo, 2) + ' mg/dm³', objetivo: '≥ 0,8 mg/dm³ (campeones 1,3–3,4)', accion: '1–2 kg Cu/ha al suelo (sulfato de cobre) o foliar', inversion: 1.5 * pr.cuUSDkg + 6, vidaUtil: 4, aporteMin: 0.01, aporteMax: 0.04, fuente: '[14][16]' });
+    // Nitrógeno en soja: la pregunta que más se hace; la respuesta de Embrapa es no (9 + 15 ensayos) [17]
+    if (cu === 'soja') item({ k: 'n_soja', tipo: 'manejo', nombre: 'Nitrógeno en soja', hoy: 'fija su propio N', objetivo: 'no aplicar N en ningún estadio', accion: 'Embrapa Soja y Embrapa Cerrados: 50 kg de N en floración (R1) o en llenado (R5) no aumentaron el rinde en 9 ensayos de PR/MT, y en el Cerrado hubo respuesta en solo 2 de 15 (+154–216 kg/ha) sin retorno económico; el N a la siembra redujo la nodulación 20–86 %. La plata rinde más en inoculación, CoMo y micronutrientes', costo: 0, fuente: '[17]' });
+    // Deficiencias vistas en la hoja (último análisis foliar del lote): para mirar, sin costo fijado
+    if (opciones.foliar && window.SafiaFoliar) {
+      try {
+        var lf = SafiaFoliar.interpretar(opciones.foliar), bajosF = lf.filter(function (h) { return h.estado === 'bajo' || h.estado === 'limite'; });
+        if (bajosF.length) item({ k: 'foliar', tipo: 'suelo', nombre: 'Hoja: nutrientes por debajo del rango', hoy: bajosF.map(function (h) { return h.n.replace(/\s*\(.*$/, '') + ' ' + fmt(h.valor, h.unidad === 'g/kg' ? 1 : 0) + ' ' + h.unidad; }).join(', ') + ' (muestreo ' + String(opciones.foliar.fecha || '').slice(0, 10) + ')', objetivo: 'todos dentro del rango de Embrapa/Fertilizar', accion: 'La planta no llegó a absorber lo que necesita: ' + (SafiaFoliar.recomendaciones(opciones.foliar, lf, []).filter(function (r) { return r.k !== 'n_ok'; }).map(function (r) { return r.titulo; }).join('; ') || 'ver la lectura foliar en el Banco'), costo: 0, fuente: 'Análisis foliar del lote' });
+      } catch (e) { /* sin foliar */ }
+    }
     var man = caso.manejo || {};
     if (cu === 'soja' && !(man.cargado && man.microSemilla)) item({ k: 'como', tipo: 'manejo', nombre: 'Cobalto y molibdeno en semilla', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'CoMo en cada siembra', accion: 'CoMo en el tratamiento de semilla (mejora la fijación de N)', costo: pr.comoUSDha, aporteMin: 0.02, aporteMax: 0.05, fuente: '[8]' });
     if (cu === 'maiz' && !(man.cargado && (man.microSemilla || man.foliares))) item({ k: 'zinc', tipo: 'manejo', nombre: 'Zinc', hoy: man.cargado ? 'sin Zn' : 'no registrado', objetivo: 'Zn en semilla o foliar V4–V6', accion: 'Zinc en semilla o 1 foliar de Zn + B', costo: pr.znUSDha, aporteMin: 0.02, aporteMax: 0.06, fuente: 'Embrapa Milho: Zn es el micro más limitante en suelos ácidos' });
