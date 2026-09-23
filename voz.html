@@ -578,6 +578,14 @@
       </select>
     </div>
 
+    <div class="config-row">
+      <label>Campo:</label>
+      <select id="selectorCampo" onchange="cambiarCampo(this.value)" style="max-width:100%;">
+        <option value="">— Todos (decí el cliente o el campo en la frase) —</option>
+      </select>
+    </div>
+    <div class="ayuda-tip" style="margin:-4px 0 10px;font-size:12px;">Con varios clientes hay varios "pivote 1": elegí el campo acá, o decilo en la frase ("riego de 20 mm en pivote 1 de Anderson"). Si queda la duda, SAFIA te pregunta cuál.</div>
+
     <div class="alerta" id="alertaSinSoporte">
       ⚠️ Tu navegador no soporta voz. Probá con Chrome.
     </div>
@@ -590,6 +598,7 @@
       💡 <strong>Tocá el micrófono y hablá natural.</strong>
       <div class="ayuda-ejemplos">
         <div>"Riego de 20 mm en pivote 1"</div>
+        <div>"Riego de 20 mm en pivote 1 de Anderson"</div>
         <div>"Llovieron 25 mm en pivote 2"</div>
         <div>"Apliqué glifosato 2.5 litros por hectárea en pivote 1"</div>
       </div>
@@ -697,6 +706,45 @@
       }
     }
 
+    // ===== Campo activo y nombres completos (cliente · campo · lote) =====
+    let campoActivo = '';
+    try { campoActivo = localStorage.getItem('voz_campo') || ''; } catch (e) {}
+    function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+    function datosEquipo(eq) {
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const campo = campos.find(c => String(c.id) === String(eq.campoId)) || null;
+      const cliente = campo ? (clientes.find(c => String(c.id) === String(campo.clienteId)) || null) : null;
+      return { campo, cliente };
+    }
+    function etiquetaEquipo(eq) {
+      if (!eq) return '?';
+      const d = datosEquipo(eq);
+      return [d.cliente && d.cliente.nombre, d.campo && d.campo.nombre, eq.nombre].filter(Boolean).join(' · ');
+    }
+    function llenarSelectorCampo() {
+      const sel = document.getElementById('selectorCampo'); if (!sel) return;
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const filas = campos.map(c => { const cl = clientes.find(x => String(x.id) === String(c.clienteId)); return { id: String(c.id), txt: (cl ? cl.nombre + ' · ' : '') + c.nombre }; }).sort((a, b) => a.txt.localeCompare(b.txt));
+      sel.innerHTML = '<option value="">— Todos (decí el cliente o el campo en la frase) —</option>' + filas.map(f => '<option value="' + f.id + '">' + f.txt + '</option>').join('');
+      if (filas.length === 1) campoActivo = filas[0].id;
+      if (campoActivo && filas.some(f => f.id === campoActivo)) sel.value = campoActivo; else campoActivo = '';
+    }
+    function cambiarCampo(id) { campoActivo = id || ''; try { localStorage.setItem('voz_campo', campoActivo); } catch (e) {} log('Campo activo: ' + (id || 'todos'), 'info'); }
+    // Busca en la frase el nombre del cliente o del campo (palabras de 4+ letras, sin acentos)
+    function campoEnFrase(t) {
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const nt = ' ' + norm(t) + ' ';
+      let mejores = [], puntaje = 0;
+      campos.forEach(c => {
+        const cl = clientes.find(x => String(x.id) === String(c.clienteId));
+        const palabras = norm(c.nombre).split(' ').concat(cl ? norm(cl.nombre).split(' ') : []).filter(w => w.length >= 4 && !/^(estancia|campo|finca|colonia|lote|pivot|pivote|santa|santo|villa|don|dona)$/.test(w));
+        const hits = palabras.filter(w => nt.includes(' ' + w + ' ')).length;
+        if (hits > puntaje) { puntaje = hits; mejores = [c]; } else if (hits && hits === puntaje) mejores.push(c);
+      });
+      return mejores;
+    }
+    function elegirCandidato(id) { if (!interpretacionActual) return; interpretacionActual.equipoId = parseInt(id); interpretacionActual.candidatos = null; mostrarInterpretacion(interpretacionActual); }
+
     function cambiarIdioma(lang) {
       idiomaActual = lang;
       if (recognition) recognition.lang = lang;
@@ -712,6 +760,7 @@
         return;
       }
       log(`✅ ${equipos.length} equipo(s)`, 'success');
+      llenarSelectorCampo();
 
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) {
@@ -834,12 +883,16 @@
       }
 
       // ===== EQUIPO con MUCHAS variantes =====
-      let equipoMatch = null;
+      let equipoMatch = null, candidatos = [];
+      // Ámbito: el campo dicho en la frase manda; si no, el campo activo del selector; si no, todos
+      const camposFrase = campoEnFrase(t);
+      let ambito = equipos;
+      if (camposFrase.length) { const ids = camposFrase.map(c => String(c.id)); ambito = equipos.filter(eq => ids.indexOf(String(eq.campoId)) !== -1); log(`📍 Campo en la frase: ${camposFrase.map(c => c.nombre).join(' / ')}`, 'success'); }
+      else if (campoActivo) { ambito = equipos.filter(eq => String(eq.campoId) === String(campoActivo)); }
+      const nt = ' ' + norm(t) + ' ';
 
-      // Buscar primero por nombre completo
-      equipos.forEach(eq => {
-        if (t.includes(eq.nombre.toLowerCase())) equipoMatch = eq;
-      });
+      // Buscar primero por nombre completo (sin acentos ni signos), dentro del ámbito
+      ambito.forEach(eq => { const ne = norm(eq.nombre); if (ne.length >= 3 && nt.includes(' ' + ne + ' ')) candidatos.push(eq); });
 
       // Si no, buscar por número (acepta "pivote", "pivot", "pívot", "pivó", "pibote", etc.)
       if (!equipoMatch) {
@@ -855,14 +908,24 @@
           if (numerosTexto[numero.toLowerCase()]) numero = numerosTexto[numero.toLowerCase()];
           numero = parseInt(numero);
           log(`🔢 Detecté pivot número ${numero}`, 'info');
-          equipoMatch = equipos.find(eq => eq.nombre.toLowerCase().includes(numero.toString()));
+          // el número tiene que ser exactamente ese en el nombre ("Pivot-1" sí, "Pivot-10" no)
+          const conNumero = lista => lista.filter(eq => norm(eq.nombre).split(/[^0-9]+/).filter(Boolean).map(Number).indexOf(numero) !== -1);
+          candidatos = conNumero(ambito);
+          if (!candidatos.length && ambito.length !== equipos.length) candidatos = conNumero(equipos);
+          // si dijo "pivote", los lotes que se llaman pivote van primero ("Anai area 1" no compite con "Pivot-1")
+          const soloPivot = candidatos.filter(eq => /piv/.test(norm(eq.nombre)));
+          if (soloPivot.length && soloPivot.length < candidatos.length) candidatos = soloPivot;
         }
       }
+      if (!candidatos.length && ambito.length && ambito.length !== equipos.length) candidatos = ambito.slice();
+      if (candidatos.length === 1) equipoMatch = candidatos[0];
 
       if (equipoMatch) {
         equipoId = equipoMatch.id;
         confianza += 25;
-        log(`✓ Equipo: ${equipoMatch.nombre}`, 'success');
+        log(`✓ Equipo: ${etiquetaEquipo(equipoMatch)}`, 'success');
+      } else if (candidatos.length > 1) {
+        log(`❓ Hay ${candidatos.length} lotes posibles: ${candidatos.map(etiquetaEquipo).join(' | ')}`, 'warning');
       } else {
         log(`⚠️ Equipo no detectado`, 'warning');
       }
@@ -924,7 +987,7 @@
       log(`📊 Confianza final: ${confianza}%`, 'info');
 
       return {
-        textoOriginal: texto, tipo, equipoId,
+        textoOriginal: texto, tipo, equipoId, candidatos: candidatos.length > 1 ? candidatos.map(c => c.id) : null,
         cantidad, producto, dosis, unidad,
         fecha: fecha.toISOString().split('T')[0],
         confianza: Math.min(100, confianza)
@@ -956,11 +1019,17 @@
         </select>
       </div>`;
 
+      if (interp.candidatos && interp.candidatos.length > 1 && !interp.equipoId) {
+        html += `<div class="campo-detectado" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <div class="campo-detectado-info"><div class="campo-detectado-label">¿En cuál lote? Hay varios con ese nombre</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">${interp.candidatos.map(id => { const eq = equipos.find(x => x.id === id); return '<button type="button" class="boton-test" style="margin:0;" onclick="elegirCandidato(' + id + ')">' + etiquetaEquipo(eq) + '</button>'; }).join('')}</div>
+        </div>`;
+      }
       let opts = '<option value="">— Elegir —</option>';
-      equipos.forEach(eq => { opts += `<option value="${eq.id}" ${eq.id === interp.equipoId ? 'selected' : ''}>${eq.nombre}</option>`; });
+      equipos.slice().sort((a, b) => etiquetaEquipo(a).localeCompare(etiquetaEquipo(b))).forEach(eq => { opts += `<option value="${eq.id}" ${eq.id === interp.equipoId ? 'selected' : ''}>${etiquetaEquipo(eq)}</option>`; });
       html += `<div class="campo-detectado">
-        <div class="campo-detectado-info"><div class="campo-detectado-label">Equipo</div></div>
-        <select onchange="interpretacionActual.equipoId=parseInt(this.value)">${opts}</select>
+        <div class="campo-detectado-info"><div class="campo-detectado-label">Lote (cliente · campo · lote)</div></div>
+        <select onchange="interpretacionActual.equipoId=parseInt(this.value); interpretacionActual.candidatos=null;">${opts}</select>
       </div>`;
 
       html += `<div class="campo-detectado">
@@ -996,7 +1065,7 @@
 
     function confirmar() {
       const i = interpretacionActual;
-      if (!i.tipo || !i.equipoId || !i.fecha) { alert('Faltan datos.'); return; }
+      if (!i.tipo || !i.equipoId || !i.fecha) { mostrarToast(!i.equipoId ? 'Falta elegir el lote (hay que decir en qué campo o tocar uno de los botones)' : 'Faltan datos: tipo, lote o fecha'); return; }
       if (i.tipo === 'aplicacion' && (!i.producto || !i.dosis)) { alert('Faltan producto/dosis.'); return; }
       if (i.tipo !== 'aplicacion' && (!i.cantidad || i.cantidad <= 0)) { alert('Falta cantidad.'); return; }
 
@@ -1049,7 +1118,7 @@
           <div class="evento-icono tipo-${e.tipo}">${icono}</div>
           <div class="evento-info">
             <div class="evento-titulo-evt">${titulo} <span class="badge-voz">VOZ</span></div>
-            <div class="evento-detalle">${eq ? eq.nombre : '?'} · ${f}</div>
+            <div class="evento-detalle">${etiquetaEquipo(eq)} · ${f}</div>
           </div>
         </div>`;
       });
