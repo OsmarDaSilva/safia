@@ -266,12 +266,16 @@
       <div>
         <h1>RESUMEN EJECUTIVO</h1>
         <p id="headerSub">Cargando datos del establecimiento...</p>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select id="selCliente" onchange="cambiarClienteProp(this.value)" style="font:inherit;font-size:13px;padding:6px 10px;border:1px solid rgba(255,255,255,.5);border-radius:8px;background:#fff;color:#2E3236;max-width:100%;"></select>
+          <a href="informe.html" id="lnkInforme" style="font-size:12px;color:#fff;text-decoration:underline;">Informe completo del cliente (PDF)</a>
+        </div>
       </div>
     </div>
 
     <!-- KPIs -->
     <div class="kpis-grid" id="kpisGrid">
-      <div class="kpi"><div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg></div><div class="kpi-valor" id="k1">—</div><div class="kpi-label">Clientes</div></div>
+      <div class="kpi"><div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg></div><div class="kpi-valor" id="k1">—</div><div class="kpi-label">Campos</div></div>
       <div class="kpi"><div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></div><div><span class="kpi-valor" id="k2">—</span><span class="kpi-unidad"> ha</span></div><div class="kpi-label">Superficie total</div></div>
       <div class="kpi"><div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></div><div class="kpi-valor" id="k3">—</div><div class="kpi-label">Equipos y lotes</div></div>
       <div class="kpi"><div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg></div><div class="kpi-valor" id="k4">—</div><div class="kpi-label">Campañas activas</div></div>
@@ -413,10 +417,17 @@
   // ===== CARGA PRINCIPAL =====
   window.onload = async function() {
     const clientes  = JSON.parse(localStorage.getItem('clientes')      || '[]');
-    const campos    = JSON.parse(localStorage.getItem('campos')        || '[]');
-    const equipos   = JSON.parse(localStorage.getItem('equipos')       || '[]');
-    const campanas  = JSON.parse(localStorage.getItem('campanas')      || '[]');
-    const eventos   = JSON.parse(localStorage.getItem('eventos')       || '[]');
+    // Vista del PROPIETARIO: un cliente por vez (el elegido arriba, recordado), no la suma de todos los clientes de Irrigar
+    const selCli = document.getElementById('selCliente');
+    let clienteSel = ''; try { clienteSel = localStorage.getItem('propietario_cliente') || ''; } catch (e) {}
+    if (!clientes.some(c => String(c.id) === clienteSel)) clienteSel = clientes.length ? String(clientes[0].id) : '';
+    selCli.innerHTML = clientes.slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))).map(c => '<option value="' + c.id + '"' + (String(c.id) === clienteSel ? ' selected' : '') + '>' + c.nombre + '</option>').join('');
+    const clienteObj = clientes.find(c => String(c.id) === clienteSel) || null;
+    const campos    = JSON.parse(localStorage.getItem('campos')        || '[]').filter(c => !clienteSel || String(c.clienteId) === clienteSel);
+    const equipos   = JSON.parse(localStorage.getItem('equipos')       || '[]').filter(e => campos.some(c => String(c.id) === String(e.campoId)));
+    const campanas  = JSON.parse(localStorage.getItem('campanas')      || '[]').filter(c => equipos.some(e => String(e.id) === String(c.equipoId)));
+    const eventos   = JSON.parse(localStorage.getItem('eventos')       || '[]').filter(e => equipos.some(q => String(q.id) === String(e.equipoId)));
+    try { if (campos[0]) document.getElementById('lnkInforme').addEventListener('click', () => { sessionStorage.setItem('banco_campo', String(campos[0].id)); }); } catch (e) {}
     const fao       = JSON.parse(localStorage.getItem('cultivos_fao')  || '[]');
     const custom    = JSON.parse(localStorage.getItem('cultivos_custom')|| '[]');
 
@@ -426,7 +437,8 @@
     // KPIs básicos
     const haTotal = campos.reduce((s, c) => s + (parseFloat(c.superficie) || 0), 0);
     const hace30 = new Date(); hace30.setDate(hace30.getDate() - 30);
-    const ev30   = eventos.filter(e => new Date(e.fecha) >= hace30);
+    const hace30Str = SafiaBalance.fechaLocal(hace30);
+    const ev30   = eventos.filter(e => String(e.fecha).slice(0, 10) >= hace30Str);
     const riegoMM = ev30.filter(e => e.tipo==='riego').reduce((s,e) => s+(parseFloat(e.cantidad)||0), 0);
     const nRiegos = ev30.filter(e => e.tipo==='riego').length;
 
@@ -438,11 +450,11 @@
       const horas = parseFloat(eq.horasAcumuladas) || 0;
       plan.forEach(t => {
         const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
-        if ((desde / t.intervalo) >= 0.8) totalPend++;
+        if (parseFloat(t.intervalo) > 0 && (desde / t.intervalo) >= 0.8) totalPend++;
       });
     });
 
-    document.getElementById('k1').textContent = clientes.length;
+    document.getElementById('k1').textContent = campos.length;
     document.getElementById('k2').textContent = haTotal.toLocaleString('es-PY');
     document.getElementById('k3').textContent = equipos.length;
     document.getElementById('k4').textContent = activas.length;
@@ -452,10 +464,9 @@
     if (totalPend === 0) document.getElementById('k6').style.color = '#178029';
 
     // Header sub
-    const nombreCampo = campos[0] ? campos[0].nombre : 'Sin campos cargados';
-    const nombreCliente = clientes[0] ? clientes[0].nombre : '';
+    const nombreCliente = clienteObj ? clienteObj.nombre : 'Sin clientes cargados';
     document.getElementById('headerSub').textContent =
-      `${nombreCliente ? nombreCliente + ' · ' : ''}${haTotal} ha · ${equipos.length} equipo${equipos.length!==1?'s':''} · ${activas.length} campaña${activas.length!==1?'s':''}`;
+      `${nombreCliente} · ${campos.length} campo${campos.length!==1?'s':''} · ${haTotal.toLocaleString('es-PY')} ha · ${equipos.length} lote${equipos.length!==1?'s':''} · ${activas.length} campaña${activas.length!==1?'s':''} activa${activas.length!==1?'s':''}`;
 
     // Actividad 30d
     const lluviaMM  = ev30.filter(e=>e.tipo==='lluvia').reduce((s,e)=>s+(parseFloat(e.cantidad)||0),0);
@@ -507,10 +518,10 @@
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><strong>${eq?.nombre || '?'}</strong></td>
+          <td><strong>${eq?.nombre || '?'}</strong>${eq && eq.tipo === 'secano' ? ' <span class="badge badge-gris">secano</span>' : ''}<div style="font-size:11px;color:#8C9196;">${campo ? campo.nombre : ''}</div></td>
           <td>${camp.nombre}</td>
           <td>${cul ? (kcDef?.emoji||'🌱')+' '+cul.cultivo+(cul.variedad?' ('+cul.variedad+')':'') : '—'}</td>
-          <td>${cul?.superficie || '—'} ha</td>
+          <td>${cul?.superficie ? cul.superficie + ' ha' : '—'}</td>
           <td>${typeof info.dias === 'number' ? info.dias+'d' : info.dias}</td>
           <td>${info.etapa}</td>
           <td>${info.kc.toFixed(2)}</td>
@@ -518,8 +529,12 @@
         campBody.appendChild(tr);
 
         // Fetch estado riego async
-        if (campo?.latitud && campo?.longitud) {
+        if (eq && eq.tipo === 'secano') {
+          document.querySelectorAll('.estado-riego-' + camp.id).forEach(c => c.innerHTML = '<span class="badge badge-gris">Secano</span>');
+        } else if (campo?.latitud && campo?.longitud) {
           fetchEstadoRiego(campo, camp, eventos.filter(e=>e.equipoId===camp.equipoId), camp.id, alertas);
+        } else {
+          document.querySelectorAll('.estado-riego-' + camp.id).forEach(c => c.innerHTML = '<span class="badge badge-gris">Sin GPS</span>');
         }
       }
 
@@ -529,21 +544,26 @@
 
     // ===== COSECHAS DEL AÑO =====
     const anioActual = new Date().getFullYear();
-    const cosechasAnio = cerradas.filter(c => {
-      if (!c.cosecha?.fecha) return false;
-      return new Date(c.cosecha.fecha).getFullYear() >= anioActual - 1;
-    }).sort((a, b) => new Date(b.cosecha.fecha) - new Date(a.cosecha.fecha));
+    const cosechasAnio = [];
+    campanas.forEach(c => {
+      (c.cultivos || []).forEach((cul, i) => {
+        const cos = (c.cosechas && c.cosechas[i]) || (i === 0 ? c.cosecha : null);
+        const real = cos && cos.rendimientoNeto != null ? parseFloat(cos.rendimientoNeto) : parseFloat(cul.rendimientoReal);
+        if (!cos || !cos.fecha || !real) return;
+        if (parseInt(String(cos.fecha).slice(0, 4), 10) < anioActual - 1) return;
+        cosechasAnio.push({ camp: c, cul: cul, cos: cos, real: real });
+      });
+    });
+    cosechasAnio.sort((a, b) => String(b.cos.fecha).localeCompare(String(a.cos.fecha)));
 
     const listaCosechas = document.getElementById('listaCosechas');
     if (cosechasAnio.length === 0) {
       listaCosechas.innerHTML = '<div class="vacio">No hay cosechas registradas todavía.<br>Al cerrar una campaña desde Campañas, aparecerá acá.</div>';
     } else {
-      listaCosechas.innerHTML = cosechasAnio.slice(0, 6).map(camp => {
-        const cul  = camp.cultivos?.[0];
-        const eq   = equipos.find(e => e.id === camp.equipoId);
-        const cos  = camp.cosecha;
+      listaCosechas.innerHTML = cosechasAnio.slice(0, 8).map(item => {
+        const camp = item.camp, cul = item.cul, cos = item.cos, real = item.real;
+        const eq   = equipos.find(e => String(e.id) === String(camp.equipoId));
         const obj  = cul?.rendimientoObj ? parseFloat(cul.rendimientoObj) : 0;
-        const real = cos.rendimientoNeto;
         const pct  = obj > 0 ? Math.round((real/obj)*100) : null;
         const emoji = pct ? (pct>=100?'🏆':pct>=85?'✅':pct>=70?'🟡':'⚠️') : '🌾';
         const fecha = new Date(cos.fecha+'T12:00:00').toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -551,7 +571,7 @@
           <div class="cosecha-icono">${emoji}</div>
           <div style="flex:1;">
             <div class="cosecha-nombre">${cul?.cultivo||'?'}${cul?.variedad?' ('+cul.variedad+')':''}</div>
-            <div class="cosecha-meta">${eq?.nombre||'?'} · ${fecha} · ${(cos.produccionKg/1000).toFixed(1)} ton</div>
+            <div class="cosecha-meta">${eq?.nombre||'?'}${eq && eq.tipo === 'secano' ? ' (secano)' : ''} · ${fecha}${cos.produccionKg ? ' · ' + (cos.produccionKg/1000).toFixed(1) + ' ton' : ''}</div>
           </div>
           <div class="cosecha-rinde">
             <div class="cosecha-rinde-val">${real.toLocaleString('es-PY')}</div>
@@ -562,21 +582,21 @@
     }
 
     // ===== CLIENTES =====
-    const ranking = clientes.map(c => {
-      const cCampos = campos.filter(f => f.clienteId === c.id);
-      const has = cCampos.reduce((s,f) => s+(parseFloat(f.superficie)||0), 0);
-      const nEqs = equipos.filter(e => cCampos.some(f => f.id === e.campoId)).length;
-      return { c, has, nCampos: cCampos.length, nEqs };
+    const ranking = campos.map(f => {
+      const eqs = equipos.filter(e => String(e.campoId) === String(f.id));
+      const has = parseFloat(f.superficie) || 0;
+      const nAct = campanas.filter(c => c.estado === 'Activa' && eqs.some(e => String(e.id) === String(c.equipoId))).length;
+      return { f, has, nEqs: eqs.length, nSecano: eqs.filter(e => e.tipo === 'secano').length, nAct };
     }).sort((a,b) => b.has - a.has);
 
     document.getElementById('listaClientes').innerHTML = ranking.length === 0
-      ? '<div class="vacio">No hay clientes cargados.</div>'
+      ? '<div class="vacio">Este cliente no tiene campos cargados.</div>'
       : ranking.map(r => `
         <div class="cliente-row">
-          <div class="cliente-avatar">${r.c.nombre.charAt(0).toUpperCase()}</div>
+          <div class="cliente-avatar">${String(r.f.nombre || '?').charAt(0).toUpperCase()}</div>
           <div style="flex:1;">
-            <div class="cliente-nombre">${r.c.nombre}</div>
-            <div class="cliente-meta">${r.nCampos} campo${r.nCampos!==1?'s':''} · ${r.nEqs} equipo${r.nEqs!==1?'s':''}</div>
+            <div class="cliente-nombre">${r.f.nombre}</div>
+            <div class="cliente-meta">${[r.f.localidad, r.f.departamento].filter(Boolean).join(', ')}${r.f.localidad || r.f.departamento ? ' · ' : ''}${r.nEqs} lote${r.nEqs!==1?'s':''}${r.nSecano ? ' (' + r.nSecano + ' de secano)' : ''} · ${r.nAct} campaña${r.nAct!==1?'s':''} activa${r.nAct!==1?'s':''}${r.f.estacionId ? ' · estación meteorológica' : ''}</div>
           </div>
           <div class="cliente-ha">${r.has.toLocaleString('es-PY')} ha</div>
         </div>`).join('');
@@ -593,7 +613,7 @@
         let vencidas = 0, proximas = 0;
         plan.forEach(t => {
           const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
-          const pct = (desde / t.intervalo) * 100;
+          const pct = parseFloat(t.intervalo) > 0 ? (desde / t.intervalo) * 100 : 0;
           if (pct >= 100) vencidas++;
           else if (pct >= 80) proximas++;
         });
@@ -666,17 +686,18 @@
       const datos = rClima.datos.daily;
 
       // Detectar alertas climáticas (solo primera vez)
-      if (!window._alertasClimaticasYaMostradas) {
+      window._alertasCampos = window._alertasCampos || {};
+      if (!window._alertasCampos[campo.id]) {
+        window._alertasCampos[campo.id] = true;
         const alertasClima = detectarAlertasClimaticasProp(datos);
         if (alertasClima.length > 0) {
-          alertasClima.forEach(a => alertas.unshift({ tipo: a.tipo === 'tormenta' || a.tipo === 'calor' ? 'urgente' : 'atencion', titulo: `${a.icono} ${a.nombre} — ${a.fecha}`, detalle: a.detalle }));
-          window._alertasClimaticasYaMostradas = true;
+          alertasClima.forEach(a => alertas.unshift({ tipo: a.tipo === 'tormenta' || a.tipo === 'calor' ? 'urgente' : 'atencion', titulo: `${a.icono} ${a.nombre} — ${a.fecha} · ${campo.nombre}`, detalle: a.detalle }));
         }
       }
       const fao    = JSON.parse(localStorage.getItem('cultivos_fao')   || '[]');
       const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
       const cul = camp.cultivos[0];
-      const kcDef = fao.find(c=>c.nombre===cul.cultivo) || custom.find(c=>c.nombre===cul.cultivo);
+      const kcDef = SafiaBalance.obtenerCultivoKc(cul.cultivo) || fao.find(c=>c.nombre===cul.cultivo) || custom.find(c=>c.nombre===cul.cultivo);
 
       const eq = JSON.parse(localStorage.getItem("equipos")||"[]").find(e=>e.id===camp.equipoId);
 
@@ -703,7 +724,7 @@
 
       let badge, tipo;
       if (lluviaProxima >= 15)  { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
-      else if (pct < 35)        { badge = '<span class="badge badge-rojo">🔴 Urgente</span>';  tipo = 'urgente'; }
+      else if (pct < (U.URGENTE || 35)) { badge = '<span class="badge badge-rojo">🔴 Urgente</span>';  tipo = 'urgente'; }
       else if (pct < U.CRITICO) { badge = '<span class="badge badge-amarillo">🟡 Monitorear</span>'; tipo = 'atencion'; }
       else                      { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
 
@@ -775,5 +796,7 @@
       window.addEventListener('resize', function () { if (window.innerWidth > 768) cerrar(); });
     })();
   </script>
+
+  <script>function cambiarClienteProp(id){ try { localStorage.setItem('propietario_cliente', id || ''); } catch (e) {} location.reload(); }</script>
 </body>
 </html>

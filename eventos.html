@@ -276,11 +276,12 @@
       if (filtroOrigen !== 'todos') filtrados = filtrados.filter(e => e.cargadoPor === filtroOrigen);
 
       if (filtroPeriodo !== 'todo') {
+        // Comparación por texto AAAA-MM-DD en hora local (antes "Hoy" quedaba vacío por el corrimiento UTC)
         const desde = new Date();
-        if (filtroPeriodo === 'hoy') desde.setHours(0, 0, 0, 0);
-        else if (filtroPeriodo === '7d') desde.setDate(desde.getDate() - 7);
+        if (filtroPeriodo === '7d') desde.setDate(desde.getDate() - 7);
         else if (filtroPeriodo === '30d') desde.setDate(desde.getDate() - 30);
-        filtrados = filtrados.filter(e => new Date(e.fecha) >= desde);
+        const desdeStr = desde.getFullYear() + '-' + String(desde.getMonth() + 1).padStart(2, '0') + '-' + String(desde.getDate()).padStart(2, '0');
+        filtrados = filtrados.filter(e => String(e.fecha).slice(0, 10) >= desdeStr);
       }
 
       if (q) {
@@ -291,9 +292,10 @@
           const eq = equipos.find(x => x.id === e.equipoId);
           const ca = eq ? campos.find(c => c.id === eq.campoId) : null;
           const cl = ca ? clientes.find(c => c.id === ca.clienteId) : null;
-          const hay = [eq && eq.nombre, ca && ca.nombre, cl && cl.nombre, e.producto, e.observaciones, e.tipo]
-            .filter(Boolean).join(' ').toLowerCase();
-          return hay.includes(q);
+          const sinAcento = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const hay = sinAcento([eq && eq.nombre, ca && ca.nombre, cl && cl.nombre, e.producto, e.observaciones, e.tipo, e.tipo === 'aplicacion' ? 'aplicación' : '', e.cargadoPor]
+            .filter(Boolean).join(' '));
+          return hay.includes(sinAcento(q));
         });
       }
 
@@ -395,11 +397,13 @@
       const selectEquipo = document.getElementById('editEquipo');
       selectEquipo.innerHTML = '';
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
-      equipos.forEach(eq => {
+      const camposE = JSON.parse(localStorage.getItem('campos') || '[]'), clientesE = JSON.parse(localStorage.getItem('clientes') || '[]');
+      equipos.slice().sort((a, b) => String(a.campoId).localeCompare(String(b.campoId))).forEach(eq => {
+        const ca = camposE.find(c => String(c.id) === String(eq.campoId)), cl = ca ? clientesE.find(x => String(x.id) === String(ca.clienteId)) : null;
         const opt = document.createElement('option');
         opt.value = eq.id;
-        opt.textContent = eq.nombre;
-        if (eq.id === ev.equipoId) opt.selected = true;
+        opt.textContent = [cl && cl.nombre, ca && ca.nombre, eq.nombre].filter(Boolean).join(' · ') + (eq.tipo === 'secano' ? ' (secano)' : '');
+        if (String(eq.id) === String(ev.equipoId)) opt.selected = true;
         selectEquipo.appendChild(opt);
       });
 
@@ -437,7 +441,7 @@
       const sel = document.getElementById('lluviaEquipo');
 
       if (!equipos.length) {
-        alert('Primero cargá un equipo de riego en "Equipos".');
+        mostrarToast('Primero cargá un equipo de riego en "Equipos".');
         return;
       }
       sel.innerHTML = equipos.map(e => {
@@ -613,7 +617,7 @@
       const equipoId = parseInt(document.getElementById('editEquipo').value);
       const observaciones = document.getElementById('editObservaciones').value.trim();
 
-      if (!fecha) { alert('Cargá la fecha.'); return; }
+      if (!fecha) { mostrarToast('Cargá la fecha.'); return; }
 
       const ev = eventos[index];
       ev.fecha = fecha;
@@ -628,13 +632,13 @@
         const producto = document.getElementById('editProducto').value.trim();
         const dosis = parseFloat(document.getElementById('editDosis').value);
         const unidad = document.getElementById('editUnidad').value;
-        if (!producto || !dosis) { alert('Faltan producto/dosis.'); return; }
+        if (!producto || !dosis) { mostrarToast('Faltan producto o dosis.'); return; }
         ev.producto = producto;
         ev.dosis = dosis;
         ev.unidad = unidad;
       } else {
         const cantidad = parseFloat(document.getElementById('editCantidad').value);
-        if (!cantidad || cantidad <= 0) { alert('Falta cantidad.'); return; }
+        if (!cantidad || cantidad <= 0) { mostrarToast('Falta la cantidad.'); return; }
         ev.cantidad = cantidad;
       }
 
@@ -647,8 +651,11 @@
       aplicarFiltros();
     }
 
+    let borrarPendiente = null;
     function borrarEvento(id) {
-      if (!confirm('¿Seguro que querés borrar este evento? No se puede deshacer.')) return;
+      // Confirmación en pantalla: el primer clic avisa, el segundo (dentro de 5 s) borra
+      if (borrarPendiente !== id) { borrarPendiente = id; mostrarToast('Tocá Borrar otra vez para confirmar (no se puede deshacer)'); setTimeout(() => { if (borrarPendiente === id) borrarPendiente = null; }, 5000); return; }
+      borrarPendiente = null;
       let eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
       eventos = eventos.filter(e => e.id !== id);
       localStorage.setItem('eventos', JSON.stringify(eventos));
@@ -680,7 +687,7 @@
           unidad: ev.unidad || (ev.cantidad ? 'mm' : ''),
           producto: ev.producto || '',
           dosis: ev.dosis || '',
-          origen: ev.cargadoPor === 'voz' ? 'Voz' : 'Manual',
+          origen: ({ voz: 'Voz', meteo: 'Clima (estimado)', estacion: 'Estación', manual: 'Manual' })[ev.cargadoPor || 'manual'] || ev.cargadoPor,
           observaciones: obs
         };
       });
@@ -688,7 +695,7 @@
 
     function exportarExcel() {
       const filas = prepararFilas();
-      if (filas.length === 0) { alert('No hay eventos para exportar.'); return; }
+      if (filas.length === 0) { mostrarToast('No hay eventos para exportar.'); return; }
 
       const headers = ['Fecha', 'Tipo', 'Cliente', 'Campo', 'Equipo', 'Cantidad', 'Unidad', 'Producto', 'Dosis', 'Origen', 'Observaciones'];
       const datos = [headers, ...filas.map(f => [
@@ -713,7 +720,7 @@
 
     function exportarCSV() {
       const filas = prepararFilas();
-      if (filas.length === 0) { alert('No hay eventos para exportar.'); return; }
+      if (filas.length === 0) { mostrarToast('No hay eventos para exportar.'); return; }
 
       const headers = ['Fecha', 'Tipo', 'Cliente', 'Campo', 'Equipo', 'Cantidad', 'Unidad', 'Producto', 'Dosis', 'Origen', 'Observaciones'];
 

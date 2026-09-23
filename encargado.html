@@ -459,12 +459,16 @@
     </div>
 
     <!-- FILTROS -->
+    <div class="filtros" style="margin-bottom:8px;">
+      <div class="filtros-label">Campo:</div>
+      <select id="filtroCampo" onchange="cambiarCampoEnc(this.value)" style="font:inherit;font-size:13px;padding:6px 10px;border:1px solid #E1E4E7;border-radius:8px;background:#fff;max-width:100%;"><option value="">Todos los clientes y campos</option></select>
+    </div>
     <div class="filtros">
       <div class="filtros-label">Mostrar:</div>
-      <button class="filtro-pill activo" onclick="filtrar('todos')">Todos</button>
-      <button class="filtro-pill" onclick="filtrar('urgente')">🔴 Urgentes</button>
-      <button class="filtro-pill" onclick="filtrar('monitorear')">🟡 Monitorear</button>
-      <button class="filtro-pill" onclick="filtrar('ok')">🟢 OK</button>
+      <button class="filtro-pill activo" onclick="filtrar('todos', this)">Todos</button>
+      <button class="filtro-pill" onclick="filtrar('urgente', this)">🔴 Urgentes</button>
+      <button class="filtro-pill" onclick="filtrar('monitorear', this)">🟡 Monitorear</button>
+      <button class="filtro-pill" onclick="filtrar('ok', this)">🟢 OK</button>
     </div>
 
 
@@ -487,15 +491,27 @@
     let estadoEquipos = []; // Caché del análisis
     let filtroActivo = 'todos';
 
+    let campoFiltro = '';
+    try { campoFiltro = localStorage.getItem('encargado_campo') || ''; } catch (e) {}
+    function llenarFiltroCampo() {
+      const sel = document.getElementById('filtroCampo'); if (!sel) return;
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const filas = campos.map(c => { const cl = clientes.find(x => String(x.id) === String(c.clienteId)); return { id: String(c.id), txt: (cl ? cl.nombre + ' · ' : '') + c.nombre }; }).sort((a, b) => a.txt.localeCompare(b.txt));
+      sel.innerHTML = '<option value="">Todos los clientes y campos</option>' + filas.map(f => '<option value="' + f.id + '">' + f.txt + '</option>').join('');
+      if (campoFiltro && filas.some(f => f.id === campoFiltro)) sel.value = campoFiltro; else campoFiltro = '';
+    }
+    function cambiarCampoEnc(id) { campoFiltro = id || ''; try { localStorage.setItem('encargado_campo', campoFiltro); } catch (e) {} renderizar(); }
+
     window.onload = async function() {
+      llenarFiltroCampo();
       await analizarTodosLosEquipos();
       renderizar();
     };
 
-    function filtrar(filtro) {
+    function filtrar(filtro, boton) {
       filtroActivo = filtro;
       document.querySelectorAll('.filtro-pill').forEach(p => p.classList.remove('activo'));
-      event.target.classList.add('activo');
+      (boton || (window.event && window.event.target)).classList.add('activo');
       renderizar();
     }
 
@@ -508,6 +524,7 @@
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
 
       estadoEquipos = [];
+      const alertasPorCampo = {};   // alertas climáticas de cada campo, con el nombre del campo
       let climaStale = null;   // fecha del clima cacheado, si algún equipo cae a caché
 
       for (const equipo of equipos) {
@@ -526,6 +543,14 @@
           motivoSemaforo: ''
         };
 
+        // Lote de secano: sin semáforo de riego (se siguen lluvias, campaña y aplicaciones)
+        if (equipo.tipo === 'secano') {
+          datos.semaforo = 'secano'; datos.textoSemaforo = 'Secano';
+          datos.recomendacion = campanaActiva ? 'Lote de secano: no se riega. El balance de agua por etapa está en el Banco Agronómico (Agua).' : 'Lote de secano sin campaña activa.';
+          estadoEquipos.push(datos);
+          continue;
+        }
+        if (!campo) { datos.semaforo = 'gris'; datos.textoSemaforo = 'Sin campo'; datos.motivoSemaforo = 'El lote no está asignado a ningún campo (Equipos y lotes).'; estadoEquipos.push(datos); continue; }
         // Si no hay campaña, semáforo gris
         if (!campanaActiva) {
           datos.semaforo = 'gris';
@@ -549,9 +574,9 @@
           if (balance.desactualizado && !climaStale) climaStale = balance.fechaCache;
 
           // Mostrar alertas climáticas (solo la primera vez)
-          if (balance.alertasClimaticas && balance.alertasClimaticas.length > 0) {
-            const divA = document.getElementById('alertasClimaticas');
-            if (divA.style.display === 'none') mostrarAlertasClimaticas(balance.alertasClimaticas);
+          if (balance.alertasClimaticas && balance.alertasClimaticas.length > 0 && campo && !alertasPorCampo[campo.id]) {
+            alertasPorCampo[campo.id] = balance.alertasClimaticas.map(a => Object.assign({}, a, { nombre: a.nombre + ' — ' + campo.nombre }));
+            mostrarAlertasClimaticas(Object.keys(alertasPorCampo).reduce((acc, k) => acc.concat(alertasPorCampo[k]), []));
           }
 
           // Semáforo según humedad del suelo (% agua útil HOY) + lluvia próxima.
@@ -563,7 +588,7 @@
             datos.semaforo = 'azul';
             datos.textoSemaforo = '🌧️ Lluvia esperada';
             datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en los próximos días. No regar.`;
-          } else if (pct < 35) {
+          } else if (pct < (U.URGENTE || 35)) {
             datos.semaforo = 'rojo';
             datos.textoSemaforo = '🔴 URGENTE';
             datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico). Regar <strong>${mmRegar} mm</strong> hoy — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.`;
@@ -680,7 +705,7 @@
       const fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
       const custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
       const cultivoNombre = campana.cultivos[0].cultivo;
-      const kcDef = fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
+      const kcDef = SafiaBalance.obtenerCultivoKc(cultivoNombre) || fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
 
       // Balance unificado vía motor compartido (safia-balance.js):
       // simulación de humedad día a día, UNA fuente de lluvia por día
@@ -749,11 +774,13 @@
 
     // ============ RENDERIZAR ============
     function renderizar() {
-      // Stats arriba
-      const total = estadoEquipos.length;
-      const ok = estadoEquipos.filter(e => e.semaforo === 'verde' || e.semaforo === 'azul').length;
-      const monitorear = estadoEquipos.filter(e => e.semaforo === 'amarillo').length;
-      const urgente = estadoEquipos.filter(e => e.semaforo === 'rojo').length;
+      // Stats arriba (del campo elegido, si hay filtro)
+      const base = campoFiltro ? estadoEquipos.filter(e => e.campo && String(e.campo.id) === String(campoFiltro)) : estadoEquipos;
+      const total = base.length;
+      const ok = base.filter(e => e.semaforo === 'verde' || e.semaforo === 'azul').length;
+      const monitorear = base.filter(e => e.semaforo === 'amarillo').length;
+      const urgente = base.filter(e => e.semaforo === 'rojo').length;
+      const sinEvaluar = base.filter(e => e.semaforo === 'gris' || e.semaforo === 'secano');
 
       document.getElementById('resTotalEquipos').textContent = total;
       document.getElementById('resEquiposOk').textContent = ok;
@@ -761,13 +788,13 @@
       document.getElementById('resEquiposUrgente').textContent = urgente;
 
       // Filtrar
-      let aMostrar = estadoEquipos;
+      let aMostrar = base;
       if (filtroActivo === 'urgente') {
-        aMostrar = estadoEquipos.filter(e => e.semaforo === 'rojo');
+        aMostrar = base.filter(e => e.semaforo === 'rojo');
       } else if (filtroActivo === 'monitorear') {
-        aMostrar = estadoEquipos.filter(e => e.semaforo === 'amarillo');
+        aMostrar = base.filter(e => e.semaforo === 'amarillo');
       } else if (filtroActivo === 'ok') {
-        aMostrar = estadoEquipos.filter(e => e.semaforo === 'verde' || e.semaforo === 'azul');
+        aMostrar = base.filter(e => e.semaforo === 'verde' || e.semaforo === 'azul');
       }
 
       const lista = document.getElementById('listaEquipos');
@@ -783,10 +810,11 @@
       }
 
       // Ordenar por urgencia (rojo > amarillo > verde > azul > gris)
-      const orden = { rojo: 0, amarillo: 1, verde: 2, azul: 3, gris: 4 };
-      aMostrar.sort((a, b) => orden[a.semaforo] - orden[b.semaforo]);
+      const orden = { rojo: 0, amarillo: 1, verde: 2, azul: 3, secano: 4, gris: 5 };
+      aMostrar.sort((a, b) => (orden[a.semaforo] - orden[b.semaforo]) || String((a.cliente || {}).nombre || '').localeCompare(String((b.cliente || {}).nombre || '')));
 
       lista.innerHTML = '';
+      if (sinEvaluar.length && filtroActivo === 'todos') lista.innerHTML += '<div style="font-size:12px;color:#8C9196;margin:0 0 8px;">' + total + ' lotes: ' + urgente + ' urgentes, ' + monitorear + ' a monitorear, ' + ok + ' OK y ' + sinEvaluar.length + ' sin semáforo de riego (' + sinEvaluar.map(e => e.textoSemaforo.toLowerCase()).filter((v, i, a) => a.indexOf(v) === i).join(', ') + ').</div>';
       aMostrar.forEach(d => {
         let cultivoTexto = 'Sin campaña activa';
         let diasTexto = '—';
@@ -796,7 +824,7 @@
           const c = d.campanaActiva.cultivos[0];
           cultivoTexto = `${c.cultivo}${c.variedad ? ' (' + c.variedad + ')' : ''}`;
           if (c.fechaSiembra) {
-            const dias = Math.floor((new Date() - new Date(c.fechaSiembra)) / 86400000);
+            const dias = Math.floor((new Date() - new Date(String(c.fechaSiembra).slice(0, 10) + 'T12:00:00')) / 86400000);
             diasTexto = dias + ' días';
           }
           if (c.superficie) supTexto = c.superficie + ' ha';
@@ -823,6 +851,7 @@
           recoHTML = `<div class="equipo-recomendacion">💡 ${d.recomendacion}</div>`;
         } else if (d.semaforo === 'gris') {
           recoHTML = `<div class="equipo-recomendacion" style="color:#8C9196;font-style:italic;">${
+            d.motivoSemaforo ? d.motivoSemaforo :
             !d.tieneGPS ? '⚠️ Cargá GPS al campo para ver recomendación.' :
             !d.campanaActiva ? '⚠️ Sin campaña activa cargada.' :
             'Sin datos disponibles.'
@@ -830,7 +859,7 @@
         }
 
         const html = `
-          <div class="equipo-card semaforo-${d.semaforo}" onclick="window.location.href='operador.html'">
+          <div class="equipo-card semaforo-${d.semaforo}" onclick="window.location.href='operador.html?equipo=${d.equipo.id}'">
             <div class="equipo-header">
               <div>
                 <div class="equipo-nombre">💧 ${d.equipo.nombre}</div>

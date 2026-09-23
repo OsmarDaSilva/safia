@@ -38,6 +38,7 @@
 
   // Umbrales agronómicos universales (% de agua útil aprovechable, AAU).
   var UMBRALES = {
+    URGENTE: 35,   // por debajo → regar HOY (antes estaba escrito a mano en tres páginas)
     CRITICO: 50,   // por debajo → hay que regar
     ATENCION: 70   // alerta amarilla
   };
@@ -50,6 +51,7 @@
     aspersion:      0.78,
     canon:          0.70,
     superficie:     0.50,
+    secano:         0,      // lote sin riego: no se recomienda regar
     otro:           0.80
   };
 
@@ -140,14 +142,19 @@
   }
 
   // Busca la definición de cultivo (FAO o custom) en localStorage por nombre.
+  function normNombre(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
+  // Fecha de HOY en hora local (Paraguay), no UTC: evita que a la noche la fecha por defecto sea "mañana"
+  function hoyLocal() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function fechaLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function obtenerCultivoKc(nombreCultivo) {
     if (typeof localStorage === 'undefined') return null;
     var fao = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
     var custom = JSON.parse(localStorage.getItem('cultivos_custom') || '[]');
-    var c = fao.find(function (x) { return x.nombre === nombreCultivo; });
-    if (c) return Object.assign({}, c, { fuente: 'FAO' });
-    c = custom.find(function (x) { return x.nombre === nombreCultivo; });
-    if (c) return Object.assign({}, c, { fuente: 'CUSTOM' });
+    // Sin acentos ni mayúsculas, y por prefijo ("Maiz zafriña" → Maíz), como hace safia-agua.js
+    var n = normNombre(nombreCultivo);
+    var exacto = function (x) { return normNombre(x.nombre) === n; }, prefijo = function (x) { var m = normNombre(x.nombre); return m && (n.indexOf(m) === 0 || m.indexOf(n) === 0); };
+    var c = fao.find(exacto) || custom.find(exacto) || fao.find(prefijo) || custom.find(prefijo);
+    if (c) return Object.assign({}, c, { fuente: fao.indexOf(c) >= 0 ? 'FAO' : 'CUSTOM' });
     return null;
   }
 
@@ -182,6 +189,18 @@
       else idxRiego[k] = (idxRiego[k] || 0) + mm;
     });
     return { lluvia: idxLluvia, riego: idxRiego };
+  }
+
+  // Estación meteorológica del campo (METOS/FieldClimate u otra): lluvia y ET0 medidas, guardadas por SAFIA en clima_estacion
+  function estacionDelCampo(campo) {
+    if (!campo || !campo.estacionId) return null;
+    var filas = [];
+    try { filas = JSON.parse(localStorage.getItem('clima_estacion') || '[]'); } catch (e) { return null; }
+    filas = filas.filter(function (f) { return String(f.campoId) === String(campo.id) && f.fecha; });
+    if (!filas.length) return null;
+    var lluvia = {}, et0 = {};
+    filas.forEach(function (f) { if (f.lluvia != null) lluvia[f.fecha] = f.lluvia; if (f.et0 != null) et0[f.fecha] = f.et0; });
+    return { lluvia: lluvia, et0: et0, dias: filas.length, hasta: filas[filas.length - 1].fecha };
   }
 
   // Resuelve la lluvia de UN día eligiendo UNA fuente (NO suma fuentes).
@@ -234,7 +253,9 @@
     var diasFuturo = (opts.diasFuturo != null) ? opts.diasFuturo : 7;
     var fracIni = (opts.humedadInicialFrac != null) ? opts.humedadInicialFrac : 0.8;
     var asumirRiego = (opts.asumirRiegoRecomendado !== false);
-    var estacion = opts.lluviaEstacionPorFecha || null;
+    var estacionCampo = opts.lluviaEstacionPorFecha ? null : estacionDelCampo(opts.campo);
+    var estacion = opts.lluviaEstacionPorFecha || (estacionCampo ? estacionCampo.lluvia : null);
+    var et0Estacion = opts.et0EstacionPorFecha || (estacionCampo ? estacionCampo.et0 : null);
 
     var idx = indexarEventos(opts.eventos, opts.equipoId);
 
@@ -254,6 +275,7 @@
 
     function etcDe(i, fechaDia) {
       var eto = (daily.et0_fao_evapotranspiration && daily.et0_fao_evapotranspiration[i]) || 0;
+      var kE = claveDia(fechaDia); if (et0Estacion && et0Estacion[kE] != null) eto = et0Estacion[kE];   // ET0 medida por la estación manda sobre la estimada
       var k = calcularKc(opts.kcDef, fechaDia, opts.fechaSiembra);
       return { eto: eto, kc: k.kc, etapa: k.etapa, etc: eto * k.kc };
     }
@@ -417,7 +439,7 @@
     notaFallbackSuelo: notaFallbackSuelo,
     getEficienciaEquipo: getEficienciaEquipo,
     calcularKc: calcularKc,
-    obtenerCultivoKc: obtenerCultivoKc,
+    obtenerCultivoKc: obtenerCultivoKc, hoyLocal: hoyLocal, fechaLocal: fechaLocal, esSecano: function (eq) { return !!eq && eq.tipo === 'secano'; },
     indexarEventos: indexarEventos,
     resolverLluviaDia: resolverLluviaDia,
     claveDia: claveDia,

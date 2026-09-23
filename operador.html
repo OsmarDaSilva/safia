@@ -780,7 +780,7 @@
             <div class="boton-carga-label">Lluvia</div>
           </button>
           <button class="boton-carga boton-aplicacion" onclick="abrirModal('aplicacion')">
-            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">undefined</svg></div>
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6l-5 9a1 1 0 0 0 .9 1.5h12.2a1 1 0 0 0 .9-1.5L14 9V3"/><path d="M8 15h8"/></svg></div>
             <div class="boton-carga-label">Aplicación</div>
           </button>
         </div>
@@ -914,7 +914,7 @@
     window.onload = function() {
       verificarEquipos();
       cargarSelectorEquipos();
-      document.getElementById('modalFecha').valueAsDate = new Date();
+      document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
     };
 
     function verificarEquipos() {
@@ -928,19 +928,28 @@
     function cargarSelectorEquipos() {
       const select = document.getElementById('selectorEquipo');
       while (select.options.length > 1) select.remove(1);
+      select.querySelectorAll('optgroup').forEach(g => g.remove());
 
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
 
+      // Agrupado por cliente · campo (hay varios "Pivot-1" de distintos clientes)
+      const grupos = {};
       equipos.forEach(e => {
-        const campo = campos.find(c => c.id === e.campoId);
-        const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
-        const opt = document.createElement('option');
-        opt.value = e.id;
-        opt.textContent = `${e.nombre} (${campo ? campo.nombre : '?'} · ${cliente ? cliente.nombre : '?'})`;
-        select.appendChild(opt);
+        const campo = campos.find(c => String(c.id) === String(e.campoId));
+        const cliente = campo ? clientes.find(cl => String(cl.id) === String(campo.clienteId)) : null;
+        const k = (cliente ? cliente.nombre : 'Sin cliente') + ' · ' + (campo ? campo.nombre : 'Sin campo');
+        (grupos[k] = grupos[k] || []).push(e);
       });
+      Object.keys(grupos).sort().forEach(k => {
+        const og = document.createElement('optgroup'); og.label = k;
+        grupos[k].forEach(e => { const opt = document.createElement('option'); opt.value = e.id; opt.textContent = e.nombre + (e.tipo === 'secano' ? ' (secano)' : ''); og.appendChild(opt); });
+        select.appendChild(og);
+      });
+      // Abrir directo en el lote pedido (?equipo=ID) o en el último usado en este celular
+      let pedido = null; try { pedido = new URLSearchParams(location.search).get('equipo') || localStorage.getItem('operador_equipo'); } catch (e) {}
+      if (pedido && equipos.some(e => String(e.id) === String(pedido))) { select.value = String(pedido); cargarEquipoSeleccionado(); }
     }
 
     function cargarEquipoSeleccionado() {
@@ -956,6 +965,10 @@
       }
 
       equipoSeleccionadoId = parseInt(equipoId);
+      try { localStorage.setItem('operador_equipo', String(equipoSeleccionadoId)); } catch (e) {}
+      // Lote de secano: no se carga riego ni se recomienda regar
+      const eqSel = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
+      const btnRiego = document.querySelector('.boton-riego'); if (btnRiego) btnRiego.style.display = SafiaBalance.esSecano(eqSel) ? 'none' : '';
 
       const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
       campanaActivaActual = campanas.find(c =>
@@ -985,7 +998,7 @@
       const primerCultivo = campanaActivaActual.cultivos[0];
       let metaTexto = '';
       if (primerCultivo.fechaSiembra) {
-        const fechaSi = new Date(primerCultivo.fechaSiembra);
+        const fechaSi = new Date(String(primerCultivo.fechaSiembra).slice(0, 10) + 'T12:00:00');
         const dias = Math.floor((new Date() - fechaSi) / (1000 * 60 * 60 * 24));
         metaTexto = `<div>📅 ${dias} días desde siembra</div>`;
       }
@@ -1040,6 +1053,11 @@
       if (!equipo) return;
 
       const campo = campos.find(c => c.id === equipo.campoId);
+      if (SafiaBalance.esSecano(equipo)) {
+        icono.textContent = ''; titulo.textContent = 'Lote de secano';
+        detalle.innerHTML = 'Acá no se riega: SAFIA sigue las lluvias, las aplicaciones y la campaña. El balance de agua de este lote se ve en el Banco Agronómico (Agua → Balance hídrico por etapa).';
+        card.className = 'reco-card visible'; return;
+      }
 
       // Resolver coordenadas de forma robusta (campo con campos separados o, en su defecto, GPS del equipo)
       const coords = resolverCoordenadas(campo, equipo);
@@ -1098,7 +1116,7 @@
           const fao = JSON.parse(localStorage.getItem("cultivos_fao") || "[]");
           const custom = JSON.parse(localStorage.getItem("cultivos_custom") || "[]");
           const cultivoNombre = campanaActivaActual.cultivos[0].cultivo;
-          kcDef = fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
+          kcDef = SafiaBalance.obtenerCultivoKc(cultivoNombre) || fao.find(c => c.nombre === cultivoNombre) || custom.find(c => c.nombre === cultivoNombre);
         }
         const fechaSiembra = (campanaActivaActual && campanaActivaActual.cultivos[0])
           ? campanaActivaActual.cultivos[0].fechaSiembra : null;
@@ -1133,7 +1151,7 @@
           titulo.textContent = "No regar — viene lluvia";
           detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en los próximos días.`;
           card.className = "reco-card visible no-regar";
-        } else if (pct < 35) {
+        } else if (pct < (U.URGENTE || 35)) {
           icono.textContent = "⚠️";
           titulo.textContent = "RIEGO URGENTE";
           detalle.innerHTML = `Humedad del suelo en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico). Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.`;
@@ -1247,7 +1265,7 @@
       document.getElementById('modalKpct').value = '';
       document.getElementById('npkPreview').style.display = 'none';
       document.getElementById('modalObservaciones').value = '';
-      document.getElementById('modalFecha').valueAsDate = new Date();
+      document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
 
       if (tipo === 'riego') {
         titulo.innerHTML = '💧 Cargar riego';
@@ -1280,10 +1298,8 @@
       const fecha = document.getElementById('modalFecha').value;
       const observaciones = document.getElementById('modalObservaciones').value.trim();
 
-      if (!fecha) {
-        alert('Cargá la fecha del evento.');
-        return;
-      }
+      if (!fecha) { mostrarToast('Cargá la fecha del evento.'); return; }
+      if (fecha > SafiaBalance.hoyLocal()) { mostrarToast('La fecha es de mañana o más adelante: revisala.'); return; }
 
       const evento = {
         id: Date.now(),
@@ -1298,10 +1314,7 @@
 
       if (tipoEventoActual === 'riego' || tipoEventoActual === 'lluvia') {
         const cantidad = parseFloat(document.getElementById('modalCantidad').value);
-        if (!cantidad || cantidad <= 0) {
-          alert('Cargá la cantidad en mm.');
-          return;
-        }
+        if (!cantidad || cantidad <= 0) { mostrarToast('Cargá la cantidad en mm.'); return; }
         evento.cantidad = cantidad;
         evento.unidad = 'mm';
 
@@ -1313,8 +1326,8 @@
         const pPct = parseFloat(document.getElementById('modalPpct').value) || 0;
         const kPct = parseFloat(document.getElementById('modalKpct').value) || 0;
 
-        if (!producto) { alert('Cargá el producto aplicado.'); return; }
-        if (!dosis || dosis <= 0) { alert('Cargá la dosis aplicada.'); return; }
+        if (!producto) { mostrarToast('Cargá el producto aplicado.'); return; }
+        if (!dosis || dosis <= 0) { mostrarToast('Cargá la dosis aplicada.'); return; }
 
         evento.producto = producto;
         evento.dosis = dosis;
@@ -1384,21 +1397,24 @@
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         }
 
+        const origen = { manual: '', voz: 'voz', meteo: 'clima estimado', estacion: 'estación' }[ev.cargadoPor || 'manual'] || '';
+        const automatico = ev.cargadoPor === 'meteo' || ev.cargadoPor === 'estacion';
         lista.innerHTML += `
           <div class="evento">
             <div class="evento-icono tipo-${ev.tipo}">${icono}</div>
             <div class="evento-info">
-              <div class="evento-titulo-evt">${titulo}</div>
+              <div class="evento-titulo-evt">${titulo}${origen ? ' <span style="font-size:10px;font-weight:600;color:#8C9196;text-transform:uppercase;letter-spacing:.05em;">' + origen + '</span>' : ''}</div>
               <div class="evento-detalle">${detalle}</div>
             </div>
-            <button class="evento-borrar" onclick="borrarEvento(${ev.id})" title="Borrar">×</button>
+            ${automatico ? '<span title="Lo cargó SAFIA desde el clima o la estación; se corrige desde Eventos" style="font-size:11px;color:#8C9196;">auto</span>' : '<button class="evento-borrar" onclick="borrarEvento(' + ev.id + ', this)" title="Borrar">×</button>'}
           </div>
         `;
       });
     }
 
-    function borrarEvento(id) {
-      if (!confirm('¿Borrar este evento? No se puede deshacer.')) return;
+    function borrarEvento(id, boton) {
+      // Confirmación en pantalla: el primer toque avisa, el segundo borra
+      if (boton && !boton.dataset.confirmado) { boton.dataset.confirmado = '1'; boton.textContent = '¿Borrar?'; boton.style.width = 'auto'; boton.style.fontSize = '11px'; mostrarToast('Tocá otra vez para borrar'); setTimeout(() => { delete boton.dataset.confirmado; boton.textContent = '×'; boton.style.width = ''; boton.style.fontSize = ''; }, 4000); return; }
 
       let eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
       eventos = eventos.filter(e => e.id !== id);
