@@ -767,7 +767,7 @@
 
           <div class="campo">
             <label>Equipo de riego o lote de secano</label>
-            <select id="equipo" onchange="fijarFiltroPorEquipo(this.value)">
+            <select id="equipo" onchange="fijarFiltroPorEquipo(this.value); autoCompletarAntecesores(); refrescarAntecesoresEnPantalla();">
               <option value="">Seleccionar equipo...</option>
             </select>
           </div>
@@ -1713,7 +1713,9 @@
         coberturaManejo: '',
         sistemaSiembra: '',
         consorcio: '',
-        consorcioDetalle: ''
+        consorcioDetalle: '',
+        labores: [],
+        cultivoAnteriorAuto: false
       };
       if (!cultivo.idTemp) cultivo.idTemp = id;
       cultivosTemp.push(cultivo);
@@ -1732,7 +1734,38 @@
 
     function actualizarCultivoTemp(idTemp, campo, valor) {
       const c = cultivosTemp.find(c => c.idTemp === idTemp);
-      if (c) c[campo] = valor;
+      if (!c) return;
+      c[campo] = valor;
+      if (campo === 'cultivoAnterior') c.cultivoAnteriorAuto = false;   // lo escribió el usuario: se respeta
+      if (campo === 'fechaSiembra' || campo === 'cultivo') { autoCompletarAntecesores(); refrescarAntecesoresEnPantalla(); }
+    }
+    function alternarLabor(idTemp, labor, marcado) {
+      const c = cultivosTemp.find(c => c.idTemp === idTemp);
+      if (!c) return;
+      c.labores = (c.labores || []).filter(l => l !== labor);
+      if (marcado) c.labores.push(labor);
+    }
+    // El cultivo anterior se completa solo con la última campaña del mismo lote (o el otro cultivo
+    // de esta misma campaña si se sembró antes). Si el usuario lo escribió a mano, no se toca.
+    function autoCompletarAntecesores() {
+      const eq = document.getElementById('equipo') ? document.getElementById('equipo').value : '';
+      cultivosTemp.forEach(c => {
+        if (c.cultivoAnterior && !c.cultivoAnteriorAuto) return;
+        let ant = anteriorEnLote(eq, c.fechaSiembra);
+        cultivosTemp.forEach(o => {
+          if (o === c || !o.fechaSiembra || !o.cultivo) return;
+          if (c.fechaSiembra && o.fechaSiembra < c.fechaSiembra && (!ant || o.fechaSiembra > ant.fechaSiembra)) ant = { cultivo: o.cultivo, fechaSiembra: o.fechaSiembra, campana: 'esta misma campaña' };
+        });
+        if (ant) { c.cultivoAnterior = ant.cultivo; c.cultivoAnteriorAuto = true; c._antecesorDe = ant.campana; }
+        else if (c.cultivoAnteriorAuto) { c.cultivoAnterior = ''; c.cultivoAnteriorAuto = false; c._antecesorDe = ''; }
+      });
+    }
+    function refrescarAntecesoresEnPantalla() {
+      cultivosTemp.forEach(c => {
+        const inp = document.getElementById('antecesor_' + c.idTemp), hint = document.getElementById('sugAntecesor_' + c.idTemp);
+        if (inp && document.activeElement !== inp) inp.value = c.cultivoAnterior || '';
+        if (hint) hint.innerHTML = sugerenciaAntecesorHTML(c);
+      });
     }
 
     const FINALIDADES = ['Granos Comercial', 'Semilla', 'Ensilaje', 'Granos Húmedos', 'Forraje'];
@@ -1772,12 +1805,14 @@
     function sugerenciaAntecesorHTML(cultivo) {
       const eq = document.getElementById('equipo') ? document.getElementById('equipo').value : '';
       const ant = anteriorEnLote(eq, cultivo.fechaSiembra);
-      if (!ant) return 'Si es la primera campaña cargada del lote, escribí qué había antes (o "Barbecho").';
-      if (cultivo.cultivoAnterior) return 'En SAFIA, lo anterior en este lote fue ' + ant.cultivo + ' (' + ant.campana + ').';
+      if (cultivo.cultivoAnteriorAuto && cultivo.cultivoAnterior) return 'Completado solo con la campaña anterior del lote (' + (cultivo._antecesorDe || (ant ? ant.campana : '')) + '). Cambialo si fue otro.';
+      if (!ant) return cultivo.cultivoAnterior ? '' : 'Si es la primera campaña cargada del lote, escribí qué había antes (o "Barbecho").';
+      if (cultivo.cultivoAnterior) return 'Escrito a mano. En SAFIA, lo anterior en este lote fue ' + ant.cultivo + ' (' + ant.campana + ') · <a href="#" onclick="usarAntecesor(' + cultivo.idTemp + ', \'' + String(ant.cultivo).replace(/'/g, '') + '\'); return false;">usar ese</a>';
       return 'En este lote antes hubo <b>' + ant.cultivo + '</b> (' + ant.campana + ') · <a href="#" onclick="usarAntecesor(' + cultivo.idTemp + ', \'' + String(ant.cultivo).replace(/'/g, '') + '\'); return false;">usar</a>';
     }
     function usarAntecesor(idTemp, nombre) {
-      actualizarCultivoTemp(idTemp, 'cultivoAnterior', nombre);
+      const c = cultivosTemp.find(c => c.idTemp === idTemp);
+      if (c) { c.cultivoAnterior = nombre; c.cultivoAnteriorAuto = true; }
       renderizarCultivos();
     }
 
@@ -1800,6 +1835,7 @@
     function renderizarCultivos() {
       armarListaAntecesores();
       armarListaVariedades();
+      autoCompletarAntecesores();
       const container = document.getElementById('cultivosContainer');
       const { fao, custom } = obtenerListaCultivos();
 
@@ -1913,7 +1949,7 @@
             <div class="fila">
               <div class="campo">
                 <label>Cultivo anterior en este lote</label>
-                <input type="text" list="listaAntecesores" placeholder="Ej: Maíz, Soja, Trigo, Barbecho" value="${cultivo.cultivoAnterior || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'cultivoAnterior', this.value)">
+                <input type="text" id="antecesor_${cultivo.idTemp}" list="listaAntecesores" placeholder="Ej: Maíz, Soja, Trigo, Barbecho" value="${cultivo.cultivoAnterior || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'cultivoAnterior', this.value)">
                 <div class="ayuda" id="sugAntecesor_${cultivo.idTemp}">${sugerenciaAntecesorHTML(cultivo)}</div>
               </div>
               <div class="campo">
@@ -1944,6 +1980,13 @@
                 <input type="text" style="margin-top:6px;" placeholder="Detalle: especie, kg/ha, cuándo se sembró la forrajera" value="${cultivo.consorcioDetalle || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'consorcioDetalle', this.value)">
                 <div class="ayuda">Sistema Santa Fe: maíz o sorgo sembrado junto con brachiaria; deja paja para la siembra directa siguiente y pasto para el invierno.</div>
               </div>
+            </div>
+            <div class="campo">
+              <label>Labores entre la cosecha anterior y esta siembra <span class="opcional">(marcá lo que se hizo)</span></label>
+              <div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;">
+                ${SafiaInsumos.LABORES_ENTRE.map(l => '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" ' + ((cultivo.labores || []).indexOf(l.k) !== -1 ? 'checked' : '') + ' onchange="alternarLabor(' + cultivo.idTemp + ', \'' + l.k + '\', this.checked)"> ' + l.n + '</label>').join('')}
+              </div>
+              <div class="ayuda">Ej.: al sacar el maíz se encaló y se subsoló, y no dio tiempo a sembrar avena → marcá encalado y subsolado y dejá la cobertura en "Ninguna".</div>
             </div>
 
             <div class="fila">
@@ -2018,9 +2061,15 @@
             sistemaSiembra: c.sistemaSiembra || '',
             consorcio: c.consorcio || '',
             consorcioDetalle: String(c.consorcioDetalle || '').trim(),
+            labores: Array.isArray(c.labores) ? c.labores : [],
+            cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
               sistemaSiembra: c.sistemaSiembra || '',
               consorcio: c.consorcio || '',
               consorcioDetalle: String(c.consorcioDetalle || '').trim(),
+            labores: Array.isArray(c.labores) ? c.labores : [],
+            cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
+              labores: Array.isArray(c.labores) ? c.labores : [],
+              cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
               rendimientoReal: c.rendimientoReal || ''
             })),
             fechaModificacion: new Date().toISOString()
@@ -2064,6 +2113,8 @@
             sistemaSiembra: c.sistemaSiembra || '',
             consorcio: c.consorcio || '',
             consorcioDetalle: String(c.consorcioDetalle || '').trim(),
+            labores: Array.isArray(c.labores) ? c.labores : [],
+            cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
             rendimientoReal: c.rendimientoReal || ''
           })),
           fechaCreacion: new Date().toISOString()

@@ -1482,7 +1482,7 @@
       var secuencias = eqDelCampo.map(function (e) {
         var pasos = [];
         todasCamp.filter(function (c) { return String(c.equipoId) === String(e.id); }).forEach(function (c) {
-          (c.cultivos || []).forEach(function (cu) { if (cu.fechaSiembra) pasos.push({ f: cu.fechaSiembra, cultivo: cu.cultivo, campana: c.nombre, cobertura: cu.cobertura, anterior: cu.cultivoAnterior, consorcio: cu.consorcio, sistema: cu.sistemaSiembra, rinde: num(cu.rendimientoReal) }); });
+          (c.cultivos || []).forEach(function (cu) { if (cu.fechaSiembra) pasos.push({ f: cu.fechaSiembra, cultivo: cu.cultivo, campana: c.nombre, cobertura: cu.cobertura, anterior: cu.cultivoAnterior, consorcio: cu.consorcio, sistema: cu.sistemaSiembra, labores: cu.labores || [], rinde: num(cu.rendimientoReal) }); });
         });
         pasos.sort(function (a, b) { return String(a.f).localeCompare(String(b.f)); });
         return { equipo: e, pasos: pasos };
@@ -1492,11 +1492,12 @@
           var partes = s.pasos.map(function (p, i) {
             var cob = p.cobertura && p.cobertura !== 'ninguna' ? '<span class="badge green" title="Cobertura previa">' + esc(SafiaInsumos.nombreCobertura(p.cobertura)) + '</span> → ' : (p.cobertura === 'ninguna' ? '<span class="badge" title="Sin cobertura">sin cobertura</span> → ' : '');
             var prev = i ? s.pasos[i - 1] : null;
-            var rot = SafiaInsumos.rotacion(p.cultivo, p.anterior || (prev ? prev.cultivo : ''), p.cobertura, p.consorcio, p.sistema);
+            var rot = SafiaInsumos.rotacion(p.cultivo, p.anterior || (prev ? prev.cultivo : ''), p.cobertura, p.consorcio, p.sistema, p.labores);
+            var lab = (p.labores || []).length ? '<span class="badge amber" title="Labores entre cosechas">' + p.labores.map(function (l) { return esc(SafiaInsumos.nombreLabor(l).split(' (')[0]); }).join(' + ') + '</span> → ' : '';
             var alerta = rot.sojaSobreSoja ? ' <span class="badge red" title="Misma oleaginosa una sobre otra">soja sobre soja</span>' : (rot.mismoCultivo ? ' <span class="badge amber">mismo cultivo seguido</span>' : '');
             if (rot.consorcioSantaFe) alerta += ' <span class="badge green" title="Sembrado junto con brachiaria">Santa Fe</span>';
             if (rot.convencional) alerta += ' <span class="badge amber" title="Rastroneada / arada">convencional</span>';
-            return (i === 0 && p.anterior ? '<span class="muted">' + esc(p.anterior) + '</span> → ' : '') + cob + '<b>' + esc(p.cultivo) + '</b> <span class="muted">' + String(p.f).slice(0, 7) + (p.rinde ? ' · ' + fmt(p.rinde, 0) : '') + '</span>' + alerta;
+            return (i === 0 && p.anterior ? '<span class="muted">' + esc(p.anterior) + '</span> → ' : '') + lab + cob + '<b>' + esc(p.cultivo) + '</b> <span class="muted">' + String(p.f).slice(0, 7) + (p.rinde ? ' · ' + fmt(p.rinde, 0) : '') + '</span>' + alerta;
           });
           return '<div style="font-size:13px;margin:4px 0 8px;"><span class="badge blue">' + esc(s.equipo.nombre) + (s.equipo.tipo === 'secano' ? ' · secano' : '') + '</span> ' + partes.join(' → ') + '</div>';
         }).join('');
@@ -1517,6 +1518,8 @@
           if (sd.length || conv.length) filasR.push({ q: 'Sistema de siembra', cu: cu, a: sd, b: conv, na: 'siembra directa', nb: 'convencional (rastroneada)' });
           var sf = del.filter(function (c) { return c.rotacion.consorcioSantaFe; }), solo = del.filter(function (c) { return c.rotacion.cargada && !c.rotacion.consorcio; });
           if (sf.length) filasR.push({ q: 'Consorcio Santa Fe', cu: cu, a: sf, b: solo, na: 'con brachiaria (Santa Fe)', nb: 'cultivo solo' });
+          var subs = del.filter(function (c) { return c.rotacion.subsolado; }), sinSubs = del.filter(function (c) { return c.rotacion.cargada && !c.rotacion.subsolado; });
+          if (subs.length) filasR.push({ q: 'Subsolado antes de sembrar', cu: cu, a: subs, b: sinSubs, na: 'con subsolado', nb: 'sin subsolado' });
         });
         if (filasR.length) {
           html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Qué</th><th>Cultivo</th><th class="r">Campañas · rinde</th><th class="r">Campañas · rinde</th><th class="r">Diferencia</th></tr></thead><tbody>' +

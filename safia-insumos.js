@@ -103,7 +103,7 @@
   // Cobertura = la ESPECIE que quedó en el lote entre cosechas (no es una técnica de siembra).
   var COBERTURAS = [
     { k: '',           n: 'Sin dato' },
-    { k: 'ninguna',    n: 'Ninguna (rastrojo del cultivo anterior / barbecho)' },
+    { k: 'ninguna',    n: 'Ninguna: entró directo sobre el rastrojo (no dio tiempo o no se sembró)' },
     { k: 'avena',      n: 'Avena negra o blanca' },
     { k: 'brachiaria', n: 'Brachiaria ruziziensis' },
     { k: 'brizantha',  n: 'Brachiaria brizantha (Marandu, Piatã, Xaraés)' },
@@ -126,6 +126,19 @@
     { k: 'ilp',       n: 'Integración lavoura-pecuária (forrajera para pastoreo)' },
     { k: 'otro',      n: 'Otro consorcio (indicar en detalle)' }
   ];
+  // Labores entre la cosecha anterior y esta siembra (lo que se hace "al sacar el maíz": encalar, subsolar…)
+  var LABORES_ENTRE = [
+    { k: 'subsolado',   n: 'Subsolado / descompactación' },
+    { k: 'escarificado', n: 'Escarificado' },
+    { k: 'encalado',    n: 'Encalado (t/ha en el campo de arriba)' },
+    { k: 'yeso',        n: 'Yeso agrícola' },
+    { k: 'rastroneada', n: 'Rastroneada / rastra' },
+    { k: 'nivelacion',  n: 'Nivelación / terraceo' },
+    { k: 'desecacion',  n: 'Desecación química (barbecho químico)' },
+    { k: 'abono_organico', n: 'Abono orgánico / cama de pollo / estiércol' }
+  ];
+  var LAB_POR_K = {}; LABORES_ENTRE.forEach(function (l) { LAB_POR_K[l.k] = l; });
+  function nombreLabor(k) { return LAB_POR_K[k] ? LAB_POR_K[k].n : (k || ''); }
   // Sistema de siembra: sobre qué se sembró.
   var SISTEMAS_SIEMBRA = [
     { k: '',                   n: 'Sin dato' },
@@ -153,7 +166,8 @@
   function nombreManejoCobertura(k) { return MCOB_POR_K[k] ? MCOB_POR_K[k].n : (k || ''); }
   function normCultivo(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
   /* Resumen de rotación de un cultivo: { cargada, conCobertura, cobertura, sojaSobreSoja, mismoCultivo, anterior } */
-  function rotacion(cultivo, cultivoAnterior, cobertura, consorcio, sistema) {
+  function rotacion(cultivo, cultivoAnterior, cobertura, consorcio, sistema, labores) {
+    labores = Array.isArray(labores) ? labores : [];
     // Datos viejos: "santa_fe" cargado como cobertura = brachiaria como cobertura + consorcio Santa Fe
     if (cobertura === 'santa_fe') { cobertura = 'brachiaria'; consorcio = consorcio || 'santa_fe'; }
     var cu = normCultivo(cultivo), an = normCultivo(cultivoAnterior);
@@ -161,7 +175,8 @@
     var conCob = !!cobertura && cobertura !== 'ninguna';
     var mismo = !!(cu && an && cu.split(' ')[0] === an.split(' ')[0]);
     return { cargada: cargada, conCobertura: conCob, cobertura: cobertura || '', anterior: cultivoAnterior || '', mismoCultivo: mismo, sojaSobreSoja: mismo && cu.indexOf('soja') === 0,
-      consorcio: consorcio || '', consorcioSantaFe: /^santa_fe/.test(consorcio || ''), sistema: sistema || '', siembraDirecta: /^directa/.test(sistema || ''), convencional: sistema === 'convencional' };
+      consorcio: consorcio || '', consorcioSantaFe: /^santa_fe/.test(consorcio || ''), sistema: sistema || '', siembraDirecta: /^directa/.test(sistema || ''), convencional: sistema === 'convencional',
+      labores: labores, subsolado: labores.indexOf('subsolado') !== -1 || labores.indexOf('escarificado') !== -1, encaladoEntre: labores.indexOf('encalado') !== -1, yeso: labores.indexOf('yeso') !== -1 };
   }
 
   var POR_K = {}; CATEGORIAS.forEach(function (c) { POR_K[c.k] = c; });
@@ -224,6 +239,6 @@
     return partes.join(' · ') || 'sin insumos (manejo completo)';
   }
 
-  window.SafiaInsumos = { CONSORCIOS: CONSORCIOS, SISTEMAS_SIEMBRA: SISTEMAS_SIEMBRA, nombreConsorcio: nombreConsorcio, nombreSistema: nombreSistema, COBERTURAS: COBERTURAS, MANEJO_COBERTURA: MANEJO_COBERTURA, ANTECESORES_EXTRA: ANTECESORES_EXTRA, nombreCobertura: nombreCobertura, nombreManejoCobertura: nombreManejoCobertura, rotacion: rotacion, SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
+  window.SafiaInsumos = { LABORES_ENTRE: LABORES_ENTRE, nombreLabor: nombreLabor, CONSORCIOS: CONSORCIOS, SISTEMAS_SIEMBRA: SISTEMAS_SIEMBRA, nombreConsorcio: nombreConsorcio, nombreSistema: nombreSistema, COBERTURAS: COBERTURAS, MANEJO_COBERTURA: MANEJO_COBERTURA, ANTECESORES_EXTRA: ANTECESORES_EXTRA, nombreCobertura: nombreCobertura, nombreManejoCobertura: nombreManejoCobertura, rotacion: rotacion, SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
     nombreCategoria: nombreCategoria, nombreMetodo: nombreMetodo, seccionDe: seccionDe, gradoDe: gradoDe, npkDe: npkDe, totalesNPK: totalesNPK, resumen: resumen, tiene: tiene, textoCorto: textoCorto };
 })();
