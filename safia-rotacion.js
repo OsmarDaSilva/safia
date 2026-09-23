@@ -86,13 +86,13 @@
         if (!cu || !cu.fechaSiembra) return;
         var t = temporadaDe(cu.fechaSiembra); if (!t) return;
         var cos = (c.cosechas && c.cosechas[i] && c.cosechas[i].fecha) || (i === 0 && c.cosecha && c.cosecha.fecha) || null;
-        salida.push({ temporada: t, cultivo: cu.cultivo || '—', siembra: cu.fechaSiembra.slice(0, 10), cosecha: cos ? cos.slice(0, 10) : null, rinde: parseFloat(cu.rendimientoReal) || null, cobertura: cu.cobertura || '', origen: 'campaña' });
+        salida.push({ temporada: t, cultivo: cu.cultivo || '—', siembra: cu.fechaSiembra.slice(0, 10), cosecha: cos ? cos.slice(0, 10) : null, rinde: parseFloat(cu.rendimientoReal) || null, cobertura: cu.cobertura || '', variedad: cu.variedad || '', origen: 'campaña' });
       });
     });
     B().leer('ciclos').forEach(function (ci) {
       if (String(ci.equipoId || '') !== String(equipoId) || !ci.fechaSiembra) return;
       var t = temporadaDe(ci.fechaSiembra); if (!t) return;
-      salida.push({ temporada: t, cultivo: ci.cultivo || '—', siembra: ci.fechaSiembra.slice(0, 10), cosecha: ci.fechaCosecha || null, rinde: parseFloat(ci.rindeKgHa) || null, cobertura: ci.cobertura || '', origen: 'histórico' });
+      salida.push({ temporada: t, cultivo: ci.cultivo || '—', siembra: ci.fechaSiembra.slice(0, 10), cosecha: ci.fechaCosecha || null, rinde: parseFloat(ci.rindeKgHa) || null, cobertura: ci.cobertura || '', variedad: ci.variedad || '', origen: 'histórico' });
     });
     return salida.sort(function (a, b) { return orden(a.temporada) - orden(b.temporada) || a.siembra.localeCompare(b.siembra); });
   }
@@ -164,7 +164,8 @@
     if (!t.cultivo || t.cultivo === DESCANSO) return { k: 'cambio', txt: 'Se sembró ' + r.cultivo + (r.rinde ? ' · ' + fmtKg(r.rinde) + ' kg/ha' : ''), real: r };
     if (especie(r.cultivo) === especie(t.cultivo)) {
       var dif = (r.rinde && t.objetivoKgHa) ? Math.round((r.rinde - t.objetivoKgHa) / t.objetivoKgHa * 100) : null;
-      return { k: r.rinde ? 'ok' : 'curso', txt: r.rinde ? 'Cumplido · ' + fmtKg(r.rinde) + ' kg/ha' + (dif != null ? ' (' + (dif >= 0 ? '+' : '') + dif + ' % vs objetivo)' : '') : 'En curso · sembrado ' + fmtF(r.siembra), real: r };
+      var varReal = (r.variedad && t.variedad && norm(r.variedad) !== norm(t.variedad)) ? ' · variedad ' + r.variedad : '';
+      return { k: r.rinde ? 'ok' : 'curso', txt: r.rinde ? 'Cumplido · ' + fmtKg(r.rinde) + ' kg/ha' + (dif != null ? ' (' + (dif >= 0 ? '+' : '') + dif + ' % vs objetivo)' : '') + varReal : 'En curso · sembrado ' + fmtF(r.siembra) + varReal, real: r };
     }
     return { k: 'cambio', txt: 'Cambiado: se sembró ' + r.cultivo + (r.rinde ? ' · ' + fmtKg(r.rinde) + ' kg/ha' : ''), real: r };
   }
@@ -238,6 +239,15 @@
     var extra = (valor && renta.indexOf(valor) < 0 && otrosRenta.indexOf(valor) < 0 && cob.indexOf(valor) < 0 && valor !== DESCANSO) ? '<option value="' + esc(valor) + '" selected>' + esc(valor) + '</option>' : '';
     return '<option value="">— elegir —</option>' + extra + g('Cultivos de renta (' + (EPOCAS.find(function (e) { return e.k === epoca; }) || {}).n + ')', renta) + g('Coberturas', cob) + '<optgroup label="Sin cultivo"><option value="' + DESCANSO + '"' + (valor === DESCANSO ? ' selected' : '') + '>' + DESCANSO + '</option></optgroup>' + g('Otros cultivos', otrosRenta);
   }
+  var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  function variedadesOpciones(cultivo) {
+    var lista = (window.SafiaCatalogo && cultivo) ? SafiaCatalogo.variedadesDe(cultivo) : [];
+    return lista.map(function (v) { return '<option value="' + esc(typeof v === 'string' ? v : (v.nombre || v.n || '')) + '">'; }).join('');
+  }
+  function mesesOpciones(epoca, valor) {
+    var ep = EPOCAS.find(function (e) { return e.k === epoca; }) || EPOCAS[0];
+    return '<option value="">— mes —</option>' + ep.meses.map(function (m) { return '<option value="' + m + '"' + (valor === m ? ' selected' : '') + '>' + MESES[m - 1] + '</option>'; }).join('');
+  }
   function pintar() {
     var lote = loteActual(), cont = $('rotContenido');
     if (!lote) { cont.innerHTML = '<div class="muted">Este campo no tiene lotes. Cargalos en Equipos y lotes.</div>'; return; }
@@ -251,13 +261,15 @@
       return '<span style="border:1px solid #E1E4E7;border-radius:8px;padding:4px 8px;font-size:12px;background:#fff;"><b>' + esc(etiqueta(h.temporada)) + '</b> · ' + esc(h.cultivo) + (h.rinde ? ' · ' + fmtKg(h.rinde) + ' kg/ha' : ' · en curso') + (h.cobertura && h.cobertura !== 'ninguna' ? ' · cob. ' + esc(h.cobertura) : '') + '</span>';
     }).join('') + '</div>' : '<div class="note info" style="margin-bottom:12px;">Todavía no hay campañas cargadas en este lote: el plan arranca en la temporada actual. Cuando cargues campañas, SAFIA marca solo cada temporada como cumplida o cambiada.</div>';
     // tabla del plan
-    html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl" id="rotTabla"><thead><tr><th>Temporada</th><th>Cultivo o cobertura</th><th class="r">Objetivo (kg/ha)</th><th>Nota</th><th>Estado</th><th></th></tr></thead><tbody>';
+    html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl" id="rotTabla"><thead><tr><th>Temporada</th><th>Cultivo o cobertura</th><th>Variedad</th><th>Siembra prevista</th><th class="r">Objetivo (kg/ha)</th><th>Nota</th><th>Estado</th><th></th></tr></thead><tbody>';
     planActual.temporadas.forEach(function (t, i) {
       var e = estadoDe(t, hist);
       var color = { ok: '#178029', curso: '#2E72C8', cambio: '#B8731A', sin: '#8C9196', plan: '#6B6356' }[e.k];
       var ep = EPOCAS.find(function (x) { return x.k === t.epoca; });
       html += '<tr data-i="' + i + '"><td><b>' + esc(etiqueta(t)) + '</b><div class="muted" style="font-size:11px;">siembra ' + ep.siembra + ' · cosecha ' + ep.cosecha + '</div></td>' +
         '<td><select class="rotCultivo" data-i="' + i + '" style="min-width:230px;">' + opcionesCultivo(t.epoca, t.cultivo) + '</select></td>' +
+        '<td>' + (esCobertura(t.cultivo) || t.cultivo === DESCANSO || !t.cultivo ? '<span class="muted">—</span>' : '<input type="text" class="rotVariedad" data-i="' + i + '" list="rotVar' + i + '" value="' + esc(t.variedad || '') + '" placeholder="Elegir o escribir" style="min-width:150px;"><datalist id="rotVar' + i + '">' + variedadesOpciones(t.cultivo) + '</datalist>') + '</td>' +
+        '<td><select class="rotMes" data-i="' + i + '">' + mesesOpciones(t.epoca, t.mesSiembra) + '</select></td>' +
         '<td class="r"><input type="number" class="rotObjetivo" data-i="' + i + '" value="' + (t.objetivoKgHa || '') + '" step="100" min="0" style="width:110px;text-align:right;"' + (esCobertura(t.cultivo) || t.cultivo === DESCANSO ? ' disabled placeholder="—"' : ' placeholder="kg/ha"') + '></td>' +
         '<td><input type="text" class="rotNota" data-i="' + i + '" value="' + esc(t.nota || '') + '" placeholder="Variedad, fecha, riego…" style="min-width:180px;"></td>' +
         '<td style="color:' + color + ';font-size:12px;font-weight:600;">' + esc(e.txt) + '</td>' +
@@ -278,7 +290,9 @@
     html += '<div class="muted" style="font-size:11px;margin-top:8px;">[1] Embrapa Soja, Rotação de culturas · [2] CAPECO, FEPASIDIAS e INBIO (siembra directa en Paraguay) · [3] Embrapa Girassol · [4] Embrapa ILPF / Sistema Santa Fe. SAFIA revisa el plan; la decisión final es del productor con su agrónomo.</div>';
     cont.innerHTML = html;
     // eventos
-    cont.querySelectorAll('.rotCultivo').forEach(function (s) { s.addEventListener('change', function () { var t = planActual.temporadas[+s.dataset.i]; t.cultivo = s.value; if (esCobertura(t.cultivo) || t.cultivo === DESCANSO) t.objetivoKgHa = null; else if (!t.objetivoKgHa) t.objetivoKgHa = objetivoSugerido(lote.id, t.cultivo); pintar(); }); });
+    cont.querySelectorAll('.rotCultivo').forEach(function (s) { s.addEventListener('change', function () { var t = planActual.temporadas[+s.dataset.i]; var antes = t.cultivo; t.cultivo = s.value; if (especie(antes) !== especie(t.cultivo)) t.variedad = ''; if (esCobertura(t.cultivo) || t.cultivo === DESCANSO) t.objetivoKgHa = null; else if (!t.objetivoKgHa) t.objetivoKgHa = objetivoSugerido(lote.id, t.cultivo); pintar(); }); });
+    cont.querySelectorAll('.rotVariedad').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].variedad = s.value.trim(); }); });
+    cont.querySelectorAll('.rotMes').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].mesSiembra = s.value ? +s.value : null; }); });
     cont.querySelectorAll('.rotObjetivo').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].objetivoKgHa = s.value ? +s.value : null; }); });
     cont.querySelectorAll('.rotNota').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].nota = s.value.trim(); }); });
     cont.querySelectorAll('.rotQuitar').forEach(function (b) { b.addEventListener('click', function () { planActual.temporadas.splice(+b.dataset.i, 1); pintar(); }); });
