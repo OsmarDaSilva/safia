@@ -1451,6 +1451,8 @@
         observaciones: obs,
         riegoMM: isNaN(riegoMM) ? null : riegoMM,
         lluviaMM: isNaN(lluviaMM) ? null : lluviaMM,
+        lluviaAuto: !!lluviaEsAutomatica && !isNaN(lluviaMM),           // true = la trajo SAFIA del clima (se recalcula si cambian las fechas)
+        lluviaRango: (function () { const cs = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => c.id === cosechandoCampanaId); const cu = cs && cs.cultivos ? cs.cultivos[parseInt(document.getElementById('cosechaCultivoIdx').value || '0', 10)] : null; return (cu && cu.fechaSiembra ? cu.fechaSiembra : '') + '|' + fecha; })(),
         fechaRegistro: new Date().toISOString()
       };
 
@@ -1482,6 +1484,70 @@
       // guarda en la campaña: es parte de la "ficha del caso".
       traerClimaDeCampana(cosechandoCampanaId);
       mostrarToast('🌾 ¡Cosecha registrada! Campaña cerrada.');
+    }
+
+    // ===== LLUVIA AUTOMÁTICA: mantenerla al día con las fechas =====
+    function lluviaDeOpenMeteo(lat, lon, desde, hasta) {
+      const url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon + '&start_date=' + desde + '&end_date=' + hasta + '&daily=precipitation_sum&timezone=auto';
+      return fetch(url).then(r => r.json()).then(j => {
+        const dias = (j && j.daily && j.daily.precipitation_sum) || null;
+        if (!dias || !dias.length) return null;
+        const validos = dias.filter(v => v !== null && !isNaN(v));
+        if (!validos.length) return null;
+        return Math.round(validos.reduce((s, v) => s + v, 0) * 10) / 10;
+      });
+    }
+    function coordsDeCampana(campana) {
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const campos = JSON.parse(localStorage.getItem('campos') || '[]');
+      const equipo = equipos.find(e => String(e.id) === String(campana.equipoId));
+      const campo = equipo ? campos.find(c => String(c.id) === String(equipo.campoId)) : null;
+      const lat = campo && parseFloat(String(campo.latitud).replace(',', '.')), lon = campo && parseFloat(String(campo.longitud).replace(',', '.'));
+      return (lat && lon && !isNaN(lat) && !isNaN(lon)) ? { lat, lon } : null;
+    }
+    // Una cosecha necesita recalcular la lluvia si: la trajo SAFIA y el rango cambió; o (dato viejo sin marca)
+    // el total es imposible para el ciclo (menos de 1 mm por día en un ciclo de 60 días o más).
+    function lluviaDesactualizada(cultivo, cosecha) {
+      if (!cosecha || !cultivo || !cultivo.fechaSiembra || !cosecha.fecha || cosecha.fecha < cultivo.fechaSiembra) return false;
+      if (cosecha.lluviaAuto === false) return false;                       // cargada a mano: no se toca
+      const rango = cultivo.fechaSiembra + '|' + cosecha.fecha;
+      if (cosecha.lluviaAuto === true) return cosecha.lluviaRango !== rango;
+      const dias = Math.round((new Date(cosecha.fecha) - new Date(cultivo.fechaSiembra)) / 86400000);
+      return cosecha.lluviaMM == null || (dias >= 60 && cosecha.lluviaMM < dias * 1);
+    }
+    function recalcularLluviasDesactualizadas(soloCampanaId) {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const tareas = [];
+      campanas.forEach((c, ci) => {
+        if (soloCampanaId && String(c.id) !== String(soloCampanaId)) return;
+        (c.cultivos || []).forEach((cu, i) => {
+          const cos = cosechaDelCultivo(c, i);
+          if (lluviaDesactualizada(cu, cos)) tareas.push({ ci, i, c, cu, cos });
+        });
+      });
+      if (!tareas.length) return Promise.resolve(0);
+      let hechas = 0;
+      let cadena = Promise.resolve();
+      tareas.forEach(t => {
+        cadena = cadena.then(() => {
+          const xy = coordsDeCampana(t.c);
+          if (!xy) return;
+          return lluviaDeOpenMeteo(xy.lat, xy.lon, t.cu.fechaSiembra, t.cos.fecha).then(total => {
+            if (total == null) return;
+            const lista = JSON.parse(localStorage.getItem('campanas') || '[]');
+            const idx = lista.findIndex(x => String(x.id) === String(t.c.id));
+            if (idx < 0) return;
+            const marca = { lluviaMM: total, lluviaAuto: true, lluviaRango: t.cu.fechaSiembra + '|' + t.cos.fecha };
+            if (lista[idx].cosechas && lista[idx].cosechas[t.i]) Object.assign(lista[idx].cosechas[t.i], marca);
+            if (t.i === 0 && lista[idx].cosecha) Object.assign(lista[idx].cosecha, marca);
+            if (!lista[idx].cosechas || !lista[idx].cosechas[t.i]) { if (t.i === 0 && !lista[idx].cosecha) return; }
+            localStorage.setItem('campanas', JSON.stringify(lista));
+            hechas++;
+            mostrarToast('Lluvia del ciclo recalculada: ' + t.cu.cultivo + ' · ' + t.c.nombre + ' → ' + total + ' mm');
+          }).catch(() => {});
+        });
+      });
+      return cadena.then(() => { if (hechas) mostrarCampanas(); return hechas; });
     }
 
     function cerrarModalCosecha() {
@@ -1658,6 +1724,7 @@
       cargarSelectorEquipos();
       cargarFiltros();
       mostrarCampanas();
+      setTimeout(function () { recalcularLluviasDesactualizadas(); }, 1500);
       agregarCultivo();
     };
 
@@ -2103,6 +2170,8 @@
             fechaModificacion: new Date().toISOString()
           };
           localStorage.setItem('campanas', JSON.stringify(campanas));
+          // Si cambiaron las fechas y la campaña ya tiene cosecha, la lluvia y el clima del ciclo se recalculan solos
+          (function (id) { setTimeout(function () { recalcularLluviasDesactualizadas(id).then(function () { const c = JSON.parse(localStorage.getItem('campanas') || '[]').find(x => String(x.id) === String(id)); if (c && c.clima && typeof traerClimaDeCampana === 'function') traerClimaDeCampana(id, true); }); }, 300); })(editandoId);
           alert('¡Campaña actualizada!');
           cancelarEdicion();
         }
