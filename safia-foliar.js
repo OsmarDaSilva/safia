@@ -128,9 +128,27 @@
     return r[estadio] || r[Object.keys(r)[0]];
   }
 
+  /* ---------- sensores (Dualex / SPAD): lectura de clorofila, flavonoles y NBI ---------- */
+  // Rangos generales de METOS para la clorofila del Dualex (µg/cm²): < 20 pobre, 20–40 moderada, 40–70 óptima; varían por cultivo → el NBI se lee RELATIVO a una referencia [10]
+  function interpretarSensor(a) {
+    var out = [];
+    var chl = num(a.chl), flav = num(a.flav), nbi = num(a.nbi), nbiRef = num(a.nbiRef), anth = num(a.anth);
+    if (chl != null) out.push({ k: 'chl', n: 'Clorofila (Dualex)', unidad: 'µg/cm²', valor: chl, rango: [40, 70], estado: chl < 20 ? 'bajo' : (chl < 40 ? 'limite' : (chl <= 70 ? 'ok' : 'alto')), texto: chl < 20 ? 'Pobre (< 20 µg/cm²) según los rangos generales de METOS: la planta tiene poca clorofila (N, Mg, S, Fe o Mn, o estrés).' : (chl < 40 ? 'Moderada (20–40 µg/cm²): por debajo de lo óptimo general de METOS (40–70); confirmar con el NBI relativo.' : (chl <= 70 ? 'Óptima (40–70 µg/cm²).' : 'Muy alta (> 70): posible exceso de N o sombra; no suele ser problema.')), fuente: '[10]', altoRinde: null, campeon: null });
+    if (nbi != null) {
+      var it = { k: 'nbi', n: 'NBI (clorofila / flavonoles)', unidad: 'índice', valor: nbi, rango: null, estado: 'sin', texto: '', fuente: '[10]', altoRinde: null, campeon: null };
+      if (nbiRef != null && nbiRef > 0) { var isn = nbi / nbiRef; it.isn = isn; it.estado = isn >= 0.97 ? 'ok' : (isn >= 0.95 ? 'limite' : 'bajo'); it.texto = 'Relativo a la referencia (' + fmt(nbiRef, 1) + '): ' + fmt(isn, 2) + '. ' + (it.estado === 'ok' ? 'Sin déficit de nitrógeno.' : (it.estado === 'limite' ? 'Al límite (0,95–0,97): volver a medir en 7 días.' : 'Déficit de nitrógeno (< 0,95)' + (claveCultivo(a.cultivo) === 'soja' ? ': en soja no es motivo de fertilizar con N; revisar nodulación, Mg, S y Mn.' : ': cobertura de N si el cultivo está a tiempo (maíz antes de V10, trigo antes del encañazón).'))); }
+      else it.texto = 'Sin franja de referencia: METOS no publica umbrales de NBI por cultivo (en vid ≥ 11). Para leerlo, medí también la zona mejor nutrida del lote o compará con la campaña anterior al mismo estadio.';
+      out.push(it);
+    }
+    if (flav != null) out.push({ k: 'flav', n: 'Flavonoles (estrés)', unidad: 'índice', valor: flav, rango: [null, 1.0], estado: flav > 1.0 ? 'alto' : 'ok', texto: flav > 1.0 ? 'Alto (> 1,0): la planta está fabricando protección; señal de estrés (falta de N, sequía, frío, radiación) o de hoja vieja.' : 'Normal (< 1,0 según METOS).', fuente: '[10]', altoRinde: null, campeon: null });
+    if (anth != null) out.push({ k: 'anth', n: 'Antocianinas', unidad: 'índice', valor: anth, rango: null, estado: 'sin', texto: 'Suben con frío, sequía o falta de P; sin rango publicado.', fuente: '[10]', altoRinde: null, campeon: null });
+    return out;
+  }
+
   /* ---------- interpretación ---------- */
   function interpretar(a) {
     var cu = claveCultivo(a.cultivo), rg = rangosDe(a.cultivo, a.estadio), out = [];
+    if (a.tipo === 'sensor' || a.chl != null || a.nbi != null) out = out.concat(interpretarSensor(a));
     NUTRIENTES.forEach(function (nu) {
       var v = num(a[nu.k]); if (v == null) return;
       var r = rg ? rg[nu.k] : null, estado = 'sin', texto = '';
@@ -158,12 +176,13 @@
   }
 
   /* ---------- cruce con el suelo ---------- */
-  var MAPA_SUELO = { p: 'p', k: 'k', ca: 'ca', mg: 'mg', s: 's', b: 'b', zn: 'zn', cu: 'cu', mn: 'mn' };
+  var MAPA_SUELO = { p: 'p', k: 'k', ca: 'ca', mg: 'mg', s: 's', b: 'b', zn: 'zn', cu: 'cu', mn: 'mn', chl: null, nbi: null, flav: null, anth: null };
   function cruceConSuelo(lect, suelo, cultivo) {
     if (!suelo || !window.SafiaAgro) return [];
     var ls = SafiaAgro.interpretarSuelo(suelo, cultivo), porK = {}; ls.forEach(function (i) { porK[i.k] = i; });
     var ph = num(suelo.ph), pS = porK.p, kS = porK.k, out = [];
     lect.forEach(function (h) {
+      if (h.k === 'chl' || h.k === 'nbi' || h.k === 'flav' || h.k === 'anth') return;   // lecturas del sensor: no se cruzan con el suelo
       var ks = MAPA_SUELO[h.k], s = ks ? porK[ks] : null;
       if (h.k === 'n') {
         if (h.estado === 'bajo' || h.estado === 'limite') out.push({ k: 'n', tipo: 'warn', texto: claveCultivo(cultivo) === 'soja'
@@ -209,6 +228,7 @@
     bajos.forEach(function (h) {
       var c = cruce.find(function (x) { return x.k === h.k; });
       switch (h.k) {
+        case 'chl': case 'nbi': if (!bajos.some(function (x) { return x.k === 'n'; })) r.push(cu === 'soja' ? { k: 'nbi', titulo: 'Sensor: poca clorofila o NBI bajo en soja: revisar nodulación, no fertilizar con N', detalle: 'Embrapa: el N no aumenta el rinde de la soja; mirar nódulos, inoculante, Mo/Co, pH, magnesio y azufre, y confirmar con análisis foliar de laboratorio. [8][10]' } : { k: 'nbi', titulo: 'Sensor: NBI por debajo de la referencia: cobertura de N si el cultivo está a tiempo', detalle: 'El NBI del Dualex predice el índice de nutrición nitrogenada mejor que el SPAD; con ISN < 0,95 en V6–V10 (maíz) conviene fertilizar. [7][10]' }); break;
         case 'n': r.push(cu === 'soja' ? { k: 'n', titulo: 'Nitrógeno bajo en soja: revisar nodulación, no fertilizar con N', detalle: 'Embrapa (9 + 15 ensayos): 50 kg de N en R1 o R5 no aumentaron el rinde y el N a la siembra redujo la nodulación 20–86 %. Revisar nódulos, inoculante (≥ 1 millón de células por semilla), Mo + Co en semilla y pH. [8]' } : { k: 'n', titulo: 'Nitrógeno bajo: cobertura de N si todavía es temprano', detalle: 'Maíz antes de V8–V10 o trigo antes del encañazón: urea o UAN según la dosis que falte; confirmar con clorofilómetro (ISN < 0,95). [7]' }); break;
         case 'p': r.push({ k: 'p', titulo: 'Fósforo bajo en hoja: se corrige en el suelo, no vía foliar', detalle: 'Para este ciclo poco se puede hacer; para el próximo, corrección de P según el análisis de suelo (Motor 6) y P en la línea de siembra. Si el suelo es ácido (pH < 5,5), encalar primero: el P se fija en Al y Fe.' }); break;
         case 'k': r.push({ k: 'k', titulo: 'Potasio bajo en hoja: KCl al suelo (la vía foliar no alcanza)', detalle: 'El K es el nutriente que más se lleva el grano en alto rinde. Reponer con KCl al voleo antes de la próxima siembra; si el suelo está bien y la hoja no, mirar (Ca+Mg)/K y sequía.' }); break;
@@ -256,7 +276,7 @@
     if (cruce.length) h += '<h3 style="font-size:14px;margin:14px 0 6px;">Hoja contra suelo: ¿falta en el suelo o la planta no lo toma?</h3>' + cruce.map(function (c) { return '<div class="note ' + c.tipo + '" style="margin-bottom:6px;">' + c.texto + '</div>'; }).join('');
     else if (!suelo) h += '<div class="muted" style="font-size:12px;margin-top:8px;">Sin análisis de suelo del lote para cruzar: con los dos, SAFIA dice si el nutriente falta en el suelo o si la planta no lo absorbe.</div>';
     if (recs.length) h += '<h3 style="font-size:14px;margin:14px 0 6px;">Qué hacer</h3><ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.5;">' + recs.map(function (r) { return '<li style="margin-bottom:6px;"><b>' + esc(r.titulo) + '.</b> ' + esc(r.detalle) + '</li>'; }).join('') + '</ol>';
-    h += '<div class="muted" style="font-size:11px;margin-top:8px;">[1] Embrapa Soja 1998 / Embrapa 2020 · [2] Harger, Kurihara, Oliveira & Ralisch (Embrapa) · [3] Flannery 1989 y Martins 1998 citados por Fertilizar/INTA · [4] Embrapa 2020 (Raij, Malavolta) · [5] Fertilizar/INTA, Correndo & García 2016 · [6] Embrapa Trigo · [7] INTA Balcarce, Sainz Rozas et al. 2019 · [8] Embrapa Soja CT 75 (2001) y Mendes et al. 2008 · [9] Embrapa Cerrados. SAFIA interpreta; la prescripción la define el agrónomo.</div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:8px;">[1] Embrapa Soja 1998 / Embrapa 2020 · [2] Harger, Kurihara, Oliveira & Ralisch (Embrapa) · [3] Flannery 1989 y Martins 1998 citados por Fertilizar/INTA · [4] Embrapa 2020 (Raij, Malavolta) · [5] Fertilizar/INTA, Correndo & García 2016 · [6] Embrapa Trigo · [7] INTA Balcarce, Sainz Rozas et al. 2019 · [8] Embrapa Soja CT 75 (2001) y Mendes et al. 2008 · [9] Embrapa Cerrados · [10] METOS/Pessl, Dualex (rangos generales de clorofila; NBI relativo). SAFIA interpreta; la prescripción la define el agrónomo.</div>';
     return h;
   }
 
@@ -411,8 +431,9 @@
       l.slice().reverse().map(function (a) {
         var li = interpretar(a), bajos = li.filter(function (i) { return i.estado === 'bajo' || i.estado === 'limite'; });
         var est = estadiosDe(a.cultivo).find(function (e) { return e.k === a.estadio; });
+        var sensor = a.tipo === 'sensor' ? '<div class="sub">Sensor: Chl ' + fmt(a.chl, 1) + (a.nbi != null ? ' · NBI ' + fmt(a.nbi, 1) + (a.nbiRef != null ? ' (rel. ' + fmt(a.nbi / a.nbiRef, 2) + ')' : (a.esReferencia ? ' · referencia' : '')) : '') + ' · ' + (a.lecturas || '') + ' lecturas</div>' : '';
         var celda = function (k, d) { var i = li.find(function (x) { return x.k === k; }); if (!i) return '<td class="r muted">—</td>'; var col = { bajo: '#B3261E', limite: '#B8731A', alto: '#2E72C8' }[i.estado] || 'inherit'; return '<td class="r" style="color:' + col + ';font-weight:' + (i.estado === 'ok' || i.estado === 'sin' ? '400' : '700') + ';">' + fmt(i.valor, d) + '</td>'; };
-        return '<tr data-id="' + esc(a.id) + '"><td>' + fmtF(a.fecha) + '</td><td>' + esc(nombreLote(a.equipoId)) + '</td><td>' + esc(a.cultivo || '') + '<div class="sub">' + esc(est ? est.n : (a.estadio || '')) + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</div></td>' +
+        return '<tr data-id="' + esc(a.id) + '"><td>' + fmtF(a.fecha) + '</td><td>' + esc(nombreLote(a.equipoId)) + '</td><td>' + esc(a.cultivo || '') + '<div class="sub">' + esc(est ? est.n : (a.estadio || '')) + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</div>' + sensor + '</td>' +
           celda('n', 1) + celda('p', 1) + celda('k', 1) + celda('ca', 1) + celda('mg', 1) + celda('s', 1) + celda('b', 0) + celda('mn', 0) + celda('zn', 0) + '<td class="r">' + (a.spad != null ? fmt(a.spad, 1) + (a.spadRef != null ? '<div class="sub">ISN ' + fmt(a.spad / a.spadRef, 2) + '</div>' : '') : '—') + '</td>' +
           '<td style="font-size:12px;">' + (bajos.length ? '<span style="color:#B3261E;font-weight:700;">faltan: ' + esc(bajos.map(function (i) { return i.n.replace(/\s*\(.*$/, ''); }).join(', ')) + '</span>' : (li.length ? '<span style="color:#178029;font-weight:700;">todo en rango</span>' : '')) + '</td>' +
           '<td class="r" style="white-space:nowrap;">' + (a.archivoRuta ? '<button type="button" class="btn mini" data-act="pdf" title="Ver archivo">PDF</button> ' : '') + '<button type="button" class="btn mini" data-act="ver">Lectura</button> <button type="button" class="btn mini" data-act="editar">Editar</button> <button type="button" class="btn mini" data-act="borrar" style="color:#B3261E;">Borrar</button></td></tr>';

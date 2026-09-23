@@ -219,8 +219,11 @@
   }
 
   /* ---------- clima del ciclo (Open-Meteo, histórico) ---------- */
-  function climaDelCiclo(lat, lon, desde, hasta) {
-    if (lat == null || lon == null || !desde || !hasta) return Promise.resolve(null);
+  function climaDelCiclo(lat, lon, desde, hasta, campoId) {
+    if (!desde || !hasta) return Promise.resolve(null);
+    // Estación meteorológica del campo (METOS/FieldClimate u otra): si cubre al menos el 90 % de los días del ciclo, manda sobre el estimado
+    if (campoId != null && window.SafiaSensores && SafiaSensores.cobertura(campoId, desde, hasta) >= 0.9) { var re = SafiaSensores.resumenCiclo(campoId, desde, hasta); if (re) return Promise.resolve(re); }
+    if (lat == null || lon == null) return Promise.resolve(null);
     var url = 'https://archive-api.open-meteo.com/v1/archive'
       + '?latitude=' + lat + '&longitude=' + lon
       + '&start_date=' + desde + '&end_date=' + hasta

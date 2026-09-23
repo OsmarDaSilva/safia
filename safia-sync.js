@@ -30,7 +30,8 @@
     ciclos:          'safia_ciclos',
     analisis_suelo:  'safia_analisis',
     planes_rotacion: 'safia_planes',
-    analisis_foliar: 'safia_foliar'
+    analisis_foliar: 'safia_foliar',
+    clima_estacion:  'safia_clima_estacion'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);

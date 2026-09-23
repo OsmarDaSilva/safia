@@ -26,7 +26,19 @@
     { k: 'mg', n: 'Magnesio Mg (cmolc/dm³)', re: /(^mg$|^mg_|^mg\s|magn)/i },
     { k: 'cic', n: 'CIC (cmolc/dm³)', re: /(cic|ctc|cec)/i },
     { k: 'satBases', n: 'Sat. de bases %', re: /(^v$|^v%|^v_|sat.*bas|base.*sat)/i },
-    { k: 'arcilla', n: 'Arcilla %', re: /(arcil|clay|argila)/i }
+    { k: 'arcilla', n: 'Arcilla %', re: /(arcil|clay|argila)/i },
+    { k: 'arena', n: 'Arena %', re: /(arena|sand|areia)/i },
+    { k: 'limo', n: 'Limo %', re: /(^limo|silt|silte)/i },
+    { k: 'nmin', n: 'N mineral / nitratos (mg/dm³)', re: /(n_?min|nmin|nitrat|no3|n_?disp)/i },
+    { k: 'azufre', n: 'Azufre S (mg/dm³)', re: /(^s$|^s_|^ss|azufre|enxofre|sulf|so4)/i },
+    { k: 'boro', n: 'Boro B (mg/dm³)', re: /(^b$|^b_|^bs|boro|boron)/i },
+    { k: 'zinc', n: 'Zinc Zn (mg/dm³)', re: /(^zn|zinc|zinco)/i },
+    { k: 'cobre', n: 'Cobre Cu (mg/dm³)', re: /(^cu|cobre|copper)/i },
+    { k: 'manganeso', n: 'Manganeso Mn (mg/dm³)', re: /(^mn|mangan)/i },
+    { k: 'aluminio', n: 'Aluminio Al (cmolc/dm³)', re: /(^al$|^al_|^als|alumin)/i },
+    { k: 'ce', n: 'Conductividad eléctrica (mS/m)', re: /(^ce$|^ec$|^ec_|conduct|eca|ec_?a)/i },
+    { k: 'compactacion', n: 'Compactación / resistencia a la penetración (MPa)', re: /(compact|penetr|resist|mpa|kpa|cone|indice_?cone|ic)/i },
+    { k: 'humedad', n: 'Humedad del suelo (%)', re: /(humed|moist|vwc|umidade|water_?content)/i }
   ];
   var RE_LAT = /^(lat|latitude|latitud|y|ycoord|y_coord|north|norte)/i;
   var RE_LON = /^(lon|lng|long|longitude|longitud|x|xcoord|x_coord|east|este)/i;

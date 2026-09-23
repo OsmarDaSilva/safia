@@ -67,6 +67,7 @@
 <script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
 <script src="safia-foliar.js"></script>
+<script src="safia-sensores.js"></script>
 </head>
 <body>
 
@@ -312,7 +313,7 @@
 
         <!-- ================= TAB ANÁLISIS FOLIAR ================= -->
         <section class="panel" id="panel-foliar">
-          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="btnNuevoFoliar">+ Agregar análisis foliar</button><span class="muted" style="font-size:12px;">El suelo dice qué hay; la hoja dice qué absorbió la planta. Con los dos, SAFIA distingue si falta en el suelo o si la planta no lo toma.</span></div>
+          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="btnNuevoFoliar">+ Agregar análisis foliar</button><button class="btn" id="btnImportarSensor">Importar archivo del Dualex u otro sensor</button><input type="file" id="archivoSensor" accept=".csv,.txt,.tsv" style="display:none;"><span class="muted" style="font-size:12px;">El suelo dice qué hay; la hoja dice qué absorbió la planta. Con los dos, SAFIA distingue si falta en el suelo o si la planta no lo toma.</span></div>
 
           <div class="formcard" id="formFoliar">
             <h3 id="tituloFormFoliar">Nuevo análisis foliar</h3>
@@ -357,6 +358,7 @@
             </div>
           </div>
 
+          <div id="sensorImportado"></div>
           <div id="listaFoliar"></div>
           <div id="lecturaFoliar"></div>
           <div class="empty" id="vacioFoliar" style="display:none;">
@@ -376,6 +378,8 @@
               </select>
             </div>
             <div class="spacer" style="flex:1"></div>
+            <span class="muted" id="aguaEstacionInfo" style="font-size:12px;align-self:center;"></span>
+            <button class="btn green" id="btnAguaEstacion" style="display:none;">Traer de la estación</button>
             <button class="btn" onclick="window.print()">🖨️ Imprimir</button>
           </div>
 
@@ -658,7 +662,8 @@
   window.SafiaBanco = {
     campoActual: function () { return campoActual; },
     leer: leer, guardar: guardar, toast: toast,
-    refrescar: function () { pintarAnalisis(); pintarEvolucion(); }
+    refrescar: function () { pintarAnalisis(); pintarEvolucion(); },
+    refrescarAgua: function () { eventos = leer('eventos'); pintarAgua(); pintarEvolucion(); }
   };
   var editandoCicloId = null, editandoAnalisisId = null;
 
@@ -702,6 +707,7 @@
     if (window.SafiaNDVI) SafiaNDVI.alCambiarCampo();
     if (window.SafiaRotacion) SafiaRotacion.alCambiarCampo();
     if (window.SafiaFoliar) SafiaFoliar.alCambiarCampo();
+    if (window.SafiaSensores) SafiaSensores.activarAgua();
     llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
@@ -799,6 +805,8 @@
       if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
       if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
+      if (b.dataset.tab === 'foliar' && window.SafiaSensores) SafiaSensores.activarFoliar();
+      if (b.dataset.tab === 'agua' && window.SafiaSensores) SafiaSensores.activarAgua();
       if (b.dataset.tab === 'meta') activarMeta();
     });
   });

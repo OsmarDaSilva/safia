@@ -43,6 +43,7 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
+<script src="safia-sensores.js"></script>
 </head>
 <body>
 
@@ -195,6 +196,14 @@
             <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any" onchange="latLonManual()">
             <div class="hint">Negativo si estás al oeste de Greenwich</div>
           </div>
+          <div class="field full" style="border-top:1px solid var(--bd);padding-top:12px;margin-top:4px;">
+            <label>Estación meteorológica del campo <span class="opcional">(METOS / FieldClimate, si el cliente tiene)</span></label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="estacionId" style="min-width:260px;"><option value="">— sin estación —</option></select>
+              <button type="button" class="btn" id="btnBuscarEstaciones" onclick="buscarEstaciones()">Buscar estaciones de la cuenta</button>
+              <span class="hint" id="estacionHint" style="flex-basis:100%;">Con la estación asignada, SAFIA trae la lluvia, la temperatura, la ET0 y la humedad de suelo medidas en el campo (Banco → Agua mes a mes → "Traer de la estación") y las usa en el clima de cada campaña en vez del estimado.</span>
+            </div>
+          </div>
           <div class="field full">
             <label>O pegar las dos coordenadas juntas <span class="opcional">(de Google Maps)</span></label>
             <input type="text" id="gpsCompleto" placeholder="Ej: -24.3572, -54.4869" oninput="parsearGPS()">
@@ -338,6 +347,24 @@
       }
     }
 
+    // Estación meteorológica: lista de la cuenta de FieldClimate (vía la edge function safia-fieldclimate)
+    function ponerEstacion(id, nombre) {
+      const sel = document.getElementById('estacionId');
+      if (!id) { sel.value = ''; return; }
+      if (![...sel.options].some(o => o.value === String(id))) { const o = document.createElement('option'); o.value = String(id); o.textContent = (nombre || id) + ' (' + id + ')'; o.dataset.nombre = nombre || id; sel.appendChild(o); }
+      sel.value = String(id);
+    }
+    function buscarEstaciones() {
+      const hint = document.getElementById('estacionHint'), btn = document.getElementById('btnBuscarEstaciones'), sel = document.getElementById('estacionId');
+      if (!window.SafiaSensores) { hint.textContent = 'El módulo de sensores no cargó (Ctrl+F5).'; return; }
+      btn.disabled = true; hint.textContent = 'Consultando la cuenta de FieldClimate…';
+      SafiaSensores.estaciones().then(lista => {
+        const actual = sel.value;
+        sel.innerHTML = '<option value="">— sin estación —</option>' + lista.map(e => '<option value="' + e.id + '" data-nombre="' + (e.nombre || e.id).replace(/"/g, '&quot;') + '">' + (e.nombre || e.id) + ' (' + e.id + ')' + (e.ultimoDato ? ' · último dato ' + String(e.ultimoDato).slice(0, 10) : '') + '</option>').join('');
+        if (actual) ponerEstacion(actual);
+        hint.textContent = lista.length ? lista.length + ' estación(es) en la cuenta. Elegí la del campo y guardá.' : 'La cuenta no tiene estaciones todavía.';
+      }).catch(e => { hint.textContent = 'No se pudo consultar: ' + e.message; }).finally(() => { btn.disabled = false; });
+    }
     // Busca coordenadas aproximadas a partir de la localidad + departamento (Open-Meteo geocoding).
     const COD_PAIS = { Paraguay:'PY', Brasil:'BR', Argentina:'AR', Bolivia:'BO', Uruguay:'UY' };
     function normalizarTexto(t){ return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
@@ -453,6 +480,8 @@
       const longitud = document.getElementById('longitud').value;
       const altitud = document.getElementById('altitud').value;
       const observaciones = document.getElementById('observaciones').value.trim();
+      const selEst = document.getElementById('estacionId');
+      const estacionId = selEst.value || null, estacionNombre = selEst.value ? (selEst.options[selEst.selectedIndex].dataset.nombre || selEst.options[selEst.selectedIndex].textContent) : null;
 
       if (!clienteId || !nombre) { alert('Por favor seleccioná un cliente y completá el nombre del campo.'); return; }
 
@@ -473,7 +502,7 @@
           campos[index] = {
             ...campos[index],
             clienteId: parseInt(clienteId), nombre, superficie, departamento, localidad, pais, actividad,
-            tipoSuelo, latitud, longitud, altitud, observaciones, fechaModificacion: new Date().toISOString()
+            tipoSuelo, latitud, longitud, altitud, observaciones, estacionId, estacionNombre, fechaModificacion: new Date().toISOString()
           };
           localStorage.setItem('campos', JSON.stringify(campos));
           alert('¡Campo actualizado!');
@@ -484,7 +513,7 @@
         if (existe) { alert('Este cliente ya tiene un campo con ese nombre.'); return; }
         const campo = {
           id: Date.now(), clienteId: parseInt(clienteId), nombre, superficie, departamento, localidad, pais, actividad,
-          tipoSuelo, latitud, longitud, altitud, observaciones, fechaCreacion: new Date().toISOString()
+          tipoSuelo, latitud, longitud, altitud, observaciones, estacionId, estacionNombre, fechaCreacion: new Date().toISOString()
         };
         campos.push(campo);
         localStorage.setItem('campos', JSON.stringify(campos));
@@ -513,6 +542,7 @@
       document.getElementById('longitud').value = campo.longitud || '';
       document.getElementById('altitud').value = campo.altitud || '';
       document.getElementById('observaciones').value = campo.observaciones || '';
+      ponerEstacion(campo.estacionId, campo.estacionNombre);
 
       mostrarInfoSuelo();
 

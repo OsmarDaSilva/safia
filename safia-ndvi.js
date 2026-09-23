@@ -135,14 +135,16 @@
     for (var j = 0; j < g.fechas.length; j++) if (g.fechas[j] > fecha) { var fa = g.acum[j - 1], fb = g.acum[j]; return Math.round(fa + (fb - fa) * diasEntre(g.fechas[j - 1], fecha) / diasEntre(g.fechas[j - 1], g.fechas[j])); }
     return null;
   }
-  function pedirTemperaturas(co, desde, hasta) {
+  function pedirTemperaturas(co, desde, hasta, campoId) {
     var hoy = new Date().toISOString().slice(0, 10);
+    // Temperatura medida por la estación del campo (si la hay): manda sobre Open-Meteo en los días que cubre
+    var deEstacion = (campoId != null && window.SafiaSensores) ? SafiaSensores.temperaturasEstacion(campoId, desde, hasta) : {};
     var finArchivo = hasta < sumarDias(hoy, -6) ? hasta : sumarDias(hoy, -6);
     var pedidos = [];
     if (finArchivo >= desde) pedidos.push(fetch('https://archive-api.open-meteo.com/v1/archive?latitude=' + co.lat + '&longitude=' + co.lon + '&start_date=' + desde + '&end_date=' + finArchivo + '&daily=temperature_2m_mean&timezone=auto').then(function (r) { return r.json(); }).catch(function () { return null; }));
     if (hasta > finArchivo) pedidos.push(fetch('https://api.open-meteo.com/v1/forecast?latitude=' + co.lat + '&longitude=' + co.lon + '&daily=temperature_2m_mean&past_days=10&forecast_days=1&timezone=auto').then(function (r) { return r.json(); }).catch(function () { return null; }));
     return Promise.all(pedidos).then(function (rs) {
-      var porFecha = {};
+      var porFecha = {}; Object.keys(deEstacion).forEach(function (f) { porFecha[f] = deEstacion[f]; });
       rs.forEach(function (j) { var d = j && j.daily; if (!d || !d.time) return; d.time.forEach(function (f, i) { var t = d.temperature_2m_mean[i]; if (t != null && f >= desde && f <= hasta && porFecha[f] == null) porFecha[f] = t; }); });
       var fechas = Object.keys(porFecha).sort(), acum = [], s = 0;
       fechas.forEach(function (f) { var tEf = Math.max(10, Math.min(30, porFecha[f])); s += tEf - 10; acum.push(Math.round(s)); });
@@ -157,7 +159,7 @@
       var fin = finDe(c); if (fin > hoy) fin = hoy;
       var g = gddDe(lote.id, c);
       if (g && (g.hasta >= sumarDias(fin, -1) || (!c.abierta && g.hasta >= sumarDias(fin, -7)))) return Promise.resolve();
-      return pedirTemperaturas(co, c.siembra, fin).then(function (r) {
+      return pedirTemperaturas(co, c.siembra, fin, B() && B().campoActual() ? B().campoActual().id : null).then(function (r) {
         if (!r) return;
         var k = claveGdd(lote.id, c); gddCache[k] = r; cambio = true;
         try { localStorage.setItem('gdd_' + k, JSON.stringify(r)); } catch (e) {}

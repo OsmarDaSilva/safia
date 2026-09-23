@@ -652,6 +652,7 @@
 <script src="safia-insumos.js"></script>
 <script src="safia-catalogo.js"></script>
 <script src="safia-casos.js"></script>
+<script src="safia-sensores.js"></script>
 </head>
 <body>
 
@@ -1419,9 +1420,10 @@
       const campo = equipo ? campos.find(x => String(x.id) === String(equipo.campoId)) : null;
       const lat = campo && parseFloat(String(campo.latitud).replace(',', '.'));
       const lon = campo && parseFloat(String(campo.longitud).replace(',', '.'));
-      if (!lat || !lon || isNaN(lat) || isNaN(lon)) return;
+      const tieneEstacion = campo && campo.estacionId && window.SafiaSensores && SafiaSensores.cobertura(campo.id, desde, hasta) >= 0.9;
+      if ((!lat || !lon || isNaN(lat) || isNaN(lon)) && !tieneEstacion) return;
 
-      SafiaCasos.climaDelCiclo(lat, lon, desde, hasta).then(clima => {
+      SafiaCasos.climaDelCiclo(lat, lon, desde, hasta, campo ? campo.id : null).then(clima => {
         if (!clima) return;
         // Releemos por si cambió algo mientras consultábamos
         const lista = JSON.parse(localStorage.getItem('campanas') || '[]');
