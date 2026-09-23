@@ -439,7 +439,7 @@
   /* ---------- banco de casos ---------- */
   var COLS=[
     ['Cliente',function(c){return c.cliente;}],['Campo',function(c){return c.campo;}],['Localidad',function(c){return c.localidad;}],
-    ['Alt. m',function(c){return c.altitud;}],['Campaña',function(c){return c.campana;}],['Cultivo',function(c){return c.cultivo;}],['Riego',function(c){return c.riego===false?'secano':'riego';}],['Manejo',function(c){return c.manejo&&c.manejo.cargado?(window.SafiaInsumos?SafiaInsumos.textoCorto(c.manejo):c.manejo.total):'';}],
+    ['Alt. m',function(c){return c.altitud;}],['Campaña',function(c){return c.campana;}],['Cultivo',function(c){return c.cultivo;}],['Riego',function(c){return c.riego===false?'secano':'riego';}],['Manejo',function(c){return c.manejo&&c.manejo.cargado?(window.SafiaInsumos?SafiaInsumos.textoCorto(c.manejo):c.manejo.total):'';}],['Antecesor',function(c){return c.cultivoAnterior||'';}],['Cobertura',function(c){return c.cobertura&&window.SafiaInsumos?SafiaInsumos.nombreCobertura(c.cobertura):'';}],
     ['Variedad',function(c){return c.variedad;}],['Época',function(c){return c.epoca;}],['Siembra',function(c){return fmtFecha(c.siembra);}],
     ['Cosecha',function(c){return fmtFecha(c.cosecha);}],['Días',function(c){return c.dias;}],['Rinde kg/ha',function(c){return c.rindeKgHa;}],
     ['Lluvia mm',function(c){return c.lluviaMM;}],['Riego mm',function(c){return c.riegoMM;}],['Agua mm',function(c){return c.aguaTotalMM;}],

@@ -189,6 +189,8 @@
               <div class="field"><label>Riego del ciclo (mm)</label><input type="number" id="cRiego" step="0.1" min="0"><span class="hint">Podés calcularlo de los eventos ↓</span></div>
               <div class="field"><label>Lluvia del ciclo (mm)</label><input type="number" id="cLluvia" step="0.1" min="0"></div>
               <div class="field"><label>Encalado (t/ha)</label><input type="number" id="cEncalado" step="0.1" min="0" placeholder="0 si no encaló"></div>
+              <div class="field"><label>Cultivo anterior en el lote</label><input list="listaCultivos" id="cAnterior" placeholder="Maíz, Soja, Trigo, Barbecho…"></div>
+              <div class="field"><label>Cobertura previa</label><select id="cCobertura"></select></div>
               <div class="field full"><label>Fertilización</label><input id="cFert" placeholder="Ej.: 250 kg/ha 04-30-10 base + 120 kg/ha urea V6"></div>
               <div class="field full"><label>Observaciones</label><textarea id="cObs" placeholder="Rotación, problemas, heladas, plagas…"></textarea></div>
             </div>
@@ -466,6 +468,10 @@
   /* ---------- estado ---------- */
   var campos = [], clientes = [], equipos = [], eventos = [];
   var campoActual = null;
+  function llenarCoberturas() {
+    var s = document.getElementById('cCobertura'); if (!s || s.options.length || !window.SafiaInsumos) return;
+    s.innerHTML = SafiaInsumos.COBERTURAS.map(function (c) { return '<option value="' + c.k + '">' + c.n + '</option>'; }).join('');
+  }
   function nombreLote(equipoId) {
     if (!equipoId) return '';
     var e = leer('equipos').find(function (x) { return String(x.id) === String(equipoId); });
@@ -521,7 +527,7 @@
     cerrarFormCiclo(); cerrarFormAnalisis();
     pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
     if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
-    llenarLotesAnalisis();
+    llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
       pintarComparativo();
@@ -636,6 +642,8 @@
     document.getElementById('cRiego').value = c.mmRiego != null ? c.mmRiego : '';
     document.getElementById('cLluvia').value = c.mmLluvia != null ? c.mmLluvia : '';
     document.getElementById('cEncalado').value = c.encaladoTnHa != null ? c.encaladoTnHa : '';
+    document.getElementById('cAnterior').value = c.cultivoAnterior || '';
+    llenarCoberturas(); document.getElementById('cCobertura').value = c.cobertura || '';
     document.getElementById('cFert').value = c.fertilizacion || '';
     document.getElementById('cObs').value = c.observaciones || '';
     document.getElementById('formCiclo').scrollIntoView({ behavior: 'smooth' });
@@ -681,6 +689,8 @@
     item.mmRiego = item.conRiego === 'no' ? 0 : num(document.getElementById('cRiego').value);
     item.mmLluvia = num(document.getElementById('cLluvia').value);
     item.encaladoTnHa = num(document.getElementById('cEncalado').value);
+    item.cultivoAnterior = document.getElementById('cAnterior').value.trim();
+    item.cobertura = document.getElementById('cCobertura').value;
     item.fertilizacion = document.getElementById('cFert').value.trim();
     item.observaciones = document.getElementById('cObs').value.trim();
     if (!editandoCicloId) lista.push(item);
@@ -1452,6 +1462,57 @@
               td(f.d == null ? '<span class="muted">—</span>' : '<span class="badge ' + (f.d >= 0 ? 'green' : 'red') + '">' + (f.d >= 0 ? '+' : '') + fmt(f.d, 0) + ' kg/ha</span>', 1) + '</tr>';
           }).join('') + '</tbody></table></div></div>' +
           '<div class="muted" style="font-size:12px;margin-top:6px;">La diferencia aparece cuando hay campañas del mismo cultivo con y sin la práctica. Con pocas campañas es orientativa; cada campaña nueva la afina.</div>';
+      }
+    }
+
+    /* ---- 6b. Rotación y cobertura ---- */
+    html += h3evo('🌿 Rotación y cobertura', 'qué hubo antes en cada lote, soja sobre soja, y cuánto suma la cobertura de invierno');
+    if (window.SafiaInsumos) {
+      // Secuencia por lote (equipo), con todas las campañas del lote (cosechadas o no)
+      var eqDelCampo = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
+      var todasCamp = leer('campanas');
+      var secuencias = eqDelCampo.map(function (e) {
+        var pasos = [];
+        todasCamp.filter(function (c) { return String(c.equipoId) === String(e.id); }).forEach(function (c) {
+          (c.cultivos || []).forEach(function (cu) { if (cu.fechaSiembra) pasos.push({ f: cu.fechaSiembra, cultivo: cu.cultivo, campana: c.nombre, cobertura: cu.cobertura, anterior: cu.cultivoAnterior, rinde: num(cu.rendimientoReal) }); });
+        });
+        pasos.sort(function (a, b) { return String(a.f).localeCompare(String(b.f)); });
+        return { equipo: e, pasos: pasos };
+      }).filter(function (s) { return s.pasos.length; });
+      if (secuencias.length) {
+        html += secuencias.map(function (s) {
+          var partes = s.pasos.map(function (p, i) {
+            var cob = p.cobertura && p.cobertura !== 'ninguna' ? '<span class="badge green" title="Cobertura previa">' + esc(SafiaInsumos.nombreCobertura(p.cobertura)) + '</span> → ' : (p.cobertura === 'ninguna' ? '<span class="badge" title="Sin cobertura">sin cobertura</span> → ' : '');
+            var prev = i ? s.pasos[i - 1] : null;
+            var rot = SafiaInsumos.rotacion(p.cultivo, p.anterior || (prev ? prev.cultivo : ''), p.cobertura);
+            var alerta = rot.sojaSobreSoja ? ' <span class="badge red" title="Misma oleaginosa una sobre otra">soja sobre soja</span>' : (rot.mismoCultivo ? ' <span class="badge amber">mismo cultivo seguido</span>' : '');
+            return (i === 0 && p.anterior ? '<span class="muted">' + esc(p.anterior) + '</span> → ' : '') + cob + '<b>' + esc(p.cultivo) + '</b> <span class="muted">' + String(p.f).slice(0, 7) + (p.rinde ? ' · ' + fmt(p.rinde, 0) : '') + '</span>' + alerta;
+          });
+          return '<div style="font-size:13px;margin:4px 0 8px;"><span class="badge blue">' + esc(s.equipo.nombre) + (s.equipo.tipo === 'secano' ? ' · secano' : '') + '</span> ' + partes.join(' → ') + '</div>';
+        }).join('');
+      }
+      // Con vs sin cobertura y soja rotada vs soja sobre soja, entre campañas cosechadas del cliente (mismo cultivo)
+      var casosRot = todos.filter(function (c) { return String(c.clienteId) === String(campoActual.clienteId) && c.rotacion && c.rotacion.cargada; });
+      if (!casosRot.length) {
+        html += '<div class="note">Ninguna campaña cosechada tiene cargado el <b>cultivo anterior</b> ni la <b>cobertura</b>. Cargalos en <a href="mis-campanas.html">Campañas</a> (sección "Antecesor y cobertura" de cada cultivo; SAFIA sugiere lo que hubo antes en el lote) y acá vas a ver cuánto suma la cobertura de invierno y qué pasa con soja sobre soja.</div>';
+      } else {
+        var filasR = [];
+        Object.keys(agrupar(casosRot, function (c) { return c.cultivo; })).forEach(function (cu) {
+          var del = casosRot.filter(function (c) { return c.cultivo === cu; });
+          var con = del.filter(function (c) { return c.rotacion.conCobertura; }), sin = del.filter(function (c) { return c.rotacion.cobertura === 'ninguna'; });
+          if (con.length || sin.length) filasR.push({ q: 'Cobertura de invierno', cu: cu, a: con, b: sin, na: 'con cobertura', nb: 'sin cobertura' });
+          var sobre = del.filter(function (c) { return c.rotacion.mismoCultivo; }), rotada = del.filter(function (c) { return c.rotacion.anterior && !c.rotacion.mismoCultivo; });
+          if (sobre.length || rotada.length) filasR.push({ q: 'Rotación', cu: cu, a: rotada, b: sobre, na: 'rotado (otro cultivo antes)', nb: cu.toLowerCase().indexOf('soja') === 0 ? 'soja sobre soja' : 'mismo cultivo seguido' });
+        });
+        if (filasR.length) {
+          html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Qué</th><th>Cultivo</th><th class="r">Campañas · rinde</th><th class="r">Campañas · rinde</th><th class="r">Diferencia</th></tr></thead><tbody>' +
+            filasR.map(function (f) {
+              var pa = f.a.length ? prom(f.a.map(function (c) { return c.rindeKgHa; })) : null, pb = f.b.length ? prom(f.b.map(function (c) { return c.rindeKgHa; })) : null;
+              var d = (pa != null && pb != null) ? pa - pb : null;
+              return '<tr>' + td('<b>' + esc(f.q) + '</b>') + td(esc(f.cu)) + td('<div class="sub">' + f.na + '</div>' + (f.a.length ? f.a.length + ' · <span class="num">' + fmt(pa, 0) + '</span>' : '<span class="muted">—</span>'), 1) + td('<div class="sub">' + f.nb + '</div>' + (f.b.length ? f.b.length + ' · ' + fmt(pb, 0) : '<span class="muted">—</span>'), 1) +
+                td(d == null ? '<span class="muted">—</span>' : '<span class="badge ' + (d >= 0 ? 'green' : 'red') + '">' + (d >= 0 ? '+' : '') + fmt(d, 0) + ' kg/ha</span>', 1) + '</tr>';
+            }).join('') + '</tbody></table></div></div><div class="muted" style="font-size:12px;margin-top:6px;">La cobertura de invierno (avena, brachiaria, Santa Fe) sube la materia orgánica, frena malezas y guarda agua; soja sobre soja repite la misma oleaginosa y suele rendir menos. Las diferencias aparecen cuando hay campañas del mismo cultivo de los dos lados.</div>';
+        }
       }
     }
 

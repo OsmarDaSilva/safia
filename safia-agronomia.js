@@ -257,6 +257,16 @@
       }
       var encM = num(mio.encaladoTnHa), encR = num(ref.encaladoTnHa);
       if (encR != null && encR > 0 && (encM == null || encM === 0)) factores.push({ tipo: 'manejo', k: 'encalado', nombre: 'Encalado', peso: 0.35, texto: 'El otro lote encaló ' + fmt(encR, 1) + ' t/ha en esa campaña y este no.' });
+      // Rotación y cobertura de invierno
+      if (mio.rotacion && ref.rotacion) {
+        if (mio.rotacion.cargada && ref.rotacion.cargada) {
+          if (ref.rotacion.conCobertura && !mio.rotacion.conCobertura) factores.push({ tipo: 'manejo', k: 'cobertura', nombre: 'Cobertura de invierno', peso: 0.35, texto: 'El otro lote venía de una cobertura (' + (window.SafiaInsumos ? SafiaInsumos.nombreCobertura(ref.rotacion.cobertura).toLowerCase() : ref.rotacion.cobertura) + ') y este ' + (mio.rotacion.cobertura === 'ninguna' ? 'no tuvo cobertura' : 'no la registró') + '. La cobertura suma materia orgánica, frena malezas y guarda agua para el cultivo siguiente.' });
+          if (mio.rotacion.sojaSobreSoja && !ref.rotacion.sojaSobreSoja) factores.push({ tipo: 'manejo', k: 'sojasoja', nombre: 'Soja sobre soja', peso: 0.3, texto: 'Este lote sembró soja sobre soja; el otro venía de ' + (ref.rotacion.anterior || 'otro cultivo') + '. Repetir la misma oleaginosa acumula enfermedades y plagas del suelo y baja el rinde: rotar con maíz, trigo o una gramínea de cobertura.' });
+          else if (mio.rotacion.mismoCultivo && !ref.rotacion.mismoCultivo) factores.push({ tipo: 'manejo', k: 'mismocultivo', nombre: 'Mismo cultivo seguido', peso: 0.2, texto: 'Este lote repitió ' + mio.cultivo + ' sobre ' + mio.rotacion.anterior + '; el otro rotó (' + (ref.rotacion.anterior || 'otro cultivo') + ' antes).' });
+        } else if (!mio.rotacion.cargada && ref.rotacion.cargada) {
+          factores.push({ tipo: 'manejo', k: 'rot_sin', nombre: 'Antecesor y cobertura sin cargar', peso: 0.1, texto: 'El otro lote tiene cargado qué había antes (' + (ref.rotacion.anterior || '') + (ref.rotacion.conCobertura ? ', con cobertura' : '') + '); esta campaña no. Cargalo en Campañas → "Antecesor y cobertura".' });
+        }
+      }
       // Manejo e insumos: prácticas que el otro lote hizo y este no (solo si los dos tienen el manejo cargado)
       if (window.SafiaInsumos && mio.manejo && ref.manejo) {
         if (mio.manejo.cargado && ref.manejo.cargado) {

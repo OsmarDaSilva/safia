@@ -1693,7 +1693,11 @@
         rendimientoReal: '',
         finalidad: 'Granos Comercial',
         encaladoTnHa: '',
-        fertilizacion: ''
+        fertilizacion: '',
+        cultivoAnterior: '',
+        cobertura: '',
+        coberturaDetalle: '',
+        coberturaManejo: ''
       };
       if (!cultivo.idTemp) cultivo.idTemp = id;
       cultivosTemp.push(cultivo);
@@ -1722,6 +1726,45 @@
     }
     // Lista de variedades ya usadas (en campañas y en el historial), para no
     // escribir la misma variedad de tres formas distintas.
+    function opcionesCobertura(actual) {
+      return SafiaInsumos.COBERTURAS.map(c => '<option value="' + c.k + '"' + ((actual || '') === c.k ? ' selected' : '') + '>' + c.n + '</option>').join('');
+    }
+    function armarListaAntecesores() {
+      let dl = document.getElementById('listaAntecesores');
+      if (!dl) { dl = document.createElement('datalist'); dl.id = 'listaAntecesores'; document.body.appendChild(dl); }
+      const nombres = {};
+      const lc = obtenerListaCultivos(); [].concat(lc.fao || [], lc.custom || []).forEach(c => { const nm = (c && (c.nombre || c.cultivo || c.name)) || (typeof c === 'string' ? c : ''); if (nm) nombres[nm] = 1; });
+      SafiaInsumos.ANTECESORES_EXTRA.forEach(a => { nombres[a] = 1; });
+      dl.innerHTML = Object.keys(nombres).sort().map(nm => '<option value="' + String(nm).replace(/"/g, '&quot;') + '">').join('');
+    }
+    // Qué hubo antes en el mismo lote: la última campaña del equipo sembrada antes de esta
+    function anteriorEnLote(equipoId, fechaSiembra) {
+      if (!equipoId) return null;
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      let mejor = null;
+      campanas.forEach(c => {
+        if (String(c.equipoId) !== String(equipoId)) return;
+        if (editandoId && String(c.id) === String(editandoId)) return;
+        (c.cultivos || []).forEach(cu => {
+          if (!cu.fechaSiembra) return;
+          if (fechaSiembra && cu.fechaSiembra >= fechaSiembra) return;
+          if (!mejor || cu.fechaSiembra > mejor.fechaSiembra) mejor = { cultivo: cu.cultivo, fechaSiembra: cu.fechaSiembra, campana: c.nombre };
+        });
+      });
+      return mejor;
+    }
+    function sugerenciaAntecesorHTML(cultivo) {
+      const eq = document.getElementById('equipo') ? document.getElementById('equipo').value : '';
+      const ant = anteriorEnLote(eq, cultivo.fechaSiembra);
+      if (!ant) return 'Si es la primera campaña cargada del lote, escribí qué había antes (o "Barbecho").';
+      if (cultivo.cultivoAnterior) return 'En SAFIA, lo anterior en este lote fue ' + ant.cultivo + ' (' + ant.campana + ').';
+      return 'En este lote antes hubo <b>' + ant.cultivo + '</b> (' + ant.campana + ') · <a href="#" onclick="usarAntecesor(' + cultivo.idTemp + ', \'' + String(ant.cultivo).replace(/'/g, '') + '\'); return false;">usar</a>';
+    }
+    function usarAntecesor(idTemp, nombre) {
+      actualizarCultivoTemp(idTemp, 'cultivoAnterior', nombre);
+      renderizarCultivos();
+    }
+
     function armarListaVariedades() {
       let dl = document.getElementById('listaVariedades');
       if (!dl) { dl = document.createElement('datalist'); dl.id = 'listaVariedades'; document.body.appendChild(dl); }
@@ -1733,6 +1776,7 @@
     }
 
     function renderizarCultivos() {
+      armarListaAntecesores();
       armarListaVariedades();
       const container = document.getElementById('cultivosContainer');
       const { fao, custom } = obtenerListaCultivos();
@@ -1843,6 +1887,30 @@
               </div>
             </div>
 
+            <div class="seccion-titulo" style="margin-top:6px;">Antecesor y cobertura <span class="opcional" style="text-transform:none;letter-spacing:0;">(qué había en el lote antes de este cultivo)</span></div>
+            <div class="fila">
+              <div class="campo">
+                <label>Cultivo anterior en este lote</label>
+                <input type="text" list="listaAntecesores" placeholder="Ej: Maíz, Soja, Trigo, Barbecho" value="${cultivo.cultivoAnterior || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'cultivoAnterior', this.value)">
+                <div class="ayuda" id="sugAntecesor_${cultivo.idTemp}">${sugerenciaAntecesorHTML(cultivo)}</div>
+              </div>
+              <div class="campo">
+                <label>Cobertura de invierno / entre cosechas</label>
+                <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'cobertura', this.value)">${opcionesCobertura(cultivo.cobertura)}</select>
+                <div class="ayuda">Avena, brachiaria, Santa Fe, nabo… lo que se sembró después de la cosecha anterior y antes de este cultivo.</div>
+              </div>
+            </div>
+            <div class="fila">
+              <div class="campo">
+                <label>Detalle de la cobertura <span class="opcional">(opcional)</span></label>
+                <input type="text" placeholder="Ej: avena negra 60 kg/ha, brachiaria 8 kg/ha" value="${cultivo.coberturaDetalle || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'coberturaDetalle', this.value)">
+              </div>
+              <div class="campo">
+                <label>Cómo se manejó la cobertura</label>
+                <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'coberturaManejo', this.value)">${SafiaInsumos.MANEJO_COBERTURA.map(m => '<option value="' + m.k + '"' + ((cultivo.coberturaManejo || '') === m.k ? ' selected' : '') + '>' + m.n + '</option>').join('')}</select>
+              </div>
+            </div>
+
             <div class="fila">
               <div class="campo">
                 <label>Rendimiento objetivo (kg/ha) <span class="opcional">(opcional)</span></label>
@@ -1908,6 +1976,10 @@
               finalidad: c.finalidad || 'Granos Comercial',
               encaladoTnHa: c.encaladoTnHa || '',
               fertilizacion: String(c.fertilizacion || '').trim(),
+              cultivoAnterior: String(c.cultivoAnterior || '').trim(),
+              cobertura: c.cobertura || '',
+              coberturaDetalle: String(c.coberturaDetalle || '').trim(),
+              coberturaManejo: c.coberturaManejo || '',
               rendimientoReal: c.rendimientoReal || ''
             })),
             fechaModificacion: new Date().toISOString()
@@ -1944,6 +2016,10 @@
             finalidad: c.finalidad || 'Granos Comercial',
             encaladoTnHa: c.encaladoTnHa || '',
             fertilizacion: String(c.fertilizacion || '').trim(),
+            cultivoAnterior: String(c.cultivoAnterior || '').trim(),
+            cobertura: c.cobertura || '',
+            coberturaDetalle: String(c.coberturaDetalle || '').trim(),
+            coberturaManejo: c.coberturaManejo || '',
             rendimientoReal: c.rendimientoReal || ''
           })),
           fechaCreacion: new Date().toISOString()

@@ -98,6 +98,43 @@
     { re: /(yeso|gypsum)/i,                n: 0,  p: 0,  k: 0,  s: 17 },
     { re: /(calc[aá]reo|cal agr|dolom)/i,   n: 0,  p: 0,  k: 0,  s: 0 }
   ];
+  // Rotación y cobertura de invierno (antes de este cultivo). En Paraguay/Brasil son 2 cultivos comerciales
+  // al año; la cobertura entre cosechas (avena, brachiaria, Santa Fe) sube la MO, frena malezas y guarda agua.
+  var COBERTURAS = [
+    { k: '',          n: 'Sin dato' },
+    { k: 'ninguna',   n: 'Ninguna (rastrojo / barbecho)' },
+    { k: 'avena',     n: 'Avena (negra o blanca)' },
+    { k: 'brachiaria', n: 'Brachiaria ruziziensis' },
+    { k: 'santa_fe',  n: 'Maíz + brachiaria (sistema Santa Fe)' },
+    { k: 'nabo',      n: 'Nabo forrajero' },
+    { k: 'centeno',   n: 'Centeno / triticale' },
+    { k: 'crotalaria', n: 'Crotalaria / leguminosa' },
+    { k: 'mezcla',    n: 'Mezcla de coberturas (mix)' },
+    { k: 'pastura',   n: 'Pastura (integración con ganado)' },
+    { k: 'otra',      n: 'Otra' }
+  ];
+  var MANEJO_COBERTURA = [
+    { k: '',         n: '—' },
+    { k: 'quimica',  n: 'Desecada con herbicida' },
+    { k: 'rolo',     n: 'Rolo-faca / rolada' },
+    { k: 'pastoreo', n: 'Pastoreada' },
+    { k: 'incorporada', n: 'Incorporada' }
+  ];
+  var ANTECESORES_EXTRA = ['Barbecho', 'Pastura', 'Campo nuevo (desmonte)', 'Cobertura de invierno'];
+  var COB_POR_K = {}; COBERTURAS.forEach(function (c) { COB_POR_K[c.k] = c; });
+  var MCOB_POR_K = {}; MANEJO_COBERTURA.forEach(function (c) { MCOB_POR_K[c.k] = c; });
+  function nombreCobertura(k) { return COB_POR_K[k] ? COB_POR_K[k].n : (k || 'Sin dato'); }
+  function nombreManejoCobertura(k) { return MCOB_POR_K[k] ? MCOB_POR_K[k].n : (k || ''); }
+  function normCultivo(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
+  /* Resumen de rotación de un cultivo: { cargada, conCobertura, cobertura, sojaSobreSoja, mismoCultivo, anterior } */
+  function rotacion(cultivo, cultivoAnterior, cobertura) {
+    var cu = normCultivo(cultivo), an = normCultivo(cultivoAnterior);
+    var cargada = !!(an || cobertura);
+    var conCob = !!cobertura && cobertura !== 'ninguna';
+    var mismo = !!(cu && an && cu.split(' ')[0] === an.split(' ')[0]);
+    return { cargada: cargada, conCobertura: conCob, cobertura: cobertura || '', anterior: cultivoAnterior || '', mismoCultivo: mismo, sojaSobreSoja: mismo && cu.indexOf('soja') === 0 };
+  }
+
   var POR_K = {}; CATEGORIAS.forEach(function (c) { POR_K[c.k] = c; });
   var METODO_POR_K = {}; METODOS.forEach(function (m) { METODO_POR_K[m.k] = m; });
   var FORMA_POR_K = {}; FORMAS_SEMILLA.forEach(function (f) { FORMA_POR_K[f.k] = f; });
@@ -158,6 +195,6 @@
     return partes.join(' · ') || 'sin insumos (manejo completo)';
   }
 
-  window.SafiaInsumos = { SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
+  window.SafiaInsumos = { COBERTURAS: COBERTURAS, MANEJO_COBERTURA: MANEJO_COBERTURA, ANTECESORES_EXTRA: ANTECESORES_EXTRA, nombreCobertura: nombreCobertura, nombreManejoCobertura: nombreManejoCobertura, rotacion: rotacion, SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
     nombreCategoria: nombreCategoria, nombreMetodo: nombreMetodo, seccionDe: seccionDe, gradoDe: gradoDe, npkDe: npkDe, totalesNPK: totalesNPK, resumen: resumen, tiene: tiene, textoCorto: textoCorto };
 })();

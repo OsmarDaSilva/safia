@@ -89,6 +89,9 @@ Para el cliente que **ya riega**, campaña tras campaña:
 - **Qué hacer:** encalado (t/ha y tipo de calcáreo), P₂O₅ correctivo + manutención por tonelada objetivo, K₂O correctivo gradual, materia orgánica. Siempre con la fuente. SAFIA interpreta; el agrónomo prescribe.
 - **Dónde:** Banco → Evolución (sección "Diagnóstico agronómico" por cultivo, contra el mejor de la zona), Banco → Análisis de suelo ("Lectura agronómica del último análisis"), Evaluar proyecto ("Lectura agronómica del suelo" del prospecto).
 
+### Rotación y cobertura de invierno — HECHO
+Cada cultivo de la campaña registra el **cultivo anterior en el lote** (SAFIA sugiere el de la campaña previa del mismo equipo) y la **cobertura entre cosechas** (avena, brachiaria ruziziensis, maíz + brachiaria "Santa Fe", nabo, centeno, crotalaria, mezcla, pastura) con detalle y manejo (desecada, rolada, pastoreada). El caso lleva `rotacion` (cargada, conCobertura, mismoCultivo, sojaSobreSoja). Banco → Evolución muestra la secuencia por lote con alertas "soja sobre soja", y compara rinde con vs sin cobertura y rotado vs repetido; el diagnóstico agrega los factores cobertura y soja sobre soja.
+
 ### Manejo e insumos por campaña — HECHO
 `safia-insumos.js` (catálogo) + modal "Manejo e insumos" en Campañas. Cada campaña registra, estructurado y opcional: tratamiento de semilla (fungicida, insecticida, micronutrientes), inoculante y co-inoculante, fertilización de base, cobertura y fertirriego, foliares, fungicidas, insecticidas, herbicidas, encalado; con producto, dosis, unidad, etapa fenológica y fecha. Casilla "manejo completo" para distinguir "no se usó" de "no se cargó". Se puede copiar la lista de otra campaña. El caso del motor lleva `manejo` (conteo por práctica + aplicaciones del Operador); Banco → Evolución compara rinde con vs sin cada práctica dentro del mismo cultivo; el diagnóstico agronómico señala las prácticas que el mejor de la zona hizo y el cliente no.
 
