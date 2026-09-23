@@ -51,7 +51,7 @@
         if (!cu || !cu.fechaSiembra) return;
         var cos = (c.cosechas && c.cosechas[i] && c.cosechas[i].fecha) || (i === 0 && c.cosecha && c.cosecha.fecha) || null;
         var rinde = parseFloat(cu.rendimientoReal) || null;
-        salida.push({ id: c.id + '_' + i, nombre: c.nombre || '', cultivo: cu.cultivo || '—', variedad: cu.variedad || '', siembra: cu.fechaSiembra.slice(0, 10), cosecha: cos ? cos.slice(0, 10) : null, cosechaEstimada: cu.fechaCosecha ? cu.fechaCosecha.slice(0, 10) : null, rinde: rinde, abierta: !rinde });
+        salida.push({ id: c.id + '_' + i, equipoId: c.equipoId, nombre: c.nombre || '', cultivo: cu.cultivo || '—', variedad: cu.variedad || '', siembra: cu.fechaSiembra.slice(0, 10), cosecha: cos ? cos.slice(0, 10) : null, cosechaEstimada: cu.fechaCosecha ? cu.fechaCosecha.slice(0, 10) : null, rinde: rinde, abierta: !rinde });
       });
     });
     return salida.sort(function (a, b) { return a.siembra.localeCompare(b.siembra); });
@@ -99,6 +99,80 @@
         else explicar((e && e.message) || 'error');
       })
       .finally(function () { boton.disabled = false; boton.textContent = 'Traer del satélite'; });
+  }
+
+  /* ---------- tiempo térmico: alinear campañas por estadio ----------
+     Dos campañas sembradas en fechas distintas no están en el mismo estadio el mismo día: el desarrollo lo marca la
+     temperatura. Grados-día acumulados desde la siembra (base 10 °C, tope 30 °C: el criterio que SAFIA ya usa en el
+     clima del ciclo para soja y maíz) → mismo tiempo térmico ≈ mismo estadio fenológico. Temperaturas de Open-Meteo
+     (archivo; los últimos días, del pronóstico con past_days). Se guardan por lote y siembra en localStorage. */
+  var gddCache = {};
+  function claveGdd(equipoId, c) { return String(equipoId) + '|' + c.siembra; }
+  function coordsDe(lote) {
+    var c = B() && B().campoActual ? B().campoActual() : null, lat = null, lon = null;
+    if (lote && lote.poligono && lote.poligono.centro) { lat = parseFloat(lote.poligono.centro.lat); lon = parseFloat(lote.poligono.centro.lon); }
+    if ((isNaN(lat) || lat == null) && c) { lat = parseFloat(c.latitud); lon = parseFloat(c.longitud); }
+    return isNaN(lat) || isNaN(lon) || lat == null ? null : { lat: lat, lon: lon };
+  }
+  function gddDe(equipoId, c) {
+    var k = claveGdd(equipoId, c);
+    if (gddCache[k]) return gddCache[k];
+    try { var g = JSON.parse(localStorage.getItem('gdd_' + k) || 'null'); if (g && g.acum && g.fechas) { gddCache[k] = g; return g; } } catch (e) {}
+    return null;
+  }
+  function gddEn(g, fecha) {
+    if (!g || !g.fechas.length) return null;
+    if (fecha < g.fechas[0]) return 0;
+    var i = g.fechas.indexOf(fecha); if (i >= 0) return g.acum[i];
+    var n = g.acum.length, ult = g.fechas[n - 1];
+    if (fecha > ult) {
+      // hasta 12 días después del último dato (cosecha reciente o retraso del archivo): se sigue con el ritmo de los últimos 10 días
+      var d = diasEntre(ult, fecha); if (d > 12) return null;
+      var k = Math.min(10, n - 1), tasa = k > 0 ? (g.acum[n - 1] - g.acum[n - 1 - k]) / k : 12;
+      return Math.round(g.acum[n - 1] + tasa * d);
+    }
+    // hueco en el medio: interpolar entre los vecinos
+    for (var j = 0; j < g.fechas.length; j++) if (g.fechas[j] > fecha) { var fa = g.acum[j - 1], fb = g.acum[j]; return Math.round(fa + (fb - fa) * diasEntre(g.fechas[j - 1], fecha) / diasEntre(g.fechas[j - 1], g.fechas[j])); }
+    return null;
+  }
+  function pedirTemperaturas(co, desde, hasta) {
+    var hoy = new Date().toISOString().slice(0, 10);
+    var finArchivo = hasta < sumarDias(hoy, -6) ? hasta : sumarDias(hoy, -6);
+    var pedidos = [];
+    if (finArchivo >= desde) pedidos.push(fetch('https://archive-api.open-meteo.com/v1/archive?latitude=' + co.lat + '&longitude=' + co.lon + '&start_date=' + desde + '&end_date=' + finArchivo + '&daily=temperature_2m_mean&timezone=auto').then(function (r) { return r.json(); }).catch(function () { return null; }));
+    if (hasta > finArchivo) pedidos.push(fetch('https://api.open-meteo.com/v1/forecast?latitude=' + co.lat + '&longitude=' + co.lon + '&daily=temperature_2m_mean&past_days=10&forecast_days=1&timezone=auto').then(function (r) { return r.json(); }).catch(function () { return null; }));
+    return Promise.all(pedidos).then(function (rs) {
+      var porFecha = {};
+      rs.forEach(function (j) { var d = j && j.daily; if (!d || !d.time) return; d.time.forEach(function (f, i) { var t = d.temperature_2m_mean[i]; if (t != null && f >= desde && f <= hasta && porFecha[f] == null) porFecha[f] = t; }); });
+      var fechas = Object.keys(porFecha).sort(), acum = [], s = 0;
+      fechas.forEach(function (f) { var tEf = Math.max(10, Math.min(30, porFecha[f])); s += tEf - 10; acum.push(Math.round(s)); });
+      return fechas.length ? { fechas: fechas, acum: acum, hasta: fechas[fechas.length - 1], traidoEn: hoy } : null;
+    });
+  }
+  // Trae (si falta) el tiempo térmico de todas las campañas del lote. Devuelve true si algo cambió (para redibujar).
+  function prepararGdd(lote) {
+    var co = coordsDe(lote); if (!co) return Promise.resolve(false);
+    var hoy = new Date().toISOString().slice(0, 10), cambio = false;
+    var tareas = campanasDelLote(lote.id).map(function (c) {
+      var fin = finDe(c); if (fin > hoy) fin = hoy;
+      var g = gddDe(lote.id, c);
+      if (g && (g.hasta >= sumarDias(fin, -1) || (!c.abierta && g.hasta >= sumarDias(fin, -7)))) return Promise.resolve();
+      return pedirTemperaturas(co, c.siembra, fin).then(function (r) {
+        if (!r) return;
+        var k = claveGdd(lote.id, c); gddCache[k] = r; cambio = true;
+        try { localStorage.setItem('gdd_' + k, JSON.stringify(r)); } catch (e) {}
+      });
+    });
+    return Promise.all(tareas).then(function () { return cambio; });
+  }
+  // NDVI de una curva a un tiempo térmico dado (interpolado), o null
+  function ndviEnGdd(curva, g) {
+    var p = curva.puntos.filter(function (q) { return q.gdd != null; }); if (!p.length || g == null) return null;
+    for (var i = 0; i < p.length; i++) {
+      if (p[i].gdd === g) return p[i].ndvi;
+      if (p[i].gdd > g) { if (i === 0) return g >= p[0].gdd - 80 ? p[0].ndvi : null; var a = p[i - 1], b = p[i]; return a.ndvi + (b.ndvi - a.ndvi) * (g - a.gdd) / (b.gdd - a.gdd); }
+    }
+    return g - p[p.length - 1].gdd <= 80 ? p[p.length - 1].ndvi : null;
   }
 
   /* ---------- gráficos (SVG propio, sin librerías) ---------- */
@@ -151,18 +225,21 @@
   // Curvas por campaña en "días desde la siembra"
   function svgCampanas(curvas) {
     var W = 900, H = 280, ml = 44, mr = 16, mt = 18, mb = 36;
-    var maxD = 10; curvas.forEach(function (c) { c.puntos.forEach(function (p) { if (p.dds > maxD) maxD = p.dds; }); });
-    maxD = Math.min(Math.max(maxD, 120), 260);
+    var termico = curvas.length > 0 && curvas.every(function (c) { return c.tt; });
+    var ejeDe = function (p) { return termico ? p.gdd : p.dds; };
+    var maxD = 10; curvas.forEach(function (c) { c.puntos.forEach(function (p) { if (ejeDe(p) > maxD) maxD = ejeDe(p); }); });
+    maxD = termico ? Math.min(Math.max(maxD, 1200), 3200) : Math.min(Math.max(maxD, 120), 260);
+    var paso = termico ? 200 : 20;
     var x = function (dd) { return ml + (W - ml - mr) * Math.min(dd, maxD) / maxD; };
     var y = function (v) { return mt + (H - mt - mb) * (1 - Math.max(0, Math.min(1, v))); };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;font-family:inherit;">';
     [0, 0.2, 0.4, 0.6, 0.8, 1].forEach(function (v) { s += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#E1E4E7"/><text x="' + (ml - 6) + '" y="' + (y(v) + 4) + '" font-size="11" fill="#8C9196" text-anchor="end">' + v.toFixed(1).replace('.', ',') + '</text>'; });
-    for (var dd = 0; dd <= maxD; dd += 20) s += '<text x="' + x(dd) + '" y="' + (H - mb + 14) + '" font-size="10" fill="#8C9196" text-anchor="middle">' + dd + '</text>';
-    s += '<text x="' + (W / 2) + '" y="' + (H - 4) + '" font-size="11" fill="#8C9196" text-anchor="middle">días desde la siembra</text>';
+    for (var dd = 0; dd <= maxD; dd += paso) s += '<text x="' + x(dd) + '" y="' + (H - mb + 14) + '" font-size="10" fill="#8C9196" text-anchor="middle">' + dd + '</text>';
+    s += '<text x="' + (W / 2) + '" y="' + (H - 4) + '" font-size="11" fill="#8C9196" text-anchor="middle">' + (termico ? 'grados-día acumulados desde la siembra (base 10 °C) · mismo tiempo térmico ≈ mismo estadio' : 'días desde la siembra') + '</text>';
     curvas.forEach(function (c) {
       if (c.puntos.length < 2) return;
-      s += '<path d="M' + c.puntos.map(function (p) { return x(p.dds) + ' ' + y(p.ndvi); }).join(' L') + '" fill="none" stroke="' + c.color + '" stroke-width="' + (c.abierta ? 3 : 1.8) + '"' + (c.abierta ? '' : ' opacity="0.85"') + '/>';
-      c.puntos.forEach(function (p) { s += '<circle cx="' + x(p.dds) + '" cy="' + y(p.ndvi) + '" r="2.5" fill="' + c.color + '"><title>' + esc(c.etiqueta) + ' · día ' + p.dds + ' (' + fmtF(p.fecha) + ') · NDVI ' + n2(p.ndvi) + '</title></circle>'; });
+      s += '<path d="M' + c.puntos.map(function (p) { return x(ejeDe(p)) + ' ' + y(p.ndvi); }).join(' L') + '" fill="none" stroke="' + c.color + '" stroke-width="' + (c.abierta ? 3 : 1.8) + '"' + (c.abierta ? '' : ' opacity="0.85"') + '/>';
+      c.puntos.forEach(function (p) { s += '<circle cx="' + x(ejeDe(p)) + '" cy="' + y(p.ndvi) + '" r="2.5" fill="' + c.color + '"><title>' + esc(c.etiqueta) + ' · día ' + p.dds + (p.gdd != null ? ' · ' + p.gdd + ' °C·día' : '') + ' (' + fmtF(p.fecha) + ') · NDVI ' + n2(p.ndvi) + '</title></circle>'; });
     });
     s += '</svg>';
     return s;
@@ -173,12 +250,15 @@
     var fin = finDe(c);
     var pts = lista.filter(function (p) { return p.fecha >= c.siembra && p.fecha <= sumarDias(fin, 7) && !(p.nubes_pct > 40); })
       .map(function (p) { return { dds: diasEntre(c.siembra, p.fecha), fecha: p.fecha, ndvi: p.ndvi }; });
-    var max = null, diaMax = null, integral = 0, diasPlenos = 0;
+    var g = c.equipoId != null ? gddDe(c.equipoId, c) : null;
+    if (g) pts.forEach(function (p) { p.gdd = gddEn(g, p.fecha); });
+    var tt = !!g && pts.length > 0 && pts.every(function (p) { return p.gdd != null; });
+    var max = null, diaMax = null, gddMax = null, integral = 0, diasPlenos = 0;
     pts.forEach(function (p, i) {
-      if (max == null || p.ndvi > max) { max = p.ndvi; diaMax = p.dds; }
+      if (max == null || p.ndvi > max) { max = p.ndvi; diaMax = p.dds; gddMax = p.gdd != null ? p.gdd : null; }
       if (i > 0) { var dt = p.dds - pts[i - 1].dds; integral += (p.ndvi + pts[i - 1].ndvi) / 2 * dt; if ((p.ndvi + pts[i - 1].ndvi) / 2 >= 0.7) diasPlenos += dt; }
     });
-    return { puntos: pts, max: max, diaMax: diaMax, integral: Math.round(integral), diasPlenos: diasPlenos };
+    return { puntos: pts, max: max, diaMax: diaMax, gddMax: gddMax, tt: tt, integral: Math.round(integral), diasPlenos: diasPlenos };
   }
   // NDVI de una curva a un día dado (interpolado), o null
   function ndviEnDia(curva, dd) {
@@ -196,7 +276,10 @@
     return (sxx && syy) ? sxy / Math.sqrt(sxx * syy) : null;
   }
 
-  function dibujarCampanas(lote, lista) { $('ndviCampanas').innerHTML = htmlCampanas(lote, lista); }
+  function dibujarCampanas(lote, lista) {
+    $('ndviCampanas').innerHTML = htmlCampanas(lote, lista);
+    prepararGdd(lote).then(function (cambio) { if (cambio && loteActual() && String(loteActual().id) === String(lote.id)) $('ndviCampanas').innerHTML = htmlCampanas(lote, series[lote.id] || []); }).catch(function () {});
+  }
   // HTML de la comparación entre campañas (lo usa la pestaña y el informe para el cliente)
   function htmlCampanas(lote, lista) {
     var camps = campanasDelLote(lote.id);
@@ -205,7 +288,7 @@
     camps.forEach(function (c, i) {
       var cv = curvaDe(c, lista);
       var etiqueta = c.cultivo + ' ' + c.siembra.slice(0, 4) + (c.nombre ? ' · ' + c.nombre : '') + (c.rinde ? ' · ' + Math.round(c.rinde).toLocaleString('es-PY') + ' kg/ha' : ' · en curso');
-      var item = { campana: c, etiqueta: etiqueta, color: COLORES[i % COLORES.length], abierta: c.abierta, puntos: cv.puntos, max: cv.max, diaMax: cv.diaMax, integral: cv.integral, diasPlenos: cv.diasPlenos };
+      var item = { campana: c, etiqueta: etiqueta, color: COLORES[i % COLORES.length], abierta: c.abierta, puntos: cv.puntos, max: cv.max, diaMax: cv.diaMax, gddMax: cv.gddMax, tt: cv.tt, integral: cv.integral, diasPlenos: cv.diasPlenos };
       if (cv.puntos.length >= 2) curvas.push(item); else vacias.push(item);
     });
     var html = '';
@@ -215,9 +298,9 @@
     }
     html += svgCampanas(curvas);
     // leyenda + tabla
-    html += '<div class="tablewrap" style="margin-top:8px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Campaña</th><th class="r">NDVI máx.</th><th class="r">Día del máx.</th><th class="r">Días con canopia plena</th><th class="r">NDVI acumulado</th><th class="r">Rinde (kg/ha)</th></tr></thead><tbody>';
+    html += '<div class="tablewrap" style="margin-top:8px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Campaña</th><th class="r">NDVI máx.</th><th class="r">Día (°C·día) del máx.</th><th class="r">Días con canopia plena</th><th class="r">NDVI acumulado</th><th class="r">Rinde (kg/ha)</th></tr></thead><tbody>';
     curvas.forEach(function (c) {
-      html += '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + c.color + ';margin-right:6px;"></span>' + esc(c.etiqueta) + '</td><td class="r">' + n2(c.max) + '</td><td class="r">' + (c.diaMax != null ? c.diaMax : '—') + '</td><td class="r">' + c.diasPlenos + '</td><td class="r">' + c.integral + '</td><td class="r">' + (c.campana.rinde ? Math.round(c.campana.rinde).toLocaleString('es-PY') : '—') + '</td></tr>';
+      html += '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + c.color + ';margin-right:6px;"></span>' + esc(c.etiqueta) + '</td><td class="r">' + n2(c.max) + '</td><td class="r">' + (c.diaMax != null ? c.diaMax : '—') + (c.gddMax != null ? ' <span class="muted">(' + c.gddMax + ')</span>' : '') + '</td><td class="r">' + c.diasPlenos + '</td><td class="r">' + c.integral + '</td><td class="r">' + (c.campana.rinde ? Math.round(c.campana.rinde).toLocaleString('es-PY') : '—') + '</td></tr>';
     });
     html += '</tbody></table></div></div>';
     html += '<div class="muted" style="font-size:11px;margin-top:4px;">NDVI acumulado = área bajo la curva (vigor × días): resume cuánta biomasa verde sostuvo el lote en toda la campaña. Días con canopia plena = días con NDVI ≥ 0,7.</div>';
@@ -229,16 +312,21 @@
       var mismoCultivo = cerradas.filter(function (c) { return c.campana.cultivo.toLowerCase() === abierta.campana.cultivo.toLowerCase(); });
       var ref = (mismoCultivo.length ? mismoCultivo : cerradas).sort(function (a, b) { return b.campana.rinde - a.campana.rinde; })[0];
       var ult = abierta.puntos[abierta.puntos.length - 1];
-      var vRef = ndviEnDia(ref, ult.dds);
+      var porTermico = abierta.tt && ref.tt && ult.gdd != null;
+      var vRef = porTermico ? ndviEnGdd(ref, ult.gdd) : ndviEnDia(ref, ult.dds);
+      if (vRef == null && porTermico) { porTermico = false; vRef = ndviEnDia(ref, ult.dds); }
       if (vRef != null) {
         var dif = (ult.ndvi - vRef) / vRef * 100;
         var tono = dif <= -12 ? 'atencion' : (dif >= 8 ? 'bien' : 'igual');
-        var texto = 'Hoy (día ' + ult.dds + ' desde la siembra, ' + fmtF(ult.fecha) + ') <b>' + esc(abierta.campana.cultivo) + '</b> está en NDVI <b>' + n2(ult.ndvi) + '</b>. En la campaña de referencia (' + esc(ref.etiqueta) + ') a esos mismos días tenía <b>' + n2(vRef) + '</b>: ';
+        var diaRef = null; if (porTermico) { var pr = ref.puntos.filter(function (q) { return q.gdd != null; }); for (var qi = 0; qi < pr.length; qi++) if (pr[qi].gdd >= ult.gdd) { diaRef = pr[qi].dds; break; } if (diaRef == null && pr.length) diaRef = pr[pr.length - 1].dds; }
+        var texto = porTermico
+          ? 'Hoy (' + fmtF(ult.fecha) + ', día ' + ult.dds + ' y <b>' + ult.gdd + ' °C·día</b> desde la siembra) <b>' + esc(abierta.campana.cultivo) + '</b> está en NDVI <b>' + n2(ult.ndvi) + '</b>. La campaña de referencia (' + esc(ref.etiqueta) + ') a ese <b>mismo estadio</b> (mismo tiempo térmico' + (diaRef != null ? ', que en esa campaña fue el día ' + diaRef : '') + ') tenía <b>' + n2(vRef) + '</b>: '
+          : 'Hoy (día ' + ult.dds + ' desde la siembra, ' + fmtF(ult.fecha) + ') <b>' + esc(abierta.campana.cultivo) + '</b> está en NDVI <b>' + n2(ult.ndvi) + '</b>. En la campaña de referencia (' + esc(ref.etiqueta) + ') a esos mismos días tenía <b>' + n2(vRef) + '</b>: ';
         if (tono === 'atencion') texto += 'viene <b>' + Math.abs(Math.round(dif)) + ' % abajo</b>. Vale la pena revisar en el lote: agua (riego y lluvia del último mes), nutrición (nitrógeno en maíz, fósforo y potasio según el análisis), plagas o enfermedades, y fallas de stand. Si el cultivo está entre floración y llenado, todavía se puede corregir.';
         else if (tono === 'bien') texto += 'viene <b>' + Math.round(dif) + ' % arriba</b>. Buen vigor: mantener el plan de riego y nutrición y cuidar sanidad para sostener la canopia.';
         else texto += 'viene <b>parejo</b> (' + (dif >= 0 ? '+' : '') + Math.round(dif) + ' %). Seguir el plan y volver a mirar en 10 días.';
-        var mejorMismoDia = null; cerradas.forEach(function (c) { var v = ndviEnDia(c, ult.dds); if (v != null && (mejorMismoDia == null || v > mejorMismoDia)) mejorMismoDia = v; });
-        html += '<div class="note ' + (tono === 'atencion' ? 'warn' : 'info') + '" style="margin-top:12px;"><b>Consultor en vivo.</b> ' + texto + (mejorMismoDia != null && mejorMismoDia !== vRef ? ' (El mejor NDVI histórico del lote a esos días fue ' + n2(mejorMismoDia) + '.)' : '') + '<br><span class="muted" style="font-size:11px;">SAFIA compara e interpreta; el diagnóstico en el lote y la prescripción los hace el agrónomo.</span></div>';
+        var mejorMismoDia = null; cerradas.forEach(function (c) { var v = porTermico && c.tt ? ndviEnGdd(c, ult.gdd) : ndviEnDia(c, ult.dds); if (v != null && (mejorMismoDia == null || v > mejorMismoDia)) mejorMismoDia = v; });
+        html += '<div class="note ' + (tono === 'atencion' ? 'warn' : 'info') + '" style="margin-top:12px;"><b>Consultor en vivo.</b> ' + texto + (mejorMismoDia != null && mejorMismoDia !== vRef ? ' (El mejor NDVI histórico del lote a ' + (porTermico ? 'ese estadio' : 'esos días') + ' fue ' + n2(mejorMismoDia) + '.)' : '') + (porTermico ? '<br><span class="muted" style="font-size:11px;">Comparación por tiempo térmico: grados-día base 10 °C acumulados desde la siembra (Open-Meteo); dos campañas con el mismo acumulado están en el mismo estadio aunque se hayan sembrado en fechas distintas.</span>' : '<br><span class="muted" style="font-size:11px;">Comparación por días desde la siembra (sin tiempo térmico todavía: se calcula solo al abrir la pestaña con conexión).</span>') + '<br><span class="muted" style="font-size:11px;">SAFIA compara e interpreta; el diagnóstico en el lote y la prescripción los hace el agrónomo.</span></div>';
       }
     }
     // relación NDVI acumulado ↔ rinde (si hay historial)
@@ -377,7 +465,7 @@
   }
   function alCambiarCampo() { if (iniciado && $('panel-ndvi').classList.contains('on')) activar(); }
 
-  window.SafiaNDVI = { activar: activar, alCambiarCampo: alCambiarCampo, curvaDe: curvaDe, ndviEnDia: ndviEnDia, _series: function () { return series; }, _fusionar: fusionar,
+  window.SafiaNDVI = { activar: activar, alCambiarCampo: alCambiarCampo, curvaDe: curvaDe, ndviEnDia: ndviEnDia, ndviEnGdd: ndviEnGdd, prepararGdd: prepararGdd, _series: function () { return series; }, _fusionar: fusionar,
     // para el informe: serie guardada de un lote (caché local + tabla), gráficos y comparación entre campañas
     serieDe: function (equipoId) { if (!series[equipoId]) series[equipoId] = leerCache(equipoId); return series[equipoId]; },
     cargarDeTabla: cargarDeTabla, svgSerie: svgSerie, htmlCampanas: htmlCampanas, campanasDelLote: campanasDelLote };

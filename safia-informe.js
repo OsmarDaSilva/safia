@@ -198,7 +198,7 @@
       var desde = desdeD.toISOString().slice(0, 10);
       var vis = s.filter(function (p) { return p.fecha >= desde; });
       var marcas = []; SafiaNDVI.campanasDelLote(l.id).forEach(function (c, i) { marcas.push({ fecha: c.siembra, color: ['#178029', '#2E72C8', '#B8731A', '#8E44AD'][i % 4], texto: 'siembra ' + c.cultivo }); if (c.cosecha) marcas.push({ fecha: c.cosecha, color: ['#178029', '#2E72C8', '#B8731A', '#8E44AD'][i % 4], texto: 'cosecha' }); });
-      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · últimos 12 meses (' + vis.length + ' pasadas del satélite)</h3>' + SafiaNDVI.svgSerie(vis, marcas, { desde: desde, hasta: hasta }) + '<div style="margin-top:6px;">' + SafiaNDVI.htmlCampanas(l, s) + '</div></div>';
+      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · últimos 12 meses (' + vis.length + ' pasadas del satélite)</h3>' + SafiaNDVI.svgSerie(vis, marcas, { desde: desde, hasta: hasta }) + '<div style="margin-top:6px;" id="ndviCamp_' + esc(l.id) + '">' + SafiaNDVI.htmlCampanas(l, s) + '</div></div>';
     });
     if (!alguno) html += '<div class="note">Todavía no se trajo la serie del satélite para estos lotes (Banco → Vigor satelital → "Traer del satélite").</div>';
     html += '<div class="sub">Fuente: Sentinel-2 (ESA / Copernicus), 10 m por píxel, pasadas nubladas descartadas. NDVI: 0 = suelo desnudo, 1 = canopia cerrada.</div>';
@@ -295,6 +295,8 @@
     html += '<div class="pie"><span>SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>Irrigar · SAFIA</span></div>';
     $('hoja').innerHTML = html;
     if (s.lotes) cargarImagenes();
+    // tiempo térmico para comparar campañas por estadio (se trae en segundo plano y se redibuja la sección NDVI)
+    if (s.ndvi && window.SafiaNDVI && SafiaNDVI.prepararGdd) lotesDelCampo().forEach(function (l) { var serie = SafiaNDVI.serieDe(l.id) || []; if (!serie.length) return; SafiaNDVI.prepararGdd(l).then(function (cambio) { var d = $('ndviCamp_' + l.id); if (cambio && d) d.innerHTML = SafiaNDVI.htmlCampanas(l, serie); }).catch(function () {}); });
     if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar($('hoja')); } catch (e) {}
     toast('Informe armado. "Guardar como PDF" abre la impresión: elegí "Guardar como PDF" como destino.');
   }
