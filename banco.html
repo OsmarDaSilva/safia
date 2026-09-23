@@ -69,6 +69,7 @@
 <script src="safia-foliar.js"></script>
 <script src="safia-sensores.js"></script>
 <script src="safia-humedad.js"></script>
+<script src="safia-agua.js"></script>
 </head>
 <body>
 
@@ -395,6 +396,16 @@
               <div class="tablescroll"><table class="tbl" id="tablaAgua"></table></div>
               <div class="tfoot"><span id="pieAgua"></span></div>
             </div>
+          </div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="card-h"><h3>Balance hídrico por etapa</h3><span class="muted">en qué etapa faltó agua y cuánto rinde costó (FAO-56 / FAO-33)</span></div>
+            <div class="form-grid">
+              <div class="field"><label>Lote</label><select id="balLote"></select></div>
+              <div class="field"><label>Campaña</label><select id="balCampana"></select></div>
+              <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnBalance">Calcular</button></div>
+            </div>
+            <div id="balResultado"></div>
           </div>
 
           <div class="empty" id="vacioAgua" style="display:none;">
@@ -732,6 +743,7 @@
     if (window.SafiaFoliar) SafiaFoliar.alCambiarCampo();
     if (window.SafiaSensores) SafiaSensores.activarAgua();
     if (window.SafiaHumedad) SafiaHumedad.alCambiarCampo();
+    if (window.SafiaAgua) SafiaAgua.alCambiarCampo();
     llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
@@ -831,6 +843,7 @@
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaSensores) SafiaSensores.activarFoliar();
       if (b.dataset.tab === 'agua' && window.SafiaSensores) SafiaSensores.activarAgua();
+      if (b.dataset.tab === 'agua' && window.SafiaAgua) SafiaAgua.activar();
       if (b.dataset.tab === 'humedad' && window.SafiaHumedad) SafiaHumedad.activar();
       if (b.dataset.tab === 'meta') activarMeta();
     });

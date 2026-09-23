@@ -151,7 +151,8 @@
       reglas.push('<li><b>' + esc(cu) + ':</b> el mejor rinde (' + fmt(mejor.rindeKgHa, 0) + ' kg/ha, ' + esc(mejor.campana) + ') se logró con ' + fmt(mejor.aguaTotalMM, 0) + ' mm de agua total (' + fmt(mejor.lluviaMM || 0, 0) + ' de lluvia y ' + fmt(mejor.riegoMM || 0, 0) + ' de riego)' + (mejor.clima ? ', con una demanda (ET0) de ' + fmt(mejor.clima.et0Total, 0) + ' mm' : '') + '. En un año seco, la referencia es completar con riego hasta esos ' + fmt(mejor.aguaTotalMM, 0) + ' mm.</li>');
     });
     var sonda = window.SafiaHumedad ? SafiaHumedad.htmlResumen(campoActual.id) : '';
-    return '<h2>Agua: lluvia, riego y rinde</h2>' + sonda + tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Total mm', r: 1 }, { t: 'ET0 mm', r: 1 }, { t: 'Rinde', r: 1 }, { t: 'kg por mm', r: 1 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
+    var balances = window.SafiaAgua ? lotesDelCampo().map(function (l) { var camps = SafiaAgua.campanasDelLote(l.id); var c = camps.find(function (x) { return x.abierta; }) || camps[0]; return c ? '<div class="seccion" id="bal_' + esc(l.id) + '" data-camp="' + esc(c.id) + '"><h3>' + esc(l.nombre) + ' · balance hídrico por etapa · ' + esc(c.cultivo) + ' ' + esc(c.nombre) + '</h3><div class="muted">calculando…</div></div>' : ''; }).join('') : '';
+    return '<h2>Agua: lluvia, riego y rinde</h2>' + sonda + balances + tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Total mm', r: 1 }, { t: 'ET0 mm', r: 1 }, { t: 'Rinde', r: 1 }, { t: 'kg por mm', r: 1 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
   }
 
   function secSuelo(cx) {
@@ -296,6 +297,8 @@
     html += '<div class="pie"><span>SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>Irrigar · SAFIA</span></div>';
     $('hoja').innerHTML = html;
     if (s.lotes) cargarImagenes();
+    // balance hídrico por etapa de cada lote (se calcula en segundo plano)
+    if (s.agua && window.SafiaAgua) lotesDelCampo().forEach(function (l) { var d = $('bal_' + l.id); if (!d) return; var c = SafiaAgua.campanasDelLote(l.id).find(function (x) { return x.id === d.dataset.camp; }); if (!c) return; SafiaAgua.calcular(campoActual, l, c).then(function (res) { var dd = $('bal_' + l.id); if (dd) dd.innerHTML = '<h3>' + esc(l.nombre) + ' · balance hídrico por etapa · ' + esc(c.cultivo) + ' ' + esc(c.nombre) + '</h3>' + SafiaAgua.htmlResultado(res); }).catch(function (e) { var dd = $('bal_' + l.id); if (dd) dd.innerHTML = ''; }); });
     // tiempo térmico para comparar campañas por estadio (se trae en segundo plano y se redibuja la sección NDVI)
     if (s.ndvi && window.SafiaNDVI && SafiaNDVI.prepararGdd) lotesDelCampo().forEach(function (l) { var serie = SafiaNDVI.serieDe(l.id) || []; if (!serie.length) return; SafiaNDVI.prepararGdd(l).then(function (cambio) { var d = $('ndviCamp_' + l.id); if (cambio && d) d.innerHTML = SafiaNDVI.htmlCampanas(l, serie); }).catch(function () {}); });
     if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar($('hoja')); } catch (e) {}
