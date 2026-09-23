@@ -1738,6 +1738,7 @@
       c[campo] = valor;
       if (campo === 'cultivoAnterior') c.cultivoAnteriorAuto = false;   // lo escribió el usuario: se respeta
       if (campo === 'fechaSiembra' || campo === 'cultivo') { autoCompletarAntecesores(); refrescarAntecesoresEnPantalla(); }
+      if (campo === 'cultivo') renderizarCultivos();
     }
     function alternarLabor(idTemp, labor, marcado) {
       const c = cultivosTemp.find(c => c.idTemp === idTemp);
@@ -1829,7 +1830,8 @@
       const usadas = Object.keys(vistas).map(k => vistas[k]).filter(x => !cultivoFila || norm(x.c).split(' ')[0] === norm(cultivoFila).split(' ')[0]).sort((a, b) => a.v.localeCompare(b.v));
       const catalogo = (window.SafiaCatalogo && cultivoFila) ? SafiaCatalogo.variedadesDe(cultivoFila).filter(v => !vistas[norm(v)]) : [];
       const opt = (v, t) => '<option value="' + String(v).replace(/"/g, '&quot;') + '">' + (t || '') + '</option>';
-      dl.innerHTML = usadas.map(x => opt(x.v, 'ya usada · ' + (x.c || ''))).join('') + catalogo.map(v => opt(v, 'catálogo')).join('');
+      const aviso = !cultivoFila ? opt('', 'Primero elegí el cultivo: ahí aparece el catálogo de variedades e híbridos') : '';
+      dl.innerHTML = aviso + usadas.map(x => opt(x.v, 'ya usada · ' + (x.c || ''))).join('') + catalogo.map(v => opt(v, 'catálogo')).join('');
     }
 
     function renderizarCultivos() {
@@ -1897,8 +1899,8 @@
               </div>
               <div class="campo">
                 <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
-                <input type="text" list="listaVariedades" autocomplete="off" placeholder="Elegí del catálogo o escribí" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
-                <div class="ayuda">Elegí una ya usada o escribí una nueva, siempre igual, para poder comparar.</div>
+                <input type="text" list="listaVariedades" autocomplete="off" placeholder="${cultivo.cultivo ? 'Elegí del catálogo o escribí' : 'Primero elegí el cultivo'}" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+                <div class="ayuda">${cultivo.cultivo ? 'Primero salen las ya usadas y después el catálogo de ' + cultivo.cultivo + '. Si no está, escribila: queda guardada y la próxima vez aparece como ya usada.' : 'El catálogo de variedades depende del cultivo: elegilo arriba y acá aparecen las de ese cultivo.'}</div>
               </div>
             </div>
 
