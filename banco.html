@@ -70,6 +70,7 @@
 <script src="safia-sensores.js"></script>
 <script src="safia-humedad.js"></script>
 <script src="safia-agua.js"></script>
+<script src="safia-seguimiento.js"></script>
 </head>
 <body>
 
@@ -458,6 +459,7 @@
               <div class="form-actions"><span class="spacer" style="flex:1"></span><button class="btn" id="btnMetaPreciosDefault">Volver a los valores por defecto</button><button class="btn green" id="btnMetaPreciosGuardar">Guardar precios</button></div>
             </details>
           </div>
+          <div id="metaSeguimiento"></div>
           <div id="metaResultado" style="margin-top:14px;"></div>
         </section>
 
@@ -805,6 +807,7 @@
     if (!c) { info.textContent = ''; return; }
     info.textContent = (c.esNueva ? 'Campaña nueva: el plan parte del rinde de ' + c.baseCultivo + ' ' + c.baseCampana + ' (' + fmt(c.rindeKgHa, 0) + ' kg/ha) en este lote, con el análisis de suelo más reciente. ' : '') + 'Suelo: ' + (c.suelo ? 'análisis del ' + fmtFecha(c.suelo.fecha) : 'sin análisis') + ' · agua ' + (c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + ' mm' : 'sin dato') + ' · manejo ' + (c.manejo && c.manejo.cargado ? 'cargado' : 'sin cargar');
     var m = document.getElementById('metaKg'); if (!m.value) m.value = Math.round(c.rindeKgHa * 1.2 / 100) * 100;
+    if (window.SafiaSeguimiento) { var pm = SafiaSeguimiento.planDe(c); if (pm && pm.plan.kgHa && !m.value) m.value = pm.plan.kgHa; SafiaSeguimiento.html(c, document.getElementById('metaSeguimiento')); }
   }
   window.metaAtajo = function (pct) { var c = casoMeta(); if (c) document.getElementById('metaKg').value = Math.round(c.rindeKgHa * (1 + pct / 100) / 100) * 100; return false; };
   document.getElementById('metaCaso').addEventListener('change', function () { document.getElementById('metaKg').value = ''; document.getElementById('metaResultado').innerHTML = ''; alCambiarCasoMeta(); });
@@ -832,7 +835,9 @@
       .forEach(function (x) { var k = SafiaMeta.claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
     var py = SafiaMeta.proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5);
     out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + (c.esNueva ? ' ' + esc(c.campana) : '') + ' de ' + fmt(c.rindeKgHa, 0) + (c.esNueva ? ' (base ' + esc(c.baseCampana) + ')' : '') + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) +
-      '<div style="margin-top:10px;"><button class="btn" onclick="window.print()">Imprimir plan</button></div>';
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn" onclick="window.print()">Imprimir plan</button>' + (window.SafiaSeguimiento && SafiaSeguimiento.ubicar(c) && !c.rindeKgHaReal && (c.esNueva || !c.cosecha) ? '<button class="btn green" id="btnMetaGuardar">Guardar esta meta para la campaña y seguirla</button>' : '') + '</div>';
+    var bg = document.getElementById('btnMetaGuardar');
+    if (bg) bg.addEventListener('click', function () { if (SafiaSeguimiento.guardarMeta(c, meta, pl)) { toast('Meta guardada en la campaña: ' + fmt(meta, 0) + ' kg/ha'); SafiaSeguimiento.html(c, document.getElementById('metaSeguimiento')); document.getElementById('metaSeguimiento').scrollIntoView({ behavior: 'smooth' }); } });
     out.scrollIntoView({ behavior: 'smooth' });
   });
 
