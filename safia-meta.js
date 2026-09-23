@@ -124,7 +124,12 @@
 
     /* 1. Encalado (V%) */
     var v = num(s.satBases), cic = num(s.cic), ph = num(s.ph);
-    if (v != null && cic != null) {
+    if (opciones.calcareoTnHa > 0) {
+      var ncCalc = (v != null && cic != null) ? Math.max(0, (Math.max(perfil.v, bm && bm.suelo.satBases ? Math.min(75, Math.round(bm.suelo.satBases)) : 0) - v) * cic / 100) : null;
+      item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado (dosis definida por el usuario)', hoy: v != null ? 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : '') : 'sin V% en el análisis', objetivo: ncCalc != null ? 'la dosis calculada por V% era ' + fmt(ncCalc, 1) + ' t/ha' : 'según criterio del agrónomo',
+        accion: fmt(opciones.calcareoTnHa, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < 1.0) ? 'dolomítico' : 'calcítico o dolomítico') + ', al voleo sobre el rastrojo apenas cosechado el cultivo anterior, con una pasada de escarificador/subsolador para que penetre; sin arar',
+        inversion: opciones.calcareoTnHa * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: v != null && v < 50 ? 0.10 : (v != null && v < 60 ? 0.05 : 0.02), aporteMax: v != null && v < 50 ? 0.20 : (v != null && v < 60 ? 0.12 : 0.06), fuente: '[2][7] dosis del usuario' });
+    } else if (v != null && cic != null) {
       var vObj = Math.max(perfil.v, bm && bm.suelo.satBases ? Math.min(75, Math.round(bm.suelo.satBases)) : 0);
       var nc = (vObj - v) * cic / 100;
       if (nc > 0.3) {

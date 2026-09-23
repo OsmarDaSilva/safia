@@ -325,7 +325,9 @@
               <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnMetaCalcular">Armar el plan</button></div>
             </div>
             <details style="margin-top:8px;" open><summary style="cursor:pointer;font-size:13px;font-weight:600;">Opciones del plan: qué incluir aunque el análisis de 0–20 cm no lo exija</summary>
+              <div class="muted" style="font-size:12px;margin-top:6px;">El <b>calcáreo</b> se calcula siempre solo con el análisis (V% actual → V% objetivo × CIC): si el lote lo necesita aparece con su dosis en el bloque 1. Acá podés fijar otra dosis, y sumar lo que el análisis de 0–20 cm no puede justificar por sí solo.</div>
               <div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;margin-top:8px;">
+                <label style="display:flex;align-items:center;gap:6px;">Calcáreo, dosis fija: <input type="number" id="opCalcareo" step="0.1" min="0" placeholder="t/ha" style="width:80px;"> <span class="muted">(vacío = la calculada por V%)</span></label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opPrep" onchange="document.querySelectorAll('#opYeso,#opSubsolado,#opNivelacion,#opPK').forEach(function(x){x.checked=this.checked}.bind(this))"> <b>Preparación completa del lote</b> (marca todo lo de abajo)</label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opYeso"> Yeso en el perfil (50 × % arcilla) aunque falte el análisis de 20–60 cm</label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opSubsolado"> Subsolado / descompactación</label>
@@ -620,7 +622,7 @@
     if (!meta || meta <= c.rindeKgHa) { toast('La meta tiene que ser mayor al rinde actual (' + fmt(c.rindeKgHa, 0) + ')', true); return; }
     var prof = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); });
     var pr = leerPreciosMeta();
-    var opciones = { preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
+    var opciones = { calcareoTnHa: num(document.getElementById('opCalcareo').value) || 0, preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
     var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
     // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo
     var otros = {};
