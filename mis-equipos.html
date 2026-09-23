@@ -255,6 +255,7 @@
 <script src="safia-sync.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-lotes.js"></script>
 </head>
 <body>
   <div class="layout">
@@ -428,6 +429,18 @@
                 <input type="text" id="gps" placeholder="Ej: -24.3572, -54.4869">
               </div>
             </div>
+            <div class="note info" style="border:1px solid var(--bd);border-left:4px solid var(--green);background:var(--green-t);border-radius:8px;padding:13px 16px;margin:14px 0 4px;">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <span style="flex:1;min-width:210px;font-size:13px;color:var(--green-d);">
+                  <strong>¿Tenés el polígono del lote en Google Earth?</strong> Subí el KML o KMZ (también GeoJSON o ZIP de shapefile): SAFIA toma el contorno, calcula las hectáreas y las coordenadas, y lo muestra en el mapa del campo.
+                </span>
+                <input type="file" id="poligonoArchivo" accept=".kml,.kmz,.geojson,.json,.zip" style="max-width:230px;">
+                <button type="button" class="btn green" id="btnLeerPoligono">Leer polígono</button>
+              </div>
+              <div class="ayuda" id="poligonoHint" style="margin-top:8px;">En Google Earth: clic derecho sobre el polígono (o sobre la carpeta con todos los lotes) → "Guardar lugar como…" → KML o KMZ. Si el archivo trae varios lotes, podés crear todos de una vez.</div>
+              <div id="poligonoEstado" style="margin-top:8px;font-size:13px;"></div>
+              <div id="poligonoLista" style="margin-top:8px;"></div>
+            </div>
           </div>
 
           <div class="seccion solo-riego">
@@ -586,6 +599,17 @@
             <button class="boton-guardar" id="botonGuardar" onclick="guardarOActualizar()">✓ Guardar equipo</button>
             <button class="boton-cancelar" id="botonCancelar" onclick="cancelarEdicion()">✕ Cancelar</button>
           </div>
+        </div>
+
+        <div class="tarjeta" id="tarjetaMapa">
+          <div class="tarjeta-titulo">Mapa del campo</div>
+          <div class="ayuda" style="font-size:12px;color:#6B6356;margin-bottom:10px;">Todos los lotes del cliente sobre la imagen satelital. Hacé clic en un lote para ver sus datos, editarlo o ir a sus campañas. Los lotes sin polígono aparecen como un punto (si tienen GPS).</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+            <select id="mapaCampo" style="max-width:380px;"></select>
+            <span class="muted" id="mapaResumen" style="font-size:12px;color:#6B6356;"></span>
+          </div>
+          <div id="mapaLotes" style="height:470px;border-radius:10px;background:#EEF0F2;"></div>
+          <div id="mapaFicha"></div>
         </div>
 
         <div class="lista-titulo">Equipos y lotes cargados</div>
@@ -926,6 +950,7 @@
       verificarCampos();
       cargarSelectorCampos();
       mostrarEquipos();
+      iniciarMapaLotes();
     };
 
     function verificarCampos() {
@@ -994,6 +1019,7 @@
         const index = equipos.findIndex(e => e.id === editandoId);
         if (index !== -1) {
           equipos[index] = { ...equipos[index], campoId: parseInt(campoId), tipo, nombre,
+            poligono: poligonoAlGuardar(equipos[index].poligono),
             marca: document.getElementById('marca').value,
             modelo: document.getElementById('modelo').value.trim(),
             numeroSerie: document.getElementById('numeroSerie').value.trim(),
@@ -1007,6 +1033,7 @@
             datosTecnicos: recolectarDatosTecnicos(tipo),
             fechaModificacion: new Date().toISOString() };
           localStorage.setItem('equipos', JSON.stringify(equipos));
+          completarCoordenadasCampo(parseInt(campoId));
           alert('¡Equipo actualizado!');
           cancelarEdicion();
         }
@@ -1014,6 +1041,7 @@
         const existe = equipos.find(e => e.campoId === parseInt(campoId) && e.nombre.toLowerCase() === nombre.toLowerCase());
         if (existe) { alert('Este campo ya tiene un equipo con ese nombre.'); return; }
         equipos.push({ id: Date.now(), campoId: parseInt(campoId), tipo, nombre,
+          poligono: poligonoAlGuardar(null),
           marca: document.getElementById('marca').value,
           modelo: document.getElementById('modelo').value.trim(),
           numeroSerie: document.getElementById('numeroSerie').value.trim(),
@@ -1027,6 +1055,7 @@
           datosTecnicos: recolectarDatosTecnicos(tipo),
           fechaCreacion: new Date().toISOString() });
         localStorage.setItem('equipos', JSON.stringify(equipos));
+        completarCoordenadasCampo(parseInt(campoId));
         alert('¡Equipo guardado!');
         limpiarFormulario();
       }
@@ -1059,6 +1088,7 @@
       document.getElementById('anio').value = equipo.anio || '';
       document.getElementById('superficie').value = equipo.superficie || '';
       document.getElementById('gps').value = equipo.gps || '';
+      poligonoPendiente = null; poligonoQuitar = false; mostrarEstadoPoligono(equipo.poligono, false);
       document.getElementById('energia').value = equipo.energia || '';
       document.getElementById('fuenteAgua').value = equipo.fuenteAgua || '';
       document.getElementById('eficiencia').value = equipo.eficiencia || '';
@@ -1100,6 +1130,10 @@
 
     function limpiarFormulario() {
       document.querySelectorAll('#tarjetaForm input, #tarjetaForm select, #tarjetaForm textarea').forEach(el => el.value = '');
+      poligonoPendiente = null; poligonoQuitar = false; itemsLeidos = [];
+      document.getElementById('poligonoEstado').innerHTML = ''; document.getElementById('poligonoLista').innerHTML = '';
+      document.getElementById('poligonoHint').textContent = 'En Google Earth: clic derecho sobre el polígono (o sobre la carpeta con todos los lotes) → "Guardar lugar como…" → KML o KMZ. Si el archivo trae varios lotes, podés crear todos de una vez.';
+      if (mapaLotes) mapaLotes.limpiarPrevia();
       document.getElementById('clienteMostrado').style.display = 'none';
       document.querySelectorAll('.seccion-tipo').forEach(s => s.classList.remove('visible'));
     }
@@ -1115,6 +1149,7 @@
     }
 
     function mostrarEquipos() {
+      if (mapaLotes) setTimeout(pintarMapaLotes, 0);
       const lista = document.getElementById('listaEquipos');
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
@@ -1139,6 +1174,7 @@
             <td>${nombreCliente}</td>
             <td>${nombreCampo}</td>
             <td class="r">${equipo.superficie ? equipo.superficie + ' ha' : '—'}</td>
+            <td>${equipo.poligono ? '<button type="button" class="btn" style="padding:3px 9px;font-size:12px;display:inline-flex;align-items:center;gap:5px;" onclick="enfocarLote(' + equipo.id + ')" title="Ver en el mapa"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>' + SafiaLotes.fmtHa(equipo.poligono.ha) + '</button>' : '<span style="font-size:12px;color:#8C9196;">sin polígono</span>'}</td>
             <td>${badgeMant(estadoMant)}</td>
             <td class="r"><span class="rowact">
               <button onclick="abrirModalMant(${equipo.id})" title="Mantenimiento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.6 6.4a3.8 3.8 0 0 0-5 4.9L4 17l3 3 5.7-5.6a3.8 3.8 0 0 0 4.9-5l-2.4 2.4-2.1-2.1z"/></svg></button>
@@ -1147,7 +1183,7 @@
             </span></td>
           </tr>`;
       }).join('');
-      lista.innerHTML = `<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Equipo</th><th>Tipo</th><th>Cliente</th><th>Campo</th><th class="r">Superficie</th><th>Mantenimiento</th><th class="r">Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
+      lista.innerHTML = `<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Equipo</th><th>Tipo</th><th>Cliente</th><th>Campo</th><th class="r">Superficie</th><th>Mapa</th><th>Mantenimiento</th><th class="r">Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
     }
 
     function borrarEquipo(id) {
@@ -1159,6 +1195,184 @@
       equipos = equipos.filter(e => e.id !== id);
       localStorage.setItem('equipos', JSON.stringify(equipos));
       mostrarEquipos();
+    }
+
+    /* ============================================================
+       Lotes georreferenciados: polígono de Google Earth + mapa del campo
+       (usa safia-lotes.js). El polígono se guarda en equipo.poligono.
+       ============================================================ */
+    let poligonoPendiente = null, poligonoQuitar = false, mapaLotes = null, itemsLeidos = [];
+    function escL(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
+    function leerLS(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
+    function poligonoAlGuardar(actual) { if (poligonoPendiente) return poligonoPendiente; if (poligonoQuitar) return null; return actual || null; }
+    function empaquetar(it) { return { partes: it.partes, ha: it.ha, centro: it.centro, origen: it.origen || '', nombreOriginal: it.nombre || '', fechaCarga: new Date().toISOString() }; }
+    function mostrarEstadoPoligono(poli, esNuevo) {
+      const est = document.getElementById('poligonoEstado');
+      if (!poli) { est.innerHTML = ''; return; }
+      est.innerHTML = '<span style="color:var(--green-d);font-weight:600;">' + (esNuevo ? 'Polígono leído' : 'Este lote ya tiene polígono') + ':</span> ' + SafiaLotes.fmtHa(poli.ha) +
+        (poli.centro ? ' · centro ' + poli.centro.lat + ', ' + poli.centro.lon : '') + (poli.origen ? ' · ' + escL(poli.origen) : '') +
+        ' <button type="button" class="btn" style="margin-left:8px;padding:3px 10px;font-size:12px;" onclick="quitarPoligono()">Quitar polígono</button>';
+    }
+    function quitarPoligono() {
+      poligonoPendiente = null; poligonoQuitar = true;
+      document.getElementById('poligonoEstado').innerHTML = '<span style="color:#8C9196;">Sin polígono (se quita al guardar). Podés subir otro archivo.</span>';
+      if (mapaLotes) mapaLotes.limpiarPrevia();
+    }
+    function aplicarPoligono(it) {
+      poligonoPendiente = empaquetar(it); poligonoQuitar = false;
+      const nombre = document.getElementById('nombre'); if (!nombre.value.trim() && it.nombre) nombre.value = it.nombre;
+      document.getElementById('superficie').value = Math.round(it.ha * 10) / 10;
+      if (it.centro) document.getElementById('gps').value = it.centro.lat + ', ' + it.centro.lon;
+      mostrarEstadoPoligono(poligonoPendiente, true);
+      if (mapaLotes) mapaLotes.previsualizar([it]);
+    }
+    function usarPoligono(i) {
+      const it = itemsLeidos[i]; if (!it) return;
+      aplicarPoligono(it);
+      document.getElementById('poligonoHint').textContent = 'Usando el polígono "' + it.nombre + '" (' + SafiaLotes.fmtHa(it.ha) + ') para este lote. Revisá nombre y tipo, y guardá.';
+      document.getElementById('nombre').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    document.getElementById('btnLeerPoligono').addEventListener('click', function () {
+      const boton = this, input = document.getElementById('poligonoArchivo'), hint = document.getElementById('poligonoHint'), lista = document.getElementById('poligonoLista');
+      const archivo = input.files && input.files[0];
+      if (!archivo) { mostrarToast('Elegí primero el archivo KML o KMZ del polígono'); return; }
+      boton.disabled = true; boton.textContent = 'Leyendo…'; lista.innerHTML = '';
+      SafiaLotes.leerArchivo(archivo).then(function (items) {
+        itemsLeidos = items;
+        if (!items.length) { hint.textContent = 'El archivo no trae polígonos (solo puntos o líneas). En Google Earth dibujá el contorno del lote con la herramienta "Polígono" y guardalo como KML o KMZ.'; return; }
+        if (items.length === 1) {
+          aplicarPoligono(items[0]);
+          hint.textContent = 'Polígono "' + items[0].nombre + '" leído: ' + SafiaLotes.fmtHa(items[0].ha) + '. Se completaron la superficie y las coordenadas; revisá el nombre y el tipo, y guardá.';
+          return;
+        }
+        const total = items.reduce((s, it) => s + it.ha, 0);
+        hint.textContent = 'El archivo trae ' + items.length + ' polígonos (' + SafiaLotes.fmtHa(total) + ' en total). Podés crear un lote por cada uno de una sola vez, o elegir uno solo para el lote que estás cargando.';
+        const tipos = document.getElementById('tipo');
+        lista.innerHTML = '<div style="display:flex;flex-direction:column;gap:6px;">' + items.map((it, i) =>
+          '<label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;"><input type="checkbox" class="chkPoli" value="' + i + '" checked> <b>' + escL(it.nombre) + '</b> · ' + SafiaLotes.fmtHa(it.ha) +
+          '<button type="button" class="btn" style="padding:2px 9px;font-size:11px;margin-left:auto;" onclick="usarPoligono(' + i + ')">Usar solo este</button></label>').join('') + '</div>' +
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;"><span style="font-size:12px;">Tipo para los lotes nuevos:</span><select id="poliTipoTodos" style="max-width:300px;">' + tipos.innerHTML + '</select>' +
+          '<button type="button" class="btn green" onclick="crearLotesDePoligonos()">Crear un lote por cada polígono marcado</button></div>' +
+          '<div class="ayuda" style="margin-top:6px;">Se crean en el campo elegido arriba, con el nombre del polígono, sus hectáreas y coordenadas. Si ya existe un lote con ese nombre en el campo, solo se le asigna el polígono (no se duplica).</div>';
+        document.getElementById('poliTipoTodos').value = tipos.value || 'pivote';
+        if (mapaLotes) mapaLotes.previsualizar(items);
+      }).catch(function (e) {
+        console.error(e); hint.textContent = 'No se pudo leer el archivo: ' + (e && e.message ? e.message : 'error');
+      }).finally(function () { boton.disabled = false; boton.textContent = 'Leer polígono'; });
+    });
+    function crearLotesDePoligonos() {
+      const campoId = document.getElementById('campo').value;
+      if (!campoId) { mostrarToast('Elegí primero el campo / estancia (arriba del formulario)'); document.getElementById('campo').focus(); return; }
+      const tipo = document.getElementById('poliTipoTodos').value;
+      if (!tipo) { mostrarToast('Elegí el tipo (pivote, secano…) para los lotes nuevos'); return; }
+      const marcados = Array.from(document.querySelectorAll('.chkPoli:checked')).map(c => itemsLeidos[+c.value]).filter(Boolean);
+      if (!marcados.length) { mostrarToast('Marcá al menos un polígono'); return; }
+      let equipos = leerLS('equipos');
+      const base = Date.now(); let creados = 0, actualizados = 0;
+      marcados.forEach((it, i) => {
+        const nombre = it.nombre || ('Lote ' + (i + 1));
+        const ex = equipos.find(e => e.campoId === parseInt(campoId) && String(e.nombre).toLowerCase() === nombre.toLowerCase());
+        if (ex) {
+          ex.poligono = empaquetar(it);
+          if (!ex.superficie) ex.superficie = String(Math.round(it.ha * 10) / 10);
+          if (!ex.gps && it.centro) ex.gps = it.centro.lat + ', ' + it.centro.lon;
+          ex.fechaModificacion = new Date().toISOString(); actualizados++;
+        } else {
+          equipos.push({ id: base + i, campoId: parseInt(campoId), tipo, nombre, marca: '', modelo: '', numeroSerie: '', anio: '',
+            superficie: String(Math.round(it.ha * 10) / 10), gps: it.centro ? it.centro.lat + ', ' + it.centro.lon : '', energia: '', fuenteAgua: '', eficiencia: '',
+            observaciones: 'Creado desde el polígono "' + nombre + '" (' + (it.origen || 'archivo') + ')', datosTecnicos: {}, poligono: empaquetar(it), fechaCreacion: new Date().toISOString() });
+          creados++;
+        }
+      });
+      localStorage.setItem('equipos', JSON.stringify(equipos));
+      completarCoordenadasCampo(parseInt(campoId));
+      mostrarToast((creados ? creados + ' lote(s) creado(s)' : '') + (creados && actualizados ? ' · ' : '') + (actualizados ? actualizados + ' lote(s) existente(s) con polígono asignado' : ''));
+      itemsLeidos = []; poligonoPendiente = null;
+      document.getElementById('poligonoLista').innerHTML = ''; document.getElementById('poligonoArchivo').value = '';
+      document.getElementById('poligonoHint').textContent = 'Listo: los lotes ya están en el mapa. Editá cada uno si querés completar marca, modelo o datos técnicos.';
+      if (mapaLotes) mapaLotes.limpiarPrevia();
+      const selMapa = document.getElementById('mapaCampo'); if (selMapa) selMapa.value = String(campoId);
+      mostrarEquipos();
+      document.getElementById('tarjetaMapa').scrollIntoView({ behavior: 'smooth' });
+    }
+    // Si el campo no tiene coordenadas, se completan con el centro del primer lote con polígono
+    function completarCoordenadasCampo(campoId) {
+      const campos = leerLS('campos');
+      const campo = campos.find(c => String(c.id) === String(campoId)); if (!campo) return;
+      const lat = parseFloat(String(campo.latitud || '').replace(',', '.')), lon = parseFloat(String(campo.longitud || '').replace(',', '.'));
+      if (!isNaN(lat) && !isNaN(lon)) return;
+      const lote = leerLS('equipos').find(e => String(e.campoId) === String(campoId) && e.poligono && e.poligono.centro);
+      if (!lote) return;
+      campo.latitud = lote.poligono.centro.lat; campo.longitud = lote.poligono.centro.lon;
+      localStorage.setItem('campos', JSON.stringify(campos));
+      mostrarToast('Coordenadas del campo "' + campo.nombre + '" completadas con el centro del lote ' + lote.nombre);
+    }
+
+    /* ---- mapa del campo ---- */
+    function llenarSelectorMapa() {
+      const sel = document.getElementById('mapaCampo'); if (!sel) return;
+      const campos = leerLS('campos'), clientes = leerLS('clientes'), equipos = leerLS('equipos');
+      const actual = sel.value;
+      const filas = campos.map(c => { const cl = clientes.find(x => String(x.id) === String(c.clienteId)); return { id: c.id, txt: (cl ? cl.nombre + ' — ' : '') + c.nombre }; }).sort((a, b) => a.txt.localeCompare(b.txt));
+      sel.innerHTML = filas.length ? filas.map(f => '<option value="' + f.id + '">' + escL(f.txt) + '</option>').join('') : '<option value="">Sin campos cargados</option>';
+      const formCampo = document.getElementById('campo').value;
+      const conPoli = equipos.find(e => e.poligono);
+      const elegido = actual || formCampo || (conPoli ? String(conPoli.campoId) : '') || (filas[0] ? String(filas[0].id) : '');
+      if (elegido) sel.value = elegido;
+    }
+    function iniciarMapaLotes() {
+      if (!window.SafiaLotes || !document.getElementById('mapaLotes')) return;
+      llenarSelectorMapa();
+      document.getElementById('mapaCampo').addEventListener('change', pintarMapaLotes);
+      document.getElementById('campo').addEventListener('change', function () { if (this.value && mapaLotes) { document.getElementById('mapaCampo').value = this.value; pintarMapaLotes(); } });
+      SafiaLotes.crearMapa('mapaLotes', { alClick: mostrarFichaLote }).then(function (m) { mapaLotes = m; pintarMapaLotes(); })
+        .catch(function (e) { document.getElementById('mapaLotes').innerHTML = '<div style="padding:24px;color:#8C9196;font-size:13px;">El mapa necesita conexión a internet (' + escL(e.message) + ').</div>'; });
+    }
+    function pintarMapaLotes() {
+      if (!mapaLotes) return;
+      llenarSelectorMapa();
+      const campoId = document.getElementById('mapaCampo').value;
+      const campo = leerLS('campos').find(c => String(c.id) === String(campoId)) || null;
+      const lotes = leerLS('equipos').filter(e => String(e.campoId) === String(campoId));
+      const ubicados = mapaLotes.mostrar(lotes, campo);
+      const conPoli = lotes.filter(l => l.poligono), ha = conPoli.reduce((s, l) => s + (l.poligono.ha || 0), 0);
+      document.getElementById('mapaResumen').textContent = !lotes.length ? 'Este campo no tiene lotes todavía.' :
+        lotes.length + ' lote(s) · ' + conPoli.length + ' con polígono' + (ha ? ' · ' + SafiaLotes.fmtHa(ha) + ' georreferenciadas' : '') + (ubicados ? '' : ' · sin coordenadas para ubicar el mapa: cargá un polígono o el GPS');
+      document.getElementById('mapaFicha').innerHTML = '';
+    }
+    function mostrarFichaLote(lote) {
+      const campanas = leerLS('campanas').filter(c => String(c.equipoId) === String(lote.id));
+      const cultivos = [];
+      campanas.forEach(c => (c.cultivos || []).forEach(cu => { if (cu && cu.cultivo) cultivos.push({ t: cu.cultivo + (cu.fechaSiembra ? ' ' + String(cu.fechaSiembra).slice(0, 4) : ''), f: cu.fechaSiembra || '' }); }));
+      cultivos.sort((a, b) => String(b.f).localeCompare(String(a.f)));
+      const campo = leerLS('campos').find(c => String(c.id) === String(lote.campoId)) || {};
+      const tipo = SafiaLotes.NOMBRE_TIPO[lote.tipo] || lote.tipo || '';
+      document.getElementById('mapaFicha').innerHTML =
+        '<div style="margin-top:12px;border:1px solid #E1E4E7;border-left:4px solid ' + (SafiaLotes.COLOR_TIPO[lote.tipo] || '#546E7A') + ';border-radius:8px;padding:12px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;">' +
+          '<div style="flex:1;min-width:240px;"><div style="font-weight:700;font-size:15px;">' + escL(lote.nombre) + '</div>' +
+          '<div style="font-size:13px;color:#6B6356;margin-top:2px;">' + escL(tipo) + (lote.marca ? ' · ' + escL(lote.marca) : '') + (lote.modelo ? ' ' + escL(lote.modelo) : '') +
+          ' · ' + (lote.superficie ? lote.superficie + ' ha declaradas' : 'sin superficie') + (lote.poligono ? ' · ' + SafiaLotes.fmtHa(lote.poligono.ha) + ' según el polígono' : ' · sin polígono') + '</div>' +
+          '<div style="font-size:13px;margin-top:4px;">' + (campanas.length ? campanas.length + ' campaña(s): ' + escL(cultivos.slice(0, 4).map(x => x.t).join(', ')) + (cultivos.length > 4 ? '…' : '') : 'Todavía sin campañas cargadas') + '</div></div>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<button type="button" class="btn" onclick="editarEquipo(' + lote.id + ')">Editar</button>' +
+            '<button type="button" class="btn" onclick="irACampanas(' + lote.id + ', ' + lote.campoId + ')">Campañas</button>' +
+            '<button type="button" class="btn green" onclick="irAlBanco(' + lote.campoId + ')">Banco agronómico</button>' +
+          '</div></div>';
+      document.getElementById('mapaFicha').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function irACampanas(equipoId, campoId) {
+      const campo = leerLS('campos').find(c => String(c.id) === String(campoId));
+      try { localStorage.setItem('campanas_filtro', JSON.stringify({ clienteId: campo ? String(campo.clienteId) : '', equipoId: String(equipoId) })); } catch (e) {}
+      location.href = 'mis-campanas.html';
+    }
+    function irAlBanco(campoId) { try { sessionStorage.setItem('banco_campo', String(campoId)); } catch (e) {} location.href = 'banco.html'; }
+    function enfocarLote(id) {
+      const eq = leerLS('equipos').find(e => String(e.id) === String(id)); if (!eq || !mapaLotes) return;
+      document.getElementById('mapaCampo').value = String(eq.campoId);
+      pintarMapaLotes();
+      mapaLotes.enfocar(eq.id);
+      mostrarFichaLote(eq);
+      document.getElementById('tarjetaMapa').scrollIntoView({ behavior: 'smooth' });
     }
 
     /* ============================================================

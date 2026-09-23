@@ -177,9 +177,31 @@
     return cargarScript(LEAFLET_JS).then(function () {
       if (mapa) return mapa;
       mapa = window.L.map('mapaGeo', { preferCanvas: true }).setView([-24.2, -54.5], 12);
-      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(mapa);
+      var calles = window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+      var satelite = window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Imagen: Esri, Maxar, Earthstar Geographics' }).addTo(mapa);
+      window.L.control.layers({ 'Satélite': satelite, 'Mapa': calles }, null, { position: 'topright', collapsed: true }).addTo(mapa);
+      dibujarLotes();
       return mapa;
     });
+  }
+  // Contornos de los lotes del campo (polígonos cargados en Equipos y lotes) como referencia debajo de los puntos
+  var capaLotes = null;
+  function dibujarLotes() {
+    if (!mapa || !window.SafiaLotes) return;
+    var L = window.L;
+    if (capaLotes) { mapa.removeLayer(capaLotes); capaLotes = null; }
+    var campo = B() && B().campoActual(); if (!campo) return;
+    var lotes = B().leer('equipos').filter(function (e) { return String(e.campoId) === String(campo.id) && e.poligono && e.poligono.partes; });
+    if (!lotes.length) return;
+    capaLotes = L.layerGroup().addTo(mapa);
+    var bounds = [];
+    lotes.forEach(function (lote) {
+      var c = SafiaLotes.COLOR_TIPO[lote.tipo] || '#546E7A';
+      L.polygon(lote.poligono.partes, { color: '#FFFFFF', weight: 2, fillColor: c, fillOpacity: 0.08, interactive: false }).addTo(capaLotes);
+      L.polygon(lote.poligono.partes, { color: c, weight: 1.5, fill: false, interactive: false }).bindTooltip(esc(lote.nombre) + ' · ' + SafiaLotes.fmtHa(lote.poligono.ha), { permanent: true, direction: 'center', className: 'safia-etq-lote' }).addTo(capaLotes);
+      var b = SafiaLotes.limites(lote.poligono.partes); if (b) { bounds.push(b[0]); bounds.push(b[1]); }
+    });
+    if (!capaDibujo && bounds.length) mapa.fitBounds(bounds, { padding: [20, 20] });
   }
   function dibujar(capa, columna) {
     var L = window.L;
@@ -488,9 +510,11 @@
     }
     llenarSelectores();
     pintarCapas();
+    // Si el campo ya tiene lotes con polígono, el mapa se muestra de entrada (aunque todavía no haya capas de puntos)
+    if (!mapa && window.SafiaLotes && B() && B().campoActual() && B().leer('equipos').some(function (e) { return String(e.campoId) === String(B().campoActual().id) && e.poligono; })) asegurarMapa().catch(function () {});
     if (mapa) setTimeout(function () { mapa.invalidateSize(); }, 50);
   }
-  function alCambiarCampo() { capas = {}; nueva = null; lecturaActual = null; metasGuardadas = []; if ($('geoPreview')) $('geoPreview').style.display = 'none'; if (iniciado) activar(); }
+  function alCambiarCampo() { capas = {}; nueva = null; lecturaActual = null; metasGuardadas = []; if ($('geoPreview')) $('geoPreview').style.display = 'none'; if (capaDibujo && mapa) { mapa.removeLayer(capaDibujo); capaDibujo = null; } dibujarLotes(); if (iniciado) activar(); }
 
   window.SafiaMapas = { activar: activar, alCambiarCampo: alCambiarCampo, leerCSV: leerCSV, leerGeoJSON: leerGeoJSON, leerKML: leerKML, detectar: detectar, armarPuntos: armarPuntos, stats: stats, unirRindeASuelo: unirRindeASuelo, pearson: pearson, _capas: function () { return capas; }, _setNueva: function (c) { nueva = c; capas.nueva = c; llenarCruce(); } };
 })();
