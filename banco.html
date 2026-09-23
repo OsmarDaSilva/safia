@@ -324,6 +324,16 @@
               <div class="field"><label>Meta (kg/ha)</label><input type="number" id="metaKg" step="100" min="0"><span class="hint">Atajos: <a href="#" onclick="return metaAtajo(10)">+10 %</a> · <a href="#" onclick="return metaAtajo(20)">+20 %</a> · <a href="#" onclick="return metaAtajo(30)">+30 %</a></span></div>
               <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnMetaCalcular">Armar el plan</button></div>
             </div>
+            <details style="margin-top:8px;" open><summary style="cursor:pointer;font-size:13px;font-weight:600;">Opciones del plan: qué incluir aunque el análisis de 0–20 cm no lo exija</summary>
+              <div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;margin-top:8px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opPrep" onchange="document.querySelectorAll('#opYeso,#opSubsolado,#opNivelacion,#opPK').forEach(function(x){x.checked=this.checked}.bind(this))"> <b>Preparación completa del lote</b> (marca todo lo de abajo)</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opYeso"> Yeso en el perfil (50 × % arcilla) aunque falte el análisis de 20–60 cm</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opSubsolado"> Subsolado / descompactación</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opNivelacion"> Nivelación / sistematización</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opPK"> Construir reserva de fósforo y potasio (más allá del crítico)</label>
+                <label style="display:flex;align-items:center;gap:6px;">Otros trabajos: <input type="number" id="opOtrosUSD" placeholder="US$/ha" style="width:90px;"> <input type="text" id="opOtrosDetalle" placeholder="qué (ej. drenaje, alambrado)" style="width:220px;"></label>
+              </div>
+            </details>
             <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;">Precios y costos usados (editables, se guardan en este navegador)</summary>
               <div class="form-grid" id="metaPrecios" style="margin-top:8px;"></div>
               <div class="form-actions"><span class="spacer" style="flex:1"></span><button class="btn" id="btnMetaPreciosDefault">Volver a los valores por defecto</button><button class="btn green" id="btnMetaPreciosGuardar">Guardar precios</button></div>
@@ -572,7 +582,7 @@
 
   /* ---------- Meta de rinde (Motor 8) ---------- */
   var metaCasos = [];
-  var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
+  var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['nivelacionUSDha', 'Nivelación / sistematización US$/ha'], ['aplicacionVoleoUSDha', 'Aplicación al voleo US$/ha (pasada)'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
   function pintarPreciosMeta() {
     var pr = SafiaMeta.precios(), cont = document.getElementById('metaPrecios');
     var granos = Object.keys(pr.granoUSDt).map(function (k) { return '<div class="field"><label>Grano ' + k + ' US$/t</label><input type="number" step="1" data-grano="' + k + '" value="' + pr.granoUSDt[k] + '"></div>'; }).join('');
@@ -601,7 +611,7 @@
     var m = document.getElementById('metaKg'); if (!m.value) m.value = Math.round(c.rindeKgHa * 1.2 / 100) * 100;
   }
   window.metaAtajo = function (pct) { var c = casoMeta(); if (c) document.getElementById('metaKg').value = Math.round(c.rindeKgHa * (1 + pct / 100) / 100) * 100; return false; };
-  document.getElementById('metaCaso').addEventListener('change', function () { document.getElementById('metaKg').value = ''; alCambiarCasoMeta(); });
+  document.getElementById('metaCaso').addEventListener('change', function () { document.getElementById('metaKg').value = ''; document.getElementById('metaResultado').innerHTML = ''; alCambiarCasoMeta(); });
   document.getElementById('btnMetaPreciosGuardar').addEventListener('click', function () { SafiaMeta.guardarPrecios(leerPreciosMeta()); toast('Precios guardados'); });
   document.getElementById('btnMetaPreciosDefault').addEventListener('click', function () { localStorage.removeItem('safia_precios'); pintarPreciosMeta(); toast('Precios por defecto'); });
   document.getElementById('btnMetaCalcular').addEventListener('click', function () {
@@ -610,7 +620,8 @@
     if (!meta || meta <= c.rindeKgHa) { toast('La meta tiene que ser mayor al rinde actual (' + fmt(c.rindeKgHa, 0) + ')', true); return; }
     var prof = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); });
     var pr = leerPreciosMeta();
-    var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof);
+    var opciones = { preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
+    var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
     // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo
     var otros = {};
     metaCasos.filter(function (x) { return String(x.campoId) === String(campoActual.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && SafiaMeta.claveCultivo(x.cultivo) !== SafiaMeta.claveCultivo(c.cultivo); })

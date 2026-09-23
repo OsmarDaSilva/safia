@@ -46,7 +46,9 @@
     insecticidaUSDapl: 22,
     foliarUSDapl: 15,
     riegoUSDmm: 1.2,         // energía + operación por mm y por ha
-    subsoladoUSDha: 45,
+    subsoladoUSDha: 60,
+    nivelacionUSDha: 120,    // nivelación / sistematización / terraceo
+    aplicacionVoleoUSDha: 12, // pasada de la distribuidora (calcáreo, yeso)
     analisisPerfilUSD: 40,   // muestreo 20–40 y 40–60 cm
     tierraUSDha: 20000
   };
@@ -92,8 +94,8 @@
   }
 
   /* ---------- el plan ---------- */
-  function plan(caso, meta, pr, casos, analisisProfundos) {
-    pr = pr || precios();
+  function plan(caso, meta, pr, casos, analisisProfundos, opciones) {
+    pr = pr || precios(); opciones = opciones || {};
     var cu = claveCultivo(caso.cultivo), perfil = window.SafiaAgro ? SafiaAgro.perfilCultivo(caso.cultivo) : { v: 65, mP: 12, mK: 12, expP: 10, expK: 10 };
     var s = caso.suelo || {}, actual = caso.rindeKgHa, metaT = meta / 1000;
     var bm = benchmark(caso, meta, casos || []);
@@ -116,7 +118,9 @@
         var ap = v < 50 ? [0.10, 0.20] : (v < 60 ? [0.05, 0.12] : [0.02, 0.06]);
         item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : ''), objetivo: 'V% ' + vObj + (bm && bm.suelo.satBases ? ' (los que rinden ≥ meta: ' + fmt(bm.suelo.satBases, 0) + ')' : ''),
           accion: fmt(nc, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < 1.0) ? 'dolomítico' : 'calcítico o dolomítico') + ' (PRNT 100 %), en superficie en directa; efecto pleno en 6–12 meses',
-          inversion: nc * pr.calcareoUSDt, vidaUtil: 4, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
+          inversion: nc * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
+      } else if (opciones.preparacionCompleta) {
+        item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado de mantenimiento', hoy: 'V% ' + fmt(v, 1), objetivo: 'sostener V% ' + vObj, accion: '1,0 t/ha de calcáreo cada 3–4 años para reponer lo que se acidifica con la fertilización nitrogenada y la extracción', inversion: 1.0 * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: 0, aporteMax: 0.03, fuente: '[2]' });
       } else item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1), objetivo: 'V% ' + vObj, accion: 'No hace falta: ya está en el objetivo. Repetir análisis cada 2 años', fuente: '[2]' });
     }
     /* 2. Perfil (yeso) */
@@ -125,8 +129,10 @@
     var dosisYeso = arc != null ? Math.round(50 * arc / 100) * 100 : null; // kg/ha, Embrapa: 50 × % arcilla
     if (prof.length) {
       var ult = prof[prof.length - 1], caProf = num(ult.ca);
-      if (caProf != null && caProf < 0.5) item({ k: 'yeso', tipo: 'suelo', nombre: 'Yeso agrícola (perfil 20–60 cm)', hoy: 'Ca ' + fmt(caProf, 2) + ' cmolc/dm³ en ' + esc(ult.profundidad), objetivo: 'Ca > 0,5 y Al < 20 % en profundidad', accion: fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla), al voleo con el encalado', inversion: dosisYeso / 1000 * pr.yesoUSDt, vidaUtil: 5, aporteMin: 0.03, aporteMax: 0.10, fuente: '[3][7]' });
+      if (caProf != null && caProf < 0.5) item({ k: 'yeso', tipo: 'suelo', nombre: 'Yeso agrícola (perfil 20–60 cm)', hoy: 'Ca ' + fmt(caProf, 2) + ' cmolc/dm³ en ' + esc(ult.profundidad), objetivo: 'Ca > 0,5 y Al < 20 % en profundidad', accion: fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla), al voleo con el encalado', inversion: dosisYeso / 1000 * pr.yesoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 5, aporteMin: 0.03, aporteMax: 0.10, fuente: '[3][7]' });
       else item({ k: 'yeso', tipo: 'suelo', nombre: 'Perfil (20–60 cm)', hoy: 'Ca ' + fmt(caProf, 2) + ' en ' + esc(ult.profundidad), objetivo: 'Ca > 0,5 cmolc/dm³', accion: 'El perfil está bien provisto de calcio: no hace falta yeso ahora', fuente: '[3]' });
+    } else if (opciones.yeso && dosisYeso) {
+      item({ k: 'yeso', tipo: 'suelo', nombre: 'Yeso agrícola (perfil 20–60 cm)', hoy: 'sin análisis en profundidad (incluido por decisión del usuario)', objetivo: 'Ca > 0,5 cmolc/dm³ y Al < 20 % hasta 60 cm', accion: fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla, Embrapa), al voleo junto con el calcáreo; confirmar con análisis de 20–40 y 40–60 cm', inversion: dosisYeso / 1000 * pr.yesoUSDt + pr.aplicacionVoleoUSDha + pr.analisisPerfilUSD, vidaUtil: 5, aporteMin: 0.03, aporteMax: 0.10, fuente: '[3][7]' });
     } else {
       item({ k: 'yeso', tipo: 'suelo', nombre: 'Perfil profundo (20–40 y 40–60 cm)', hoy: 'sin análisis en profundidad', objetivo: 'Ca > 0,5 cmolc/dm³ y Al < 20 % hasta 60 cm', accion: 'Muestrear 20–40 y 40–60 cm. Si hay Ca bajo o Al alto: ' + (dosisYeso ? fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla)' : 'yeso = 50 × % arcilla kg/ha') + '. Hoy la corrección del perfil se hace con calcáreo + yeso en directa, no solo 0–20 cm', inversion: pr.analisisPerfilUSD, vidaUtil: 1, aporteMin: 0, aporteMax: 0.08, condicional: true, fuente: '[3][7]' });
     }
@@ -136,6 +142,7 @@
       var cl = (arc != null && arc <= 40) ? 2 : 1, pc = T.P_CLASES[cl];
       var cat = p <= pc.limites[0] ? 'muy baja' : (p <= pc.limites[1] ? 'baja' : (p <= pc.limites[2] ? 'media' : (p <= pc.limites[3] ? 'alta' : 'muy alta')));
       var pObj = Math.max(pc.critico, bm && bm.suelo.p ? Math.min(pc.critico * 2, bm.suelo.p) : 0);
+      if (opciones.construirPK) pObj = Math.max(pObj, Math.round(pc.critico * 1.5));   // construir reserva: mitad de la categoría "alta"
       var corr = p < pObj ? Math.round((pObj - p) * pc.kgPorMg) : 0; if (corr < 10) corr = 0;
       var manTotal = cat === 'muy alta' ? Math.round(metaT * perfil.expP) : Math.round(metaT * perfil.mP);
       var aplicadoP = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? Math.round(caso.manejo.npk.p2o5) : null;
@@ -152,6 +159,7 @@
       var kmg = k * 391, K = T.K_CLASE;
       var catK = kmg <= K.limites[0] ? 'muy baja' : (kmg <= K.limites[1] ? 'baja' : (kmg <= K.limites[2] ? 'media' : (kmg <= K.limites[3] ? 'alta' : 'muy alta')));
       var corrK = K.correctiva[catK] || 0;
+      if (opciones.construirPK && !corrK && kmg < 120) corrK = Math.round((120 - kmg) / 391 * 1000 * 1.2 / 0.83 / 10) * 10; // llevar K a ~120 mg/dm³ (mitad de "alta"), con pérdidas
       var manKTotal = catK === 'muy alta' ? Math.round(metaT * perfil.expK) : Math.round(metaT * perfil.mK);
       var aplicadoK = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? Math.round(caso.manejo.npk.k2o) : null;
       var manK = aplicadoK != null ? Math.max(0, manKTotal - aplicadoK) : Math.round((metaT - actual / 1000) * (catK === 'muy alta' ? perfil.expK : perfil.mK));
@@ -182,6 +190,9 @@
     if (!(man.cargado && man.tratamientoSemilla)) item({ k: 'tratamiento', tipo: 'manejo', nombre: 'Tratamiento de semilla', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'fungicida + insecticida', accion: 'Tratar la semilla (fungicida + insecticida) para stand parejo', costo: pr.tratamientoSemillaUSDha, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa Soja / BASF PY' });
     var rot = caso.rotacion || {};
     if (rot.cargada && !rot.conCobertura) item({ k: 'cobertura', tipo: 'manejo', nombre: 'Cobertura de invierno', hoy: 'sin cobertura', objetivo: (bm && bm.cobertura != null ? fmt(bm.cobertura * 100, 0) + ' % de los que rinden ≥ meta usan cobertura' : 'brachiaria, avena o mix'), accion: 'Sembrar cobertura después de la cosecha (brachiaria ruziziensis, avena, mix)', recurrente: pr.coberturaUSDha, alcance: 'lote', aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa (Santa Fe / ILP): MO, malezas, agua' });
+    if (opciones.subsolado && !rot.convencional) item({ k: 'subsolado', tipo: 'suelo', nombre: 'Subsolado / descompactación', hoy: rot.subsolado ? 'ya se subsoló' : 'sin dato de compactación', objetivo: 'perfil sin capa compactada (medir con penetrómetro)', accion: 'Una pasada de subsolador a 35–45 cm antes de la cobertura; después no remover más', inversion: pr.subsoladoUSDha, vidaUtil: 3, aporteMin: 0.02, aporteMax: 0.08, fuente: 'Embrapa: compactación en suelos arcillosos con tránsito' });
+    if (opciones.nivelacion) item({ k: 'nivelacion', tipo: 'suelo', nombre: 'Nivelación / sistematización', hoy: 'incluida por decisión del usuario', objetivo: 'sin encharcamientos ni erosión; riego parejo', accion: 'Nivelar y sistematizar el lote (terrazas, desagües) una vez', inversion: pr.nivelacionUSDha, vidaUtil: 8, aporteMin: 0.01, aporteMax: 0.05, fuente: 'práctica de campo' });
+    if (opciones.otrosUSD > 0) item({ k: 'otros', tipo: 'suelo', nombre: 'Otros trabajos de preparación', hoy: opciones.otrosDetalle || 'indicado por el usuario', objetivo: '—', accion: opciones.otrosDetalle || 'Trabajos adicionales de preparación del lote', inversion: opciones.otrosUSD, vidaUtil: opciones.otrosVida || 5, aporteMin: 0, aporteMax: 0.03, fuente: 'usuario' });
     if (rot.convencional) item({ k: 'directa', tipo: 'manejo', nombre: 'Siembra directa', hoy: 'convencional (rastroneada)', objetivo: 'directa sobre cobertura o rastrojo', accion: 'Pasar a siembra directa; si hay compactación, subsolar una vez y sembrar cobertura', inversion: pr.subsoladoUSDha, vidaUtil: 3, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Manual RS/SC / Embrapa' });
     if (rot.sojaSobreSoja) item({ k: 'rotacion', tipo: 'manejo', nombre: 'Rotación', hoy: 'soja sobre soja', objetivo: 'maíz, trigo o gramínea antes de la soja', accion: 'Rotar: maíz zafriña o cobertura de gramínea entre sojas', costo: 0, aporteMin: 0.05, aporteMax: 0.12, fuente: 'Embrapa Soja: rotación con gramíneas' });
     var nFung = man.cargado ? (man.fungicidas || 0) : null, fungObj = cu === 'soja' ? 2 : 1;
@@ -212,7 +223,7 @@
     var haEquivalentes = actual > 0 ? kgExtra / actual : null; // cuánta tierra más haría falta para producir lo mismo sin mejorar
     var valorTierraEquiv = haEquivalentes != null ? haEquivalentes * pr.tierraUSDha : null;
     var veredicto = meta <= potMin ? 'alcanzable' : (meta <= potMax ? 'posible' : 'ambiciosa');
-    return { cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, kgExtra: kgExtra, gapPct: actual ? kgExtra / actual * 100 : null, items: items, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo }, veredicto: veredicto,
+    return { cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, kgExtra: kgExtra, suelo: s, opciones: opciones, gapPct: actual ? kgExtra / actual * 100 : null, items: items, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo }, veredicto: veredicto,
       economia: { precio: precio, costoTotal: costoTotal, costoCampana: costoCampana, inversionTotal: inversionTotal, recurrenteCultivo: recurrenteCultivo, recurrenteLote: recurrenteLote, ingresoExtra: ingresoExtra, margen: margen, costoPorKg: costoPorKg, pctTierra: pctTierra, haEquivalentes: haEquivalentes, valorTierraEquiv: valorTierraEquiv, tierra: pr.tierraUSDha, retornoSobreTierra: pr.tierraUSDha ? margen / pr.tierraUSDha * 100 : null } };
   }
 
@@ -301,6 +312,7 @@
     }
     var inv = pl.items.filter(function (i) { return i.inversion > 0; }), gas = pl.items.filter(function (i) { return i.recurrente > 0; }), info = pl.items.filter(function (i) { return !i.inversion && !i.recurrente; });
     var subInv = inv.reduce(function (a, i) { return a + i.inversion; }, 0), subGas = gas.reduce(function (a, i) { return a + i.recurrente; }, 0);
+    if (subInv < 250 && pl.opciones && !pl.opciones.preparacionCompleta) html += '<div class="note" style="margin-top:12px;"><b>¿Por qué la inversión es tan baja?</b> Porque este lote ya está corregido para lo que muestra el análisis de 0–20 cm' + (pl.suelo && pl.suelo.satBases != null ? ' (V% ' + fmt(pl.suelo.satBases, 1) : '') + (pl.suelo && pl.suelo.p != null ? ', P ' + fmt(pl.suelo.p, 1) : '') + (pl.suelo && pl.suelo.k != null ? ', K ' + fmt(pl.suelo.k * 391, 0) + ' mg/dm³' : '') + (pl.suelo ? ')' : '') + ': el motor solo pone lo que el análisis justifica. El yeso para el perfil, el subsolado, la nivelación y la construcción de reserva de P y K quedan afuera hasta que haya análisis de 20–60 cm o los marques vos en <b>Opciones del plan</b> (escenario de preparación completa). En un lote nuevo o degradado, esa preparación completa suele costar US$ 500–1.500/ha.</div>';
     html += '<h3 style="font-size:15px;margin:16px 0 4px;">1 · Inversión inicial para preparar el suelo <span class="muted" style="font-weight:500;font-size:12px;">una sola vez · US$ ' + fmt(subInv, 0) + '/ha · dura 3–5 años y sirve para todos los cultivos del lote</span></h3>';
     html += inv.length ? tablaItems(inv, 'inversion', 'US$/ha (una vez)') : '<div class="note">El suelo de este lote no necesita correcciones de fondo: no hay inversión inicial.</div>';
     html += '<h3 style="font-size:15px;margin:16px 0 4px;">2 · Gasto adicional por campaña para sostener el rinde más alto <span class="muted" style="font-weight:500;font-size:12px;">cada campaña · US$ ' + fmt(subGas, 0) + '/ha · solo lo que se agrega sobre lo que ya hacés hoy</span></h3>';
