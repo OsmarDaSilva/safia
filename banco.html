@@ -781,8 +781,21 @@
     if (!window.SafiaMeta || !window.SafiaCasos || !campoActual) return;
     metaCasos = SafiaCasos.armarCasos();
     var mios = metaCasos.filter(function (c) { return String(c.campoId) === String(campoActual.id) && c.rindeKgHa; }).sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
+    // Campañas nuevas (sembradas o por sembrar, sin rinde todavía): el plan parte del último rinde cosechado del mismo cultivo en el lote
+    var nuevas = [];
+    leer('campanas').forEach(function (c) {
+      var eq = leer('equipos').find(function (e) { return String(e.id) === String(c.equipoId); }); if (!eq || String(eq.campoId) !== String(campoActual.id)) return;
+      (c.cultivos || []).forEach(function (cu, i) {
+        if (!cu || !cu.cultivo || num(cu.rendimientoReal) > 0) return;
+        var mismos = mios.filter(function (x) { return String(x.equipoId) === String(c.equipoId) && SafiaMeta.claveCultivo(x.cultivo) === SafiaMeta.claveCultivo(cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
+        var base = mismos[0] || mios.filter(function (x) { return String(x.equipoId) === String(c.equipoId); })[0] || mios[0];
+        if (!base) return;
+        nuevas.push(Object.assign({}, base, { id: 'nueva_' + c.id + '_' + i, campanaId: c.id, campana: c.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: null, clima: null }));
+      });
+    });
+    metaCasos = metaCasos.concat(nuevas);
     var sel = document.getElementById('metaCaso');
-    sel.innerHTML = mios.length ? mios.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.cultivo) + ' · ' + esc(c.campana) + ' · ' + fmt(c.rindeKgHa, 0) + ' kg/ha' + (c.riego === false ? ' (secano)' : '') + '</option>'; }).join('') : '<option value="">(no hay campañas cosechadas en este lote)</option>';
+    sel.innerHTML = (mios.length || nuevas.length) ? nuevas.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.cultivo) + ' · ' + esc(c.campana) + ' · nueva (parte de ' + fmt(c.rindeKgHa, 0) + ' kg/ha de ' + esc(c.baseCampana) + ')</option>'; }).join('') + mios.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.cultivo) + ' · ' + esc(c.campana) + ' · ' + fmt(c.rindeKgHa, 0) + ' kg/ha' + (c.riego === false ? ' (secano)' : '') + '</option>'; }).join('') : '<option value="">(no hay campañas cosechadas en este lote)</option>';
     if (!document.getElementById('metaPrecios').children.length) pintarPreciosMeta();
     alCambiarCasoMeta();
   }
@@ -790,7 +803,7 @@
   function alCambiarCasoMeta() {
     var c = casoMeta(), info = document.getElementById('metaCasoInfo');
     if (!c) { info.textContent = ''; return; }
-    info.textContent = 'Suelo: ' + (c.suelo ? 'análisis del ' + fmtFecha(c.suelo.fecha) : 'sin análisis') + ' · agua ' + (c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + ' mm' : 'sin dato') + ' · manejo ' + (c.manejo && c.manejo.cargado ? 'cargado' : 'sin cargar');
+    info.textContent = (c.esNueva ? 'Campaña nueva: el plan parte del rinde de ' + c.baseCultivo + ' ' + c.baseCampana + ' (' + fmt(c.rindeKgHa, 0) + ' kg/ha) en este lote, con el análisis de suelo más reciente. ' : '') + 'Suelo: ' + (c.suelo ? 'análisis del ' + fmtFecha(c.suelo.fecha) : 'sin análisis') + ' · agua ' + (c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + ' mm' : 'sin dato') + ' · manejo ' + (c.manejo && c.manejo.cargado ? 'cargado' : 'sin cargar');
     var m = document.getElementById('metaKg'); if (!m.value) m.value = Math.round(c.rindeKgHa * 1.2 / 100) * 100;
   }
   window.metaAtajo = function (pct) { var c = casoMeta(); if (c) document.getElementById('metaKg').value = Math.round(c.rindeKgHa * (1 + pct / 100) / 100) * 100; return false; };
@@ -818,7 +831,7 @@
     metaCasos.filter(function (x) { return String(x.campoId) === String(campoActual.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && SafiaMeta.claveCultivo(x.cultivo) !== SafiaMeta.claveCultivo(c.cultivo); })
       .forEach(function (x) { var k = SafiaMeta.claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
     var py = SafiaMeta.proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5);
-    out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + ' de ' + fmt(c.rindeKgHa, 0) + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) +
+    out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + (c.esNueva ? ' ' + esc(c.campana) : '') + ' de ' + fmt(c.rindeKgHa, 0) + (c.esNueva ? ' (base ' + esc(c.baseCampana) + ')' : '') + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) +
       '<div style="margin-top:10px;"><button class="btn" onclick="window.print()">Imprimir plan</button></div>';
     out.scrollIntoView({ behavior: 'smooth' });
   });
