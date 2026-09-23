@@ -264,7 +264,7 @@
       res.innerHTML = '<div class="stats" style="margin-top:10px;"><div class="stat"><div class="sl">Última pasada</div><div class="sv">' + n2(ult.ndvi) + '</div><div class="ss">' + fmtF(ult.fecha) + (ult.nubes_pct != null ? ' · nubes ' + Math.round(ult.nubes_pct) + ' %' : '') + '</div></div>' +
         '<div class="stat"><div class="sl">Máximo del período</div><div class="sv">' + n2(max.ndvi) + '</div><div class="ss">' + fmtF(max.fecha) + '</div></div>' +
         '<div class="stat"><div class="sl">Pasadas útiles</div><div class="sv">' + visibles.length + '</div><div class="ss">de ' + lista.length + ' guardadas en total</div></div>' +
-        '<div class="stat"><div class="sl">Variación dentro del lote</div><div class="sv">' + (ult.p10 != null ? n2(ult.p10) + ' – ' + n2(ult.p90) : '—') + '</div><div class="ss">10 % a 90 % de los píxeles' + (ult.p10 != null && ult.p90 - ult.p10 > 0.25 ? ' · lote desparejo: mirá el mapa de fertilidad' : '') + '</div></div></div>' + (sinPoli ? '<div class="note warn" style="margin-top:8px;">Este lote no tiene polígono: los datos son antiguos. Cargá el contorno para volver a pedir.</div>' : '');
+        '<div class="stat"><div class="sl">Variación dentro del lote</div><div class="sv">' + (ult.p10 != null ? n2(ult.p10) + ' – ' + n2(ult.p90) : '—') + '</div><div class="ss">10 % a 90 % de los píxeles' + (ult.p10 != null && ult.ndvi > 0.5 && ult.p90 - ult.p10 > 0.25 ? ' · lote desparejo con el cultivo en pie: mirá el mapa de fertilidad' : '') + '</div></div></div>' + (sinPoli ? '<div class="note warn" style="margin-top:8px;">Este lote no tiene polígono: los datos son antiguos. Cargá el contorno para volver a pedir.</div>' : '');
     } else res.innerHTML = '';
     dibujarCampanas(lote, lista);
   }
