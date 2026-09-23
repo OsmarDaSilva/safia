@@ -508,6 +508,14 @@
     document.getElementById('cSistema').innerHTML = SafiaInsumos.SISTEMAS_SIEMBRA.map(function (c) { return '<option value="' + c.k + '">' + c.n + '</option>'; }).join('');
     document.getElementById('cConsorcio').innerHTML = SafiaInsumos.CONSORCIOS.map(function (c) { return '<option value="' + c.k + '">' + c.n + '</option>'; }).join('');
   }
+  // Acorta la identificación que trae el laboratorio: saca "LT:", los "PT: N.I." y la profundidad (que ya se muestra aparte)
+  function etiquetaMuestra(m) {
+    var partes = String(m || '').split(/\s+-\s+|\s*\|\s*/).map(function (s) { return s.trim(); }).filter(function (s) {
+      return s && !/^(PT|PONTO|PUNTO|PROF|PROFUNDIDAD|PROFUNDIDADE)\s*:/i.test(s);
+    }).map(function (s) { return s.replace(/^(LT|LOTE|TALH[AÃ]O|GLEBA|AMOSTRA|MUESTRA)\s*:\s*/i, ''); });
+    var t = partes.join(' · ') || String(m || '');
+    return t.length > 3 && t === t.toUpperCase() ? t.toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase(); }) : t;
+  }
   function nombreLote(equipoId) {
     if (!equipoId) return '';
     var e = leer('equipos').find(function (x) { return String(x.id) === String(equipoId); });
@@ -1007,7 +1015,7 @@
 
     var t = document.getElementById('tablaEvolucion');
     var enc = '<thead><tr><th>Parámetro</th>' + lista.map(function (a) {
-      return '<th class="r">' + fmtFecha(a.fecha) + (a.equipoId ? '<div style="font-weight:600;text-transform:none;color:var(--green);">' + esc(nombreLote(a.equipoId)) + '</div>' : '<div style="font-weight:500;text-transform:none;">todo el campo</div>') + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + '</th>';
+      return '<th class="r">' + fmtFecha(a.fecha) + (a.equipoId ? '<div style="font-weight:600;text-transform:none;color:var(--green);">' + esc(nombreLote(a.equipoId)) + '</div>' : (a.muestra ? '<div style="font-weight:600;text-transform:none;" title="Nombre de la muestra en el laboratorio (sin lote asignado en SAFIA)">' + esc(etiquetaMuestra(a.muestra)) + '</div>' : '<div style="font-weight:500;text-transform:none;">todo el campo</div>')) + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + '</th>';
     }).join('') + '</tr></thead>';
 
     var filas = PARAMS.map(function (p) {
@@ -1068,10 +1076,10 @@
     });
   }
 
-  function abrirFormAnalisis() { document.getElementById('formAnalisis').classList.add('visible'); }
+  function abrirFormAnalisis() { extrasIA = null; document.getElementById('formAnalisis').classList.add('visible'); }
   function cerrarFormAnalisis() {
     document.getElementById('formAnalisis').classList.remove('visible');
-    editandoAnalisisId = null;
+    editandoAnalisisId = null; extrasIA = null;
     document.getElementById('tituloFormAnalisis').textContent = 'Nuevo análisis de suelo';
     document.getElementById('aArchivoActual').textContent = '';
     ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aArena','aLimo','aArcilla','aObs','aArchivo'].forEach(function (i) {
@@ -1163,7 +1171,7 @@
       mostrarMuestrasIA(muestras);
       volcarAnalisis(muestras[0]);
       hint.textContent = muestras.length > 1
-        ? '✓ El informe tiene ' + muestras.length + ' muestras: se cargó la primera. Elegí otra abajo si corresponde, revisá y guardá; después repetí "Agregar análisis" para las demás.'
+        ? '✓ El informe tiene ' + muestras.length + ' muestras. Con el botón verde de abajo se guardan todas de una vez (cada una como un análisis, con el mismo PDF adjunto). O elegí una, revisala y guardala sola.'
         : '✓ Valores cargados por IA. Revisalos y corregí si hace falta antes de guardar.';
       toast('Análisis leído: revisá los valores');
     }).catch(function (e) {
@@ -1186,13 +1194,77 @@
     var cont = document.getElementById('muestrasIA');
     if (!cont) { cont = document.createElement('div'); cont.id = 'muestrasIA'; cont.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;'; document.getElementById('leerIAHint').parentNode.appendChild(cont); }
     if (muestras.length < 2) { cont.innerHTML = ''; return; }
-    cont.innerHTML = '<span class="muted" style="font-size:12px;align-self:center;">Muestras del informe:</span>' + muestras.map(function (m, i) {
-      var et = [m.muestra, m.profundidad, m.fecha].filter(Boolean).join(' · ') || ('Muestra ' + (i + 1));
+    cont.innerHTML = '<button type="button" class="btn green mini" id="btnGuardarMuestras">Guardar las ' + muestras.length + ' muestras como análisis separados</button>' +
+      '<span class="muted" style="font-size:12px;align-self:center;">o elegí una para revisarla:</span>' + muestras.map(function (m, i) {
+      var et = [m.muestra ? etiquetaMuestra(m.muestra) : '', m.profundidad, m.fecha].filter(Boolean).join(' · ') || ('Muestra ' + (i + 1));
       return '<button type="button" class="btn mini" data-i="' + i + '">' + esc(et) + '</button>';
     }).join('');
     cont.querySelectorAll('button').forEach(function (b) {
+      if (b.id === 'btnGuardarMuestras') { b.addEventListener('click', function () { guardarMuestrasEnLote(muestras, b); }); return; }
       b.addEventListener('click', function () { volcarAnalisis(muestras[parseInt(b.dataset.i, 10)]); toast('Cargada: ' + b.textContent); });
     });
+  }
+
+  // Datos que la IA lee pero el formulario no tiene casillero: se guardan igual en el análisis y en Observaciones.
+  var EXTRAS_IA = [['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³']];
+  var extrasIA = null;
+  function extrasDeMuestra(m) {
+    var o = {}, hay = false;
+    EXTRAS_IA.forEach(function (e) { var v = num(m[e[0]]); if (v !== null) { o[e[1]] = v; hay = true; } });
+    if (m.muestra) o.muestra = String(m.muestra);
+    if (m.laboratorio) o.laboratorio = String(m.laboratorio);
+    return hay || o.muestra || o.laboratorio ? o : null;
+  }
+  function obsDeMuestra(m, i) {
+    var extras = EXTRAS_IA.map(function (e) { var v = num(m[e[0]]); return v === null ? '' : e[2] + ' ' + v + ' ' + e[3]; }).filter(Boolean).join(', ');
+    return ['Muestra: ' + (m.muestra || ('#' + ((i || 0) + 1))), m.laboratorio ? 'Lab: ' + m.laboratorio : '', extras, m.observaciones || ''].filter(Boolean).join(' · ');
+  }
+  // Busca el lote de SAFIA cuyo nombre aparece en la identificación de la muestra (ej. "LT: AREA NOVA" → lote "Área Nova")
+  function loteParaMuestra(texto) {
+    if (!texto || !campoActual) return null;
+    var norm = function (s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); };
+    var t = norm(texto);
+    var eq = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
+    var mejor = null;
+    eq.forEach(function (e) { var ne = norm(e.nombre); if (ne.length >= 3 && t.indexOf(ne) >= 0 && (!mejor || ne.length > norm(mejor.nombre).length)) mejor = e; });
+    return mejor ? mejor.id : null;
+  }
+  // Guarda cada muestra del informe como un análisis del campo (el mismo PDF queda adjunto en todos).
+  // El lote se asigna solo cuando el nombre coincide; los demás se editan después (Lote / equipo).
+  function guardarMuestrasEnLote(muestras, boton) {
+    var archivoInput = document.getElementById('aArchivo');
+    var archivo = archivoInput.files && archivoInput.files[0];
+    if (archivo && !window.safiaSupabase) { toast('Sin conexión: no se puede adjuntar el PDF ahora', true); return; }
+    var textoBoton = boton.textContent;
+    boton.disabled = true; boton.textContent = 'Guardando…';
+    var pre = archivo ? subirAStorage('campo_' + campoActual.id + '/analisis/' + Date.now() + '_' + limpiarNombre(archivo.name), archivo) : Promise.resolve(null);
+    pre.then(function (ruta) {
+      var lista = leer('analisis_suelo');
+      var fechaForm = document.getElementById('aFecha').value;
+      var base = Date.now(), creados = 0, conLote = 0;
+      muestras.forEach(function (m, i) {
+        var fecha = m.fecha || fechaForm;
+        if (!fecha) return;
+        var equipoId = loteParaMuestra(m.muestra);
+        if (equipoId) conLote++;
+        var item = {
+          id: base + i, campoId: campoActual.id, equipoId: equipoId, fecha: fecha, profundidad: m.profundidad || '', origen: 'ia',
+          ph: num(m.ph), mo: num(m.materia_organica), p: num(m.fosforo), k: num(m.potasio), ca: num(m.calcio), mg: num(m.magnesio), cic: num(m.cic), satBases: num(m.saturacion_bases),
+          arena: num(m.arena), limo: num(m.limo), arcilla: num(m.arcilla),
+          observaciones: obsDeMuestra(m, i), archivoRuta: ruta || null, archivoNombre: archivo ? archivo.name : null, fechaCreacion: new Date().toISOString()
+        };
+        var ex = extrasDeMuestra(m); if (ex) Object.assign(item, ex);
+        lista.push(item); creados++;
+      });
+      guardar('analisis_suelo', lista);
+      var faltan = creados - conLote;
+      toast(creados + ' análisis guardados' + (conLote ? ' (' + conLote + ' con lote asignado por nombre)' : '') + (faltan ? '. Editá los ' + faltan + ' restantes para elegirles el lote.' : '.'));
+      cerrarFormAnalisis();
+      pintarAnalisis();
+      if (typeof pintarEvolucion === 'function') pintarEvolucion();
+    }).catch(function (e) {
+      console.error(e); toast('No se pudieron guardar: ' + (e && e.message ? e.message : 'error'), true);
+    }).finally(function () { boton.disabled = false; boton.textContent = textoBoton; });
   }
 
   // Vuelca el JSON de la IA en los casilleros (solo lo que vino con valor).
@@ -1211,10 +1283,10 @@
     set('aArena', d.arena);
     set('aLimo', d.limo);
     set('aArcilla', d.arcilla);
-    if (d.observaciones) {
-      var obs = document.getElementById('aObs');
-      obs.value = obs.value ? (obs.value + ' · ' + d.observaciones) : d.observaciones;
-    }
+    document.getElementById('aObs').value = obsDeMuestra(d);
+    extrasIA = extrasDeMuestra(d);
+    var loteIA = loteParaMuestra(d.muestra);
+    if (loteIA && !document.getElementById('aEquipo').value) document.getElementById('aEquipo').value = String(loteIA);
   }
 
   document.getElementById('btnGuardarAnalisis').addEventListener('click', function () {
@@ -1252,6 +1324,7 @@
       item.limo = num(document.getElementById('aLimo').value);
       item.arcilla = num(document.getElementById('aArcilla').value);
       item.observaciones = document.getElementById('aObs').value.trim();
+      if (extrasIA) { Object.assign(item, extrasIA); item.origen = 'ia'; extrasIA = null; }
       if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
       if (!editandoAnalisisId) lista.push(item);
       guardar('analisis_suelo', lista);

@@ -1,7 +1,7 @@
-// SAFIA · Edge Function: safia-leer-analisis (v4)
-// Lee una foto o PDF de un análisis de suelo y devuelve los valores en JSON.
-// v4: soporta informes con VARIAS muestras (lotes / profundidades) → devuelve una lista;
-//     parseo robusto (arrays, varios objetos, texto alrededor); registra el motivo de cada falla.
+// SAFIA · Edge Function: safia-leer-analisis (v5)
+// Lee una foto o PDF de un análisis de suelo, de CUALQUIER laboratorio, y devuelve los valores
+// normalizados (mismos nombres y unidades) en JSON, una entrada por muestra.
+// v4: varias muestras + parseo robusto + registro de fallas. v5: sinónimos y unidades por laboratorio.
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,45 +11,58 @@ const CORS = {
 
 const ESQUEMA = `{
   "muestra": "identificación de la muestra tal cual figura (lote, parcela, número, cliente), o null",
-  "fecha": "fecha del análisis en formato AAAA-MM-DD, o null",
+  "laboratorio": "nombre del laboratorio si figura, o null",
+  "fecha": "fecha del análisis (liberación / emisión / resultado) en formato AAAA-MM-DD, o null",
   "profundidad": "profundidad del muestreo tal cual (ej '0-20 cm'), o null",
-  "ph": "pH en agua (H2O) como número; si solo hay pH CaCl2 usalo; o null",
-  "materia_organica": "materia orgánica en % (M.O.) como número, o null",
-  "fosforo": "fósforo P disponible (Mehlich/Bray, mg/dm³ o ppm) como número; NO el P de resina; o null",
-  "potasio": "potasio K en cmolc/dm³ como número (si viene en mg/dm³ dividí por 391), o null",
-  "calcio": "calcio Ca en cmolc/dm³ como número, o null",
-  "magnesio": "magnesio Mg en cmolc/dm³ como número, o null",
-  "cic": "CIC (capacidad de intercambio catiónico a pH 7) en cmolc/dm³ como número, o null",
+  "ph": "pH en agua (H2O) como número; si solo hay pH CaCl2 o SMP, usá el CaCl2 y anotalo; o null",
+  "materia_organica": "materia orgánica en % como número, o null",
+  "fosforo": "fósforo P disponible por extractor Mehlich-1 o Bray, en mg/dm³ (= ppm = mg/kg) como número; NO el P de resina si hay ambos; o null",
+  "potasio": "potasio K intercambiable en cmolc/dm³ como número, o null",
+  "calcio": "calcio Ca intercambiable en cmolc/dm³ como número, o null",
+  "magnesio": "magnesio Mg intercambiable en cmolc/dm³ como número, o null",
+  "cic": "CIC a pH 7 (T, CTC total) en cmolc/dm³ como número, o null",
   "saturacion_bases": "saturación de bases V% como número, o null",
   "arena": "arena en % como número, o null",
   "limo": "limo en % como número, o null",
   "arcilla": "arcilla en % como número, o null",
-  "observaciones": "otros datos útiles en texto corto: Al, H+Al, S (suma de bases), azufre, boro, zinc, otros micronutrientes, relaciones Ca/Mg, laboratorio, pH CaCl2/SMP. o null"
+  "aluminio": "aluminio intercambiable Al3+ en cmolc/dm³ como número, o null",
+  "saturacion_aluminio": "saturación de aluminio m% como número, o null",
+  "azufre": "azufre S-SO4 en mg/dm³ como número, o null",
+  "boro": "boro en mg/dm³, o null",
+  "zinc": "zinc en mg/dm³, o null",
+  "observaciones": "otros datos útiles en texto corto: H+Al, S (suma de bases), Cu, Fe, Mn, relaciones Ca/Mg, pH CaCl2/SMP, unidades originales, avisos de conversión. o null"
 }`;
 
-const SYSTEM = `Sos un asistente agronómico que lee informes de análisis de suelo (de laboratorios de Paraguay, Brasil o Argentina, a veces en portugués o español) y extrae los valores.
+const SYSTEM = `Sos un asistente agronómico que lee informes de análisis de suelo de CUALQUIER laboratorio (Paraguay, Brasil, Argentina, Bolivia; en español o portugués; BIOSOLLO, Fertilab, Laborsolo, Solocria, LAGRO, INBIO, UNA, Agrolab, INTA, etc.) y devuelve los valores NORMALIZADOS al mismo esquema, sin importar el formato del informe.
 
-Devolvé SOLO un ARRAY JSON (lista) con UN objeto por cada muestra que tenga el informe (cada lote, parcela o profundidad es una muestra distinta), sin texto alrededor, sin explicaciones, sin markdown. Cada objeto tiene EXACTAMENTE este esquema:
+Devolvé SOLO un ARRAY JSON (lista) con UN objeto por cada muestra que tenga el informe (cada lote, parcela, punto o profundidad es una muestra distinta; si el informe tiene varias páginas, una por página suele ser una muestra), sin texto alrededor, sin explicaciones, sin markdown. Cada objeto tiene EXACTAMENTE este esquema:
 ${ESQUEMA}
 
-Reglas:
+CÓMO RECONOCER CADA DATO (sinónimos habituales):
+- pH: "pH H2O", "pH água", "pH en agua", "pH (1:1)", "pH (1:2,5)". Preferí el pH en agua. "pH CaCl2" y "pH SMP" / "índice SMP" son otros: si solo hay CaCl2, usalo como ph y anotá "pH CaCl2" en observaciones.
+- materia_organica: "M.O.", "MO", "Matéria orgânica", "MOS", "Mat. org.". Si viene en g/dm³ o g/kg, dividí por 10 (25 g/dm³ = 2,5 %). Si solo hay "C orgánico" / "carbono orgânico" en %, multiplicá por 1,724.
+- fosforo: "P", "P Mehlich", "P Mehlich-1", "P (Mehlich)", "Fósforo disponible", "P Bray", "P Olsen" (anotá el método). Si hay "P resina" o "resina de intercambio iónico" además del Mehlich, usá el Mehlich. Unidad mg/dm³ = ppm = mg/kg = mg/L.
+- potasio: "K", "K+", "K trocável", "Potássio", "Potasio". Si viene en mg/dm³ o ppm, cmolc = mg / 391. Si viene en mmolc/dm³, cmolc = mmolc / 10.
+- calcio: "Ca", "Ca2+", "Ca trocável", "Cálcio". Si viene en mg/dm³, cmolc = mg / 200. Si viene en mmolc/dm³, dividí por 10.
+- magnesio: "Mg", "Mg2+", "Mg trocável", "Magnésio". Si viene en mg/dm³, cmolc = mg / 121,5. Si viene en mmolc/dm³, dividí por 10.
+- cic: "CIC", "CTC", "CTC pH 7,0", "CTC (T)", "T", "Capacidad de intercambio catiónico", "CTC total". NO uses la "CTC efetiva" (t) si hay ambas; anotala en observaciones. En mmolc/dm³, dividí por 10.
+- saturacion_bases: "V", "V%", "Sat. de bases", "Saturação por bases", "Sat. bases". Si no figura pero hay S (suma de bases) y CIC, calculala: V% = S / CIC × 100 y anotá "V% calculada".
+- aluminio: "Al", "Al3+", "Al trocável", "Alumínio". saturacion_aluminio: "m", "m%", "Sat. Al", "Saturação por alumínio".
+- azufre: "S", "S-SO4", "SO4", "Enxofre", "Azufre" en mg/dm³. boro: "B". zinc: "Zn". Cu, Fe, Mn van a observaciones.
+- arcilla / limo / arena: "Argila", "Silte", "Areia"; en g/kg dividí por 10 para llevar a %.
+- Ojo con las tablas desalineadas de PDF: cada valor pertenece a la fila de su elemento; verificá con S = Ca + Mg + K y CIC = S + (H+Al) cuando esos datos existan; si no cuadra, revisá la asignación.
+
+REGLAS:
 - Si el informe tiene una sola muestra, devolvé un array con un solo objeto.
 - Los números pueden venir con coma decimal (ej "6,84"): devolvelos como número con punto (6.84).
-- Si un valor dice "NS" (no solicitado), "ND" (no detectado) o está vacío, poné null.
-- pH: preferí el pH en H2O (en agua). Si no está, usá el pH en CaCl2 y anotalo en observaciones.
-- Fósforo: usá el P disponible por extractor (Mehlich, Bray, "P" en mg/dm³ o ppm). NO uses el "Fósforo" de resina de intercambio iónico si hay ambos.
-- Potasio, calcio, magnesio y CIC en cmolc/dm³ (= meq/100 g). Si el potasio viene en mg/dm³ o ppm, convertí: cmolc = mg/391.
-- CIC: la capacidad de intercambio catiónico total (a veces "CTC", "T" o "CTC a pH 7,0").
-- Saturación de bases: el V% (no la saturación de aluminio m%).
-- No inventes valores que no estén en el informe: ante la duda, null.
+- Si un valor dice "NS" (no solicitado), "ND" (no detectado), "N.I." o está vacío, poné null.
+- No inventes valores que no estén en el informe: ante la duda, null. Anotá en observaciones cualquier conversión de unidades que hayas hecho.
 - Si el archivo no es un análisis de suelo, devolvé un array vacío [].`;
 
 function extraerLista(texto: string): unknown[] {
   const t = texto.trim();
-  // 1) array completo
   const a = t.match(/\[[\s\S]*\]/);
   if (a) { try { const v = JSON.parse(a[0]); if (Array.isArray(v)) return v; } catch (_) { /* sigue */ } }
-  // 2) uno o varios objetos sueltos
   const objetos: unknown[] = [];
   const re = /\{[^{}]*\}/g;
   let m: RegExpExecArray | null;
@@ -91,11 +104,11 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
+        max_tokens: 6000,
         system: SYSTEM,
         messages: [{
           role: 'user',
-          content: [bloque, { type: 'text', text: 'Extraé los valores de este análisis de suelo. Devolvé un array JSON con un objeto por muestra.' }],
+          content: [bloque, { type: 'text', text: 'Extraé los valores de este análisis de suelo, normalizados al esquema. Devolvé un array JSON con un objeto por muestra.' }],
         }],
       }),
     });
@@ -114,7 +127,7 @@ Deno.serve(async (req: Request) => {
       console.error('leer-analisis: sin JSON interpretable', out.slice(0, 300));
       return json({ error: 'La IA no encontró valores de análisis de suelo en el archivo' }, 422);
     }
-    // Compatibilidad: "datos" = primera muestra; "muestras" = todas
+    console.log('leer-analisis: ok', lista.length, 'muestra(s)');
     return json({ ok: true, datos: lista[0], muestras: lista, n: lista.length });
 
   } catch (e) {
