@@ -1158,20 +1158,42 @@
       });
     }).then(function (r) {
       if (r.error) throw r.error;
-      var d = r.data && r.data.datos;
-      if (!d) throw new Error('No se pudo interpretar el análisis');
-      volcarAnalisis(d);
-      hint.textContent = '✓ Valores cargados por IA. Revisalos y corregí si hace falta antes de guardar.';
+      var muestras = (r.data && r.data.muestras) || (r.data && r.data.datos ? [r.data.datos] : []);
+      if (!muestras.length) throw new Error('La IA no encontró valores de análisis de suelo en el archivo');
+      mostrarMuestrasIA(muestras);
+      volcarAnalisis(muestras[0]);
+      hint.textContent = muestras.length > 1
+        ? '✓ El informe tiene ' + muestras.length + ' muestras: se cargó la primera. Elegí otra abajo si corresponde, revisá y guardá; después repetí "Agregar análisis" para las demás.'
+        : '✓ Valores cargados por IA. Revisalos y corregí si hace falta antes de guardar.';
       toast('Análisis leído: revisá los valores');
     }).catch(function (e) {
       console.error(e);
-      var msg = (e && e.message) || '';
-      hint.textContent = 'No se pudo leer automáticamente. Cargá los valores a mano (el archivo igual se guarda).';
-      toast('No se pudo leer el análisis con IA', true);
+      // El servidor manda el motivo en JSON: lo mostramos en vez de un mensaje genérico
+      var explicar = function (msg) {
+        hint.textContent = 'No se pudo leer automáticamente' + (msg ? ': ' + msg : '') + '. Cargá los valores a mano (el archivo igual se guarda).';
+        toast('No se pudo leer el análisis con IA' + (msg ? ': ' + msg : ''), true);
+      };
+      if (e && e.context && typeof e.context.json === 'function') {
+        e.context.json().then(function (j) { explicar((j && (j.error + (j.detalle ? ' · ' + j.detalle : ''))) || e.message); }).catch(function () { explicar(e.message); });
+      } else explicar((e && e.message) || '');
     }).finally(function () {
       boton.disabled = false; boton.textContent = '✨ Leer análisis con IA y completar solo';
     });
   });
+
+  // Si el informe trae varias muestras (lotes / profundidades), se elige cuál volcar
+  function mostrarMuestrasIA(muestras) {
+    var cont = document.getElementById('muestrasIA');
+    if (!cont) { cont = document.createElement('div'); cont.id = 'muestrasIA'; cont.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;'; document.getElementById('leerIAHint').parentNode.appendChild(cont); }
+    if (muestras.length < 2) { cont.innerHTML = ''; return; }
+    cont.innerHTML = '<span class="muted" style="font-size:12px;align-self:center;">Muestras del informe:</span>' + muestras.map(function (m, i) {
+      var et = [m.muestra, m.profundidad, m.fecha].filter(Boolean).join(' · ') || ('Muestra ' + (i + 1));
+      return '<button type="button" class="btn mini" data-i="' + i + '">' + esc(et) + '</button>';
+    }).join('');
+    cont.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () { volcarAnalisis(muestras[parseInt(b.dataset.i, 10)]); toast('Cargada: ' + b.textContent); });
+    });
+  }
 
   // Vuelca el JSON de la IA en los casilleros (solo lo que vino con valor).
   function volcarAnalisis(d) {
