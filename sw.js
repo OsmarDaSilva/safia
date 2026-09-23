@@ -14,10 +14,10 @@ var SHELL = [
   './mis-campanas.html', './banco.html', './referencia.html', './clima.html', './prediccion.html', './evaluar.html', './rankings.html',
   './operador.html', './eventos.html', './encargado.html', './propietario.html', './analisis.html', './voz.html', './backup.html',
   './safia-theme.css', './safia-sync.js', './safia-pwa.js', './safia-iconos.js', './safia-cultivos-fao.js', './safia-casos.js',
-  './safia-insumos.js', './safia-catalogo.js', './safia-agronomia.js', './safia-mapas.js', './safia-lotes.js', './safia-meta.js',
+  './safia-insumos.js', './safia-catalogo.js', './safia-agronomia.js', './safia-mapas.js', './safia-lotes.js', './safia-ndvi.js', './safia-meta.js',
   './safia-clima.js', './safia-balance.js', './manifest.webmanifest', './icons/safia-192.png', './icons/safia-512.png'
 ];
-var NO_CACHEAR = /supabase\.co|open-meteo\.com|anthropic\.com|arcgisonline\.com\/.*\/tile\/|tile\.openstreetmap\.org/;
+var NO_CACHEAR = /supabase\.co|open-meteo\.com|anthropic\.com|dataspace\.copernicus\.eu|arcgisonline\.com\/.*\/tile\/|tile\.openstreetmap\.org/;
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(VERSION).then(function (c) {

@@ -63,6 +63,7 @@
 <script src="safia-agronomia.js"></script>
 <script src="safia-lotes.js"></script>
 <script src="safia-mapas.js"></script>
+<script src="safia-ndvi.js"></script>
 <script src="safia-meta.js"></script>
 </head>
 <body>
@@ -153,6 +154,7 @@
           <button data-tab="evolucion">📈 Evolución y decisiones</button>
           <button data-tab="meta">Meta de rinde</button>
           <button data-tab="mapas">Mapas georreferenciados</button>
+          <button data-tab="ndvi">Vigor satelital (NDVI)</button>
           <button data-tab="archivos">Archivos y documentos</button>
         </div>
 
@@ -420,6 +422,29 @@
           </div>
         </section>
 
+        <!-- ================= TAB NDVI ================= -->
+        <section class="panel" id="panel-ndvi">
+          <div class="note info">El satélite <b>Sentinel-2</b> pasa cada 5 días y mide el <b>NDVI</b>: cuánta vegetación verde y vigorosa hay en cada lote (0 = suelo desnudo, 1 = canopia cerrada). SAFIA lo calcula sobre el <b>polígono</b> del lote (cargado en Equipos y lotes), descarta las pasadas con nubes y guarda la serie en el banco. Sirve para ver cómo viene el cultivo semana a semana y compararlo con las campañas anteriores del mismo lote a los mismos días desde la siembra.</div>
+
+          <div class="card">
+            <div class="card-h"><h3>Vigor del cultivo por lote</h3><span class="muted" id="ndviEstado"></span></div>
+            <div class="form-grid">
+              <div class="field"><label>Lote / equipo</label><select id="ndviLote"></select></div>
+              <div class="field"><label>Desde</label><input type="date" id="ndviDesde"></div>
+              <div class="field"><label>Hasta</label><input type="date" id="ndviHasta"></div>
+              <div class="field" style="justify-content:flex-end;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn" id="btnNdviCampana" type="button" title="Poner las fechas de la última campaña del lote">Última campaña</button><button class="btn green" id="btnNdviTraer" type="button">Traer del satélite</button></div>
+            </div>
+            <div id="ndviGrafico" style="margin-top:8px;"></div>
+            <div id="ndviResumen"></div>
+          </div>
+
+          <div class="card" style="margin-top:14px;">
+            <div class="card-h"><h3>Comparación entre campañas</h3><span class="muted">misma escala: días desde la siembra</span></div>
+            <div id="ndviCampanas"></div>
+          </div>
+          <div class="muted" style="font-size:11px;margin-top:8px;">Fuente: Sentinel-2 L2A (ESA / Copernicus Data Space), 10 m por píxel, máscara de nubes SCL. NDVI = (B08 − B04) / (B08 + B04).</div>
+        </section>
+
         <!-- ================= TAB ARCHIVOS ================= -->
         <section class="panel" id="panel-archivos">
           <div class="note info">Acá se guardan los <b>documentos</b> del lote: PDF de análisis, facturas de fertilizantes, fotos y archivos originales de la cosechadora (ISO-XML, imágenes). Para que SAFIA <b>lea</b> un mapa de rinde o una grilla de fertilidad, usá la pestaña <b>Mapas georreferenciados</b>.</div>
@@ -589,6 +614,7 @@
     cerrarFormCiclo(); cerrarFormAnalisis();
     pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
     if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
+    if (window.SafiaNDVI) SafiaNDVI.alCambiarCampo();
     llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
@@ -661,6 +687,12 @@
   });
 
   /* ---------- pestañas ---------- */
+  // Otra pantalla puede pedir que el Banco abra en una pestaña (por ejemplo, Equipos → "Vigor satelital")
+  setTimeout(function () {
+    var pedida = null; try { pedida = sessionStorage.getItem('banco_tab'); sessionStorage.removeItem('banco_tab'); } catch (e) {}
+    var b = pedida && document.querySelector('.tabs button[data-tab="' + pedida + '"]');
+    if (b) b.click();
+  }, 400);
   document.querySelectorAll('.tabs button').forEach(function (b) {
     b.addEventListener('click', function () {
       document.querySelectorAll('.tabs button').forEach(function (x) { x.classList.remove('on'); });
@@ -668,6 +700,7 @@
       b.classList.add('on');
       document.getElementById('panel-' + b.dataset.tab).classList.add('on');
       if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
+      if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
       if (b.dataset.tab === 'meta') activarMeta();
     });
   });

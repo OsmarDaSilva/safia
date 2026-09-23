@@ -1370,6 +1370,7 @@
           '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
             '<button type="button" class="btn" onclick="editarEquipo(' + lote.id + ')">Editar</button>' +
             '<button type="button" class="btn" onclick="irACampanas(' + lote.id + ', ' + lote.campoId + ')">Campañas</button>' +
+            '<button type="button" class="btn" onclick="irAlBanco(' + lote.campoId + ', \'ndvi\')">Vigor satelital</button>' +
             '<button type="button" class="btn green" onclick="irAlBanco(' + lote.campoId + ')">Banco agronómico</button>' +
           '</div></div>';
       document.getElementById('mapaFicha').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1438,7 +1439,7 @@
       try { localStorage.setItem('campanas_filtro', JSON.stringify({ clienteId: campo ? String(campo.clienteId) : '', equipoId: String(equipoId) })); } catch (e) {}
       location.href = 'mis-campanas.html';
     }
-    function irAlBanco(campoId) { try { sessionStorage.setItem('banco_campo', String(campoId)); } catch (e) {} location.href = 'banco.html'; }
+    function irAlBanco(campoId, tab) { try { sessionStorage.setItem('banco_campo', String(campoId)); if (tab) sessionStorage.setItem('banco_tab', tab); } catch (e) {} location.href = 'banco.html'; }
     function enfocarLote(id) {
       const eq = leerLS('equipos').find(e => String(e.id) === String(id)); if (!eq || !mapaLotes) return;
       document.getElementById('mapaCampo').value = String(eq.campoId);

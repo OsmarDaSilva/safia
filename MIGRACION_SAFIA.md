@@ -37,7 +37,8 @@ tablas `safia_*`.
    subir los archivos (Storage → Download / Upload, o con la CLI de Supabase).
    Las rutas (`campo_<id>/...`) quedan iguales, así los registros de
    `safia_archivos` y `safia_analisis` siguen apuntando bien.
-5. **Desplegar las funciones**: `supabase functions deploy safia-leer-analisis`
+5. **Desplegar las funciones**: `supabase functions deploy safia-leer-analisis` (también `safia-leer-ficha-equipo` y `safia-ndvi`)
+6. **NDVI satelital**: correr `supabase/sql/safia_ndvi.sql` en el SQL Editor; crear una cuenta gratis en https://dataspace.copernicus.eu → Dashboard → User settings → OAuth clients → Create; cargar `CDSE_CLIENT_ID` y `CDSE_CLIENT_SECRET` en Edge Functions → Secrets del proyecto nuevo.
    y `safia-leer-ficha-equipo` contra el proyecto nuevo, y cargar el secreto
    `ANTHROPIC_API_KEY` en Edge Functions → Secrets (Osmar lo pega; nunca va
    en el código).
