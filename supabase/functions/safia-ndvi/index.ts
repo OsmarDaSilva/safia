@@ -104,16 +104,15 @@ Deno.serve(async (req: Request) => {
       const fecha = String(cuerpo.fecha || '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return json({ error: 'Falta la fecha de la imagen' }, 400);
       const b = limites(partes);
-      // margen de 5 % alrededor del lote
-      const mLat = (b.maxLat - b.minLat) * 0.05 || 0.001, mLon = (b.maxLon - b.minLon) * 0.05 || 0.001;
-      const bbox = [b.minLon - mLon, b.minLat - mLat, b.maxLon + mLon, b.maxLat + mLat];
+      // la imagen se recorta al polígono del lote (afuera queda transparente); sus límites son los del polígono
+      const bbox = [b.minLon, b.minLat, b.maxLon, b.maxLat];
       const ancho = Math.min(1200, Math.max(200, Number(cuerpo.ancho) || 700));
       const kLat = Math.cos((b.minLat + b.maxLat) / 2 * Math.PI / 180);
       const alto = Math.min(1200, Math.max(100, Math.round(ancho * (bbox[3] - bbox[1]) / ((bbox[2] - bbox[0]) * kLat))));
       const tk2 = await token(id, secreto);
       const pedidoImg = {
         input: {
-          bounds: { bbox, properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' } },
+          bounds: { geometry: geometria(partes), properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' } },
           data: [{ type: 'sentinel-2-l2a', dataFilter: { timeRange: { from: fecha + 'T00:00:00Z', to: fecha + 'T23:59:59Z' }, mosaickingOrder: 'leastCC' } }],
         },
         output: { width: ancho, height: alto, responses: [{ identifier: 'default', format: { type: 'image/png' } }] },
