@@ -89,7 +89,7 @@
     var lotes = lotesDelCampo();
     var filas = lotes.map(function (l) {
       var camps = leer('campanas').filter(function (c) { return String(c.equipoId) === String(l.id); }).length;
-      return '<tr>' + td('<b>' + esc(l.nombre) + '</b>') + td(esc(SafiaLotes.NOMBRE_TIPO[l.tipo] || l.tipo || '') + (l.marca ? ' · ' + esc(l.marca) + (l.modelo ? ' ' + esc(l.modelo) : '') : '')) + td(l.superficie ? fmt(l.superficie, 1) : '—', 1) + td(l.poligono ? fmt(l.poligono.ha, 1) : '—', 1) + td(camps, 1) + td(l.gps ? esc(l.gps) : (l.poligono && l.poligono.centro ? l.poligono.centro.lat + ', ' + l.poligono.centro.lon : '—')) + '</tr>';
+      return '<tr>' + td('<b>' + esc(l.nombre) + '</b>') + td(esc(SafiaLotes.NOMBRE_TIPO[l.tipo] || l.tipo || '') + (l.marca ? '<div class="sub">' + esc(l.marca) + (l.modelo ? ' ' + esc(String(l.modelo).length > 38 ? String(l.modelo).slice(0, 38) + '…' : l.modelo) : '') + '</div>' : '')) + td(l.superficie ? fmt(l.superficie, 1) : '—', 1) + td(l.poligono ? fmt(l.poligono.ha, 1) : '—', 1) + td(camps, 1) + td(l.gps ? esc(l.gps) : (l.poligono && l.poligono.centro ? l.poligono.centro.lat + ', ' + l.poligono.centro.lon : '—')) + '</tr>';
     });
     var html = '<h2>Lotes</h2>' + tabla([{ t: 'Lote' }, { t: 'Tipo / equipo' }, { t: 'Ha declaradas', r: 1 }, { t: 'Ha según polígono', r: 1 }, { t: 'Campañas', r: 1 }, { t: 'Ubicación' }], filas);
     html += '<div id="imagenesLotes" class="dos" style="margin-top:10px;"></div>';
@@ -102,13 +102,19 @@
     lotes.forEach(function (l) {
       var s = (SafiaNDVI.serieDe(l.id) || []).filter(function (p) { return !(p.nubes_pct > 40); });
       if (!s.length) return;
-      var p = s[s.length - 1];
-      var caja = document.createElement('div'); caja.innerHTML = '<div class="sub">' + esc(l.nombre) + ' · imagen del ' + fmtF(p.fecha) + ' · cargando…</div>';
-      cont.appendChild(caja);
-      window.safiaSupabase.functions.invoke('safia-ndvi', { body: { tipo: 'imagen', equipoId: String(l.id), partes: l.poligono.partes, fecha: p.fecha, capa: 'ndvi', ancho: 500 } }).then(function (r) {
-        var d = r.data || {}; if (r.error || !d.ok) { caja.innerHTML = '<div class="sub">' + esc(l.nombre) + ': sin imagen (' + esc((r.error && r.error.message) || d.error || 'error') + ')</div>'; return; }
-        caja.innerHTML = '<div class="sub" style="margin-bottom:3px;"><b>' + esc(l.nombre) + '</b> · NDVI del ' + fmtF(p.fecha) + ' · promedio ' + fmt(p.ndvi, 2) + '</div><img class="sat" src="data:image/png;base64,' + d.png + '" alt="NDVI ' + esc(l.nombre) + '"><div class="sub">Verde oscuro = canopia cerrada; amarillo y marrón = menor vigor o suelo desnudo.</div>';
-      }).catch(function (e) { caja.innerHTML = '<div class="sub">' + esc(l.nombre) + ': sin imagen (' + esc(e.message) + ')</div>'; });
+      var ult = s[s.length - 1];
+      var desde = new Date(ult.fecha + 'T12:00:00'); desde.setDate(desde.getDate() - 365);
+      var pico = s.filter(function (x) { return x.fecha >= desde.toISOString().slice(0, 10); }).reduce(function (a, b) { return !a || b.ndvi > a.ndvi ? b : a; }, null);
+      var pedidos = [{ p: ult, titulo: 'Última pasada' }]; if (pico && pico.fecha !== ult.fecha) pedidos.push({ p: pico, titulo: 'Pico de vigor de los últimos 12 meses' });
+      pedidos.forEach(function (pd) {
+        var p = pd.p, caja = document.createElement('div');
+        caja.innerHTML = '<div class="sub">' + esc(l.nombre) + ' · ' + pd.titulo + ' · ' + fmtF(p.fecha) + ' · cargando…</div>';
+        cont.appendChild(caja);
+        window.safiaSupabase.functions.invoke('safia-ndvi', { body: { tipo: 'imagen', equipoId: String(l.id), partes: l.poligono.partes, fecha: p.fecha, capa: 'ndvi', ancho: 500 } }).then(function (r) {
+          var d = r.data || {}; if (r.error || !d.ok) { caja.innerHTML = '<div class="sub">' + esc(l.nombre) + ': sin imagen (' + esc((r.error && r.error.message) || d.error || 'error') + ')</div>'; return; }
+          caja.innerHTML = '<div class="sub" style="margin-bottom:3px;"><b>' + esc(l.nombre) + '</b> · ' + pd.titulo + ' · ' + fmtF(p.fecha) + ' · NDVI ' + fmt(p.ndvi, 2) + '</div><img class="sat" src="data:image/png;base64,' + d.png + '" alt="NDVI ' + esc(l.nombre) + '"><div class="sub">Verde oscuro = canopia cerrada; amarillo y marrón = menor vigor o suelo desnudo.</div>';
+        }).catch(function (e) { caja.innerHTML = '<div class="sub">' + esc(l.nombre) + ': sin imagen (' + esc(e.message) + ')</div>'; });
+      });
     });
   }
 
