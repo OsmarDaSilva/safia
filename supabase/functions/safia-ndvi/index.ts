@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const tk = await token(id, secreto);
     const pedido = {
       input: {
-        bounds: { geometry: geometria(partes), properties: { crs: 'http://www.opengis.net/gml/srs/epsg.xml#4326' } },
+        bounds: { geometry: geometria(partes), properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' } },
         data: [{ type: 'sentinel-2-l2a', dataFilter: { mosaickingOrder: 'leastCC', maxCloudCoverage: 90 } }],
       },
       aggregation: {
@@ -95,7 +95,7 @@ Deno.serve(async (req: Request) => {
       const st = it?.outputs?.ndvi?.bands?.B0?.stats; if (!st) continue;
       const total = Number(st.sampleCount || 0), sinDato = Number(st.noDataCount || 0), validos = total - sinDato;
       if (!total || validos <= 0 || !isFinite(Number(st.mean))) continue;
-      const pct = it.outputs.ndvi.bands.B0.percentiles || {};
+      const pct = st.percentiles || it.outputs.ndvi.bands.B0.percentiles || {};   // la API los devuelve dentro de stats
       const nubes = Math.round(sinDato / total * 1000) / 10;
       if (nubes > 70) continue;   // con más del 70 % del lote tapado la media no representa al lote
       const r2 = (v: unknown) => (v === null || v === undefined || !isFinite(Number(v))) ? null : Math.round(Number(v) * 1000) / 1000;
