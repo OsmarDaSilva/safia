@@ -1,0 +1,22 @@
+{
+  "name": "SAFIA — Smart Agro Intelligence",
+  "short_name": "SAFIA",
+  "description": "Gestión de riego, campañas, suelo y agua. Funciona sin conexión y sincroniza cuando vuelve internet.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F3D14",
+  "theme_color": "#0F3D14",
+  "icons": [
+    { "src": "icons/safia-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/safia-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/safia-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Operador (riego y lluvia)", "url": "./operador.html", "icons": [{ "src": "icons/safia-192.png", "sizes": "192x192" }] },
+    { "name": "Campañas", "url": "./mis-campanas.html", "icons": [{ "src": "icons/safia-192.png", "sizes": "192x192" }] },
+    { "name": "Banco Agronómico", "url": "./banco.html", "icons": [{ "src": "icons/safia-192.png", "sizes": "192x192" }] }
+  ]
+}

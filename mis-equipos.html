@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Equipos y lotes</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0F3D14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SAFIA">
+  <link rel="apple-touch-icon" href="icons/safia-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -253,6 +258,7 @@
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
+<script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-lotes.js"></script>
@@ -607,6 +613,13 @@
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
             <select id="mapaCampo" style="max-width:380px;"></select>
             <span class="muted" id="mapaResumen" style="font-size:12px;color:#6B6356;"></span>
+          </div>
+          <div id="mapaHerramientas" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+            <button type="button" class="btn" id="btnDibujarLote">Dibujar un lote nuevo</button>
+            <button type="button" class="btn" id="btnEditarContorno">Editar el contorno del lote seleccionado</button>
+            <button type="button" class="btn green" id="btnContornoGuardar" style="display:none;">Guardar contorno</button>
+            <button type="button" class="btn" id="btnContornoCancelar" style="display:none;">Cancelar</button>
+            <span id="mapaAyudaDibujo" style="font-size:12px;color:#6B6356;"></span>
           </div>
           <div id="mapaLotes" style="height:470px;border-radius:10px;background:#EEF0F2;"></div>
           <div id="mapaFicha"></div>
@@ -1330,6 +1343,7 @@
     }
     function pintarMapaLotes() {
       if (!mapaLotes) return;
+      if (loteEnEdicion) return;   // mientras se dibuja o edita un contorno, no se redibuja el mapa
       llenarSelectorMapa();
       const campoId = document.getElementById('mapaCampo').value;
       const campo = leerLS('campos').find(c => String(c.id) === String(campoId)) || null;
@@ -1360,6 +1374,65 @@
           '</div></div>';
       document.getElementById('mapaFicha').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+    /* ---- dibujar y editar contornos sobre el mapa ---- */
+    var loteEnEdicion = null;
+    function ayudaDibujo(t) { document.getElementById('mapaAyudaDibujo').textContent = t || ''; }
+    function modoEdicion(activo) {
+      document.getElementById('btnDibujarLote').style.display = activo ? 'none' : '';
+      document.getElementById('btnEditarContorno').style.display = activo ? 'none' : '';
+      document.getElementById('btnContornoGuardar').style.display = activo ? '' : 'none';
+      document.getElementById('btnContornoCancelar').style.display = activo ? '' : 'none';
+    }
+    document.getElementById('btnDibujarLote').addEventListener('click', function () {
+      if (!mapaLotes) { mostrarToast('El mapa todavía no cargó'); return; }
+      const campoId = document.getElementById('mapaCampo').value;
+      if (campoId && !document.getElementById('campo').value) { document.getElementById('campo').value = campoId; actualizarClienteMostrado(); }
+      modoEdicion(true); loteEnEdicion = 'nuevo';
+      ayudaDibujo('Hacé clic en cada esquina del lote sobre la imagen satelital; cerrá haciendo clic en el primer punto (o doble clic).');
+      document.getElementById('btnContornoGuardar').style.display = 'none';
+      mapaLotes.dibujar(function (it) {
+        modoEdicion(false); loteEnEdicion = null;
+        it.nombre = ''; aplicarPoligono(it);
+        ayudaDibujo('Contorno dibujado: ' + SafiaLotes.fmtHa(it.ha) + '. Completá nombre y tipo en el formulario de arriba y guardá el lote.');
+        document.getElementById('poligonoHint').textContent = 'Contorno dibujado en el mapa: ' + SafiaLotes.fmtHa(it.ha) + '. Poné nombre y tipo, y guardá.';
+        document.getElementById('nombre').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('nombre').focus();
+      }).catch(function (e) { modoEdicion(false); ayudaDibujo('No se pudo cargar la herramienta de dibujo (' + e.message + ').'); });
+    });
+    document.getElementById('btnEditarContorno').addEventListener('click', function () {
+      if (!mapaLotes) return;
+      const id = mapaLotes.seleccionado();
+      if (!id) { ayudaDibujo('Primero hacé clic en un lote del mapa para seleccionarlo.'); return; }
+      mapaLotes.editar(id).then(function (ok) {
+        if (!ok) { ayudaDibujo('Ese lote no tiene contorno todavía: usá "Dibujar un lote nuevo" o subí el KML.'); return; }
+        modoEdicion(true); loteEnEdicion = id;
+        ayudaDibujo('Arrastrá los vértices; clic en un punto intermedio para agregar uno; clic derecho sobre un vértice para quitarlo. Después "Guardar contorno".');
+      });
+    });
+    document.getElementById('btnContornoGuardar').addEventListener('click', function () {
+      if (!mapaLotes || !loteEnEdicion || loteEnEdicion === 'nuevo') return;
+      const nuevo = mapaLotes.terminarEdicion(loteEnEdicion, true);
+      if (nuevo) {
+        let equipos = leerLS('equipos');
+        const eq = equipos.find(e => String(e.id) === String(loteEnEdicion));
+        if (eq) {
+          const haAnterior = eq.poligono ? Math.round(eq.poligono.ha * 10) / 10 : null;
+          eq.poligono = Object.assign({}, eq.poligono || {}, nuevo, { fechaCarga: new Date().toISOString() });
+          // la superficie declarada se actualiza solo si seguía al polígono anterior
+          if (!eq.superficie || haAnterior === Math.round(parseFloat(eq.superficie) * 10) / 10) eq.superficie = String(Math.round(nuevo.ha * 10) / 10);
+          if (nuevo.centro) eq.gps = nuevo.centro.lat + ', ' + nuevo.centro.lon;
+          eq.fechaModificacion = new Date().toISOString();
+          localStorage.setItem('equipos', JSON.stringify(equipos));
+          mostrarToast('Contorno de "' + eq.nombre + '" guardado: ' + SafiaLotes.fmtHa(nuevo.ha));
+        }
+      }
+      modoEdicion(false); loteEnEdicion = null; ayudaDibujo('');
+      mostrarEquipos();
+    });
+    document.getElementById('btnContornoCancelar').addEventListener('click', function () {
+      if (mapaLotes) { if (loteEnEdicion === 'nuevo') mapaLotes.cancelarDibujo(); else if (loteEnEdicion) mapaLotes.terminarEdicion(loteEnEdicion, false); }
+      modoEdicion(false); loteEnEdicion = null; ayudaDibujo('');
+    });
     function irACampanas(equipoId, campoId) {
       const campo = leerLS('campos').find(c => String(c.id) === String(campoId));
       try { localStorage.setItem('campanas_filtro', JSON.stringify({ clienteId: campo ? String(campo.clienteId) : '', equipoId: String(equipoId) })); } catch (e) {}

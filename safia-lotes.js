@@ -15,6 +15,8 @@
   var LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
   var SHP_JS = 'https://unpkg.com/shpjs@6.1.0/dist/shp.js';
   var JSZIP_JS = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  var GEOMAN_JS = 'https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.3/dist/leaflet-geoman.min.js';
+  var GEOMAN_CSS = 'https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.3/dist/leaflet-geoman.css';
 
   var COLOR_TIPO = { pivote: '#2E7D32', goteo: '#1565C0', microaspersion: '#1565C0', aspersion: '#0288D1', canon: '#00838F', superficie: '#6A1B9A', secano: '#C77800', otro: '#546E7A' };
   var NOMBRE_TIPO = { pivote: 'Pivote', canon: 'Cañón', goteo: 'Goteo', microaspersion: 'Microaspersión', aspersion: 'Aspersión', superficie: 'Superficie', secano: 'Secano (sin riego)', otro: 'Otro' };
@@ -185,6 +187,8 @@
         Object.keys(capasPorId).forEach(function (k) { var c = capasPorId[k]; if (c.poligono) c.poligono.setStyle(estilo(c.lote, String(k) === String(id))); });
         seleccionadoId = id;
       }
+      // Geoman se engancha a los mapas creados después de cargarlo; este mapa ya existía, así que se inicializa a mano
+      function asegurarPM() { var L = window.L; if (!mapa.pm) mapa.pm = new L.PM.Map(mapa); mapa.pm.setLang('es'); }
       var api = {
         mapa: mapa,
         // lotes: [{ id, nombre, tipo, superficie, poligono, gps }]; campo: { latitud, longitud, nombre }
@@ -244,10 +248,57 @@
         },
         seleccionar: seleccionar,
         seleccionado: function () { return seleccionadoId; },
-        redimensionar: function () { mapa.invalidateSize(); }
+        redimensionar: function () { mapa.invalidateSize(); },
+        /* ---- dibujo a mano (Leaflet-Geoman) ---- */
+        // Dibujar un contorno nuevo: alTerminar({ partes, ha, centro })
+        dibujar: function (alTerminar) {
+          cargarCSS(GEOMAN_CSS);
+          return cargarScript(GEOMAN_JS).then(function () {
+            asegurarPM();
+            mapa.pm.setGlobalOptions({ allowSelfIntersection: false, snappable: true, snapDistance: 12, templineStyle: { color: '#FFB300' }, hintlineStyle: { color: '#FFB300', dashArray: '6 4' }, pathOptions: { color: '#FFB300', fillColor: '#FFB300', fillOpacity: 0.2, weight: 2 } });
+            mapa.off('pm:create');
+            mapa.on('pm:create', function (e) {
+              var capa = e.layer; var partes = partesDeLatLngs(capa.getLatLngs());
+              mapa.removeLayer(capa);
+              if (alTerminar) alTerminar({ partes: partes, ha: hectareas(partes), centro: centro(partes), origen: 'dibujado en el mapa' });
+            });
+            mapa.pm.enableDraw('Polygon', { continueDrawing: false, finishOn: 'dblclick' });
+          });
+        },
+        cancelarDibujo: function () { if (mapa.pm) { mapa.pm.disableDraw(); } },
+        // Editar el contorno de un lote ya dibujado: mover vértices, agregar (clic en el medio) o quitar (clic derecho)
+        editar: function (id) {
+          if (!capasPorId[id] || !capasPorId[id].poligono) return Promise.resolve(false);
+          cargarCSS(GEOMAN_CSS);
+          return cargarScript(GEOMAN_JS).then(function () {
+            asegurarPM();
+            var c = capasPorId[id]; if (!c || !c.poligono) return false;   // se busca recién acá por si el mapa se redibujó mientras cargaba
+            seleccionar(id);
+            if (!c.poligono.pm) window.L.PM.reInitLayer(c.poligono);
+            c.poligono.pm.enable({ allowSelfIntersection: false, removeLayerBelowMinVertexCount: false });
+            return true;
+          });
+        },
+        // Termina la edición: devuelve el contorno nuevo (guardar=true) o repone el original (guardar=false)
+        terminarEdicion: function (id, guardar) {
+          var c = capasPorId[id]; if (!c || !c.poligono) return null;
+          var nuevo = null;
+          if (guardar) { var partes = partesDeLatLngs(c.poligono.getLatLngs()); nuevo = { partes: partes, ha: hectareas(partes), centro: centro(partes), origen: 'editado en el mapa' }; }
+          else c.poligono.setLatLngs(c.lote.poligono.partes);
+          if (c.poligono.pm) c.poligono.pm.disable();
+          return nuevo;
+        }
       };
       return api;
     });
+  }
+  // getLatLngs() de un polígono de Leaflet → partes [[exterior, hueco...], ...] con puntos [lat, lon]
+  function partesDeLatLngs(ll) {
+    function anillo(a) { return a.map(function (p) { return [Math.round(p.lat * 1e6) / 1e6, Math.round(p.lng * 1e6) / 1e6]; }); }
+    if (!ll || !ll.length) return [];
+    if (ll[0] && ll[0].lat !== undefined) return [[anillo(ll)]];                 // un anillo suelto
+    if (ll[0][0] && ll[0][0].lat !== undefined) return [ll.map(anillo)];         // anillos (exterior + huecos)
+    return ll.map(function (poli) { return poli.map(anillo); });               // multipolígono
   }
   function gpsDe(texto) {
     if (!texto) return null;
@@ -265,6 +316,6 @@
   window.SafiaLotes = {
     leerArchivo: leerArchivo, leerKML: leerKML, leerGeoJSON: leerGeoJSON,
     hectareas: hectareas, centro: centro, limites: limites, gpsDe: gpsDe, fmtHa: fmtHa,
-    crearMapa: crearMapa, COLOR_TIPO: COLOR_TIPO, NOMBRE_TIPO: NOMBRE_TIPO
+    crearMapa: crearMapa, partesDeLatLngs: partesDeLatLngs, COLOR_TIPO: COLOR_TIPO, NOMBRE_TIPO: NOMBRE_TIPO
   };
 })();
