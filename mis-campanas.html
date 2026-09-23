@@ -1382,6 +1382,19 @@
     /* Trae el resumen climático del ciclo (siembra → cosecha) desde el
        histórico de Open-Meteo y lo guarda en la campaña. Si forzar=false y
        ya está cargado para esas mismas fechas, no vuelve a consultar. */
+    // Campañas con cosecha y sin clima del ciclo (o con clima de otras fechas): se completan solas, de a una
+    function completarClimaFaltante() {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const pendientes = campanas.filter(c => {
+        const cu = (c.cultivos || [])[0];
+        const hasta = (cu && cu.fechaCosecha) || (c.cosecha && c.cosecha.fecha);
+        if (!cu || !cu.fechaSiembra || !hasta || hasta < cu.fechaSiembra) return false;
+        if (!c.cosecha && !(c.cosechas && Object.keys(c.cosechas).length)) return false;
+        return !c.clima || c.clima.desde !== cu.fechaSiembra || c.clima.hasta !== hasta;
+      });
+      pendientes.forEach((c, i) => setTimeout(function () { traerClimaDeCampana(c.id, false); }, i * 1200));
+    }
+
     function traerClimaDeCampana(campanaId, forzar) {
       if (!window.SafiaCasos) return;
       const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
@@ -1478,6 +1491,8 @@
         localStorage.setItem('campanas', JSON.stringify(campanas));
       }
 
+      // El clima del ciclo (temperatura, grados-día, ET0) se trae solo al cerrar la cosecha
+      (function (id) { setTimeout(function () { traerClimaDeCampana(id, false); }, 500); })(cosechandoCampanaId);
       cerrarModalCosecha();
       mostrarCampanas();
       // El clima del ciclo se trae solo (temperatura, grados-día, ET0) y se
@@ -1725,6 +1740,7 @@
       cargarFiltros();
       mostrarCampanas();
       setTimeout(function () { recalcularLluviasDesactualizadas(); }, 1500);
+      setTimeout(completarClimaFaltante, 3000);
       agregarCultivo();
     };
 
