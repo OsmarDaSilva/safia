@@ -139,8 +139,9 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Permisos por rol | ⬜ |
 | Sincronización por registro (no por colección) | ⬜ antes de roles |
 | Publicación en Vercel (uso desde celular; ya está lista como app instalable) | ⬜ |
-| Estación meteorológica e imágenes satelitales | ⬜ |
-| Consultor en vivo (Motor 5) | ⬜ |
+| Imágenes satelitales (NDVI por lote e imagen del lote) | ✅ 23-sep-2026 |
+| Estación meteorológica y telemetría del pivote | ⬜ |
+| Consultor en vivo (Motor 5) | ✅ primera versión con NDVI (23-sep-2026); faltan alertas automáticas |
 | Asistente IA agronómico | ⬜ |
 | Geocodificar las 43 localidades de la referencia (comparar por cercanía también contra la base regional) | ⬜ |
 | Reemplazar alert()/confirm() nativos por avisos en pantalla (56 + 9 lugares) | ⬜ |
