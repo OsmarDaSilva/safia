@@ -24,7 +24,20 @@
        +5–8 % de rinde promedio; inoculación anual recomendada.
    [9] FAO 56 / Embrapa: necesidad de agua soja 450–700 mm, maíz
        500–800 mm por ciclo según clima; el déficit en floración y
-       llenado baja el rinde casi proporcionalmente. */
+       llenado baja el rinde casi proporcionalmente.
+   [10] Embrapa (estudio multianual, 2026): soja sobre braquiaria u otras
+        gramíneas tropicales rindió en promedio +15 % (+515 kg/ha).
+   [11] Fundação MS: soja después de Brachiaria brizantha Piatã en vez de
+        maíz safrinha tardío: +17 %; "8 sacas más por hectárea" en 6
+        zafras seguidas; menos nematodos, más estabilidad en seca.
+   [12] Embrapa Soja / IDR-Paraná 2024/25: co-inoculación +8,33 % de
+        promedio en unidades de referencia (3.916 kg/ha); ensayos previos
+        hasta +16 % frente a inocular solo con Bradyrhizobium.
+   [13] CESB (Desafio Nacional de Máxima Produtividade): los lotes de más
+        de 100 sacas (6.000 kg/ha) comparten fertilidad construida, perfil
+        corregido, rotación con gramíneas, calidad de semilla, población
+        y stand uniformes, sanidad preventiva y mitigación de estrés.
+   Validación completa en FUNDAMENTOS_META_RINDE.md. */
 (function () {
   'use strict';
 
@@ -184,19 +197,19 @@
     if (cu === 'maiz' && !(man.cargado && (man.microSemilla || man.foliares))) item({ k: 'zinc', tipo: 'manejo', nombre: 'Zinc', hoy: man.cargado ? 'sin Zn' : 'no registrado', objetivo: 'Zn en semilla o foliar V4–V6', accion: 'Zinc en semilla o 1 foliar de Zn + B', costo: pr.znUSDha, aporteMin: 0.02, aporteMax: 0.06, fuente: 'Embrapa Milho: Zn es el micro más limitante en suelos ácidos' });
     /* 7. Manejo: inoculación, tratamiento, cobertura, siembra, protección */
     if (cu === 'soja') {
-      if (!(man.cargado && man.inoculacion)) item({ k: 'inoculacion', tipo: 'manejo', nombre: 'Inoculación + co-inoculación', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'Bradyrhizobium + Azospirillum cada siembra', accion: 'Inocular (líquido en el surco o en semilla) y co-inocular', costo: pr.inoculanteUSDha + pr.coinoculanteUSDha, aporteMin: 0.05, aporteMax: 0.15, fuente: '[8]' });
-      else if (!man.coinoculacion) item({ k: 'coinoculacion', tipo: 'manejo', nombre: 'Co-inoculación', hoy: 'solo Bradyrhizobium', objetivo: '+ Azospirillum brasilense', accion: 'Agregar co-inoculante', costo: pr.coinoculanteUSDha, aporteMin: 0.03, aporteMax: 0.08, fuente: '[8]' });
+      if (!(man.cargado && man.inoculacion)) item({ k: 'inoculacion', tipo: 'manejo', nombre: 'Inoculación + co-inoculación', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'Bradyrhizobium + Azospirillum cada siembra', accion: 'Inocular (líquido en el surco o en semilla) y co-inocular', costo: pr.inoculanteUSDha + pr.coinoculanteUSDha, aporteMin: 0.05, aporteMax: 0.15, fuente: '[8][12]' });
+      else if (!man.coinoculacion) item({ k: 'coinoculacion', tipo: 'manejo', nombre: 'Co-inoculación', hoy: 'solo Bradyrhizobium', objetivo: '+ Azospirillum brasilense', accion: 'Agregar co-inoculante (líquido en el surco o en semilla)', costo: pr.coinoculanteUSDha, aporteMin: 0.05, aporteMax: 0.10, fuente: '[8][12]' });
     }
     if (!(man.cargado && man.tratamientoSemilla)) item({ k: 'tratamiento', tipo: 'manejo', nombre: 'Tratamiento de semilla', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'fungicida + insecticida', accion: 'Tratar la semilla (fungicida + insecticida) para stand parejo', costo: pr.tratamientoSemillaUSDha, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa Soja / BASF PY' });
     var rot = caso.rotacion || {};
-    if (rot.cargada && !rot.conCobertura) item({ k: 'cobertura', tipo: 'manejo', nombre: 'Cobertura de invierno', hoy: 'sin cobertura', objetivo: (bm && bm.cobertura != null ? fmt(bm.cobertura * 100, 0) + ' % de los que rinden ≥ meta usan cobertura' : 'brachiaria, avena o mix'), accion: 'Sembrar cobertura después de la cosecha (brachiaria ruziziensis, avena, mix)', recurrente: pr.coberturaUSDha, alcance: 'lote', aporteMin: 0.03, aporteMax: 0.08, fuente: 'Embrapa (Santa Fe / ILP): MO, malezas, agua' });
+    if (rot.cargada && !rot.conCobertura) item({ k: 'cobertura', tipo: 'manejo', nombre: 'Cobertura de invierno', hoy: 'sin cobertura', objetivo: (bm && bm.cobertura != null ? fmt(bm.cobertura * 100, 0) + ' % de los que rinden ≥ meta usan cobertura' : 'brachiaria, avena o mix'), accion: 'Sembrar cobertura después de la cosecha (brachiaria ruziziensis, avena, mix)', recurrente: pr.coberturaUSDha, alcance: 'lote', aporteMin: 0.05, aporteMax: 0.15, fuente: '[10][11] Embrapa +15 %, Fundação MS +17 %' });
     if (opciones.subsolado && !rot.convencional) item({ k: 'subsolado', tipo: 'suelo', nombre: 'Subsolado / descompactación', hoy: rot.subsolado ? 'ya se subsoló' : 'sin dato de compactación', objetivo: 'perfil sin capa compactada (medir con penetrómetro)', accion: 'Una pasada de subsolador a 35–45 cm antes de la cobertura; después no remover más', inversion: pr.subsoladoUSDha, vidaUtil: 3, aporteMin: 0.02, aporteMax: 0.08, fuente: 'Embrapa: compactación en suelos arcillosos con tránsito' });
     if (opciones.nivelacion) item({ k: 'nivelacion', tipo: 'suelo', nombre: 'Nivelación / sistematización', hoy: 'incluida por decisión del usuario', objetivo: 'sin encharcamientos ni erosión; riego parejo', accion: 'Nivelar y sistematizar el lote (terrazas, desagües) una vez', inversion: pr.nivelacionUSDha, vidaUtil: 8, aporteMin: 0.01, aporteMax: 0.05, fuente: 'práctica de campo' });
     if (opciones.otrosUSD > 0) item({ k: 'otros', tipo: 'suelo', nombre: 'Otros trabajos de preparación', hoy: opciones.otrosDetalle || 'indicado por el usuario', objetivo: '—', accion: opciones.otrosDetalle || 'Trabajos adicionales de preparación del lote', inversion: opciones.otrosUSD, vidaUtil: opciones.otrosVida || 5, aporteMin: 0, aporteMax: 0.03, fuente: 'usuario' });
     if (rot.convencional) item({ k: 'directa', tipo: 'manejo', nombre: 'Siembra directa', hoy: 'convencional (rastroneada)', objetivo: 'directa sobre cobertura o rastrojo', accion: 'Pasar a siembra directa; si hay compactación, subsolar una vez y sembrar cobertura', inversion: pr.subsoladoUSDha, vidaUtil: 3, aporteMin: 0.03, aporteMax: 0.08, fuente: 'Manual RS/SC / Embrapa' });
-    if (rot.sojaSobreSoja) item({ k: 'rotacion', tipo: 'manejo', nombre: 'Rotación', hoy: 'soja sobre soja', objetivo: 'maíz, trigo o gramínea antes de la soja', accion: 'Rotar: maíz zafriña o cobertura de gramínea entre sojas', costo: 0, aporteMin: 0.05, aporteMax: 0.12, fuente: 'Embrapa Soja: rotación con gramíneas' });
+    if (rot.sojaSobreSoja) item({ k: 'rotacion', tipo: 'manejo', nombre: 'Rotación', hoy: 'soja sobre soja', objetivo: 'maíz, trigo o gramínea antes de la soja', accion: 'Rotar: maíz zafriña o cobertura de gramínea entre sojas', costo: 0, aporteMin: 0.05, aporteMax: 0.12, fuente: '[10][11][13] rotación con gramíneas' });
     var nFung = man.cargado ? (man.fungicidas || 0) : null, fungObj = cu === 'soja' ? 2 : 1;
-    if (nFung != null && nFung < fungObj) item({ k: 'fungicidas', tipo: 'manejo', nombre: 'Fungicidas', hoy: nFung + ' aplicación(es)', objetivo: fungObj + '+ (' + (cu === 'soja' ? 'roya y mancha' : 'manchas foliares') + ')', accion: 'Sumar ' + (fungObj - nFung) + ' aplicación(es) preventiva(s) en R1–R5', costo: (fungObj - nFung) * pr.fungicidaUSDapl, aporteMin: 0.05, aporteMax: 0.15, fuente: 'Embrapa Soja (ensayos de roya)' });
+    if (nFung != null && nFung < fungObj) item({ k: 'fungicidas', tipo: 'manejo', nombre: 'Fungicidas', hoy: nFung + ' aplicación(es)', objetivo: fungObj + '+ (' + (cu === 'soja' ? 'roya y mancha' : 'manchas foliares') + ')', accion: 'Sumar ' + (fungObj - nFung) + ' aplicación(es) preventiva(s) en R1–R5', costo: (fungObj - nFung) * pr.fungicidaUSDapl, aporteMin: 0.05, aporteMax: 0.15, fuente: 'Embrapa Soja: la roya sin control pierde hasta 90 %; 2–3 aplicaciones preventivas' });
     /* 8. Agua */
     var agua = caso.aguaTotalMM, necesita = (caso.clima && caso.clima.et0Total) ? Math.round(caso.clima.et0Total * 1.0) : AGUA_NECESARIA[cu];
     if (agua != null) {
@@ -205,6 +218,8 @@
       else if (deficit > 30) item({ k: 'agua', tipo: 'agua', nombre: 'Agua del ciclo', hoy: fmt(agua, 0) + ' mm en secano', objetivo: fmt(necesita, 0) + ' mm', accion: 'Faltaron ~' + fmt(deficit, 0) + ' mm: es el techo del secano; con riego se cubre', costo: 0, aporteMin: 0, aporteMax: clamp(deficit / necesita, 0.05, 0.30), condicional: true, fuente: '[9]' });
       else item({ k: 'agua', tipo: 'agua', nombre: 'Agua del ciclo', hoy: fmt(agua, 0) + ' mm', objetivo: fmt(necesita, 0) + ' mm', accion: 'Cubierta. Cuidar el momento: sin déficit en floración y llenado', costo: 0, fuente: '[9]' });
     }
+    /* 8b. Semilla, población y stand (CESB) — informativo */
+    item({ k: 'stand', tipo: 'manejo', nombre: 'Calidad de semilla, población y stand', hoy: caso.densidad ? fmt(caso.densidad, 0) + ' plantas/ha' : 'densidad sin dato', objetivo: 'semilla de alto vigor, población recomendada para el material y stand parejo (plantabilidad)', accion: 'Revisar vigor y germinación de la semilla, regular la sembradora (velocidad ≤ 6 km/h, profundidad uniforme) y ajustar la población a la variedad; los lotes de más de 6.000 kg/ha del CESB lo tienen como base', costo: 0, fuente: '[13]' });
     /* 9. Genética (informativo) */
     if (bm && bm.variedades.length) { var vs = {}; bm.variedades.forEach(function (x) { vs[x] = (vs[x] || 0) + 1; }); var topV = Object.keys(vs).sort(function (a, b) { return vs[b] - vs[a]; }).slice(0, 3); item({ k: 'variedad', tipo: 'manejo', nombre: 'Material genético', hoy: caso.variedad || 'sin dato', objetivo: 'los que rinden ≥ meta usan: ' + topV.join(', '), accion: 'Comparar en el ranking de variedades y probar en una franja', costo: 0, fuente: 'banco de casos SAFIA' }); }
 
@@ -352,7 +367,7 @@
       (e.pctTierra != null ? '<div>El costo total del plan equivale al <b>' + fmt(e.pctTierra, 1) + ' %</b> del valor de una hectárea' + (e.retornoSobreTierra != null ? '; el margen extra por campaña es un <b>' + fmt(e.retornoSobreTierra, 1) + ' %</b> anual sobre el valor de la tierra' : '') + '.</div>' : '') +
       (e.haEquivalentes != null ? '<div>Producir esos ' + fmt(pl.kgExtra, 0) + ' kg comprando tierra en vez de mejorar el lote exigiría <b>' + fmt(e.haEquivalentes * 100, 0) + ' % más de superficie</b> (US$ ' + fmt(e.valorTierraEquiv, 0) + ' por cada hectárea actual): mejorar el lote es casi siempre más barato que comprar tierra.</div>' : '') +
       '</div></div>';
-    html += '<div class="note warn" style="margin-top:10px;"><b>Esto es una evaluación, no una afirmación.</b> Los aportes son rangos orientativos tomados de ensayos regionales (CAPECO/IPTA, Manual RS/SC, Embrapa, INTA); en cada lote la respuesta real depende del clima, del perfil del suelo y del manejo. Antes de invertir, revisá el plan con un ingeniero agrónomo y confirmá con análisis de suelo (incluido 20–60 cm) y precios actualizados.</div>';
+    html += '<div class="note warn" style="margin-top:10px;"><b>Esto es una evaluación, no una afirmación.</b> Los aportes son rangos orientativos tomados de ensayos regionales (CAPECO/IPTA, Manual RS/SC, Embrapa, Fundação MS, CESB, INTA; ver <a href="https://github.com/OsmarDaSilva/safia/blob/main/FUNDAMENTOS_META_RINDE.md" target="_blank">fundamentos</a>); en cada lote la respuesta real depende del clima, del perfil del suelo y del manejo. Antes de invertir, revisá el plan con un ingeniero agrónomo y confirmá con análisis de suelo (incluido 20–60 cm) y precios actualizados.</div>';
     return html;
   }
 
