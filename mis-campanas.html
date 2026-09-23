@@ -1252,7 +1252,10 @@
         document.getElementById('cosechaLluvia').value = yaCosechada.lluviaMM != null ? yaCosechada.lluviaMM : '';
       } else {
         document.getElementById('cosechaSuperficie').value = sup;
-        document.getElementById('cosechaFecha').valueAsDate = new Date();
+        // Fecha por defecto: la cosecha estimada de la campaña (si ya pasó); si no, hoy
+        const hoyISO = new Date().toISOString().slice(0, 10);
+        const estimada = cultivo && cultivo.fechaCosecha && cultivo.fechaCosecha <= hoyISO ? cultivo.fechaCosecha : '';
+        document.getElementById('cosechaFecha').value = estimada || hoyISO;
         document.getElementById('cosechaProduccion').value = '';
         document.getElementById('cosechaHumedad').value = '14';
         document.getElementById('cosechaObs').value = '';
