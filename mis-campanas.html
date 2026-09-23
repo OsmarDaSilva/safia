@@ -644,6 +644,7 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-insumos.js"></script>
+<script src="safia-catalogo.js"></script>
 <script src="safia-casos.js"></script>
 </head>
 <body>
@@ -935,7 +936,7 @@
         <table class="tbl ins-tabla"><thead><tr><th>Qué</th><th>Producto</th><th class="r">Dosis</th><th>Cómo</th><th></th></tr></thead><tbody id="insCuerpo_semilla"></tbody></table>
         <div class="ins-form ins-form-semilla">
           <select id="insCat_semilla"></select>
-          <input type="text" id="insProd_semilla" list="listaProductos" placeholder="Producto (ej: CoMo Nitragin, Standak Top, Cruiser)">
+          <input type="text" id="insProd_semilla" list="listaProd_semilla" placeholder="Elegí del catálogo o escribí el producto">
           <input type="number" id="insDosis_semilla" step="0.01" min="0" placeholder="Dosis">
           <select id="insUni_semilla"></select>
           <select id="insForma_semilla" title="Cómo se aplicó"></select>
@@ -951,7 +952,7 @@
         <div id="insNPK" class="ins-npk"></div>
         <div class="ins-form ins-form-fert">
           <select id="insCat_fertilizacion"></select>
-          <input type="text" id="insProd_fertilizacion" list="listaFertilizantes" placeholder="Fórmula o producto (04-30-10, KCl, urea, MAP…)">
+          <input type="text" id="insProd_fertilizacion" list="listaProd_fertilizacion" placeholder="Fórmula o producto (04-30-10, KCl, urea, MAP…)">
           <input type="number" id="insDosis_fertilizacion" step="0.1" min="0" placeholder="kg/ha">
           <select id="insUni_fertilizacion"></select>
           <select id="insMetodo_fertilizacion"></select>
@@ -968,7 +969,7 @@
         <table class="tbl ins-tabla"><thead><tr><th>Qué</th><th>Producto</th><th class="r">Dosis</th><th>Etapa / fecha</th><th></th></tr></thead><tbody id="insCuerpo_ciclo"></tbody></table>
         <div class="ins-form ins-form-ciclo">
           <select id="insCat_ciclo"></select>
-          <input type="text" id="insProd_ciclo" list="listaProductos" placeholder="Producto o mezcla (ej: Fox Xpro, Engeo, Zn + Mn + B)">
+          <input type="text" id="insProd_ciclo" list="listaProd_ciclo" placeholder="Elegí del catálogo o escribí el producto / mezcla">
           <input type="number" id="insDosis_ciclo" step="0.01" min="0" placeholder="Dosis">
           <select id="insUni_ciclo"></select>
           <select id="insEtapa_ciclo"></select>
@@ -977,8 +978,9 @@
         </div>
       </div>
 
-      <datalist id="listaProductos"></datalist>
-      <datalist id="listaFertilizantes"></datalist>
+      <datalist id="listaProd_semilla"></datalist>
+      <datalist id="listaProd_fertilizacion"></datalist>
+      <datalist id="listaProd_ciclo"></datalist>
 
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;flex:1;min-width:260px;">
@@ -1506,7 +1508,7 @@
         else if (this.value === 'encalado') { m.value = 'voleo_presiembra'; e.value = 'Presiembra'; }
         else { m.value = 'sembradora'; e.value = 'Siembra'; }
       });
-      document.getElementById('listaFertilizantes').innerHTML = ['04-30-10', '02-20-20', '08-20-20', '05-25-25', '00-20-20', '10-30-10', '12-24-12', 'Urea', 'KCl', 'MAP', 'DAP', 'SSP', 'TSP', 'Sulfato de amonio', 'Sulfato de potasio', 'Yeso agrícola', 'Calcáreo dolomítico', 'Calcáreo calcítico'].map(f => '<option value="' + f + '">').join('');
+      SafiaInsumos.SECCIONES.forEach(s => { document.getElementById('insCat_' + s.k).addEventListener('change', function () { armarListaProductos(s.k); }); });
     }
     function abrirModalInsumos(campanaId) {
       insumosCampanaId = campanaId;
@@ -1522,12 +1524,23 @@
       const usados = {};
       campanas.forEach(c => (c.insumos || []).forEach(i => { if (i.producto) usados[i.producto] = 1; }));
       JSON.parse(localStorage.getItem('eventos') || '[]').forEach(e => { if (e.tipo === 'aplicacion' && e.producto) usados[e.producto] = 1; });
-      document.getElementById('listaProductos').innerHTML = Object.keys(usados).sort().map(p => '<option value="' + p.replace(/"/g, '&quot;') + '">').join('');
+      productosUsados = Object.keys(usados).sort();
+      SafiaInsumos.SECCIONES.forEach(s => armarListaProductos(s.k));
       document.getElementById('insCopiarDe').innerHTML = '<option value="">Copiar insumos de otra campaña…</option>' +
         campanas.filter(c => String(c.id) !== String(campanaId) && (c.insumos || []).length).map(c => '<option value="' + c.id + '">' + c.nombre + ' (' + (c.cultivos || []).map(x => x.cultivo).join('+') + ') · ' + c.insumos.length + ' insumos</option>').join('');
       document.getElementById('insManejoCompleto').checked = !!campana.manejoCompleto;
       pintarInsumos();
       document.getElementById('modalInsumosOverlay').classList.add('visible');
+    }
+    let productosUsados = [];
+    // Lista de productos de una sección: lo que ya se usó (de esa categoría o cualquiera) + catálogo regional de la categoría elegida
+    function armarListaProductos(seccion) {
+      const cat = document.getElementById('insCat_' + seccion).value;
+      const dl = document.getElementById('listaProd_' + seccion);
+      const catalogo = window.SafiaCatalogo ? SafiaCatalogo.insumosDe(cat) : [];
+      const yaEsta = {};
+      const opt = (v, t) => { if (yaEsta[v]) return ''; yaEsta[v] = 1; return '<option value="' + String(v).replace(/"/g, '&quot;') + '">' + (t || '') + '</option>'; };
+      dl.innerHTML = productosUsados.map(p => opt(p, 'ya usado')).join('') + catalogo.map(p => opt(p, 'catálogo')).join('');
     }
     function fmtDosis(i) { return (i.dosis != null && i.dosis !== '') ? i.dosis + ' ' + (i.unidad || '') : '—'; }
     function fmtFechaCorta(f) { return f ? new Date(f + 'T12:00:00').toLocaleDateString('es-PY') : ''; }
@@ -1697,7 +1710,10 @@
         cultivoAnterior: '',
         cobertura: '',
         coberturaDetalle: '',
-        coberturaManejo: ''
+        coberturaManejo: '',
+        sistemaSiembra: '',
+        consorcio: '',
+        consorcioDetalle: ''
       };
       if (!cultivo.idTemp) cultivo.idTemp = id;
       cultivosTemp.push(cultivo);
@@ -1765,14 +1781,20 @@
       renderizarCultivos();
     }
 
-    function armarListaVariedades() {
+    function armarListaVariedades(idTemp) {
       let dl = document.getElementById('listaVariedades');
       if (!dl) { dl = document.createElement('datalist'); dl.id = 'listaVariedades'; document.body.appendChild(dl); }
-      const vistas = {};
       const norm = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+      const fila = idTemp != null ? cultivosTemp.find(c => c.idTemp === idTemp) : null;
+      const cultivoFila = fila ? fila.cultivo : '';
+      // 1) las que ya usó este cliente u otros (primero las del mismo cultivo), 2) el catálogo regional del cultivo
+      const vistas = {};
       JSON.parse(localStorage.getItem('campanas') || '[]').forEach(c => (c.cultivos || []).forEach(cu => { if (cu.variedad) vistas[norm(cu.variedad)] = { v: cu.variedad, c: cu.cultivo }; }));
       JSON.parse(localStorage.getItem('ciclos') || '[]').forEach(ci => { if (ci.variedad) vistas[norm(ci.variedad)] = { v: ci.variedad, c: ci.cultivo }; });
-      dl.innerHTML = Object.keys(vistas).sort().map(k => '<option value="' + String(vistas[k].v).replace(/"/g, '&quot;') + '">' + (vistas[k].c || '') + '</option>').join('');
+      const usadas = Object.keys(vistas).map(k => vistas[k]).filter(x => !cultivoFila || norm(x.c).split(' ')[0] === norm(cultivoFila).split(' ')[0]).sort((a, b) => a.v.localeCompare(b.v));
+      const catalogo = (window.SafiaCatalogo && cultivoFila) ? SafiaCatalogo.variedadesDe(cultivoFila).filter(v => !vistas[norm(v)]) : [];
+      const opt = (v, t) => '<option value="' + String(v).replace(/"/g, '&quot;') + '">' + (t || '') + '</option>';
+      dl.innerHTML = usadas.map(x => opt(x.v, 'ya usada · ' + (x.c || ''))).join('') + catalogo.map(v => opt(v, 'catálogo')).join('');
     }
 
     function renderizarCultivos() {
@@ -1839,7 +1861,7 @@
               </div>
               <div class="campo">
                 <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
-                <input type="text" list="listaVariedades" autocomplete="off" placeholder="Ej: P3110, DM 53i54" value="${cultivo.variedad || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+                <input type="text" list="listaVariedades" autocomplete="off" placeholder="Elegí del catálogo o escribí" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
                 <div class="ayuda">Elegí una ya usada o escribí una nueva, siempre igual, para poder comparar.</div>
               </div>
             </div>
@@ -1887,7 +1909,7 @@
               </div>
             </div>
 
-            <div class="seccion-titulo" style="margin-top:6px;">Antecesor y cobertura <span class="opcional" style="text-transform:none;letter-spacing:0;">(qué había en el lote antes de este cultivo)</span></div>
+            <div class="seccion-titulo" style="margin-top:6px;">Antecesor, cobertura y sistema de siembra <span class="opcional" style="text-transform:none;letter-spacing:0;">(qué había en el lote y cómo se sembró)</span></div>
             <div class="fila">
               <div class="campo">
                 <label>Cultivo anterior en este lote</label>
@@ -1908,6 +1930,19 @@
               <div class="campo">
                 <label>Cómo se manejó la cobertura</label>
                 <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'coberturaManejo', this.value)">${SafiaInsumos.MANEJO_COBERTURA.map(m => '<option value="' + m.k + '"' + ((cultivo.coberturaManejo || '') === m.k ? ' selected' : '') + '>' + m.n + '</option>').join('')}</select>
+              </div>
+            </div>
+            <div class="fila">
+              <div class="campo">
+                <label>Sistema de siembra</label>
+                <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'sistemaSiembra', this.value)">${SafiaInsumos.SISTEMAS_SIEMBRA.map(m => '<option value="' + m.k + '"' + ((cultivo.sistemaSiembra || '') === m.k ? ' selected' : '') + '>' + m.n + '</option>').join('')}</select>
+                <div class="ayuda">Directa sobre cobertura o sobre rastrojo, labranza mínima o convencional (rastroneada).</div>
+              </div>
+              <div class="campo">
+                <label>Consorcio (sembrado junto con una forrajera)</label>
+                <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'consorcio', this.value)">${SafiaInsumos.CONSORCIOS.map(m => '<option value="' + m.k + '"' + ((cultivo.consorcio || '') === m.k ? ' selected' : '') + '>' + m.n + '</option>').join('')}</select>
+                <input type="text" style="margin-top:6px;" placeholder="Detalle: especie, kg/ha, cuándo se sembró la forrajera" value="${cultivo.consorcioDetalle || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'consorcioDetalle', this.value)">
+                <div class="ayuda">Sistema Santa Fe: maíz o sorgo sembrado junto con brachiaria; deja paja para la siembra directa siguiente y pasto para el invierno.</div>
               </div>
             </div>
 
@@ -1980,6 +2015,12 @@
               cobertura: c.cobertura || '',
               coberturaDetalle: String(c.coberturaDetalle || '').trim(),
               coberturaManejo: c.coberturaManejo || '',
+            sistemaSiembra: c.sistemaSiembra || '',
+            consorcio: c.consorcio || '',
+            consorcioDetalle: String(c.consorcioDetalle || '').trim(),
+              sistemaSiembra: c.sistemaSiembra || '',
+              consorcio: c.consorcio || '',
+              consorcioDetalle: String(c.consorcioDetalle || '').trim(),
               rendimientoReal: c.rendimientoReal || ''
             })),
             fechaModificacion: new Date().toISOString()
@@ -2020,6 +2061,9 @@
             cobertura: c.cobertura || '',
             coberturaDetalle: String(c.coberturaDetalle || '').trim(),
             coberturaManejo: c.coberturaManejo || '',
+            sistemaSiembra: c.sistemaSiembra || '',
+            consorcio: c.consorcio || '',
+            consorcioDetalle: String(c.consorcioDetalle || '').trim(),
             rendimientoReal: c.rendimientoReal || ''
           })),
           fechaCreacion: new Date().toISOString()

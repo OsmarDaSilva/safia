@@ -53,6 +53,7 @@
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-insumos.js"></script>
+<script src="safia-catalogo.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-mapas.js"></script>
 </head>
@@ -191,6 +192,8 @@
               <div class="field"><label>Encalado (t/ha)</label><input type="number" id="cEncalado" step="0.1" min="0" placeholder="0 si no encaló"></div>
               <div class="field"><label>Cultivo anterior en el lote</label><input list="listaCultivos" id="cAnterior" placeholder="Maíz, Soja, Trigo, Barbecho…"></div>
               <div class="field"><label>Cobertura previa</label><select id="cCobertura"></select></div>
+              <div class="field"><label>Sistema de siembra</label><select id="cSistema"></select></div>
+              <div class="field"><label>Consorcio (Santa Fe, etc.)</label><select id="cConsorcio"></select></div>
               <div class="field full"><label>Fertilización</label><input id="cFert" placeholder="Ej.: 250 kg/ha 04-30-10 base + 120 kg/ha urea V6"></div>
               <div class="field full"><label>Observaciones</label><textarea id="cObs" placeholder="Rotación, problemas, heladas, plagas…"></textarea></div>
             </div>
@@ -471,6 +474,8 @@
   function llenarCoberturas() {
     var s = document.getElementById('cCobertura'); if (!s || s.options.length || !window.SafiaInsumos) return;
     s.innerHTML = SafiaInsumos.COBERTURAS.map(function (c) { return '<option value="' + c.k + '">' + c.n + '</option>'; }).join('');
+    document.getElementById('cSistema').innerHTML = SafiaInsumos.SISTEMAS_SIEMBRA.map(function (c) { return '<option value="' + c.k + '">' + c.n + '</option>'; }).join('');
+    document.getElementById('cConsorcio').innerHTML = SafiaInsumos.CONSORCIOS.map(function (c) { return '<option value="' + c.k + '">' + c.n + '</option>'; }).join('');
   }
   function nombreLote(equipoId) {
     if (!equipoId) return '';
@@ -644,6 +649,7 @@
     document.getElementById('cEncalado').value = c.encaladoTnHa != null ? c.encaladoTnHa : '';
     document.getElementById('cAnterior').value = c.cultivoAnterior || '';
     llenarCoberturas(); document.getElementById('cCobertura').value = c.cobertura || '';
+    document.getElementById('cSistema').value = c.sistemaSiembra || ''; document.getElementById('cConsorcio').value = c.consorcio || '';
     document.getElementById('cFert').value = c.fertilizacion || '';
     document.getElementById('cObs').value = c.observaciones || '';
     document.getElementById('formCiclo').scrollIntoView({ behavior: 'smooth' });
@@ -691,6 +697,8 @@
     item.encaladoTnHa = num(document.getElementById('cEncalado').value);
     item.cultivoAnterior = document.getElementById('cAnterior').value.trim();
     item.cobertura = document.getElementById('cCobertura').value;
+    item.sistemaSiembra = document.getElementById('cSistema').value;
+    item.consorcio = document.getElementById('cConsorcio').value;
     item.fertilizacion = document.getElementById('cFert').value.trim();
     item.observaciones = document.getElementById('cObs').value.trim();
     if (!editandoCicloId) lista.push(item);
@@ -1474,7 +1482,7 @@
       var secuencias = eqDelCampo.map(function (e) {
         var pasos = [];
         todasCamp.filter(function (c) { return String(c.equipoId) === String(e.id); }).forEach(function (c) {
-          (c.cultivos || []).forEach(function (cu) { if (cu.fechaSiembra) pasos.push({ f: cu.fechaSiembra, cultivo: cu.cultivo, campana: c.nombre, cobertura: cu.cobertura, anterior: cu.cultivoAnterior, rinde: num(cu.rendimientoReal) }); });
+          (c.cultivos || []).forEach(function (cu) { if (cu.fechaSiembra) pasos.push({ f: cu.fechaSiembra, cultivo: cu.cultivo, campana: c.nombre, cobertura: cu.cobertura, anterior: cu.cultivoAnterior, consorcio: cu.consorcio, sistema: cu.sistemaSiembra, rinde: num(cu.rendimientoReal) }); });
         });
         pasos.sort(function (a, b) { return String(a.f).localeCompare(String(b.f)); });
         return { equipo: e, pasos: pasos };
@@ -1484,8 +1492,10 @@
           var partes = s.pasos.map(function (p, i) {
             var cob = p.cobertura && p.cobertura !== 'ninguna' ? '<span class="badge green" title="Cobertura previa">' + esc(SafiaInsumos.nombreCobertura(p.cobertura)) + '</span> → ' : (p.cobertura === 'ninguna' ? '<span class="badge" title="Sin cobertura">sin cobertura</span> → ' : '');
             var prev = i ? s.pasos[i - 1] : null;
-            var rot = SafiaInsumos.rotacion(p.cultivo, p.anterior || (prev ? prev.cultivo : ''), p.cobertura);
+            var rot = SafiaInsumos.rotacion(p.cultivo, p.anterior || (prev ? prev.cultivo : ''), p.cobertura, p.consorcio, p.sistema);
             var alerta = rot.sojaSobreSoja ? ' <span class="badge red" title="Misma oleaginosa una sobre otra">soja sobre soja</span>' : (rot.mismoCultivo ? ' <span class="badge amber">mismo cultivo seguido</span>' : '');
+            if (rot.consorcioSantaFe) alerta += ' <span class="badge green" title="Sembrado junto con brachiaria">Santa Fe</span>';
+            if (rot.convencional) alerta += ' <span class="badge amber" title="Rastroneada / arada">convencional</span>';
             return (i === 0 && p.anterior ? '<span class="muted">' + esc(p.anterior) + '</span> → ' : '') + cob + '<b>' + esc(p.cultivo) + '</b> <span class="muted">' + String(p.f).slice(0, 7) + (p.rinde ? ' · ' + fmt(p.rinde, 0) : '') + '</span>' + alerta;
           });
           return '<div style="font-size:13px;margin:4px 0 8px;"><span class="badge blue">' + esc(s.equipo.nombre) + (s.equipo.tipo === 'secano' ? ' · secano' : '') + '</span> ' + partes.join(' → ') + '</div>';
@@ -1503,6 +1513,10 @@
           if (con.length || sin.length) filasR.push({ q: 'Cobertura de invierno', cu: cu, a: con, b: sin, na: 'con cobertura', nb: 'sin cobertura' });
           var sobre = del.filter(function (c) { return c.rotacion.mismoCultivo; }), rotada = del.filter(function (c) { return c.rotacion.anterior && !c.rotacion.mismoCultivo; });
           if (sobre.length || rotada.length) filasR.push({ q: 'Rotación', cu: cu, a: rotada, b: sobre, na: 'rotado (otro cultivo antes)', nb: cu.toLowerCase().indexOf('soja') === 0 ? 'soja sobre soja' : 'mismo cultivo seguido' });
+          var sd = del.filter(function (c) { return c.rotacion.siembraDirecta; }), conv = del.filter(function (c) { return c.rotacion.convencional; });
+          if (sd.length || conv.length) filasR.push({ q: 'Sistema de siembra', cu: cu, a: sd, b: conv, na: 'siembra directa', nb: 'convencional (rastroneada)' });
+          var sf = del.filter(function (c) { return c.rotacion.consorcioSantaFe; }), solo = del.filter(function (c) { return c.rotacion.cargada && !c.rotacion.consorcio; });
+          if (sf.length) filasR.push({ q: 'Consorcio Santa Fe', cu: cu, a: sf, b: solo, na: 'con brachiaria (Santa Fe)', nb: 'cultivo solo' });
         });
         if (filasR.length) {
           html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Qué</th><th>Cultivo</th><th class="r">Campañas · rinde</th><th class="r">Campañas · rinde</th><th class="r">Diferencia</th></tr></thead><tbody>' +
@@ -1511,7 +1525,7 @@
               var d = (pa != null && pb != null) ? pa - pb : null;
               return '<tr>' + td('<b>' + esc(f.q) + '</b>') + td(esc(f.cu)) + td('<div class="sub">' + f.na + '</div>' + (f.a.length ? f.a.length + ' · <span class="num">' + fmt(pa, 0) + '</span>' : '<span class="muted">—</span>'), 1) + td('<div class="sub">' + f.nb + '</div>' + (f.b.length ? f.b.length + ' · ' + fmt(pb, 0) : '<span class="muted">—</span>'), 1) +
                 td(d == null ? '<span class="muted">—</span>' : '<span class="badge ' + (d >= 0 ? 'green' : 'red') + '">' + (d >= 0 ? '+' : '') + fmt(d, 0) + ' kg/ha</span>', 1) + '</tr>';
-            }).join('') + '</tbody></table></div></div><div class="muted" style="font-size:12px;margin-top:6px;">La cobertura de invierno (avena, brachiaria, Santa Fe) sube la materia orgánica, frena malezas y guarda agua; soja sobre soja repite la misma oleaginosa y suele rendir menos. Las diferencias aparecen cuando hay campañas del mismo cultivo de los dos lados.</div>';
+            }).join('') + '</tbody></table></div></div><div class="muted" style="font-size:12px;margin-top:6px;">La cobertura de invierno (avena, brachiaria, nabo, milheto…) sube la materia orgánica, frena malezas y guarda agua; la siembra directa conserva humedad y estructura; el consorcio Santa Fe (maíz + brachiaria) deja paja y pasto; soja sobre soja repite la misma oleaginosa y suele rendir menos. Las diferencias aparecen cuando hay campañas del mismo cultivo de los dos lados.</div>';
         }
       }
     }

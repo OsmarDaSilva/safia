@@ -100,18 +100,40 @@
   ];
   // Rotación y cobertura de invierno (antes de este cultivo). En Paraguay/Brasil son 2 cultivos comerciales
   // al año; la cobertura entre cosechas (avena, brachiaria, Santa Fe) sube la MO, frena malezas y guarda agua.
+  // Cobertura = la ESPECIE que quedó en el lote entre cosechas (no es una técnica de siembra).
   var COBERTURAS = [
-    { k: '',          n: 'Sin dato' },
-    { k: 'ninguna',   n: 'Ninguna (rastrojo / barbecho)' },
-    { k: 'avena',     n: 'Avena (negra o blanca)' },
+    { k: '',           n: 'Sin dato' },
+    { k: 'ninguna',    n: 'Ninguna (rastrojo del cultivo anterior / barbecho)' },
+    { k: 'avena',      n: 'Avena negra o blanca' },
     { k: 'brachiaria', n: 'Brachiaria ruziziensis' },
-    { k: 'santa_fe',  n: 'Maíz + brachiaria (sistema Santa Fe)' },
-    { k: 'nabo',      n: 'Nabo forrajero' },
-    { k: 'centeno',   n: 'Centeno / triticale' },
-    { k: 'crotalaria', n: 'Crotalaria / leguminosa' },
-    { k: 'mezcla',    n: 'Mezcla de coberturas (mix)' },
-    { k: 'pastura',   n: 'Pastura (integración con ganado)' },
-    { k: 'otra',      n: 'Otra' }
+    { k: 'brizantha',  n: 'Brachiaria brizantha (Marandu, Piatã, Xaraés)' },
+    { k: 'milheto',    n: 'Milheto (mijo perla)' },
+    { k: 'sorgo_forr', n: 'Sorgo forrajero' },
+    { k: 'nabo',       n: 'Nabo forrajero' },
+    { k: 'centeno',    n: 'Centeno / triticale' },
+    { k: 'crotalaria', n: 'Crotalaria' },
+    { k: 'mucuna',     n: 'Mucuna / leguminosa de cobertura' },
+    { k: 'mezcla',     n: 'Mezcla de coberturas (mix de especies)' },
+    { k: 'pastura',    n: 'Pastura (integración agricultura-ganadería)' },
+    { k: 'otra',       n: 'Otra' }
+  ];
+  // Consorcio = el cultivo se siembra JUNTO con una forrajera (técnica). Sistema Santa Fe (Embrapa):
+  // maíz (o sorgo) + brachiaria en la misma siembra o al fertilizar en cobertura; da grano + paja + pasto.
+  var CONSORCIOS = [
+    { k: '',          n: 'Sin consorcio (cultivo solo)' },
+    { k: 'santa_fe',  n: 'Sistema Santa Fe: maíz/sorgo + brachiaria ruziziensis' },
+    { k: 'santa_fe_briz', n: 'Santa Fe con brachiaria brizantha' },
+    { k: 'ilp',       n: 'Integración lavoura-pecuária (forrajera para pastoreo)' },
+    { k: 'otro',      n: 'Otro consorcio (indicar en detalle)' }
+  ];
+  // Sistema de siembra: sobre qué se sembró.
+  var SISTEMAS_SIEMBRA = [
+    { k: '',                   n: 'Sin dato' },
+    { k: 'directa_cobertura',  n: 'Siembra directa sobre cobertura (desecada o rolada)' },
+    { k: 'directa_rastrojo',   n: 'Siembra directa sobre rastrojo del cultivo anterior' },
+    { k: 'minima',             n: 'Labranza mínima / escarificado' },
+    { k: 'convencional',       n: 'Convencional: rastroneada / arada' },
+    { k: 'otro',               n: 'Otro' }
   ];
   var MANEJO_COBERTURA = [
     { k: '',         n: '—' },
@@ -122,17 +144,24 @@
   ];
   var ANTECESORES_EXTRA = ['Barbecho', 'Pastura', 'Campo nuevo (desmonte)', 'Cobertura de invierno'];
   var COB_POR_K = {}; COBERTURAS.forEach(function (c) { COB_POR_K[c.k] = c; });
+  var CONS_POR_K = {}; CONSORCIOS.forEach(function (c) { CONS_POR_K[c.k] = c; });
+  var SIS_POR_K = {}; SISTEMAS_SIEMBRA.forEach(function (c) { SIS_POR_K[c.k] = c; });
+  function nombreConsorcio(k) { return CONS_POR_K[k] ? CONS_POR_K[k].n : (k || ''); }
+  function nombreSistema(k) { return SIS_POR_K[k] ? SIS_POR_K[k].n : (k || ''); }
   var MCOB_POR_K = {}; MANEJO_COBERTURA.forEach(function (c) { MCOB_POR_K[c.k] = c; });
   function nombreCobertura(k) { return COB_POR_K[k] ? COB_POR_K[k].n : (k || 'Sin dato'); }
   function nombreManejoCobertura(k) { return MCOB_POR_K[k] ? MCOB_POR_K[k].n : (k || ''); }
   function normCultivo(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim(); }
   /* Resumen de rotación de un cultivo: { cargada, conCobertura, cobertura, sojaSobreSoja, mismoCultivo, anterior } */
-  function rotacion(cultivo, cultivoAnterior, cobertura) {
+  function rotacion(cultivo, cultivoAnterior, cobertura, consorcio, sistema) {
+    // Datos viejos: "santa_fe" cargado como cobertura = brachiaria como cobertura + consorcio Santa Fe
+    if (cobertura === 'santa_fe') { cobertura = 'brachiaria'; consorcio = consorcio || 'santa_fe'; }
     var cu = normCultivo(cultivo), an = normCultivo(cultivoAnterior);
-    var cargada = !!(an || cobertura);
+    var cargada = !!(an || cobertura || sistema);
     var conCob = !!cobertura && cobertura !== 'ninguna';
     var mismo = !!(cu && an && cu.split(' ')[0] === an.split(' ')[0]);
-    return { cargada: cargada, conCobertura: conCob, cobertura: cobertura || '', anterior: cultivoAnterior || '', mismoCultivo: mismo, sojaSobreSoja: mismo && cu.indexOf('soja') === 0 };
+    return { cargada: cargada, conCobertura: conCob, cobertura: cobertura || '', anterior: cultivoAnterior || '', mismoCultivo: mismo, sojaSobreSoja: mismo && cu.indexOf('soja') === 0,
+      consorcio: consorcio || '', consorcioSantaFe: /^santa_fe/.test(consorcio || ''), sistema: sistema || '', siembraDirecta: /^directa/.test(sistema || ''), convencional: sistema === 'convencional' };
   }
 
   var POR_K = {}; CATEGORIAS.forEach(function (c) { POR_K[c.k] = c; });
@@ -195,6 +224,6 @@
     return partes.join(' · ') || 'sin insumos (manejo completo)';
   }
 
-  window.SafiaInsumos = { COBERTURAS: COBERTURAS, MANEJO_COBERTURA: MANEJO_COBERTURA, ANTECESORES_EXTRA: ANTECESORES_EXTRA, nombreCobertura: nombreCobertura, nombreManejoCobertura: nombreManejoCobertura, rotacion: rotacion, SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
+  window.SafiaInsumos = { CONSORCIOS: CONSORCIOS, SISTEMAS_SIEMBRA: SISTEMAS_SIEMBRA, nombreConsorcio: nombreConsorcio, nombreSistema: nombreSistema, COBERTURAS: COBERTURAS, MANEJO_COBERTURA: MANEJO_COBERTURA, ANTECESORES_EXTRA: ANTECESORES_EXTRA, nombreCobertura: nombreCobertura, nombreManejoCobertura: nombreManejoCobertura, rotacion: rotacion, SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
     nombreCategoria: nombreCategoria, nombreMetodo: nombreMetodo, seccionDe: seccionDe, gradoDe: gradoDe, npkDe: npkDe, totalesNPK: totalesNPK, resumen: resumen, tiene: tiene, textoCorto: textoCorto };
 })();
