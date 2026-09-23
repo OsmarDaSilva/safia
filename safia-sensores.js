@@ -328,7 +328,7 @@
         btn.disabled = true; btn.textContent = 'Trayendo…';
         sincronizarCampo(c).then(function (r) {
           toast('Estación: ' + r.dias + ' días traídos (' + r.mmTotal + ' mm de lluvia); lluvias en los lotes: ' + r.lluvia.creados + ' nuevas, ' + r.lluvia.reemplazados + ' actualizadas, ' + r.lluvia.respetados + ' cargadas a mano respetadas');
-          if (B().refrescarAgua) B().refrescarAgua(); activarAgua();
+          if (B().refrescarAgua) B().refrescarAgua(); activarAgua(); if (window.SafiaHumedad) SafiaHumedad.alCambiarCampo();
         }).catch(function (e) { console.error(e); toast('No se pudo traer la estación: ' + e.message, true); }).finally(function () { btn.disabled = false; btn.textContent = 'Traer de la estación'; });
       });
     }

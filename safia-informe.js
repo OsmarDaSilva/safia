@@ -150,7 +150,8 @@
       lista.forEach(function (c) { filas.push('<tr' + (c === mejor ? ' style="background:#E7F6EA;"' : '') + '>' + td(esc(cu)) + td(esc(c.campana)) + td(fmt(c.lluviaMM, 0), 1) + td(fmt(c.riegoMM, 0), 1) + td('<b>' + fmt(c.aguaTotalMM, 0) + '</b>', 1) + td(c.clima ? fmt(c.clima.et0Total, 0) : '—', 1) + td('<b>' + fmt(c.rindeKgHa, 0) + '</b>', 1) + td(c.aguaTotalMM ? fmt(c.rindeKgHa / c.aguaTotalMM, 1) : '—', 1) + '</tr>'); });
       reglas.push('<li><b>' + esc(cu) + ':</b> el mejor rinde (' + fmt(mejor.rindeKgHa, 0) + ' kg/ha, ' + esc(mejor.campana) + ') se logró con ' + fmt(mejor.aguaTotalMM, 0) + ' mm de agua total (' + fmt(mejor.lluviaMM || 0, 0) + ' de lluvia y ' + fmt(mejor.riegoMM || 0, 0) + ' de riego)' + (mejor.clima ? ', con una demanda (ET0) de ' + fmt(mejor.clima.et0Total, 0) + ' mm' : '') + '. En un año seco, la referencia es completar con riego hasta esos ' + fmt(mejor.aguaTotalMM, 0) + ' mm.</li>');
     });
-    return '<h2>Agua: lluvia, riego y rinde</h2>' + tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Total mm', r: 1 }, { t: 'ET0 mm', r: 1 }, { t: 'Rinde', r: 1 }, { t: 'kg por mm', r: 1 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
+    var sonda = window.SafiaHumedad ? SafiaHumedad.htmlResumen(campoActual.id) : '';
+    return '<h2>Agua: lluvia, riego y rinde</h2>' + sonda + tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Total mm', r: 1 }, { t: 'ET0 mm', r: 1 }, { t: 'Rinde', r: 1 }, { t: 'kg por mm', r: 1 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
   }
 
   function secSuelo(cx) {
