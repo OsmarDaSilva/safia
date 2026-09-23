@@ -56,6 +56,7 @@
 <script src="safia-catalogo.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-mapas.js"></script>
+<script src="safia-meta.js"></script>
 </head>
 <body>
 
@@ -143,6 +144,7 @@
           <button data-tab="analisis">Análisis de suelo</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="evolucion">📈 Evolución y decisiones</button>
+          <button data-tab="meta">Meta de rinde</button>
           <button data-tab="mapas">Mapas georreferenciados</button>
           <button data-tab="archivos">Archivos y documentos</button>
         </div>
@@ -311,6 +313,23 @@
           <div class="note info" id="evoNota"></div>
           <div id="evoContenido"></div>
           <div class="no-print" style="display:flex;gap:8px;margin-top:6px;"><button class="btn" onclick="window.print()">🖨️ Imprimir informe</button></div>
+        </section>
+
+        <!-- ================= TAB META DE RINDE ================= -->
+        <section class="panel" id="panel-meta">
+          <div class="note info">Elegí el cultivo y la <b>meta</b> (por ejemplo, pasar de 5.000 a 6.000 kg/ha). SAFIA toma el análisis de suelo, el agua, el manejo y el rinde real de este lote, mira a los que <b>ya cosechan esa meta</b> en tu localidad, departamento o país, y arma un <b>recetario tentativo</b> ítem por ítem: qué corregir, dosis, costo aproximado, aporte esperado y si vale la pena frente al precio del grano y al valor de la tierra.</div>
+          <div class="formcard visible sinlinea" style="display:block;background:#fff;border:1px solid var(--bd);">
+            <div class="form-grid">
+              <div class="field"><label>Cultivo y campaña base</label><select id="metaCaso"></select><span class="hint" id="metaCasoInfo"></span></div>
+              <div class="field"><label>Meta (kg/ha)</label><input type="number" id="metaKg" step="100" min="0"><span class="hint">Atajos: <a href="#" onclick="return metaAtajo(10)">+10 %</a> · <a href="#" onclick="return metaAtajo(20)">+20 %</a> · <a href="#" onclick="return metaAtajo(30)">+30 %</a></span></div>
+              <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnMetaCalcular">Armar el plan</button></div>
+            </div>
+            <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;">Precios y costos usados (editables, se guardan en este navegador)</summary>
+              <div class="form-grid" id="metaPrecios" style="margin-top:8px;"></div>
+              <div class="form-actions"><span class="spacer" style="flex:1"></span><button class="btn" id="btnMetaPreciosDefault">Volver a los valores por defecto</button><button class="btn green" id="btnMetaPreciosGuardar">Guardar precios</button></div>
+            </details>
+          </div>
+          <div id="metaResultado" style="margin-top:14px;"></div>
         </section>
 
         <!-- ================= TAB MAPAS ================= -->
@@ -551,6 +570,51 @@
     toast('Altitud guardada: ' + (v === null ? '—' : v + ' msnm'));
   });
 
+  /* ---------- Meta de rinde (Motor 8) ---------- */
+  var metaCasos = [];
+  var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
+  function pintarPreciosMeta() {
+    var pr = SafiaMeta.precios(), cont = document.getElementById('metaPrecios');
+    var granos = Object.keys(pr.granoUSDt).map(function (k) { return '<div class="field"><label>Grano ' + k + ' US$/t</label><input type="number" step="1" data-grano="' + k + '" value="' + pr.granoUSDt[k] + '"></div>'; }).join('');
+    cont.innerHTML = granos + CAMPOS_PRECIO.map(function (c) { return '<div class="field"><label>' + c[1] + '</label><input type="number" step="0.01" data-precio="' + c[0] + '" value="' + pr[c[0]] + '"></div>'; }).join('');
+  }
+  function leerPreciosMeta() {
+    var pr = SafiaMeta.precios();
+    document.querySelectorAll('#metaPrecios input[data-grano]').forEach(function (i) { var v = parseFloat(i.value); if (!isNaN(v)) pr.granoUSDt[i.dataset.grano] = v; });
+    document.querySelectorAll('#metaPrecios input[data-precio]').forEach(function (i) { var v = parseFloat(i.value); if (!isNaN(v)) pr[i.dataset.precio] = v; });
+    return pr;
+  }
+  function activarMeta() {
+    if (!window.SafiaMeta || !window.SafiaCasos || !campoActual) return;
+    metaCasos = SafiaCasos.armarCasos();
+    var mios = metaCasos.filter(function (c) { return String(c.campoId) === String(campoActual.id) && c.rindeKgHa; }).sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
+    var sel = document.getElementById('metaCaso');
+    sel.innerHTML = mios.length ? mios.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.cultivo) + ' · ' + esc(c.campana) + ' · ' + fmt(c.rindeKgHa, 0) + ' kg/ha' + (c.riego === false ? ' (secano)' : '') + '</option>'; }).join('') : '<option value="">(no hay campañas cosechadas en este lote)</option>';
+    if (!document.getElementById('metaPrecios').children.length) pintarPreciosMeta();
+    alCambiarCasoMeta();
+  }
+  function casoMeta() { var id = document.getElementById('metaCaso').value; return metaCasos.find(function (c) { return String(c.id) === id; }) || null; }
+  function alCambiarCasoMeta() {
+    var c = casoMeta(), info = document.getElementById('metaCasoInfo');
+    if (!c) { info.textContent = ''; return; }
+    info.textContent = 'Suelo: ' + (c.suelo ? 'análisis del ' + fmtFecha(c.suelo.fecha) : 'sin análisis') + ' · agua ' + (c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + ' mm' : 'sin dato') + ' · manejo ' + (c.manejo && c.manejo.cargado ? 'cargado' : 'sin cargar');
+    var m = document.getElementById('metaKg'); if (!m.value) m.value = Math.round(c.rindeKgHa * 1.2 / 100) * 100;
+  }
+  window.metaAtajo = function (pct) { var c = casoMeta(); if (c) document.getElementById('metaKg').value = Math.round(c.rindeKgHa * (1 + pct / 100) / 100) * 100; return false; };
+  document.getElementById('metaCaso').addEventListener('change', function () { document.getElementById('metaKg').value = ''; alCambiarCasoMeta(); });
+  document.getElementById('btnMetaPreciosGuardar').addEventListener('click', function () { SafiaMeta.guardarPrecios(leerPreciosMeta()); toast('Precios guardados'); });
+  document.getElementById('btnMetaPreciosDefault').addEventListener('click', function () { localStorage.removeItem('safia_precios'); pintarPreciosMeta(); toast('Precios por defecto'); });
+  document.getElementById('btnMetaCalcular').addEventListener('click', function () {
+    var c = casoMeta(), meta = num(document.getElementById('metaKg').value), out = document.getElementById('metaResultado');
+    if (!c) { toast('Este lote no tiene campañas cosechadas todavía', true); return; }
+    if (!meta || meta <= c.rindeKgHa) { toast('La meta tiene que ser mayor al rinde actual (' + fmt(c.rindeKgHa, 0) + ')', true); return; }
+    var prof = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); });
+    var pl = SafiaMeta.plan(c, meta, leerPreciosMeta(), metaCasos, prof);
+    out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + ' de ' + fmt(c.rindeKgHa, 0) + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' +
+      '<div style="margin-top:10px;"><button class="btn" onclick="window.print()">Imprimir plan</button></div>';
+    out.scrollIntoView({ behavior: 'smooth' });
+  });
+
   /* ---------- pestañas ---------- */
   document.querySelectorAll('.tabs button').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -559,6 +623,7 @@
       b.classList.add('on');
       document.getElementById('panel-' + b.dataset.tab).classList.add('on');
       if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
+      if (b.dataset.tab === 'meta') activarMeta();
     });
   });
 
