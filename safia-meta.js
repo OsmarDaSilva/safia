@@ -117,7 +117,7 @@
       if (nc > 0.3) {
         var ap = v < 50 ? [0.10, 0.20] : (v < 60 ? [0.05, 0.12] : [0.02, 0.06]);
         item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : ''), objetivo: 'V% ' + vObj + (bm && bm.suelo.satBases ? ' (los que rinden ≥ meta: ' + fmt(bm.suelo.satBases, 0) + ')' : ''),
-          accion: fmt(nc, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < 1.0) ? 'dolomítico' : 'calcítico o dolomítico') + ' (PRNT 100 %), en superficie en directa; efecto pleno en 6–12 meses',
+          accion: fmt(nc, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < 1.0) ? 'dolomítico' : 'calcítico o dolomítico') + ' (PRNT 100 %), al voleo sobre el rastrojo apenas cosechado el cultivo anterior, con una pasada de escarificador/subsolador para que penetre; sin arar. Efecto pleno en 6–12 meses',
           inversion: nc * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
       } else if (opciones.preparacionCompleta) {
         item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado de mantenimiento', hoy: 'V% ' + fmt(v, 1), objetivo: 'sostener V% ' + vObj, accion: '1,0 t/ha de calcáreo cada 3–4 años para reponer lo que se acidifica con la fertilización nitrogenada y la extracción', inversion: 1.0 * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: 0, aporteMax: 0.03, fuente: '[2]' });
@@ -319,6 +319,32 @@
     html += '<div class="muted" style="font-size:12px;margin-bottom:6px;">Un rinde más alto se lleva más fósforo y potasio del suelo: hay que reponerlos cada campaña para no volver atrás. Acá se cuenta solo esa reposición extra y las prácticas que hoy no hacés (inoculación, tratamiento de semilla, fungicidas, cobertura). La fertilización que ya aplicás no se cuenta.</div>';
     html += gas.length ? tablaItems(gas, 'gasto', 'US$/ha por campaña') : '<div class="note">No hay gastos adicionales: las prácticas ya están cubiertas.</div>';
     if (info.length) html += '<h3 style="font-size:15px;margin:16px 0 4px;">3 · Para mirar, sin costo</h3>' + tablaItems(info, 'info', 'US$/ha');
+    // Secuencia sugerida: cuándo y cómo se hace cada cosa (sin arar)
+    var tiene = function (k) { return pl.items.some(function (i) { return i.k === k && (i.inversion || i.recurrente); }); };
+    var pasos = [];
+    var post = [];
+    if (tiene('encalado')) post.push('calcáreo al voleo');
+    if (tiene('yeso')) post.push('yeso al voleo');
+    if (tiene('subsolado') || tiene('directa')) post.push('una pasada de escarificador/subsolador a 30–40 cm para que el correctivo penetre y romper la capa compactada');
+    else if (post.length) post.push('escarificado leve si hay capa compactada (no arar)');
+    if (tiene('nivelacion')) post.push('nivelación / sistematización');
+    if (tiene('cobertura')) post.push('siembra de la cobertura (brachiaria, avena o mix) si da tiempo; si no, directo sobre el rastrojo');
+    if (post.length) pasos.push('<b>Apenas se cosecha el cultivo anterior</b> (ventana entre cosecha y siembra): ' + post.join(' → ') + '. Todo sobre el rastrojo, sin dar vuelta el suelo: la materia orgánica y la humedad se quedan.');
+    var siembra = [];
+    if (tiene('tratamiento')) siembra.push('tratamiento de semilla');
+    if (tiene('inoculacion') || tiene('coinoculacion')) siembra.push('inoculación (líquida en el surco o en semilla) y co-inoculación');
+    if (tiene('como')) siembra.push('CoMo');
+    if (tiene('fosforo') || tiene('potasio') || tiene('azufre')) siembra.push('fertilización de base en la línea o al voleo (P, K, S)');
+    if (tiene('zinc')) siembra.push('zinc');
+    if (siembra.length) pasos.push('<b>A la siembra</b> (' + esc(pl.cultivo).toLowerCase() + '): ' + siembra.join(', ') + '.');
+    var ciclo = [];
+    if (tiene('nitrogeno')) ciclo.push('nitrógeno en cobertura o por fertirriego (V4–V6)');
+    if (tiene('fungicidas')) ciclo.push('fungicidas preventivos en R1–R5');
+    if (tiene('agua')) ciclo.push('completar los mm que faltan con riego, concentrados en floración y llenado');
+    if (ciclo.length) pasos.push('<b>Durante el ciclo</b>: ' + ciclo.join('; ') + '.');
+    pasos.push('<b>Después de la cosecha</b>: el siguiente cultivo (zafriña) entra directo sobre el rastrojo; el calcáreo ya está trabajando a pleno desde el segundo ciclo. Repetir el análisis de suelo a los 2 años y reponer el calcáreo cuando venza (3–4 años).');
+    html += '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>Cuándo y cómo se hace (sin arar)</h3><span class="muted">secuencia sugerida en siembra directa</span></div><ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;">' + pasos.map(function (t) { return '<li style="margin-bottom:6px;">' + t + '</li>'; }).join('') + '</ol></div>';
+
     html += '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>¿Vale la pena?</h3><span class="muted">grano a US$ ' + fmt(e.precio, 0) + '/t · tierra a US$ ' + fmt(e.tierra, 0) + '/ha</span></div>' +
       '<div style="font-size:13px;line-height:1.6;">' +
       '<div>Pasar de <b>' + fmt(pl.actual, 0) + '</b> a <b>' + fmt(pl.meta, 0) + ' kg/ha</b> son <b>' + fmt(pl.kgExtra, 0) + ' kg/ha más</b> (' + fmt(pl.gapPct, 0) + ' %) = <b>US$ ' + fmt(e.ingresoExtra, 0) + '/ha por campaña</b>.</div>' +
