@@ -20,6 +20,9 @@
    [4] Oliveira Jr. et al. (2001) Scientia Agricola 58(2): relación
        (Ca+Mg)/K > 36 en el suelo = deficiencia inducida de K en soja;
        rango adecuado 20–30. Relación Ca/Mg ideal 3–5 (Embrapa soja 3,5).
+   [6] INTA / Fertilizar AC (Orcellet et al. 2022–2025): umbral de respuesta
+       a potasio en la región pampeana y litoral argentino 145–204 mg/kg de
+       K intercambiable; por encima la probabilidad de respuesta es baja.
    [5] PPI (1997) Manual Internacional de Fertilidad del Suelo: máxima
        disponibilidad de nutrientes entre pH 5,5 y 7,0; fósforo máximo
        entre 6,0 y 6,5; fijación de P por Al y Fe en suelos ácidos;
@@ -97,16 +100,23 @@
     // Fósforo
     if (p != null) {
       var catP = categoria5(p, pc.limites), limP = p < pc.critico ? clamp((pc.critico - p) / pc.critico, 0.15, 1) : 0;
-      var estP = limP >= 0.4 ? 'limita' : (limP > 0 ? 'atencion' : (catP === 'muy alta' ? 'exceso' : 'ok'));
+      var estP = limP >= 0.4 ? 'limita' : (limP > 0 ? 'atencion' : (catP === 'muy alta' ? 'reserva' : 'ok'));
       out.push({ k: 'p', n: 'Fósforo (P Mehlich-1)', valor: p, unidad: 'mg/dm³', categoria: catP, estado: estP, limitacion: limP * 1.0, peso: 1.0,
-        texto: 'Categoría "' + catP + '" para suelo clase ' + cl + ' (' + (cl === 1 ? 'más de 40 %' : '21–40 %') + ' de arcilla); nivel crítico ' + pc.critico + ' mg/dm³.' + (limP ? ' Por debajo del crítico hay respuesta probable a la fertilización fosfatada.' : (catP === 'muy alta' ? ' Reserva alta: alcanza con reposición; el exceso de P puede frenar la absorción de zinc.' : ' Alcanza con la manutención (reponer lo exportado).')), fuente: '[1]' });
+        texto: 'Categoría "' + catP + '" para suelo clase ' + cl + ' (' + (cl === 1 ? 'más de 40 %' : '21–40 %') + ' de arcilla); nivel crítico ' + pc.critico + ' mg/dm³.' + (limP ? ' Por debajo del crítico hay respuesta probable a la fertilización fosfatada.' : (catP === 'muy alta' ? ' Muy alta = reserva (más del doble del crítico): alcanza con reponer lo exportado o solo arranque; con P tan alto conviene vigilar el zinc.' : ' Alcanza con la manutención (reponer lo exportado).')), fuente: '[1]' });
     }
     // Potasio
     if (kmg != null) {
       var catK = categoria5(kmg, K_CLASE.limites), limK = kmg < K_CLASE.critico ? clamp((K_CLASE.critico - kmg) / K_CLASE.critico, 0.15, 1) : 0;
-      var estK = limK >= 0.4 ? 'limita' : (limK > 0 ? 'atencion' : (catK === 'muy alta' ? 'exceso' : 'ok'));
-      out.push({ k: 'k', n: 'Potasio (K)', valor: k, unidad: 'cmolc/dm³ (' + fmt(kmg, 0) + ' mg/dm³)', categoria: catK, estado: estK, limitacion: limK * 0.8, peso: 0.8,
-        texto: 'Categoría "' + catK + '"; nivel crítico 75 mg/dm³ (0,19 cmolc/dm³).' + (limK ? ' Falta K: afecta llenado de grano y tolerancia a sequía.' : ' Cubierto; reponer lo que exporta la cosecha.'), fuente: '[1]' });
+      var kPct = (cic && cic > 0) ? k / cic * 100 : null;                 // % de la CIC ocupado por K (ideal 3–5 %)
+      var rBKk = (ca != null && mg != null && k > 0) ? (ca + mg) / k : null;
+      var excesoK = (kPct != null && kPct > 6) || (rBKk != null && rBKk < 8); // solo es "exceso" si desequilibra frente a Ca y Mg
+      var estK = limK >= 0.4 ? 'limita' : (limK > 0 ? 'atencion' : (excesoK ? 'exceso' : (catK === 'muy alta' ? 'reserva' : 'ok')));
+      var txtK;
+      if (limK) txtK = 'Categoría "' + catK + '"; nivel crítico 75 mg/dm³ (0,19 cmolc/dm³). Falta K: afecta llenado de grano y tolerancia a sequía.';
+      else if (excesoK) txtK = 'Muy alto y desbalanceado: ocupa ' + fmt(kPct, 1) + ' % de la CIC' + (rBKk != null ? ' y (Ca+Mg)/K es ' + fmt(rBKk, 0) : '') + '. Tanto K frente a Ca y Mg puede frenar la absorción de magnesio; no aplicar K y revisar Mg.';
+      else if (catK === 'muy alta') txtK = 'Muy alta = reserva, no exceso: está por encima del crítico 75 (CAPECO), de 180 (Manual RS/SC para CIC 7,6–15) y del umbral argentino 145–204 mg/kg (INTA/Fertilizar)' + (kPct != null ? '; ocupa ' + fmt(kPct, 1) + ' % de la CIC (ideal 3–5 %)' : '') + '. No se espera respuesta a fertilizar con K: alcanza con reponer lo que exporta el grano.';
+      else txtK = 'Categoría "' + catK + '"; nivel crítico 75 mg/dm³ (0,19 cmolc/dm³). Cubierto; reponer lo que exporta la cosecha.';
+      out.push({ k: 'k', n: 'Potasio (K)', valor: k, unidad: 'cmolc/dm³ (' + fmt(kmg, 0) + ' mg/dm³)', categoria: catK, estado: estK, limitacion: limK * 0.8, peso: 0.8, texto: txtK, fuente: catK === 'muy alta' ? '[1][2][6]' : '[1]' });
     }
     // Calcio y magnesio
     if (ca != null) {
@@ -186,6 +196,10 @@
       if (corr > 0) {
         r.push({ k: 'fosforo', titulo: 'Fósforo: corregir con ' + fmt(corr, 0) + ' kg/ha de P₂O₅' + (man ? ' + manutención ' + fmt(man, 0) + ' kg/ha por cultivo' : ''),
           detalle: 'P ' + fmt(p, 1) + ' mg/dm³ (' + catP + ') contra un crítico de ' + pc.critico + ' para suelo clase ' + cl + '. Cada mg/dm³ que se quiere subir cuesta ' + pc.kgPorMg + ' kg/ha de P₂O₅ (Cubilla 2005). Se puede hacer gradual en 3 cultivos (tabla ' + (cl === 1 ? '7' : '8') + ' de CAPECO 2012).' + (ph != null && ph < 6 ? ' Encalar primero: con pH bajo, parte del P aplicado se fija en Al y Fe.' : ''), fuente: '[1]' });
+      } else if (catP === 'muy alta') {
+        var repP = tOb ? Math.round(tOb * cu.expP) : null;
+        r.push({ k: 'fosforo', titulo: 'Fósforo: reserva muy alta, solo reposición' + (repP ? ' (' + fmt(repP, 0) + ' kg/ha de P₂O₅)' : '') + ' o arranque',
+          detalle: 'P ' + fmt(p, 1) + ' mg/dm³, más del doble del crítico ' + pc.critico + '. CAPECO 2012: con "muy alta" la fertilización puede ser solo de arranque; reponer ' + cu.expP + ' kg de P₂O₅ por tonelada exportada y vigilar zinc.', fuente: '[1]' });
       } else {
         r.push({ k: 'fosforo', titulo: 'Fósforo: solo manutención' + (man ? ' (' + fmt(man, 0) + ' kg/ha de P₂O₅ para ' + fmt(rindeObjetivoKgHa, 0) + ' kg/ha)' : ''),
           detalle: 'P ' + fmt(p, 1) + ' mg/dm³ está en categoría "' + catP + '" (por encima del crítico ' + pc.critico + '). Reponer lo que exporta el grano: ' + cu.expP + ' kg de P₂O₅ por tonelada × 1,25 de pérdidas.', fuente: '[1]' });
@@ -198,6 +212,10 @@
       if (corrK > 0) {
         r.push({ k: 'potasio', titulo: 'Potasio: corregir con ' + fmt(corrK, 0) + ' kg/ha de K₂O en 3 cultivos' + (manK ? ' + manutención ' + fmt(manK, 0) + ' kg/ha' : ''),
           detalle: 'K ' + fmt(kmg, 0) + ' mg/dm³ (' + catK + ') contra un crítico de 75. Dosis correctiva gradual de la tabla 9 de CAPECO 2012.', fuente: '[1]' });
+      } else if (catK === 'muy alta') {
+        var repK = tOb ? Math.round(tOb * cu.expK) : null;
+        r.push({ k: 'potasio', titulo: 'Potasio: reserva muy alta, solo reposición de lo exportado' + (repK ? ' (' + fmt(repK, 0) + ' kg/ha de K₂O) o arranque' : ' o arranque'),
+          detalle: 'K ' + fmt(kmg, 0) + ' mg/dm³ (más del doble del crítico 75). CAPECO 2012: en categoría "muy alta" la fertilización puede ser solo de arranque o dispensarse y destinar el dinero a lo que sí limita; a lo sumo reponer los ' + cu.expK + ' kg de K₂O por tonelada que se lleva el grano. Volver a analizar en 2 años.', fuente: '[1][2][6]' });
       } else {
         r.push({ k: 'potasio', titulo: 'Potasio: solo manutención' + (manK ? ' (' + fmt(manK, 0) + ' kg/ha de K₂O)' : ''),
           detalle: 'K ' + fmt(kmg, 0) + ' mg/dm³ (' + catK + '), por encima del crítico 75. Reponer ' + cu.expK + ' kg de K₂O por tonelada exportada × 1,25.', fuente: '[1]' });
@@ -297,7 +315,7 @@
 
   /* ---------- informe en HTML para el Banco (por qué + qué hacer) ---------- */
   function badgeEstado(e) {
-    var m = { limita: ['🔻 limita', '#B3261E', '#FDECEA'], atencion: ['⚠️ atención', '#8B6F00', '#FFF6D6'], ok: ['✔ ok', '#178029', '#E7F6EA'], exceso: ['▲ exceso', '#8B6F00', '#FFF6D6'] }[e] || ['—', '#666', '#eee'];
+    var m = { limita: ['🔻 limita', '#B3261E', '#FDECEA'], atencion: ['⚠️ atención', '#8B6F00', '#FFF6D6'], ok: ['✔ ok', '#178029', '#E7F6EA'], reserva: ['✔ reserva alta', '#1565C0', '#E3F2FD'], exceso: ['▲ exceso', '#8B6F00', '#FFF6D6'] }[e] || ['—', '#666', '#eee'];
     return '<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:' + m[1] + ';background:' + m[2] + ';">' + m[0] + '</span>';
   }
   function tablaInterpretacion(lista) {
@@ -345,7 +363,7 @@
     } else {
       html += '<div class="note">Este lote no tiene análisis de suelo cargado: sin eso SAFIA no puede decir qué le falta al suelo. Cargalo en la pestaña <b>Análisis de suelo</b> (foto o PDF, lo lee la IA).</div>';
     }
-    html += '<div class="muted" style="font-size:11px;margin-top:10px;">Fuentes: [1] Cubilla & Wendling 2012, CAPECO/IPTA (P y K Mehlich-1, dosis, encalado) · [2] Manual RS/SC 2016 · [3] Embrapa · [4] Oliveira Jr. et al. 2001, Scientia Agricola · [5] PPI 1997. SAFIA interpreta y compara; la prescripción la define el agrónomo con el análisis completo (Al, S, micronutrientes).</div>';
+    html += '<div class="muted" style="font-size:11px;margin-top:10px;">Fuentes: [1] Cubilla & Wendling 2012, CAPECO/IPTA (P y K Mehlich-1, dosis, encalado) · [2] Manual RS/SC 2016 · [3] Embrapa · [4] Oliveira Jr. et al. 2001, Scientia Agricola · [5] PPI 1997 · [6] INTA/Fertilizar (umbral de K 145–204 mg/kg). SAFIA interpreta y compara; la prescripción la define el agrónomo con el análisis completo (Al, S, micronutrientes).</div>';
     return html;
   }
 
