@@ -315,7 +315,7 @@
 
         <!-- ================= TAB ANÁLISIS FOLIAR ================= -->
         <section class="panel" id="panel-foliar">
-          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="btnNuevoFoliar">+ Agregar análisis foliar</button><button class="btn" id="btnImportarSensor">Importar archivo del Dualex u otro sensor</button><input type="file" id="archivoSensor" accept=".csv,.txt,.tsv" style="display:none;"><span class="muted" style="font-size:12px;">El suelo dice qué hay; la hoja dice qué absorbió la planta. Con los dos, SAFIA distingue si falta en el suelo o si la planta no lo toma.</span></div>
+          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="btnNuevoFoliar">+ Agregar análisis foliar</button><button class="btn" id="btnImportarSensor">Importar archivo del Dualex u otro sensor</button><input type="file" id="archivoSensor" accept=".csv,.txt,.tsv" style="display:none;"><button class="btn" id="btnLeerUSB" title="Conectá el Dualex por USB y elegí su carpeta: SAFIA busca los archivos nuevos">Leer el Dualex conectado (USB)</button><span class="muted" style="font-size:12px;">El suelo dice qué hay; la hoja dice qué absorbió la planta. Con los dos, SAFIA distingue si falta en el suelo o si la planta no lo toma.</span></div>
 
           <div class="formcard" id="formFoliar">
             <h3 id="tituloFormFoliar">Nuevo análisis foliar</h3>
@@ -360,6 +360,7 @@
             </div>
           </div>
 
+          <div id="usbLista"></div>
           <div id="sensorImportado"></div>
           <div id="listaFoliar"></div>
           <div id="lecturaFoliar"></div>

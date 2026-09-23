@@ -272,6 +272,83 @@
     btn.dataset.listo = '1';
     btn.addEventListener('click', function () { input.value = ''; input.click(); });
     input.addEventListener('change', function () { var f = input.files && input.files[0]; if (f) importarArchivo(f); });
+    var usb = $('btnLeerUSB');
+    if (usb) usb.addEventListener('click', leerCarpetaUSB);
+  }
+
+  /* ---------- lectura directa del equipo conectado por USB (File System Access API: Chrome / Edge de escritorio) ----------
+     El Dualex se conecta como una unidad de almacenamiento con un archivo por día ("DX aaaammdd.csv"). SAFIA pide la carpeta,
+     lista los archivos del sensor, marca los que ya se importaron (mismo nombre en analisis_foliar) y trae los nuevos. */
+  var RE_ARCHIVO_SENSOR = /^(dx.*|.*dualex.*|.*spad.*|.*(chl|nbi).*)\.(csv|txt|tsv)$/i;
+  function leerCarpetaUSB() {
+    if (typeof window.showDirectoryPicker !== 'function') { toast('Este navegador no permite leer carpetas directamente. Usá Chrome o Edge en la computadora, o "Importar archivo" eligiendo el archivo del equipo.', true); return; }
+    window.showDirectoryPicker({ mode: 'read' }).then(function (dir) { return explorarCarpeta(dir); }).then(function (archivos) {
+      if (!archivos.length) { toast('En esa carpeta no hay archivos del sensor (se buscan DX*.csv, *.txt o *.csv con Chl/NBI). Elegí la carpeta raíz del Dualex.', true); return; }
+      pintarUSB(archivos);
+    }).catch(function (e) { if (e && e.name === 'AbortError') return; console.error(e); toast('No se pudo leer la carpeta: ' + (e && e.message ? e.message : e), true); });
+  }
+  // Recorre la carpeta (y una subcarpeta de nivel) buscando archivos del sensor → [{ nombre, ruta, fecha, tamano, handle, importado }]
+  function explorarCarpeta(dir, prefijo, nivel) {
+    prefijo = prefijo || ''; nivel = nivel || 0;
+    var salida = [], subs = [];
+    var ya = {}; leer('analisis_foliar').forEach(function (a) { if (a.archivoNombre) ya[String(a.archivoNombre).toLowerCase()] = 1; });
+    function recorrer(it) {
+      return it.next().then(function (r) {
+        if (r.done) return;
+        var par = r.value, nombre = par[0], h = par[1];
+        if (h.kind === 'file' && RE_ARCHIVO_SENSOR.test(nombre)) salida.push({ nombre: nombre, ruta: prefijo + nombre, fecha: fechaDeNombre(nombre), handle: h, importado: !!ya[nombre.toLowerCase()] });
+        else if (h.kind === 'directory' && nivel < 1 && !/^(\.|system|\$)/i.test(nombre)) subs.push(h);
+        return recorrer(it);
+      });
+    }
+    return recorrer(dir.entries()).then(function () {
+      var cadena = Promise.resolve();
+      subs.forEach(function (s) { cadena = cadena.then(function () { return explorarCarpeta(s, prefijo + s.name + '/', nivel + 1).then(function (l) { salida = salida.concat(l); }); }); });
+      return cadena;
+    }).then(function () {
+      return Promise.all(salida.map(function (a) { return a.handle.getFile().then(function (f) { a.tamano = f.size; a.modificado = f.lastModified ? new Date(f.lastModified).toISOString().slice(0, 10) : null; if (!a.fecha) a.fecha = a.modificado; return a; }); }));
+    }).then(function (l) { return l.sort(function (a, b) { return String(b.fecha || '').localeCompare(String(a.fecha || '')) || a.nombre.localeCompare(b.nombre); }); });
+  }
+  function fechaDeNombre(n) { var m = String(n).match(/(20\d{2})[-_ ]?(\d{2})[-_ ]?(\d{2})/); return m ? m[1] + '-' + m[2] + '-' + m[3] : null; }
+  function pintarUSB(archivos) {
+    var cont = $('usbLista'); if (!cont) return;
+    var nuevos = archivos.filter(function (a) { return !a.importado; });
+    var html = '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>Archivos en el equipo</h3><span class="muted">' + archivos.length + ' archivo(s) del sensor · ' + nuevos.length + ' sin importar</span></div>';
+    html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th>Archivo</th><th>Fecha</th><th class="r">Tamaño</th><th>Estado</th></tr></thead><tbody>' +
+      archivos.map(function (a, i) { return '<tr><td><input type="checkbox" class="usbSel" data-i="' + i + '"' + (a.importado ? '' : ' checked') + '></td><td><b>' + esc(a.ruta) + '</b></td><td>' + (a.fecha ? esc(a.fecha.split('-').reverse().join('/')) : '—') + '</td><td class="r">' + (a.tamano != null ? Math.round(a.tamano / 1024) + ' KB' : '—') + '</td><td>' + (a.importado ? '<span class="muted">ya importado</span>' : '<span style="color:#178029;font-weight:700;">nuevo</span>') + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+    html += '<div class="form-grid" style="margin-top:8px;"><div class="field"><label>Cultivo (para todos los archivos elegidos)</label><select id="usbCultivo">' + ['Soja', 'Maíz', 'Trigo', 'Girasol', 'Sorgo'].map(function (c) { return '<option>' + c + '</option>'; }).join('') + '</select></div><div class="field"><label>Estadio</label><select id="usbEstadio"></select></div><div class="field"><label>Grupo de referencia</label><select id="usbRef"><option value="">sin referencia</option><option value="1">grupo 1 de cada archivo</option><option value="max">el grupo con mayor NBI de cada archivo</option></select><span class="hint">Si en cada salida medís primero la franja bien nutrida, elegí "grupo 1".</span></div></div>';
+    html += '<div class="muted" style="font-size:12px;margin:6px 0;">Un solo archivo elegido abre la vista previa para revisar grupo por grupo; varios se importan de una vez con el lote asignado por GPS (los grupos sin GPS quedan como "Todo el campo" y se editan después).</div>';
+    html += '<div class="form-actions"><button class="btn" id="btnUsbCancelar">Cerrar</button><span class="spacer" style="flex:1"></span><button class="btn green" id="btnUsbImportar">Importar los elegidos</button></div></div>';
+    cont.innerHTML = html;
+    var sc = $('usbCultivo'), se = $('usbEstadio');
+    function llenarEst() { var est = window.SafiaFoliar ? SafiaFoliar.estadiosDe(sc.value) : [{ k: 'floracion', n: 'Floración' }]; se.innerHTML = est.map(function (e) { return '<option value="' + e.k + '">' + esc(e.n) + '</option>'; }).join(''); }
+    llenarEst(); sc.addEventListener('change', llenarEst);
+    $('btnUsbCancelar').addEventListener('click', function () { cont.innerHTML = ''; });
+    $('btnUsbImportar').addEventListener('click', function () {
+      var elegidos = Array.prototype.map.call(cont.querySelectorAll('.usbSel:checked'), function (c) { return archivos[+c.dataset.i]; });
+      if (!elegidos.length) { toast('Elegí al menos un archivo', true); return; }
+      if (elegidos.length === 1) { elegidos[0].handle.getFile().then(function (f) { cont.innerHTML = ''; importarArchivo(f); }); return; }
+      importarVarios(elegidos, { cultivo: sc.value, estadio: se.value, referencia: $('usbRef').value }).then(function (r) {
+        toast(r.archivos + ' archivo(s) importados: ' + r.analisis + ' análisis foliares del sensor' + (r.errores.length ? ' · con errores en: ' + r.errores.join(', ') : ''), !!r.errores.length);
+        cont.innerHTML = ''; if (window.SafiaFoliar && SafiaFoliar.activar) SafiaFoliar.activar();
+      });
+    });
+  }
+  // Importa varios archivos seguidos con la misma configuración (lote por GPS; referencia por regla)
+  function importarVarios(archivos, meta) {
+    var campo = B().campoActual(), lotes = leer('equipos').filter(function (e) { return String(e.campoId) === String(campo.id); });
+    var res = { archivos: 0, analisis: 0, errores: [] }, cadena = Promise.resolve();
+    archivos.forEach(function (a) {
+      cadena = cadena.then(function () { return a.handle.getFile(); }).then(function (f) { return f.text(); }).then(function (texto) {
+        var lect = leerTexto(texto, a.nombre), grupos = asignarLotes(agrupar(lect.lecturas), lotes);
+        var ref = null;
+        if (meta.referencia === '1' && grupos.length > 1) ref = grupos[0].grupo;
+        else if (meta.referencia === 'max' && grupos.length > 1) ref = grupos.filter(function (g) { return g.nbi; }).sort(function (x, y) { return y.nbi.media - x.nbi.media; })[0].grupo;
+        var creados = guardarGrupos(grupos, { campoId: campo.id, cultivo: meta.cultivo, estadio: meta.estadio, fecha: lect.fecha || a.fecha, fuente: lect.fuente, archivoNombre: a.nombre, referencia: ref });
+        res.archivos++; res.analisis += creados.length;
+      }).catch(function (e) { console.error(a.nombre, e); res.errores.push(a.nombre); });
+    });
+    return cadena.then(function () { return res; });
   }
   function importarArchivo(archivo) {
     var cont = $('sensorImportado'), campo = B().campoActual(); if (!cont || !campo) return;
@@ -335,5 +412,5 @@
   }
 
   window.SafiaSensores = { FUENTES: FUENTES, estadoEstacion: estadoEstacion, estaciones: estaciones, diario: diario, sincronizarCampo: sincronizarCampo, climaDeEstacion: climaDeEstacion, cobertura: cobertura, resumenCiclo: resumenCiclo, temperaturasEstacion: temperaturasEstacion,
-    leerTexto: leerTexto, agrupar: agrupar, asignarLotes: asignarLotes, loteEnPunto: loteEnPunto, dentroDeAnillo: dentroDeAnillo, guardarGrupos: guardarGrupos, activarFoliar: activarFoliar, activarAgua: activarAgua };
+    leerTexto: leerTexto, agrupar: agrupar, explorarCarpeta: explorarCarpeta, importarVarios: importarVarios, pintarUSB: pintarUSB, asignarLotes: asignarLotes, loteEnPunto: loteEnPunto, dentroDeAnillo: dentroDeAnillo, guardarGrupos: guardarGrupos, activarFoliar: activarFoliar, activarAgua: activarAgua };
 })();
