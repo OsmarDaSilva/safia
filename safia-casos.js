@@ -60,6 +60,8 @@
      (si no hay ninguno anterior, el más reciente que exista). */
   function sueloDelCampo(campoId, hastaFecha, equipoId) {
     var todos = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoId); });
+    // Las muestras que forman parte de un promedio no cuentan por separado: las representa el promedio
+    var sueltos = todos.filter(function (a) { return !a.enPromedio; }); if (sueltos.length) todos = sueltos;
     if (!todos.length) return null;
     // Prioridad: análisis del mismo lote/equipo; si no hay, los de "todo el campo"; si no, cualquiera del campo.
     var delLote = equipoId ? todos.filter(function (a) { return String(a.equipoId || '') === String(equipoId); }) : [];

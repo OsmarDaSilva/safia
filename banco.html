@@ -227,7 +227,18 @@
 
         <!-- ================= TAB ANÁLISIS ================= -->
         <section class="panel" id="panel-analisis">
-          <div style="margin-bottom:12px;"><button class="btn green" id="btnNuevoAnalisis">+ Agregar análisis de suelo</button></div>
+          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn green" id="btnNuevoAnalisis">+ Agregar análisis de suelo</button><button class="btn" id="btnPromediar">Promediar muestras de una misma parcela</button></div>
+
+          <div class="formcard" id="formPromedio">
+            <h3>Promedio de varias muestras de una misma parcela</h3>
+            <div class="formsub">Cuando el cliente saca varias muestras del mismo lote y lo maneja como una sola parcela, el promedio es el análisis que representa a esa parcela. Las muestras originales no se borran: quedan como detalle y dejan de contarse como análisis separados en las lecturas y comparaciones.</div>
+            <div id="promedioLista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
+            <div class="form-grid">
+              <div class="field"><label>Lote / equipo de la parcela</label><select id="promedioEquipo"></select></div>
+              <div class="field full"><label>Nombre de la parcela (opcional)</label><input type="text" id="promedioNombre" placeholder="Ej: Pivote 1 completo, Área norte"></div>
+            </div>
+            <div class="form-actions"><button class="btn" id="btnPromedioCancelar">Cancelar</button><button class="btn green" id="btnPromedioCrear">Crear promedio</button></div>
+          </div>
 
           <div class="formcard" id="formAnalisis">
             <h3 id="tituloFormAnalisis">Nuevo análisis de suelo</h3>
@@ -628,7 +639,7 @@
     var c = casoMeta(), meta = num(document.getElementById('metaKg').value), out = document.getElementById('metaResultado');
     if (!c) { toast('Este lote no tiene campañas cosechadas todavía', true); return; }
     if (!meta || meta <= c.rindeKgHa) { toast('La meta tiene que ser mayor al rinde actual (' + fmt(c.rindeKgHa, 0) + ')', true); return; }
-    var prof = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); });
+    var prof = analisisRepresentativos(leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); }));
     var pr = leerPreciosMeta();
     var opciones = { calcareoTnHa: num(document.getElementById('opCalcareo').value) || 0, preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
     var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
@@ -988,18 +999,99 @@
 
   function analisisDelCampo() {
     return leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); })
-      .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+      .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)) || ((a.esPromedio ? 0 : 1) - (b.esPromedio ? 0 : 1)); });
   }
+  // Los análisis que "representan" a la parcela: se dejan afuera las muestras que ya están dentro de un promedio.
+  function analisisRepresentativos(lista) {
+    var rep = lista.filter(function (a) { return !a.enPromedio; });
+    return rep.length ? rep : lista;
+  }
+  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc'];
+  // Promedio aritmético de cada valor (solo los que están cargados). Es lo que usan los laboratorios al informar la "media" de una gleba.
+  function promediarAnalisis(items) {
+    var out = {};
+    CLAVES_PROMEDIO.forEach(function (k) {
+      var vs = items.map(function (a) { return num(a[k]); }).filter(function (v) { return v !== null; });
+      out[k] = vs.length ? Math.round(vs.reduce(function (s, v) { return s + v; }, 0) / vs.length * 100) / 100 : null;
+    });
+    return out;
+  }
+  function etiquetaAnalisis(a) {
+    return a.equipoId ? nombreLote(a.equipoId) : (a.muestra ? etiquetaMuestra(a.muestra) : (a.parcela || 'todo el campo'));
+  }
+  function valoresDelPromedio(prom, items) {
+    Object.assign(prom, promediarAnalisis(items));
+    var profs = {}; items.forEach(function (a) { if (a.profundidad) profs[a.profundidad] = 1; });
+    prom.profundidad = Object.keys(profs).join(' / ');
+    prom.fecha = items.map(function (a) { return a.fecha; }).sort().slice(-1)[0];
+    prom.nMuestras = items.length;
+    prom.promedioDe = items.map(function (a) { return a.id; });
+    var conPdf = items.find(function (a) { return a.archivoRuta; });
+    if (conPdf && !prom.archivoRuta) { prom.archivoRuta = conPdf.archivoRuta; prom.archivoNombre = conPdf.archivoNombre; }
+    var lab = items.map(function (a) { return a.laboratorio; }).filter(Boolean)[0];
+    prom.observaciones = 'Promedio de ' + items.length + ' muestras' + (prom.parcela ? ' de la parcela "' + prom.parcela + '"' : '') + ': ' + items.map(etiquetaAnalisis).join(', ') + (lab ? ' · Lab: ' + lab : '') + '.';
+    return prom;
+  }
+  // Crea el análisis promedio y marca a las muestras como parte de él
+  function crearPromedio(ids, equipoId, nombreParcela) {
+    var lista = leer('analisis_suelo');
+    var items = lista.filter(function (a) { return ids.indexOf(a.id) >= 0; });
+    if (items.length < 2) { toast('Elegí al menos dos muestras', true); return null; }
+    var prom = { id: Date.now(), campoId: campoActual.id, equipoId: equipoId || null, esPromedio: true, parcela: nombreParcela || '', origen: 'promedio', fechaCreacion: new Date().toISOString() };
+    valoresDelPromedio(prom, items);
+    items.forEach(function (a) { a.enPromedio = prom.id; });
+    lista.push(prom);
+    guardar('analisis_suelo', lista);
+    return prom;
+  }
+  // Si se borra o edita una muestra que estaba dentro de un promedio, el promedio se rehace con las que quedan
+  function recalcularPromedio(promId) {
+    var lista = leer('analisis_suelo');
+    var prom = lista.find(function (a) { return String(a.id) === String(promId) && a.esPromedio; });
+    if (!prom) return;
+    var items = lista.filter(function (a) { return String(a.enPromedio || '') === String(promId); });
+    if (items.length < 2) { items.forEach(function (a) { delete a.enPromedio; }); lista = lista.filter(function (a) { return a !== prom; }); toast('El promedio se eliminó porque quedó una sola muestra'); }
+    else valoresDelPromedio(prom, items);
+    guardar('analisis_suelo', lista);
+  }
+  function abrirFormPromedio() {
+    var lista = analisisDelCampo().filter(function (a) { return !a.esPromedio && !a.enPromedio; });
+    var cont = document.getElementById('promedioLista');
+    if (lista.length < 2) { toast('Hacen falta al menos dos muestras sueltas (que no estén ya en un promedio)', true); return; }
+    var ultimaFecha = lista.map(function (a) { return a.fecha; }).sort().slice(-1)[0];
+    cont.innerHTML = '<div class="muted" style="font-size:12px;">Marcá las muestras que pertenecen a la misma parcela (vienen marcadas las de la última fecha):</div>' + lista.map(function (a) {
+      return '<label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;"><input type="checkbox" value="' + esc(a.id) + '"' + (a.fecha === ultimaFecha ? ' checked' : '') + '> ' + fmtFecha(a.fecha) + ' · <b>' + esc(etiquetaAnalisis(a)) + '</b>' + (a.profundidad ? ' · ' + esc(a.profundidad) : '') + ' <span class="muted">pH ' + fmt(a.ph, 1) + ' · P ' + fmt(a.p, 1) + ' · K ' + fmt(a.k, 2) + ' · V% ' + fmt(a.satBases, 1) + '</span></label>';
+    }).join('');
+    var sel = document.getElementById('promedioEquipo');
+    var eq = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); });
+    sel.innerHTML = '<option value="">Todo el campo</option>' + eq.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + (e.tipo === 'secano' ? ' (secano)' : '') + '</option>'; }).join('');
+    document.getElementById('promedioNombre').value = '';
+    cerrarFormAnalisis();
+    document.getElementById('formPromedio').classList.add('visible');
+    document.getElementById('formPromedio').scrollIntoView({ behavior: 'smooth' });
+  }
+  document.getElementById('btnPromediar').addEventListener('click', abrirFormPromedio);
+  document.getElementById('btnPromedioCancelar').addEventListener('click', function () { document.getElementById('formPromedio').classList.remove('visible'); });
+  document.getElementById('btnPromedioCrear').addEventListener('click', function () {
+    var ids = Array.prototype.slice.call(document.querySelectorAll('#promedioLista input:checked')).map(function (c) { return isNaN(+c.value) ? c.value : +c.value; });
+    var prom = crearPromedio(ids, document.getElementById('promedioEquipo').value || null, document.getElementById('promedioNombre').value.trim());
+    if (!prom) return;
+    document.getElementById('formPromedio').classList.remove('visible');
+    toast('Promedio de ' + prom.nMuestras + ' muestras creado: es el análisis que representa a la parcela');
+    pintarAnalisis();
+    if (typeof pintarEvolucion === 'function') pintarEvolucion();
+  });
 
   function pintarLecturaAnalisis(lista) {
     var cont = document.getElementById('lecturaAnalisis');
     if (!cont) return;
     if (!lista.length || !window.SafiaAgro) { cont.innerHTML = ''; return; }
-    var ult = lista[lista.length - 1];
+    var rep = analisisRepresentativos(lista);
+    var ult = rep[rep.length - 1];
     var cultivo = (document.getElementById('lecturaCultivo') || {}).value || 'Soja';
     var recs = SafiaAgro.recomendaciones(ult, cultivo, null);
     cont.innerHTML = '<div class="card" style="margin-top:14px;"><div class="card-h"><h3>🧠 Lectura agronómica del último análisis</h3>' +
-      '<span class="muted">' + fmtFecha(ult.fecha) + ' · interpretado para <select id="lecturaCultivo" style="font-size:12px;padding:2px 6px;">' + ['Soja', 'Maíz', 'Trigo', 'Girasol'].map(function (c) { return '<option' + (c === cultivo ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></span></div>' +
+      '<span class="muted">' + fmtFecha(ult.fecha) + (ult.esPromedio ? ' · promedio de ' + ult.nMuestras + ' muestras' + (ult.parcela ? ' (' + esc(ult.parcela) + ')' : '') : (ult.equipoId ? ' · ' + esc(nombreLote(ult.equipoId)) : '')) + ' · interpretado para <select id="lecturaCultivo" style="font-size:12px;padding:2px 6px;">' + ['Soja', 'Maíz', 'Trigo', 'Girasol'].map(function (c) { return '<option' + (c === cultivo ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></span></div>' +
       SafiaAgro.tablaInterpretacion(SafiaAgro.interpretarSuelo(ult, cultivo)) +
       '<div style="font-weight:700;margin-top:12px;">Qué hacer</div>' + SafiaAgro.listaRecomendaciones(recs) +
       '<div class="muted" style="font-size:11px;margin-top:8px;">Tablas de CAPECO/IPTA (Cubilla & Wendling 2012), Manual RS/SC 2016, Embrapa y Scientia Agricola. La prescripción final la define el agrónomo.</div></div>';
@@ -1015,7 +1107,7 @@
 
     var t = document.getElementById('tablaEvolucion');
     var enc = '<thead><tr><th>Parámetro</th>' + lista.map(function (a) {
-      return '<th class="r">' + fmtFecha(a.fecha) + (a.equipoId ? '<div style="font-weight:600;text-transform:none;color:var(--green);">' + esc(nombreLote(a.equipoId)) + '</div>' : (a.muestra ? '<div style="font-weight:600;text-transform:none;" title="Nombre de la muestra en el laboratorio (sin lote asignado en SAFIA)">' + esc(etiquetaMuestra(a.muestra)) + '</div>' : '<div style="font-weight:500;text-transform:none;">todo el campo</div>')) + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + '</th>';
+      return '<th class="r">' + fmtFecha(a.fecha) + (a.equipoId ? '<div style="font-weight:600;text-transform:none;color:var(--green);">' + esc(nombreLote(a.equipoId)) + '</div>' : (a.esPromedio ? '' : a.muestra ? '<div style="font-weight:600;text-transform:none;" title="Nombre de la muestra en el laboratorio (sin lote asignado en SAFIA)">' + esc(etiquetaMuestra(a.muestra)) + '</div>' : '<div style="font-weight:500;text-transform:none;">todo el campo</div>')) + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + (a.esPromedio ? '<div style="font-weight:700;text-transform:none;color:var(--green);">Promedio de ' + a.nMuestras + ' muestras' + (a.parcela ? ' · ' + esc(a.parcela) : '') + '</div>' : (a.enPromedio ? '<div style="font-weight:500;text-transform:none;font-size:10px;opacity:.7;">muestra dentro de un promedio</div>' : '')) + '</th>';
     }).join('') + '</tr></thead>';
 
     var filas = PARAMS.map(function (p) {
@@ -1058,8 +1150,13 @@
       b.addEventListener('click', function () {
         var id = b.dataset.id;
         armarBorrado(b, function () {
-          guardar('analisis_suelo', leer('analisis_suelo').filter(function (a) { return String(a.id) !== String(id); }));
-          toast('Análisis eliminado');
+          var todos = leer('analisis_suelo');
+          var borrado = todos.find(function (a) { return String(a.id) === String(id); }) || {};
+          todos = todos.filter(function (a) { return String(a.id) !== String(id); });
+          if (borrado.esPromedio) todos.forEach(function (a) { if (String(a.enPromedio || '') === String(id)) delete a.enPromedio; });
+          guardar('analisis_suelo', todos);
+          if (borrado.enPromedio) recalcularPromedio(borrado.enPromedio);
+          toast(borrado.esPromedio ? 'Promedio eliminado: las muestras vuelven a contarse por separado' : 'Análisis eliminado');
           pintarAnalisis();
         });
       });
@@ -1195,6 +1292,7 @@
     if (!cont) { cont = document.createElement('div'); cont.id = 'muestrasIA'; cont.style.cssText = 'margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;'; document.getElementById('leerIAHint').parentNode.appendChild(cont); }
     if (muestras.length < 2) { cont.innerHTML = ''; return; }
     cont.innerHTML = '<button type="button" class="btn green mini" id="btnGuardarMuestras">Guardar las ' + muestras.length + ' muestras como análisis separados</button>' +
+      '<label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:500;"><input type="checkbox" id="chkMismaParcela"> son de la misma parcela: crear también el promedio (queda en el lote elegido arriba)</label>' +
       '<span class="muted" style="font-size:12px;align-self:center;">o elegí una para revisarla:</span>' + muestras.map(function (m, i) {
       var et = [m.muestra ? etiquetaMuestra(m.muestra) : '', m.profundidad, m.fecha].filter(Boolean).join(' · ') || ('Muestra ' + (i + 1));
       return '<button type="button" class="btn mini" data-i="' + i + '">' + esc(et) + '</button>';
@@ -1257,6 +1355,14 @@
         lista.push(item); creados++;
       });
       guardar('analisis_suelo', lista);
+      var chk = document.getElementById('chkMismaParcela');
+      if (chk && chk.checked && creados >= 2) {
+        var idsNuevos = lista.slice(-creados).map(function (a) { return a.id; });
+        var equipoSel = document.getElementById('aEquipo').value || null;
+        lista.forEach(function (a) { if (idsNuevos.indexOf(a.id) >= 0) a.equipoId = a.equipoId || null; });
+        var prom = crearPromedio(idsNuevos, equipoSel, '');
+        if (prom) { toast('Promedio de ' + creados + ' muestras creado' + (equipoSel ? ' para ' + nombreLote(equipoSel) : '') + '; las muestras quedan como detalle'); cerrarFormAnalisis(); pintarAnalisis(); if (typeof pintarEvolucion === 'function') pintarEvolucion(); return; }
+      }
       var faltan = creados - conLote;
       toast(creados + ' análisis guardados' + (conLote ? ' (' + conLote + ' con lote asignado por nombre)' : '') + (faltan ? '. Editá los ' + faltan + ' restantes para elegirles el lote.' : '.'));
       cerrarFormAnalisis();
@@ -1328,6 +1434,7 @@
       if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
       if (!editandoAnalisisId) lista.push(item);
       guardar('analisis_suelo', lista);
+      if (item.enPromedio) recalcularPromedio(item.enPromedio);
       toast(editandoAnalisisId ? 'Análisis actualizado' : 'Análisis guardado en el banco');
       cerrarFormAnalisis();
       pintarAnalisis();
@@ -1496,7 +1603,7 @@
     var html = '';
 
     /* ---- 1. Suelo: ¿mejoró o empeoró? ---- */
-    var analisis = leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); })
+    var analisis = analisisRepresentativos(leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); }))
       .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
     html += h3evo('🧪 Suelo: ¿mejoró o empeoró?', analisis.length ? analisis.length + ' análisis' : '');
     if (analisis.length < 2) {
