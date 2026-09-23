@@ -487,6 +487,16 @@
             <div id="geoStats" style="margin-top:10px;"></div>
           </div>
 
+          <div class="card" style="margin-top:14px;" id="cardGeoSensor">
+            <div class="card-h"><h3>Puntos del sensor foliar (Dualex u otro)</h3><span class="muted">cada medición con GPS, pintada por su valor: dónde el lote viene flojo</span></div>
+            <div class="form-grid">
+              <div class="field"><label>Importación</label><select id="geoSensorLote"></select></div>
+              <div class="field"><label>Pintar por</label><select id="geoSensorVar"><option value="NBI relativo">NBI relativo a la referencia</option><option value="NBI">NBI</option><option value="Clorofila">Clorofila (µg/cm²)</option><option value="Flavonoles">Flavonoles</option><option value="SPAD">SPAD</option></select></div>
+              <div class="field" style="justify-content:flex-end;"><button class="btn green" id="btnGeoSensor">Ver en el mapa</button></div>
+            </div>
+            <div class="muted" id="geoSensorVacio" style="display:none;padding:6px 0;font-size:12px;">Todavía no hay mediciones del sensor con GPS en este campo. Se cargan en Análisis foliar → "Importar archivo del Dualex u otro sensor".</div>
+          </div>
+
           <div class="card" style="margin-top:14px;">
             <div class="card-h"><h3>Mapas guardados de este campo</h3></div>
             <div class="tablewrap"><div class="tablescroll"><table class="tbl">

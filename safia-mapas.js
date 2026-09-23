@@ -241,7 +241,8 @@
       leyenda.onAdd = function () {
         var d = L.DomUtil.create('div'); d.style.cssText = 'background:#fff;padding:8px 10px;border-radius:8px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.2);';
         var lims = [st.min].concat(cortes).concat([st.max]);
-        d.innerHTML = '<b>' + esc(columna) + '</b><br>' + COLORES.map(function (c, i) { return '<span style="display:inline-block;width:12px;height:12px;background:' + c + ';border-radius:2px;vertical-align:-2px;margin-right:4px;"></span>' + fmt(lims[i], 1) + ' – ' + fmt(lims[i + 1], 1); }).join('<br>');
+        var decL = (st.max - st.min) < 2 ? 2 : 1;   // escalas chicas (NBI relativo, pH) con 2 decimales
+        d.innerHTML = '<b>' + esc(columna) + '</b><br>' + COLORES.map(function (c, i) { return '<span style="display:inline-block;width:12px;height:12px;background:' + c + ';border-radius:2px;vertical-align:-2px;margin-right:4px;"></span>' + fmt(lims[i], decL) + ' – ' + fmt(lims[i + 1], decL); }).join('<br>');
         return d;
       };
       leyenda.addTo(mapa);
@@ -511,9 +512,57 @@
     $('geoListaCampanas').innerHTML = Object.keys(nombres).map(function (n) { return '<option value="' + esc(n) + '">'; }).join('');
   }
   var iniciado = false;
+  /* ---------- puntos del sensor foliar (Dualex / SPAD) sobre el lote ---------- */
+  // Cada importación (archivo + fecha) se pinta como un mapa de puntos: NBI relativo, NBI, clorofila, flavonoles o SPAD
+  function importacionesSensor() {
+    var c = B() && B().campoActual(); if (!c) return [];
+    var items = B().leer('analisis_foliar').filter(function (a) { return String(a.campoId) === String(c.id) && a.tipo === 'sensor' && Array.isArray(a.puntos) && a.puntos.some(function (p) { return p.lat != null && p.lon != null; }); });
+    var g = {};
+    items.forEach(function (a) { var k = (a.archivoNombre || 'sensor') + '|' + String(a.fecha || '').slice(0, 10); (g[k] = g[k] || { k: k, archivo: a.archivoNombre || 'sensor', fecha: String(a.fecha || '').slice(0, 10), items: [] }).items.push(a); });
+    return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return b.fecha.localeCompare(a.fecha); });
+  }
+  function capaDeSensor(imp, variable) {
+    var puntos = [], refs = imp.items.filter(function (a) { return a.esReferencia && a.nbi != null; });
+    var nbiRef = refs.length ? refs[0].nbi : (imp.items.find(function (a) { return a.nbiRef != null; }) || {}).nbiRef;
+    imp.items.forEach(function (a) {
+      (a.puntos || []).forEach(function (p) {
+        if (p.lat == null || p.lon == null) return;
+        var v = { Grupo: +a.grupo || a.grupo };
+        if (p.nbi != null) { v['NBI'] = p.nbi; if (nbiRef) v['NBI relativo'] = Math.round(p.nbi / nbiRef * 100) / 100; }
+        if (p.chl != null) v['Clorofila'] = p.chl;
+        if (p.spad != null) v['SPAD'] = p.spad;
+        if (a.flav != null && p.chl != null && p.nbi) v['Flavonoles'] = Math.round(p.chl / p.nbi * 100) / 100;
+        puntos.push({ lat: p.lat, lon: p.lon, v: v, lote: a.equipoId, grupo: a.grupo });
+      });
+    });
+    var col = variable;
+    if (!puntos.some(function (p) { return p.v[col] != null; })) col = ['NBI relativo', 'NBI', 'Clorofila', 'SPAD'].find(function (k) { return puntos.some(function (p) { return p.v[k] != null; }); }) || variable;
+    return { capa: { meta: { nombre: 'Sensor foliar · ' + imp.archivo + ' · ' + imp.fecha, tipo: 'sensor' }, puntos: puntos }, columna: col, nbiRef: nbiRef };
+  }
+  function dibujarSensor(imp, variable) {
+    var d = capaDeSensor(imp, variable); if (!d.capa.puntos.length) { B().toast('Esa importación no tiene puntos con GPS', true); return; }
+    asegurarMapa().then(function () {
+      dibujar(d.capa, d.columna);
+      // etiqueta por grupo: número y promedio de la variable
+      var L = window.L, porGrupo = {};
+      d.capa.puntos.forEach(function (p) { var k = String(p.grupo); (porGrupo[k] = porGrupo[k] || { lat: 0, lon: 0, n: 0, s: 0, ns: 0 }); var g = porGrupo[k]; g.lat += p.lat; g.lon += p.lon; g.n++; if (p.v[d.columna] != null) { g.s += p.v[d.columna]; g.ns++; } });
+      Object.keys(porGrupo).forEach(function (k) { var g = porGrupo[k]; L.marker([g.lat / g.n, g.lon / g.n], { opacity: 0, interactive: false }).bindTooltip('G' + esc(k) + (g.ns ? ' · ' + fmt(g.s / g.ns, d.columna === 'NBI relativo' ? 2 : 1) : ''), { permanent: true, direction: 'top', className: 'safia-etq-lote' }).addTo(capaDibujo); });
+      var extra = d.columna === 'NBI relativo' ? ' · 1,00 = igual que la referencia' + (d.nbiRef ? ' (NBI ' + fmt(d.nbiRef, 1) + ')' : '') + '; por debajo de 0,95 la zona viene con déficit de nitrógeno' : '';
+      $('geoTituloMapa').textContent = d.capa.meta.nombre + ' · ' + d.capa.puntos.length + ' mediciones · ' + d.columna + extra;
+    }).catch(function (e) { B().toast('No se pudo cargar el mapa: ' + e.message, true); });
+  }
+  function llenarSensor() {
+    var sel = $('geoSensorLote'), vacio = $('geoSensorVacio'), card = $('cardGeoSensor'); if (!sel) return;
+    var imps = importacionesSensor();
+    sel.innerHTML = imps.map(function (i, n) { return '<option value="' + n + '">' + esc(i.fecha.split('-').reverse().join('/')) + ' · ' + esc(i.archivo) + ' · ' + i.items.length + ' grupo(s)</option>'; }).join('');
+    vacio.style.display = imps.length ? 'none' : '';
+    card.querySelectorAll('select, button').forEach(function (e) { e.disabled = !imps.length; });
+  }
+
   function activar() {
     if (!iniciado) {
       iniciado = true;
+      if ($('btnGeoSensor')) $('btnGeoSensor').addEventListener('click', function () { var imps = importacionesSensor(), i = imps[+$('geoSensorLote').value]; if (i) dibujarSensor(i, $('geoSensorVar').value); });
       $('btnGeoLeer').addEventListener('click', alLeer);
       $('btnGeoDibujar').addEventListener('click', alDibujar);
       $('btnGeoGuardar').addEventListener('click', alGuardar);
@@ -522,11 +571,12 @@
     }
     llenarSelectores();
     pintarCapas();
+    llenarSensor();
     // Si el campo ya tiene lotes con polígono, el mapa se muestra de entrada (aunque todavía no haya capas de puntos)
     if (!mapa && window.SafiaLotes && B() && B().campoActual() && B().leer('equipos').some(function (e) { return String(e.campoId) === String(B().campoActual().id) && e.poligono; })) asegurarMapa().catch(function () {});
     if (mapa) setTimeout(function () { mapa.invalidateSize(); }, 50);
   }
   function alCambiarCampo() { capas = {}; nueva = null; lecturaActual = null; metasGuardadas = []; if ($('geoPreview')) $('geoPreview').style.display = 'none'; if (capaDibujo && mapa) { mapa.removeLayer(capaDibujo); capaDibujo = null; } dibujarLotes(); if (iniciado) activar(); }
 
-  window.SafiaMapas = { activar: activar, alCambiarCampo: alCambiarCampo, leerCSV: leerCSV, leerGeoJSON: leerGeoJSON, leerKML: leerKML, detectar: detectar, armarPuntos: armarPuntos, stats: stats, unirRindeASuelo: unirRindeASuelo, pearson: pearson, _capas: function () { return capas; }, _setNueva: function (c) { nueva = c; capas.nueva = c; llenarCruce(); } };
+  window.SafiaMapas = { activar: activar, alCambiarCampo: alCambiarCampo, dibujarSensor: dibujarSensor, importacionesSensor: importacionesSensor, leerCSV: leerCSV, leerGeoJSON: leerGeoJSON, leerKML: leerKML, detectar: detectar, armarPuntos: armarPuntos, stats: stats, unirRindeASuelo: unirRindeASuelo, pearson: pearson, _capas: function () { return capas; }, _setNueva: function (c) { nueva = c; capas.nueva = c; llenarCruce(); } };
 })();
