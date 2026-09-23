@@ -142,7 +142,7 @@
     s += '<path d="M' + lista.map(function (p) { return x(p.fecha) + ' ' + y(p.ndvi); }).join(' L') + '" fill="none" stroke="#178029" stroke-width="2.2"/>';
     lista.forEach(function (p) {
       var nublado = p.nubes_pct != null && p.nubes_pct > 40;
-      s += '<circle cx="' + x(p.fecha) + '" cy="' + y(p.ndvi) + '" r="' + (nublado ? 3 : 3.5) + '" fill="' + (nublado ? '#fff' : '#178029') + '" stroke="#178029" stroke-width="1.5"><title>' + fmtF(p.fecha) + ' · NDVI ' + n2(p.ndvi) + (p.p10 != null ? ' (' + n2(p.p10) + ' a ' + n2(p.p90) + ' dentro del lote)' : '') + (p.nubes_pct != null ? ' · nubes ' + Math.round(p.nubes_pct) + ' %' : '') + '</title></circle>';
+      s += '<circle data-fecha="' + p.fecha + '" style="cursor:pointer" cx="' + x(p.fecha) + '" cy="' + y(p.ndvi) + '" r="' + (nublado ? 3 : 3.5) + '" fill="' + (nublado ? '#fff' : '#178029') + '" stroke="#178029" stroke-width="1.5"><title>' + fmtF(p.fecha) + ' · NDVI ' + n2(p.ndvi) + (p.p10 != null ? ' (' + n2(p.p10) + ' a ' + n2(p.p90) + ' dentro del lote)' : '') + (p.nubes_pct != null ? ' · nubes ' + Math.round(p.nubes_pct) + ' %' : '') + '</title></circle>';
     });
     s += '</svg><div class="muted" style="font-size:11px;">Línea: NDVI promedio del lote. Sombra: del 10 % al 90 % de los píxeles (cuánto varía dentro del lote). Puntos vacíos: pasadas con más del 40 % del lote nublado.</div>';
     return s;
@@ -267,6 +267,69 @@
         '<div class="stat"><div class="sl">Variación dentro del lote</div><div class="sv">' + (ult.p10 != null ? n2(ult.p10) + ' – ' + n2(ult.p90) : '—') + '</div><div class="ss">10 % a 90 % de los píxeles' + (ult.p10 != null && ult.ndvi > 0.5 && ult.p90 - ult.p10 > 0.25 ? ' · lote desparejo con el cultivo en pie: mirá el mapa de fertilidad' : '') + '</div></div></div>' + (sinPoli ? '<div class="note warn" style="margin-top:8px;">Este lote no tiene polígono: los datos son antiguos. Cargá el contorno para volver a pedir.</div>' : '');
     } else res.innerHTML = '';
     dibujarCampanas(lote, lista);
+    llenarFechasImagen();
+  }
+
+  /* ---------- imagen satelital del lote (Process API) ---------- */
+  var mapasImg = {}, imgCache = {};
+  function llenarFechasImagen() {
+    var lote = loteActual(), s1 = $('ndviImgFecha'), s2 = $('ndviImgFecha2');
+    var lista = lote ? (series[lote.id] || []).filter(function (p) { return !(p.nubes_pct > 40); }).slice().reverse() : [];
+    var v1 = s1.value, v2 = s2.value;
+    var ops = lista.map(function (p) { return '<option value="' + p.fecha + '">' + fmtF(p.fecha) + ' · NDVI ' + n2(p.ndvi) + '</option>'; }).join('');
+    s1.innerHTML = ops || '<option value="">Primero traé la serie del satélite</option>';
+    s2.innerHTML = '<option value="">— sin comparar —</option>' + ops;
+    if (v1 && lista.some(function (p) { return p.fecha === v1; })) s1.value = v1;
+    if (v2 && lista.some(function (p) { return p.fecha === v2; })) s2.value = v2;
+  }
+  function mapaImagen(n) {
+    if (mapasImg[n]) return Promise.resolve(mapasImg[n]);
+    if (!window.SafiaLotes) return Promise.reject(new Error('Falta safia-lotes.js'));
+    return SafiaLotes.crearMapa('ndviMapa' + n, {}).then(function (api) { mapasImg[n] = { api: api, overlay: null, contorno: null }; return mapasImg[n]; });
+  }
+  function pedirImagen(lote, fecha, capa) {
+    var k = lote.id + '|' + fecha + '|' + capa;
+    if (imgCache[k]) return Promise.resolve(imgCache[k]);
+    if (!window.safiaSupabase) return Promise.reject(new Error('sin conexión'));
+    return window.safiaSupabase.functions.invoke('safia-ndvi', { body: { tipo: 'imagen', equipoId: String(lote.id), partes: lote.poligono.partes, fecha: fecha, capa: capa } }).then(function (r) {
+      if (r.error) throw r.error;
+      var d = r.data || {}; if (!d.ok) throw new Error(d.error || 'sin imagen');
+      imgCache[k] = d; return d;
+    });
+  }
+  function mostrarImagenEn(n, lote, fecha, capa) {
+    var tit = $('ndviMapaTit' + n);
+    tit.textContent = 'Cargando ' + fmtF(fecha) + '…';
+    return Promise.all([mapaImagen(n), pedirImagen(lote, fecha, capa)]).then(function (res) {
+      var m = res[0], d = res[1], L = window.L;
+      if (m.overlay) { m.api.mapa.removeLayer(m.overlay); m.overlay = null; }
+      if (m.contorno) { m.api.mapa.removeLayer(m.contorno); m.contorno = null; }
+      m.overlay = L.imageOverlay('data:image/png;base64,' + d.png, d.bounds, { opacity: capa === 'ndvi' ? 0.92 : 1 }).addTo(m.api.mapa);
+      m.contorno = L.polygon(lote.poligono.partes, { color: '#FFFFFF', weight: 2, fill: false, dashArray: '4 3' }).addTo(m.api.mapa);
+      m.api.mapa.fitBounds(d.bounds, { padding: [6, 6] });
+      setTimeout(function () { m.api.mapa.invalidateSize(); m.api.mapa.fitBounds(d.bounds, { padding: [6, 6] }); }, 80);
+      var p = (series[lote.id] || []).find(function (x) { return x.fecha === fecha; });
+      tit.innerHTML = '<b>' + fmtF(fecha) + '</b> · ' + (capa === 'ndvi' ? 'NDVI' : 'color real') + (p ? ' · promedio ' + n2(p.ndvi) + (p.p10 != null ? ' (' + n2(p.p10) + '–' + n2(p.p90) + ')' : '') : '');
+    }).catch(function (e) {
+      var explicar = function (msg) { tit.textContent = 'No se pudo traer la imagen de ' + fmtF(fecha) + ': ' + msg; };
+      if (e && e.context && typeof e.context.json === 'function') e.context.json().then(function (j) { explicar((j && (j.error + (j.detalle ? ' · ' + j.detalle : ''))) || e.message); }).catch(function () { explicar(e.message); });
+      else explicar((e && e.message) || 'error');
+    });
+  }
+  function verImagen() {
+    var lote = loteActual(); if (!lote) return;
+    if (!lote.poligono || !lote.poligono.partes) { B().toast('Este lote no tiene polígono', true); return; }
+    var f1 = $('ndviImgFecha').value, f2 = $('ndviImgFecha2').value, capa = $('ndviImgCapa').value;
+    if (!f1) { B().toast('Elegí una fecha (primero traé la serie del satélite)', true); return; }
+    var boton = $('btnNdviImagen'); boton.disabled = true; boton.textContent = 'Trayendo…';
+    $('ndviImgEstado').textContent = 'Copernicus arma la imagen del lote a 10 m por píxel; suele tardar unos segundos.';
+    $('ndviLeyenda').style.display = capa === 'ndvi' ? 'flex' : 'none';
+    $('ndviMapaWrap2').style.display = f2 ? '' : 'none';
+    $('ndviMapas').style.gridTemplateColumns = f2 ? '1fr 1fr' : '1fr';
+    var tareas = [mostrarImagenEn(1, lote, f1, capa)];
+    if (f2) tareas.push(mostrarImagenEn(2, lote, f2, capa));
+    Promise.all(tareas).then(function () { $('ndviImgEstado').textContent = f2 ? 'Izquierda ' + fmtF(f1) + ' · derecha ' + fmtF(f2) + '. Línea blanca punteada: contorno del lote.' : 'Línea blanca punteada: contorno del lote. Las manchas claras dentro del lote son zonas de menor vigor.'; })
+      .finally(function () { boton.disabled = false; boton.textContent = 'Ver imagen'; });
   }
 
   /* ---------- pantalla ---------- */
@@ -290,6 +353,13 @@
       $('ndviDesde').addEventListener('change', dibujarTodo);
       $('ndviHasta').addEventListener('change', dibujarTodo);
       $('btnNdviTraer').addEventListener('click', traer);
+      $('btnNdviImagen').addEventListener('click', verImagen);
+      $('ndviGrafico').addEventListener('click', function (ev) {
+        var c = ev.target.closest && ev.target.closest('circle[data-fecha]'); if (!c) return;
+        llenarFechasImagen();
+        if ($('ndviImgFecha').querySelector('option[value="' + c.dataset.fecha + '"]')) { $('ndviImgFecha').value = c.dataset.fecha; verImagen(); document.getElementById('ndviMapa1').scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        else B().toast('Esa pasada estaba nublada: elegí otra fecha', true);
+      });
       $('btnNdviCampana').addEventListener('click', function () {
         var lote = loteActual(); if (!lote) return;
         var camps = campanasDelLote(lote.id); if (!camps.length) { B().toast('Este lote no tiene campañas con siembra', true); return; }

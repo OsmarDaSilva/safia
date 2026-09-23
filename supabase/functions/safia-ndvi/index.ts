@@ -13,6 +13,42 @@ const CORS = {
 };
 const TOKEN_URL = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token';
 const STATS_URL = 'https://sh.dataspace.copernicus.eu/api/v1/statistics';
+const PROCESS_URL = 'https://sh.dataspace.copernicus.eu/api/v1/process';
+
+// Imagen NDVI coloreada (marrón → amarillo → verde oscuro), nubes en blanco translúcido, fuera del lote transparente
+const EVAL_IMG_NDVI = `//VERSION=3
+function setup() { return { input: [{ bands: ['B04', 'B08', 'SCL', 'dataMask'] }], output: { bands: 4, sampleType: 'UINT8' } }; }
+var STOPS = [[-0.2, [120, 90, 60]], [0.15, [196, 168, 120]], [0.3, [232, 212, 92]], [0.45, [172, 202, 72]], [0.6, [92, 172, 62]], [0.75, [32, 132, 42]], [0.9, [0, 82, 22]]];
+function rampa(v) {
+  if (v <= STOPS[0][0]) return STOPS[0][1];
+  for (var i = 1; i < STOPS.length; i++) { if (v <= STOPS[i][0]) { var a = STOPS[i - 1], b = STOPS[i], t = (v - a[0]) / (b[0] - a[0]); return [a[1][0] + (b[1][0] - a[1][0]) * t, a[1][1] + (b[1][1] - a[1][1]) * t, a[1][2] + (b[1][2] - a[1][2]) * t]; } }
+  return STOPS[STOPS.length - 1][1];
+}
+function evaluatePixel(s) {
+  if (s.dataMask === 0) return [0, 0, 0, 0];
+  var nube = (s.SCL === 0 || s.SCL === 1 || s.SCL === 3 || s.SCL === 8 || s.SCL === 9 || s.SCL === 10 || s.SCL === 11);
+  if (nube) return [255, 255, 255, 150];
+  var c = rampa((s.B08 - s.B04) / (s.B08 + s.B04 + 0.000001));
+  return [c[0], c[1], c[2], 255];
+}`;
+// Color real (bandas rojo, verde, azul con ganancia)
+const EVAL_IMG_COLOR = `//VERSION=3
+function setup() { return { input: [{ bands: ['B04', 'B03', 'B02', 'dataMask'] }], output: { bands: 4, sampleType: 'UINT8' } }; }
+function evaluatePixel(s) {
+  if (s.dataMask === 0) return [0, 0, 0, 0];
+  return [Math.min(255, 2.8 * s.B04 * 255), Math.min(255, 2.8 * s.B03 * 255), Math.min(255, 2.8 * s.B02 * 255), 255];
+}`;
+
+function limites(partes: number[][][][]) {
+  let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+  partes.forEach((an) => an[0].forEach((p) => { minLat = Math.min(minLat, p[0]); maxLat = Math.max(maxLat, p[0]); minLon = Math.min(minLon, p[1]); maxLon = Math.max(maxLon, p[1]); }));
+  return { minLat, maxLat, minLon, maxLon };
+}
+function base64De(buf: ArrayBuffer) {
+  const bytes = new Uint8Array(buf); let s = '';
+  for (let i = 0; i < bytes.length; i += 8192) s += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 8192)));
+  return btoa(s);
+}
 
 // NDVI = (B08 − B04) / (B08 + B04). Se excluyen nubes, sombras, cirros y nieve con la capa SCL
 // (Scene Classification: 0 sin dato, 1 saturado, 3 sombra de nube, 8-9 nubes, 10 cirros, 11 nieve).
@@ -59,10 +95,37 @@ Deno.serve(async (req: Request) => {
     const id = Deno.env.get('CDSE_CLIENT_ID'), secreto = Deno.env.get('CDSE_CLIENT_SECRET');
     if (!id || !secreto) return json({ error: 'Faltan las credenciales de Copernicus en el servidor (CDSE_CLIENT_ID y CDSE_CLIENT_SECRET). Hay que cargarlas en Supabase → Edge Functions → Secrets.' }, 500);
 
-    let cuerpo: { equipoId?: string | number; campoId?: string | number; partes?: number[][][][]; desde?: string; hasta?: string; guardar?: boolean };
+    let cuerpo: { equipoId?: string | number; campoId?: string | number; partes?: number[][][][]; desde?: string; hasta?: string; guardar?: boolean; tipo?: string; fecha?: string; capa?: string; ancho?: number };
     try { cuerpo = await req.json(); } catch { return json({ error: 'Pedido inválido' }, 400); }
     const { equipoId, campoId, partes, desde, hasta } = cuerpo;
     if (!partes || !partes.length || !partes[0][0] || partes[0][0].length < 3) return json({ error: 'El lote no tiene polígono: cargalo en Equipos y lotes' }, 400);
+    // ---- modo imagen: PNG del lote para una fecha (NDVI coloreado o color real) ----
+    if (cuerpo.tipo === 'imagen') {
+      const fecha = String(cuerpo.fecha || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return json({ error: 'Falta la fecha de la imagen' }, 400);
+      const b = limites(partes);
+      // margen de 5 % alrededor del lote
+      const mLat = (b.maxLat - b.minLat) * 0.05 || 0.001, mLon = (b.maxLon - b.minLon) * 0.05 || 0.001;
+      const bbox = [b.minLon - mLon, b.minLat - mLat, b.maxLon + mLon, b.maxLat + mLat];
+      const ancho = Math.min(1200, Math.max(200, Number(cuerpo.ancho) || 700));
+      const kLat = Math.cos((b.minLat + b.maxLat) / 2 * Math.PI / 180);
+      const alto = Math.min(1200, Math.max(100, Math.round(ancho * (bbox[3] - bbox[1]) / ((bbox[2] - bbox[0]) * kLat))));
+      const tk2 = await token(id, secreto);
+      const pedidoImg = {
+        input: {
+          bounds: { bbox, properties: { crs: 'http://www.opengis.net/def/crs/EPSG/0/4326' } },
+          data: [{ type: 'sentinel-2-l2a', dataFilter: { timeRange: { from: fecha + 'T00:00:00Z', to: fecha + 'T23:59:59Z' }, mosaickingOrder: 'leastCC' } }],
+        },
+        output: { width: ancho, height: alto, responses: [{ identifier: 'default', format: { type: 'image/png' } }] },
+        evalscript: cuerpo.capa === 'color' ? EVAL_IMG_COLOR : EVAL_IMG_NDVI,
+      };
+      const ri = await fetch(PROCESS_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + tk2, 'Content-Type': 'application/json', Accept: 'image/png' }, body: JSON.stringify(pedidoImg) });
+      if (!ri.ok) { const t = await ri.text(); console.error('ndvi imagen:', ri.status, t.slice(0, 400)); return json({ error: 'Copernicus no pudo armar la imagen (' + ri.status + ')', detalle: t.slice(0, 300) }, 502); }
+      const png = base64De(await ri.arrayBuffer());
+      console.log('ndvi imagen: ok', fecha, cuerpo.capa || 'ndvi', ancho + 'x' + alto);
+      return json({ ok: true, fecha, capa: cuerpo.capa === 'color' ? 'color' : 'ndvi', png, bounds: [[bbox[1], bbox[0]], [bbox[3], bbox[2]]], ancho, alto });
+    }
+
     if (!desde || !hasta) return json({ error: 'Faltan las fechas desde / hasta' }, 400);
     const dias = (new Date(hasta).getTime() - new Date(desde).getTime()) / 86400000;
     if (dias < 1 || dias > 400) return json({ error: 'El rango tiene que ser de 1 a 400 días' }, 400);
