@@ -126,7 +126,13 @@
       d.setMonth(d.getMonth() + 1);
     }
     // marcas (siembra / cosecha)
-    (marcas || []).forEach(function (m) { if (m.fecha < f0 || m.fecha > f1) return; s += '<line x1="' + x(m.fecha) + '" x2="' + x(m.fecha) + '" y1="' + mt + '" y2="' + (H - mb) + '" stroke="' + m.color + '" stroke-dasharray="4 3"/><text x="' + (x(m.fecha) + 3) + '" y="' + (mt + 10) + '" font-size="10" fill="' + m.color + '">' + esc(m.texto) + '</text>'; });
+    // marcas: las etiquetas se alternan en altura para que no se pisen, y las del borde derecho se alinean hacia la izquierda
+    var visiblesM = (marcas || []).filter(function (m) { return m.fecha >= f0 && m.fecha <= f1; }).sort(function (a, b) { return a.fecha.localeCompare(b.fecha); });
+    visiblesM.forEach(function (m, i) {
+      var xm = x(m.fecha), derecha = xm > W - mr - 70;
+      s += '<line x1="' + xm + '" x2="' + xm + '" y1="' + mt + '" y2="' + (H - mb) + '" stroke="' + m.color + '" stroke-dasharray="4 3"/>';
+      s += '<text x="' + (derecha ? xm - 3 : xm + 3) + '" y="' + (mt + 10 + (i % 2) * 12) + '" font-size="10" fill="' + m.color + '"' + (derecha ? ' text-anchor="end"' : '') + '>' + esc(m.texto) + '</text>';
+    });
     // banda p10–p90
     var conBanda = lista.filter(function (p) { return p.p10 != null && p.p90 != null; });
     if (conBanda.length > 1) {
