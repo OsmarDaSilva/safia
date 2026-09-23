@@ -69,8 +69,8 @@ de Anderson) ya informa en cmolc y %.
   (llenado de vainas y granos).
 - SAFIA calcula para cada campaña el **techo por agua** = (mm reales − no
   productivos) × 9,9, y para cada meta los **mm que exige**. Si el lote tiene
-  riego, la diferencia se completa y se costea a `riegoUSDmm` (1,3 US$/mm por
-  defecto, editable en Precios).
+  riego, la diferencia se completa y se costea al precio del riego (1,2
+  US$/mm por defecto, editable en Meta de rinde → Precios).
 - **Techo climático de referencia** (agua sin límite): soja 7.600 kg/ha
   (CESB irrigado nacional 2024/25; récord secano 8.130; GYGA Brasil Yp
   4,4–7,1; UNL 6–7 t/ha en ensayos óptimos), maíz 14.000. El motor nunca proyecta por
