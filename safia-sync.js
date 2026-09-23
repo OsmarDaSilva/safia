@@ -28,7 +28,8 @@
     campanas:        'safia_campanas',
     eventos:         'safia_eventos',
     ciclos:          'safia_ciclos',
-    analisis_suelo:  'safia_analisis'
+    analisis_suelo:  'safia_analisis',
+    planes_rotacion: 'safia_planes'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);
@@ -201,7 +202,11 @@
     claves.forEach(function (clave) {
       cadena = cadena.then(function () {
         return sb.from(TABLAS[clave]).select('id,datos').then(function (r) {
-          if (r.error) throw r.error;
+          if (r.error) {
+            // Una tabla nueva que todavía no se creó en Supabase no frena el resto del sync
+            if (/does not exist|schema cache|PGRST205|relation/i.test(String(r.error.message || ''))) { console.warn('SAFIA sync: falta la tabla ' + TABLAS[clave] + ' en Supabase (correr su SQL). Se sigue con las demás.'); return; }
+            throw r.error;
+          }
           var remoto = (r.data || []).map(function (f) { return f.datos; });
           remoto.sort(function (a, b) { return (parseFloat(a && a.id) || 0) - (parseFloat(b && b.id) || 0); });
           var local = leerLista(setGet(clave));

@@ -64,6 +64,7 @@
 <script src="safia-lotes.js"></script>
 <script src="safia-mapas.js"></script>
 <script src="safia-ndvi.js"></script>
+<script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
 </head>
 <body>
@@ -149,6 +150,7 @@
 
         <div class="tabs">
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
+          <button data-tab="rotacion">Plan de rotación</button>
           <button data-tab="analisis">Análisis de suelo</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="evolucion">📈 Evolución y decisiones</button>
@@ -231,6 +233,16 @@
           <div class="empty" id="vacioCiclos" style="display:none;">
             <div class="eico">🌱</div>
             <div class="etxt">Todavía no hay campañas del historial cargadas en este lote.<br>Si el cliente tiene años de datos anteriores a SAFIA, cargalos acá: suman al banco.</div>
+          </div>
+        </section>
+
+        <!-- ================= TAB PLAN DE ROTACIÓN ================= -->
+        <section class="panel" id="panel-rotacion">
+          <div class="note info">Planificá <b>1 a 3 años</b> por lote: qué va en cada temporada (verano, zafriña, invierno), con objetivo de rinde. SAFIA revisa el plan con las reglas de rotación de la siembra directa (Embrapa, CAPECO) y, a medida que cargás las campañas reales, marca cada temporada como <b>cumplida</b> o <b>cambiada</b>. "Sugerir rotación" arma un plan base de 3 años según lo último que se sembró en el lote.</div>
+          <div class="card">
+            <div class="card-h"><h3>Plan de rotación por lote</h3><span class="muted">un plan por lote; se guarda en el banco</span></div>
+            <div class="form-grid" style="margin-bottom:10px;"><div class="field"><label>Lote / equipo</label><select id="rotLote"></select></div></div>
+            <div id="rotContenido"></div>
           </div>
         </section>
 
@@ -631,6 +643,7 @@
     pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
     if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
     if (window.SafiaNDVI) SafiaNDVI.alCambiarCampo();
+    if (window.SafiaRotacion) SafiaRotacion.alCambiarCampo();
     llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
@@ -717,6 +730,7 @@
       document.getElementById('panel-' + b.dataset.tab).classList.add('on');
       if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
       if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
+      if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
       if (b.dataset.tab === 'meta') activarMeta();
     });
   });
