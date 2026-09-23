@@ -27,6 +27,38 @@
        disponibilidad de nutrientes entre pH 5,5 y 7,0; fósforo máximo
        entre 6,0 y 6,5; fijación de P por Al y Fe en suelos ácidos;
        rizobio de la soja trabaja mejor a pH 6,0–6,2.
+   [7] CESB, Circular Técnica 2 "Fatores decisivos para se obter
+       produtividade de soja acima de 4.200 kg/ha" (47 lotes, GO/MG/MT/PR/
+       RS/SP, análisis hasta 1 m): los lotes de más de 70 sacas tenían en
+       0–20 cm V% 56–68 (70 en 0–10), MO 3,9–4,5 %, K 0,25–0,41 cmolc, Ca
+       3,0–4,3, Mg 1,3–1,8, Ca/Mg 2,2–2,5, (Ca+Mg)/K 16–18, B 0,7–1,0
+       mg/dm³, Cu 1,3–3,4, Mn 2,4–4,7, Al ≈ 0 (m% 0–2,7); en 20–40 cm Ca
+       1,6–2,8 y Mg 0,75–1,2; V% 35–57 en 40–100 cm; resistencia < 1,7 MPa
+       hasta 30 cm; 62 % encaló en los últimos 3 años. Cinco factores
+       explican el 88,9 %: perfil sin compactación, Ca y Mg en
+       profundidad, K + B + Cu, sanidad y distribución de plantas.
+   [8] Embrapa Cerrados (Sousa & Lobato; Galrão) "Adubação da soja em
+       áreas de Cerrado: micronutrientes": rangos adecuados en suelo,
+       Mehlich-1: B (agua caliente) 0,3–0,6 mg/dm³, Cu 0,5–1,2, Mn 2–8,
+       Zn 1,0–1,6 (en Mato Grosso el crítico de Zn subió a 2,5 y el de Cu
+       a 1,6–2,4). Dosis correctivas al suelo para 4–5 años: B 1 kg/ha,
+       Cu 2 kg/ha, Zn 4–6 kg/ha, Mn 6 kg/ha; foliar B 0,3–0,5 kg/ha.
+       S (fosfato de calcio): < 5 bajo, 5–10 medio, > 10 alto.
+   [9] Universidad de Nebraska-Lincoln, EC117 (2023) y G1367: crítico de P
+       Bray-1 para soja 15 ppm (sin respuesta arriba de 20), K 125 ppm,
+       encalar con pH ≤ 5,5; cal también en el subsuelo si pH < 5,5.
+   [10] Fertilizar AC / INTA "Soja: nutrición y fertilización en la
+       región pampeana": P Bray crítico 12–13 ppm, respuesta probable
+       hasta 18; +57 kg/ha de rinde por ppm de P bajo riego; K crítico
+       100–150 ppm (EE.UU.) / 80–120 (RS/SC); S con respuesta en suelos
+       degradados o de baja MO; B, Zn y Cu bajos en varias zonas; Mo 12–25
+       g/ha + Co 1–5 g/ha en semilla (+540 kg/ha en Paraná).
+   [11] Embrapa Cerrados, Circ. Téc. 33 (Sousa, Lobato & Rein): para el
+       90 % del rinde potencial (cultivos de mayor valor o RIEGO) el
+       nivel crítico de P se multiplica por 1,4.
+   [12] Nicolodi et al. (2008): la soja empieza a perder rinde con más de
+       3 mmolc/dm³ de Al y 5 % de saturación de Al; Ribeiro (1999): 20 %
+       como límite tolerable. CESB: campeones con Al ≈ 0 en 0–20 cm.
    ------------------------------------------------------------------- */
 (function () {
   'use strict';
@@ -40,6 +72,13 @@
     trigo:   { n: 'Trigo',   v: 70, phMin: 5.5, phOpt: [5.8, 6.5], mP: 12.5, mK: 7.5, expP: 10, expK: 6 },
     girasol: { n: 'Girasol', v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 19,   mK: 15,  expP: 15, expK: 12 },
     otro:    { n: 'Cultivo', v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 12,   mK: 12,  expP: 10, expK: 10 }
+  };
+  // Suelo objetivo para 6.000–7.000 kg/ha de soja (y maíz de alto rinde), 0–20 cm: lo que tenían los lotes
+  // de más de 4.200–6.000 kg/ha auditados por CESB [7] acotado por los rangos de Embrapa [8][11] y UNL [9].
+  var ALTO_RINDE = {
+    ph: [6.0, 6.5], v: 70, mo: 3.0, pFactor: 1.4, k: 0.30, ca: 3.0, mg: 1.3, caMg: [2, 4], bk: [10, 30],
+    b: 0.5, zn: 1.5, cu: 0.8, mn: 2.0, s: 10, al: 0.3, m: 5,
+    profundo: { ca: 1.6, mg: 0.75, v: 40, m: 20 }   // 20–40 cm (CESB) y criterio de yeso (Embrapa)
   };
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
   function perfilCultivo(nombre) {
@@ -157,6 +196,72 @@
       out.push({ k: 'cic', n: 'CIC', valor: cic, unidad: 'cmolc/dm³', categoria: cic <= 5 ? 'baja' : (cic <= 15 ? 'media' : 'alta'), estado: cic <= 5 ? 'atencion' : 'ok', limitacion: cic <= 5 ? 0.15 : 0, peso: 0.3,
         texto: cic <= 5 ? 'Baja capacidad de retener nutrientes: fertilizar en dosis partidas y subir la materia orgánica.' : (cic <= 15 ? 'Media: retiene bien los nutrientes; el encalado por V% es eficiente.' : 'Alta: mucha capacidad de reserva; el encalado necesita más calcáreo por punto de V%.'), fuente: '[2]' });
     }
+    // Aluminio intercambiable y saturación de aluminio (m%)
+    var al = num(s.aluminio), m = num(s.satAluminio);
+    if (m == null && al != null && cic != null && ca != null && mg != null && k != null) m = al / (ca + mg + k + al) * 100;
+    if (al != null || m != null) {
+      var limAl = 0, estAl = 'ok', txtAl;
+      if ((m != null && m > 20) || (al != null && al > 1.0)) { limAl = clamp(((m || 0) - 20) / 30 + 0.5, 0.5, 1); estAl = 'limita'; txtAl = 'Aluminio tóxico: ' + (m != null ? 'saturación ' + fmt(m, 1) + ' %' : 'Al ' + fmt(al, 2) + ' cmolc/dm³') + '. Por encima de 20 % de saturación las raíces de la soja se frenan y no exploran el perfil; encalar es prioritario.'; }
+      else if ((m != null && m > 5) || (al != null && al > 0.3)) { limAl = 0.25; estAl = 'atencion'; txtAl = 'Hay aluminio: ' + (m != null ? 'saturación ' + fmt(m, 1) + ' %' : 'Al ' + fmt(al, 2) + ' cmolc/dm³') + '. La soja empieza a perder rinde desde 5 % de saturación (0,3 cmolc); los lotes de más de 6.000 kg/ha tienen Al cero en 0–20 cm. El encalado lo neutraliza.'; }
+      else txtAl = 'Sin aluminio tóxico (' + (m != null ? 'saturación ' + fmt(m, 1) + ' %' : 'Al ' + fmt(al, 2) + ' cmolc/dm³') + '): como en los lotes de alto rinde.';
+      out.push({ k: 'al', n: 'Aluminio (Al / saturación m%)', valor: m != null ? m : al, unidad: m != null ? '%' : 'cmolc/dm³', categoria: estAl === 'limita' ? 'tóxico' : (estAl === 'atencion' ? 'presente' : 'ausente'), estado: estAl, limitacion: limAl * 0.9, peso: 0.9, texto: txtAl, fuente: '[7][12]', objetivo: 'Al 0 · m% < 5' });
+    }
+    // Azufre
+    var sS = num(s.azufre);
+    if (sS != null) {
+      var limS = sS < 5 ? clamp((5 - sS) / 5, 0.3, 0.6) : (sS < 10 ? 0.15 : 0);
+      out.push({ k: 's', n: 'Azufre (S-SO₄)', valor: sS, unidad: 'mg/dm³', categoria: sS < 5 ? 'baja' : (sS < 10 ? 'media' : 'alta'), estado: limS >= 0.3 ? 'limita' : (limS ? 'atencion' : 'ok'), limitacion: limS, peso: 0.6,
+        texto: sS < 5 ? 'Bajo (< 5): el azufre es parte de las proteínas y del aceite del grano; responde a yeso o sulfato.' : (sS < 10 ? 'Medio (5–10): en suelos arenosos o con poca MO conviene asegurar 20–30 kg S/ha por ciclo.' : 'Alto (> 10): cubierto.'), fuente: '[8][10]', objetivo: '≥ 10 mg/dm³' });
+    }
+    // Boro
+    var b = num(s.boro);
+    if (b != null) {
+      var limBo = b < 0.3 ? clamp((0.3 - b) / 0.3, 0.3, 0.7) : (b < ALTO_RINDE.b ? 0.15 : 0);
+      out.push({ k: 'b', n: 'Boro (B)', valor: b, unidad: 'mg/dm³', categoria: b < 0.3 ? 'baja' : (b < 0.6 ? 'media' : 'alta'), estado: limBo >= 0.3 ? 'limita' : (limBo ? 'atencion' : 'ok'), limitacion: limBo, peso: 0.7,
+        texto: b < 0.3 ? 'Bajo (< 0,3): el boro hace la floración, el cuaje y la nodulación; su falta aborta flores y vainas. Corregir con 1 kg B/ha al suelo o foliar en floración.' : (b < ALTO_RINDE.b ? 'Medio (0,3–0,5): adecuado según Embrapa, pero los lotes de más de 6.000 kg/ha tienen 0,7–1,0. Para alto rinde, sumar boro (suelo o foliar).' : 'Adecuado para alto rinde (los campeones tienen 0,7–1,0).'), fuente: '[7][8]', objetivo: '≥ 0,5 mg/dm³ (campeones 0,7–1,0)' });
+    }
+    // Zinc
+    var zn = num(s.zinc);
+    if (zn != null) {
+      var limZn = zn < 1.0 ? clamp((1.0 - zn) / 1.0, 0.3, 0.7) : (zn < ALTO_RINDE.zn ? 0.12 : 0);
+      var pAlto = p != null && p > pc.limites[3];
+      out.push({ k: 'zn', n: 'Zinc (Zn)', valor: zn, unidad: 'mg/dm³', categoria: zn < 1.0 ? 'baja' : (zn < 1.6 ? 'media' : 'alta'), estado: limZn >= 0.3 ? 'limita' : (limZn ? 'atencion' : 'ok'), limitacion: limZn * (pAlto ? 1.2 : 1), peso: 0.6,
+        texto: (zn < 1.0 ? 'Bajo (< 1,0): el zinc regula el crecimiento y el llenado; en suelos ácidos y en maíz es el micro que más limita.' : (zn < ALTO_RINDE.zn ? 'Medio (1,0–1,5): cubierto para rindes normales; para 6–7 t conviene llegar a 1,5 (en Mato Grosso el crítico de soja es 2,5).' : 'Adecuado.')) + (pAlto ? ' Con fósforo muy alto el zinc se absorbe menos (antagonismo P–Zn): vigilarlo.' : ''), fuente: '[8]', objetivo: '≥ 1,5 mg/dm³' });
+    }
+    // Cobre y manganeso (si el laboratorio los informa como dato aparte)
+    var cuS = num(s.cobre), mn = num(s.manganeso);
+    if (cuS != null) {
+      var limCu = cuS < 0.5 ? 0.3 : (cuS < ALTO_RINDE.cu ? 0.1 : 0);
+      out.push({ k: 'cu', n: 'Cobre (Cu)', valor: cuS, unidad: 'mg/dm³', categoria: cuS < 0.5 ? 'baja' : (cuS < 1.2 ? 'media' : 'alta'), estado: limCu >= 0.3 ? 'limita' : (limCu ? 'atencion' : 'ok'), limitacion: limCu, peso: 0.4,
+        texto: cuS < 0.5 ? 'Bajo (< 0,5): el cobre participa en la lignificación y la sanidad; corregir con 1–2 kg Cu/ha.' : (cuS < ALTO_RINDE.cu ? 'Medio: los lotes de más de 6.000 kg/ha tienen 1,3–3,4.' : 'Adecuado.'), fuente: '[7][8]', objetivo: '≥ 0,8 mg/dm³ (campeones 1,3–3,4)' });
+    }
+    if (mn != null) {
+      var limMn = mn < 2 ? 0.25 : 0;
+      out.push({ k: 'mn', n: 'Manganeso (Mn)', valor: mn, unidad: 'mg/dm³', categoria: mn < 2 ? 'baja' : (mn <= 8 ? 'adecuada' : 'alta'), estado: limMn ? 'atencion' : 'ok', limitacion: limMn, peso: 0.3,
+        texto: mn < 2 ? 'Bajo (< 2): más frecuente con pH alto o encalado en exceso; foliar de Mn en V4–R1.' : (mn > 8 ? 'Alto: normal en suelos ácidos; baja al encalar.' : 'Adecuado (2–8).'), fuente: '[8]', objetivo: '2–8 mg/dm³' });
+    }
+    // Objetivo de alto rinde (6–7 t/ha) para los parámetros clásicos y si el lote lo alcanza
+    var OBJ = { ph: '6,0–6,5', satBases: '≥ ' + ALTO_RINDE.v + ' % (0–20 cm)', p: '≥ ' + Math.round(pc.critico * ALTO_RINDE.pFactor) + ' mg/dm³ (1,4 × crítico, riego)', k: '≥ 0,30 cmolc (117 mg/dm³)', ca: '≥ 3,0 cmolc', mg: '≥ 1,3 cmolc', rel_camg: '2–4', rel_bk: '10–30', mo: '≥ 3 %', cic: '—', arcilla: '—' };
+    out.forEach(function (i) {
+      if (i.objetivo === undefined) i.objetivo = OBJ[i.k] || '—';
+      var v0 = i.valor;
+      if (i.k === 'ph') i.alcanzaAlto = v0 >= ALTO_RINDE.ph[0] && v0 <= ALTO_RINDE.ph[1];
+      else if (i.k === 'satBases') i.alcanzaAlto = v0 >= ALTO_RINDE.v;
+      else if (i.k === 'p') i.alcanzaAlto = v0 >= pc.critico * ALTO_RINDE.pFactor;
+      else if (i.k === 'k') i.alcanzaAlto = v0 >= ALTO_RINDE.k;
+      else if (i.k === 'ca') i.alcanzaAlto = v0 >= ALTO_RINDE.ca;
+      else if (i.k === 'mg') i.alcanzaAlto = v0 >= ALTO_RINDE.mg;
+      else if (i.k === 'rel_camg') i.alcanzaAlto = v0 >= ALTO_RINDE.caMg[0] && v0 <= ALTO_RINDE.caMg[1];
+      else if (i.k === 'rel_bk') i.alcanzaAlto = v0 >= ALTO_RINDE.bk[0] && v0 <= ALTO_RINDE.bk[1];
+      else if (i.k === 'mo') i.alcanzaAlto = v0 >= ALTO_RINDE.mo;
+      else if (i.k === 'al') i.alcanzaAlto = i.estado === 'ok';
+      else if (i.k === 's') i.alcanzaAlto = v0 >= ALTO_RINDE.s;
+      else if (i.k === 'b') i.alcanzaAlto = v0 >= ALTO_RINDE.b;
+      else if (i.k === 'zn') i.alcanzaAlto = v0 >= ALTO_RINDE.zn;
+      else if (i.k === 'cu') i.alcanzaAlto = v0 >= ALTO_RINDE.cu;
+      else if (i.k === 'mn') i.alcanzaAlto = v0 >= 2 ? true : false;   // el exceso de Mn (Mehlich-1 en suelos ácidos) no es "falta": baja al encalar
+      else i.alcanzaAlto = null;
+    });
     if (arc != null) {
       out.push({ k: 'arcilla', n: 'Arcilla', valor: arc, unidad: '%', categoria: arc > 60 ? 'muy arcilloso' : (arc > 40 ? 'arcilloso' : (arc > 20 ? 'franco' : 'arenoso')), estado: 'ok', limitacion: 0, peso: 0,
         texto: arc > 40 ? 'Suelo pesado: fija más fósforo (por eso el crítico de P es 12 y no 15) y guarda más agua; con riego responde muy bien.' : 'Suelo liviano: menos fijación de P pero menos agua guardada; el riego es más determinante.', fuente: '[1]' });
@@ -221,6 +326,35 @@
           detalle: 'K ' + fmt(kmg, 0) + ' mg/dm³ (' + catK + '), por encima del crítico 75. Reponer ' + cu.expK + ' kg de K₂O por tonelada exportada × 1,25.', fuente: '[1]' });
       }
     }
+    // Construcción del suelo de alto rinde (6–7 t/ha): lo que falta entre "adecuado" y lo que tienen los campeones
+    if (v != null && cic != null && v < ALTO_RINDE.v && ALTO_RINDE.v > cu.v) {
+      var ncAlto = (ALTO_RINDE.v - v) * cic / 100, ncBase = Math.max(0, (cu.v - v) * cic / 100);
+      if (ncAlto - ncBase >= 0.2) r.push({ k: 'encalado_alto', titulo: 'Para 6–7 t/ha: llevar V% de ' + fmt(v, 1) + ' a ' + ALTO_RINDE.v + ' (' + fmt(ncAlto, 1) + ' t/ha de calcáreo' + ((mg != null && mg < ALTO_RINDE.mg) ? ' dolomítico' : '') + ' en total' + (ncBase > 0.3 ? ', ' + fmt(ncAlto - ncBase, 1) + ' más que la dosis básica' : '') + ')',
+        detalle: (v >= cu.v ? 'V% ' + fmt(v, 1) + ' alcanza el objetivo normal (' + cu.v + '), pero l' : 'L') + 'os lotes de más de 4.200–6.000 kg/ha tienen 56–68 % de saturación de bases en 0–20 cm y 70 % en 0–10 cm, con aluminio cero. NC = (' + ALTO_RINDE.v + ' − ' + fmt(v, 1) + ') × ' + fmt(cic, 2) + ' / 100 = ' + fmt(ncAlto, 1) + ' t/ha (PRNT 100 %). Al voleo sobre el rastrojo, sin arar; repetir cada 2 años como hacen los campeones (62 % encaló en los últimos 3 años).', fuente: '[7][2]' });
+    }
+    if (p != null && p >= pc.critico && p < pc.critico * ALTO_RINDE.pFactor) {
+      var pAlto = Math.round(pc.critico * ALTO_RINDE.pFactor), corrAlto = Math.round((pAlto - p) * pc.kgPorMg);
+      if (corrAlto >= 10) r.push({ k: 'fosforo_alto', titulo: 'Para 6–7 t/ha: construir P de ' + fmt(p, 1) + ' a ' + pAlto + ' mg/dm³ (' + fmt(corrAlto, 0) + ' kg/ha de P₂O₅ extra)',
+        detalle: 'Con riego o alto valor, Embrapa recomienda el 90 % del potencial: crítico × 1,4 = ' + pAlto + '. Cada mg/dm³ cuesta ' + pc.kgPorMg + ' kg/ha de P₂O₅; se puede hacer en 2–3 cultivos sumándolo a la manutención.', fuente: '[11][1]' });
+    }
+    if (kmg != null && kmg >= K_CLASE.critico && k < ALTO_RINDE.k) {
+      var corrKAlto = Math.round((ALTO_RINDE.k - k) * K_MG_POR_CMOL * 2.4 * 1.2 / 10) * 10;   // 1 mg/dm³ ≈ 2 kg K/ha en 0–20 cm × 1,2 (K→K₂O) + 20 % de pérdidas
+      r.push({ k: 'potasio_alto', titulo: 'Para 6–7 t/ha: llevar K de ' + fmt(kmg, 0) + ' a ~117 mg/dm³ (0,30 cmolc) con ~' + fmt(corrKAlto, 0) + ' kg/ha de K₂O extra',
+        detalle: 'Cubierto para rindes normales (crítico 75), pero los lotes de más de 4.200–6.000 kg/ha tienen 0,25–0,41 cmolc (98–160 mg/dm³) y el potasio fue uno de los 5 factores decisivos. Sumar a la manutención en 2–3 cultivos; el K se absorbe sobre todo entre V7 y R5.', fuente: '[7][1]' });
+    }
+    if (mg != null && mg >= 1.0 && mg < ALTO_RINDE.mg) r.push({ k: 'mg_alto', titulo: 'Para 6–7 t/ha: magnesio ' + fmt(mg, 2) + ' → ≥ 1,3 cmolc con calcáreo dolomítico', detalle: 'Los campeones tienen 1,3–1,8 en 0–20 cm y 0,75–1,2 en 20–40. El Mg reduce 100 veces más que el Ca la toxicidad del aluminio y es el centro de la clorofila. Usar dolomítico en el próximo encalado.', fuente: '[7][3]' });
+    // Aluminio
+    var alR = num(s.aluminio), mR = num(s.satAluminio);
+    if ((mR != null && mR > 5) || (alR != null && alR > 0.3)) r.push({ k: 'aluminio', titulo: 'Aluminio ' + (mR != null ? 'con saturación ' + fmt(mR, 1) + ' %' : fmt(alR, 2) + ' cmolc/dm³') + ': neutralizarlo con el encalado' + ((mR != null && mR > 20) ? ' (prioridad 1)' : ''),
+      detalle: 'La soja pierde rinde desde 5 % de saturación de Al; arriba de 20 % las raíces no exploran el perfil. El calcáreo lo neutraliza en 0–20 cm; para el subsuelo (20–60 cm) el yeso (50 × % arcilla kg/ha) baja el Al y sube el Ca. Los lotes de más de 6.000 kg/ha tienen Al cero.', fuente: '[7][12][3]' });
+    // Azufre, boro, zinc, cobre
+    var sR = num(s.azufre), bR = num(s.boro), znR = num(s.zinc), cuR = num(s.cobre);
+    if (sR != null && sR < ALTO_RINDE.s) r.push({ k: 'azufre', titulo: 'Azufre ' + fmt(sR, 1) + ' mg/dm³: aplicar 20–30 kg S/ha por ciclo (yeso 130–200 kg/ha o sulfato de amonio)', detalle: (sR < 5 ? 'Bajo' : 'Medio') + ' según Embrapa (< 5 bajo, 5–10 medio, > 10 alto). La soja exporta 4–5 kg S por tonelada; sin S no arma proteína ni aceite. El yeso además lleva Ca al subsuelo.', fuente: '[8][10]' });
+    if (bR != null && bR < ALTO_RINDE.b) r.push({ k: 'boro', titulo: 'Boro ' + fmt(bR, 2) + ' mg/dm³: 1 kg B/ha al suelo (bórax o ulexita) o 0,3–0,5 kg B/ha foliar en R1–R2', detalle: (bR < 0.3 ? 'Bajo (< 0,3): responde con seguridad.' : 'Medio: adecuado para rindes normales, pero los lotes de más de 6.000 kg/ha tienen 0,7–1,0 y el boro fue uno de los factores decisivos (floración, cuaje, nodulación).') + ' Dosis correctiva al suelo dura 4–5 años; no pasar de 1 kg/ha por vez (margen estrecho con la toxicidad).', fuente: '[7][8]' });
+    if (znR != null && znR < ALTO_RINDE.zn) r.push({ k: 'zinc', titulo: 'Zinc ' + fmt(znR, 2) + ' mg/dm³: ' + (znR < 1.0 ? '4–6 kg Zn/ha al suelo (sulfato de zinc 20–30 kg/ha, dura 4–5 años)' : '2 kg Zn/ha al suelo o zinc en semilla + 1 foliar V4–V6'), detalle: (znR < 1.0 ? 'Bajo (< 1,0 Mehlich-1): limita crecimiento y llenado, sobre todo en maíz.' : 'Medio (1,0–1,5): para 6–7 t conviene llegar a 1,5.') + (p != null && p > pc.limites[3] ? ' El fósforo muy alto reduce la absorción de Zn (antagonismo): más razón para corregirlo.' : ''), fuente: '[8]' });
+    if (cuR != null && cuR < ALTO_RINDE.cu) r.push({ k: 'cobre', titulo: 'Cobre ' + fmt(cuR, 2) + ' mg/dm³: 1–2 kg Cu/ha al suelo (sulfato de cobre) o foliar', detalle: 'Embrapa: 0,5–1,2 adecuado; los campeones tienen 1,3–3,4 y el cobre estuvo entre los factores decisivos (lignificación y sanidad).', fuente: '[7][8]' });
+    // Cobalto y molibdeno cuando el pH es ácido (el Mo se vuelve menos disponible)
+    if (ph != null && ph < 5.8 && cu === CULTIVOS.soja) r.push({ k: 'como', titulo: 'Cobalto + molibdeno en la semilla (pH ' + fmt(ph, 1) + ')', detalle: 'En suelos ácidos el molibdeno está menos disponible y es la pieza central de la nitrogenasa del rizobio. Mo 12–25 g/ha + Co 1–5 g/ha en semilla junto con el inoculante: +540 kg/ha en ensayos de Paraná.', fuente: '[10]' });
     // Materia orgánica
     if (mo != null && mo < 3) {
       r.push({ k: 'mo', titulo: 'Materia orgánica ' + fmt(mo, 2) + ' %: seguir construyéndola', detalle: 'Rotación con gramíneas (maíz, trigo, avena, brachiaria), cobertura permanente, no quemar rastrojo. En riego, una cobertura de invierno aprovecha el agua y suma carbono.', fuente: '[1][2]' });
@@ -320,11 +454,13 @@
   }
   function tablaInterpretacion(lista) {
     if (!lista.length) return '<div class="muted">Sin análisis de suelo cargado.</div>';
-    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>Lectura</th></tr></thead><tbody>' +
+    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>Objetivo 6–7 t/ha</th><th>Lectura</th></tr></thead><tbody>' +
       lista.map(function (i) {
-        var dec = i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 'arcilla' || i.k.indexOf('rel') === 0 ? 1 : 2;
-        return '<tr><td><b>' + esc(i.n) + '</b></td><td class="r"><span class="num">' + fmt(i.valor, dec) + '</span>' + (i.unidad ? '<div class="sub">' + esc(i.unidad) + '</div>' : '') + '</td><td>' + badgeEstado(i.estado) + '<div class="sub">' + esc(i.categoria) + '</div></td><td style="font-size:12px;">' + esc(i.texto) + ' <span class="muted">' + esc(i.fuente) + '</span></td></tr>';
-      }).join('') + '</tbody></table></div></div>';
+        var dec = i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 'arcilla' || i.k === 's' || i.k === 'al' || i.k.indexOf('rel') === 0 ? 1 : 2;
+        var obj = i.objetivo && i.objetivo !== '—' ? '<div style="font-size:12px;">' + esc(i.objetivo) + '</div>' + (i.alcanzaAlto === true ? '<div class="sub" style="color:#178029;font-weight:700;">alcanzado</div>' : (i.alcanzaAlto === false ? '<div class="sub" style="color:#B3261E;font-weight:700;">falta</div>' : '')) : '<span class="muted">—</span>';
+        return '<tr><td><b>' + esc(i.n) + '</b></td><td class="r"><span class="num">' + fmt(i.valor, dec) + '</span>' + (i.unidad ? '<div class="sub">' + esc(i.unidad) + '</div>' : '') + '</td><td>' + badgeEstado(i.estado) + '<div class="sub">' + esc(i.categoria) + '</div></td><td>' + obj + '</td><td style="font-size:12px;">' + esc(i.texto) + ' <span class="muted">' + esc(i.fuente) + '</span></td></tr>';
+      }).join('') + '</tbody></table></div></div>' +
+      '<div class="muted" style="font-size:11px;margin-top:4px;">Objetivo 6–7 t/ha: suelo de los lotes de más de 4.200–6.000 kg/ha auditados por CESB [7], acotado por Embrapa [8][11] y UNL [9]. Es referencia, no receta.</div>';
   }
   function listaRecomendaciones(recs) {
     if (!recs.length) return '';
@@ -368,6 +504,7 @@
   }
 
   window.SafiaAgro = {
+    ALTO_RINDE: ALTO_RINDE,
     interpretarSuelo: interpretarSuelo,
     recomendaciones: recomendaciones,
     diagnosticarDiferencia: diagnosticarDiferencia,

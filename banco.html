@@ -705,6 +705,13 @@
     var prof = analisisRepresentativos(leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); }));
     var pr = leerPreciosMeta();
     var opciones = { calcareoTnHa: num(document.getElementById('opCalcareo').value) || 0, preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
+    // El plan mira hacia adelante: usa el análisis más reciente del lote (o del campo), no el que había al cosechar
+    var recientes = prof.filter(function (a) { return String(a.equipoId || '') === String(c.equipoId || ''); });
+    if (!recientes.length) recientes = prof.filter(function (a) { return !a.equipoId; });
+    recientes.sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+    var ultimo = recientes.slice(-1)[0];
+    if (ultimo && !ultimo.esPromedio) { var mismos = recientes.filter(function (a) { return String(a.fecha) === String(ultimo.fecha); }); if (mismos.length > 1) ultimo = Object.assign({}, ultimo, promediarAnalisis(mismos), { esPromedio: true, nMuestras: mismos.length, muestra: '' }); }
+    if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
     var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
     // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo
     var otros = {};
@@ -1078,7 +1085,7 @@
     var rep = lista.filter(function (a) { return !a.enPromedio; });
     return rep.length ? rep : lista;
   }
-  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc'];
+  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso'];
   // Promedio aritmético de cada valor (solo los que están cargados). Es lo que usan los laboratorios al informar la "media" de una gleba.
   function promediarAnalisis(items) {
     var out = {};

@@ -38,6 +38,16 @@
     lista.sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
     return lista;
   }
+  // Varias muestras del mismo lote con la misma fecha y sin promedio guardado: se promedian al vuelo (el Banco tiene el botón "Promediar" para dejarlo guardado)
+  var CLAVES_SUELO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso'];
+  function sueloActual(lista) {
+    if (!lista.length) return null;
+    var ult = lista[lista.length - 1], mismos = lista.filter(function (a) { return String(a.fecha) === String(ult.fecha); });
+    if (mismos.length < 2 || ult.esPromedio) return ult;
+    var out = Object.assign({}, ult, { esPromedio: true, nMuestras: mismos.length, promedioAlVuelo: true, muestra: '' });
+    CLAVES_SUELO.forEach(function (k) { var vs = mismos.map(function (a) { return a[k] == null || a[k] === '' || isNaN(Number(a[k])) ? null : Number(a[k]); }).filter(function (v) { return v !== null; }); out[k] = vs.length ? Math.round(vs.reduce(function (s, v) { return s + v; }, 0) / vs.length * 100) / 100 : null; });
+    return out;
+  }
   function casosDelCampo() {
     var todos = SafiaCasos.armarCasos();
     return { todos: todos, mios: todos.filter(function (c) { return String(c.campoId) === String(campoActual.id) && (!equipoSel || String(c.equipoId) === String(equipoSel)); }).sort(function (a, b) { return String(a.siembra).localeCompare(String(b.siembra)); }) };
@@ -148,8 +158,8 @@
     var cultivo = cx.mios.length ? cx.mios[cx.mios.length - 1].cultivo : 'Soja';
     lotes.forEach(function (l) {
       var lista = analisisDelLote(l.id); if (!lista.length) return;
-      var a = lista[lista.length - 1]; alguno = true;
-      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · análisis del ' + fmtF(a.fecha) + (a.esPromedio ? ' (promedio de ' + a.nMuestras + ' muestras)' : (a.equipoId ? '' : ' (todo el campo)')) + (a.profundidad ? ' · ' + esc(a.profundidad) : '') + '</h3>';
+      var a = sueloActual(lista); alguno = true;
+      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · análisis del ' + fmtF(a.fecha) + (a.esPromedio ? ' (promedio de ' + a.nMuestras + ' muestras' + (a.promedioAlVuelo ? ' del mismo día' : '') + ')' : (a.equipoId ? '' : ' (todo el campo)')) + (a.profundidad ? ' · ' + esc(a.profundidad) : '') + '</h3>';
       html += '<div class="stats" style="margin-bottom:6px;">' + [['pH', a.ph, 1], ['MO %', a.mo, 2], ['P mg/dm³', a.p, 1], ['K cmolc', a.k, 2], ['Ca cmolc', a.ca, 2], ['Mg cmolc', a.mg, 2], ['CIC', a.cic, 2], ['V %', a.satBases, 1]].map(function (x) { return '<div class="stat"><div class="sl">' + x[0] + '</div><div class="sv">' + fmt(x[1], x[2]) + '</div></div>'; }).join('') + '</div>';
       if (window.SafiaAgro) {
         var interp = SafiaAgro.interpretarSuelo(a, cultivo);
@@ -220,6 +230,34 @@
     return html;
   }
 
+  function secMeta(cx) {
+    if (!window.SafiaMeta || !window.SafiaAgro) return '';
+    var html = '<h2>Camino a 6.000 kg/ha: qué le falta al suelo, qué corregir y cuánto cuesta</h2>';
+    var porLote = {}; cx.mios.forEach(function (c) { if (c.rindeKgHa) (porLote[c.equipoId || ''] = porLote[c.equipoId || ''] || []).push(c); });
+    var ids = Object.keys(porLote);
+    if (!ids.length) return html + '<div class="note">Sin campañas cosechadas todavía: el plan parte del rinde real del lote.</div>';
+    var prof = analisisRepresentativos(leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); }));
+    var pr = SafiaMeta.precios();
+    ids.forEach(function (id) {
+      var casos = porLote[id];
+      var soja = casos.filter(function (c) { return SafiaMeta.claveCultivo(c.cultivo) === 'soja'; });
+      var c = (soja.length ? soja : casos).reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      var cu = SafiaMeta.claveCultivo(c.cultivo);
+      var meta = cu === 'soja' ? (c.rindeKgHa >= 6000 ? 7000 : 6000) : (cu === 'maiz' ? Math.max(12000, Math.round(c.rindeKgHa * 1.2 / 500) * 500) : Math.round(c.rindeKgHa * 1.2 / 100) * 100);
+      var l = leer('equipos').find(function (e) { return String(e.id) === String(id); });
+      // El plan mira hacia adelante: usa el análisis más reciente del lote (o del campo), no el que había al cosechar
+      var ultimo = sueloActual(analisisDelLote(id));
+      if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
+      var pl; try { pl = SafiaMeta.plan(c, meta, pr, cx.todos, prof, {}); } catch (e) { return; }
+      var faltan = c.suelo ? SafiaAgro.interpretarSuelo(c.suelo, c.cultivo).filter(function (i) { return i.alcanzaAlto === false; }) : [];
+      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(l ? l.nombre : 'Campo') + ' · ' + esc(c.cultivo) + ' ' + esc(c.campana) + ' · hoy ' + fmt(c.rindeKgHa, 0) + ' kg/ha → meta ' + fmt(meta, 0) + '</h3></div>' +
+        (c.suelo ? '<div class="note info" style="margin:6px 0 8px;"><b>Suelo hoy contra el de los lotes de 6–7 t/ha</b> (CESB, Embrapa, UNL): ' + (faltan.length ? 'faltan <b>' + faltan.map(function (i) { return esc(i.n.replace(/\s*\([^)]*\)$/, '')) + ' (' + fmt(i.valor, i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 's' || i.k.indexOf('rel') === 0 ? 1 : 2) + ' → ' + esc(i.objetivo) + ')'; }).join(', ') + '</b>. El resto ya está en el rango de alto rinde.' : 'todos los parámetros analizados ya están en el rango de alto rinde.') + '</div>' : '<div class="note warn">Sin análisis de suelo para este lote: el plan solo puede usar agua y manejo.</div>') +
+        SafiaMeta.informeHTML(pl) + '</div>';
+    });
+    html += '<div class="sub" style="margin-top:6px;">Referencias del objetivo 6–7 t/ha: CESB Circular Técnica 2 (lotes de más de 4.200–6.000 kg/ha), Embrapa Cerrados (micronutrientes, Circ. Téc. 33), Universidad de Nebraska-Lincoln (Grassini: 9,9 kg/ha por mm de agua en soja, 19,3 en maíz; EC117), Fertilizar/INTA, CAPECO/IPTA 2012. Detalle en FUNDAMENTOS_ALTO_RINDE.md.</div>';
+    return html;
+  }
+
   /* ---------- armado ---------- */
   function secciones() { var s = {}; document.querySelectorAll('#secciones input').forEach(function (c) { s[c.dataset.s] = c.checked; }); return s; }
   function armar() {
@@ -238,6 +276,7 @@
     if (s.ndvi) html += secNDVI();
     if (s.rotacion) html += secRotacion();
     if (s.diagnostico) html += '<div class="salto"></div>' + secDiagnostico(cx);
+    if (s.meta) html += '<div class="salto"></div>' + secMeta(cx);
     html += '<div class="pie"><span>SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>Irrigar · SAFIA</span></div>';
     $('hoja').innerHTML = html;
     if (s.lotes) cargarImagenes();

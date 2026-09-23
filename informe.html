@@ -66,6 +66,9 @@
     .hoja table.tbl td .num{font-weight:700;}
     .hoja .evo-mejor{color:#178029;font-weight:700;} .hoja .evo-peor{color:#C0392B;font-weight:700;}
     .hoja .interp{font-size:11px;}
+    .hoja .statbar{display:flex;gap:8px;flex-wrap:wrap;border:0;padding:0;margin:8px 0;} .hoja .statbar .stat{flex:1 1 120px;} .hoja .sv.green{color:#178029;} .hoja .sv.red{color:#B3261E;}
+    .hoja .tbl th:first-child,.hoja .tbl td:first-child{width:auto;}
+    .hoja .interp .tbl th:first-child,.hoja .interp .tbl td:first-child{width:16%;}
     @media print{
       @page{size:A4;margin:12mm 12mm 14mm;}
       body{background:#fff;} .barra{display:none !important;} .hoja{box-shadow:none;margin:0;padding:0;max-width:none;}
@@ -88,6 +91,7 @@
       <label><input type="checkbox" data-s="ndvi" checked> Vigor satelital</label>
       <label><input type="checkbox" data-s="rotacion" checked> Rotación</label>
       <label><input type="checkbox" data-s="diagnostico" checked> Diagnóstico y recomendaciones</label>
+      <label><input type="checkbox" data-s="meta" checked> Camino a 6.000 kg/ha</label>
     </div>
     <button class="btn" id="btnActualizar" type="button">Actualizar</button>
     <button class="btn green" id="btnPdf" type="button">Guardar como PDF / Imprimir</button>
@@ -105,6 +109,7 @@
 <script src="safia-insumos.js"></script>
 <script src="safia-catalogo.js"></script>
 <script src="safia-agronomia.js"></script>
+<script src="safia-meta.js"></script>
 <script src="safia-lotes.js"></script>
 <script src="safia-ndvi.js"></script>
 <script src="safia-rotacion.js"></script>
