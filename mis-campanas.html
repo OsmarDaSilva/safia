@@ -475,12 +475,13 @@
     .ins-tabla tbody:empty { display:none; }
     .ins-form { display:grid; grid-template-columns: 1.3fr 1.6fr .7fr .9fr auto; gap:6px; align-items:center; }
     .ins-form-fert { grid-template-columns: 1fr 1.4fr .6fr .6fr 1.2fr 1fr .9fr auto; }
+    .ins-form-semilla { grid-template-columns: 1.2fr 1.5fr .6fr .9fr 1.2fr auto; }
     .ins-form-ciclo { grid-template-columns: 1.2fr 1.6fr .7fr .8fr 1fr .9fr auto; }
     .ins-form input, .ins-form select { border:1px solid #E1E4E7; border-radius:7px; background:#F2F3F5; padding:9px 10px; font-size:13px; font-family:inherit; min-width:0; }
     .ins-form .cierre-boton { white-space:nowrap; }
     .ins-npk { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:#2E3236; background:#E7F6EA; border-radius:8px; padding:8px 12px; margin-bottom:8px; }
     .ins-npk b { font-size:14px; }
-    @media (max-width: 760px) { .ins-form, .ins-form-fert, .ins-form-ciclo { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 760px) { .ins-form, .ins-form-fert, .ins-form-ciclo, .ins-form-semilla { grid-template-columns: 1fr 1fr; } }
     .modal-botones {
       display: flex; gap: 10px; margin-top: 24px;
     }
@@ -931,14 +932,16 @@
       <!-- 1. Tratamiento de semilla -->
       <div class="ins-seccion">
         <div class="ins-titulo"><span class="ins-num">1</span> Tratamiento de semilla <span class="ins-sub">todo lo que se le puso a la semilla antes de sembrar</span></div>
-        <table class="tbl ins-tabla"><thead><tr><th>Qué</th><th>Producto</th><th class="r">Dosis</th><th></th></tr></thead><tbody id="insCuerpo_semilla"></tbody></table>
-        <div class="ins-form">
+        <table class="tbl ins-tabla"><thead><tr><th>Qué</th><th>Producto</th><th class="r">Dosis</th><th>Cómo</th><th></th></tr></thead><tbody id="insCuerpo_semilla"></tbody></table>
+        <div class="ins-form ins-form-semilla">
           <select id="insCat_semilla"></select>
           <input type="text" id="insProd_semilla" list="listaProductos" placeholder="Producto (ej: CoMo Nitragin, Standak Top, Cruiser)">
           <input type="number" id="insDosis_semilla" step="0.01" min="0" placeholder="Dosis">
           <select id="insUni_semilla"></select>
+          <select id="insForma_semilla" title="Cómo se aplicó"></select>
           <button type="button" class="cierre-boton" onclick="agregarInsumo('semilla')">+ Agregar</button>
         </div>
+        <div class="ayuda" style="font-size:11px;">El inoculante puede ir <b>mezclado con la semilla</b> o <b>líquido en el surco</b> (sembradora con tanque): elegí cómo se hizo, SAFIA lo compara por separado.</div>
       </div>
 
       <!-- 2. Fertilización -->
@@ -1486,6 +1489,12 @@
         document.getElementById('insUni_' + s.k).innerHTML = SafiaInsumos.UNIDADES[s.k].map(u => '<option>' + u + '</option>').join('');
       });
       document.getElementById('insMetodo_fertilizacion').innerHTML = opcionesDe(SafiaInsumos.METODOS, 'k', 'n');
+      document.getElementById('insForma_semilla').innerHTML = opcionesDe(SafiaInsumos.FORMAS_SEMILLA, 'k', 'n');
+      // si va al surco, la dosis se expresa por hectárea
+      document.getElementById('insForma_semilla').addEventListener('change', function () {
+        const u = document.getElementById('insUni_semilla');
+        if (this.value === 'surco') u.value = 'mL/ha (surco)'; else if (/surco/.test(u.value)) u.value = 'mL/kg semilla';
+      });
       document.getElementById('insEtapa_fertilizacion').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
       document.getElementById('insEtapa_ciclo').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
       document.getElementById('insEtapa_ciclo').value = 'V5–V8';
@@ -1530,7 +1539,7 @@
       const quitar = i => '<td class="r"><button class="cierre-boton" onclick="quitarInsumo(' + i.id + ')" title="Quitar">Quitar</button></td>';
       const por = s => lista.filter(i => (i.seccion || SafiaInsumos.seccionDe(i.categoria)) === s);
       document.getElementById('insCuerpo_semilla').innerHTML = por('semilla').map(i =>
-        '<tr><td><span class="badge blue">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td>' + (i.producto || '—') + '</td><td class="r">' + fmtDosis(i) + '</td>' + quitar(i) + '</tr>').join('');
+        '<tr><td><span class="badge blue">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td>' + (i.producto || '—') + '</td><td class="r">' + fmtDosis(i) + '</td><td>' + (SafiaInsumos.nombreForma(i.forma) || '—') + '</td>' + quitar(i) + '</tr>').join('');
       document.getElementById('insCuerpo_fertilizacion').innerHTML = por('fertilizacion').map(i => {
         const x = SafiaInsumos.npkDe(i);
         return '<tr><td><span class="badge amber">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td><span class="num">' + (i.formula || i.producto || '—') + '</span></td><td class="r">' + fmtDosis(i) + '</td><td>' + SafiaInsumos.nombreMetodo(i.metodo) + '</td><td>' + (i.etapa || '—') + (i.fecha ? '<div class="sub">' + fmtFechaCorta(i.fecha) + '</div>' : '') + '</td>' +
@@ -1562,6 +1571,7 @@
         formula: seccion === 'fertilizacion' ? producto : undefined,
         dosis: dosis === '' ? null : parseFloat(dosis), unidad: g('insUni').value,
         metodo: seccion === 'fertilizacion' ? g('insMetodo').value : undefined,
+        forma: seccion === 'semilla' ? g('insForma').value : undefined,
         etapa: seccion === 'semilla' ? 'Tratamiento de semilla' : g('insEtapa').value,
         fecha: seccion === 'semilla' ? null : (g('insFecha').value || null),
         cultivoIdx: (campana.cultivos || []).length > 1 ? parseInt(document.getElementById('insCultivoIdx').value || '0', 10) : null

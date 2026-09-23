@@ -262,7 +262,11 @@
         if (mio.manejo.cargado && ref.manejo.cargado) {
           SafiaInsumos.PRACTICAS.forEach(function (p) {
             var a = SafiaInsumos.tiene(mio.manejo, p.k), b = SafiaInsumos.tiene(ref.manejo, p.k);
-            if (b && !a) factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso, texto: 'El otro lote hizo ' + p.n.toLowerCase() + (ref.manejo[p.k] > 1 ? ' (' + ref.manejo[p.k] + ' aplicaciones)' : '') + ' y este no lo registró' + (mio.manejo.total || mio.manejoCompleto ? '.' : '.') });
+            if (b && !a) {
+              var txt = 'El otro lote hizo «' + p.n + '»' + (ref.manejo[p.k] > 1 ? ' (' + ref.manejo[p.k] + ' aplicaciones)' : '') + ' y este no lo registró.';
+              if (p.k === 'inoculacionSurco' && SafiaInsumos.tiene(mio.manejo, 'inoculacion')) txt = 'El otro lote inoculó con líquido en el surco de siembra (sembradora con tanque); este mezcló el inoculante con la semilla. En el surco el rizobio llega más protegido del sol y de los fungicidas de la semilla.';
+              factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso, texto: txt });
+            }
             else if (a && b && ref.manejo[p.k] > mio.manejo[p.k] + 1) factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso * 0.5, texto: p.n + ': ' + ref.manejo[p.k] + ' aplicaciones en el otro lote contra ' + mio.manejo[p.k] + ' acá.' });
           });
         } else if (!mio.manejo.cargado && ref.manejo.cargado) {

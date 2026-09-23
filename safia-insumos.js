@@ -54,8 +54,14 @@
     { k: 'incorporado',      n: 'Incorporado con labranza' },
     { k: 'otro',             n: 'Otro' }
   ];
+  // Cómo se aplica lo de la sección semilla: hoy el inoculante muchas veces va líquido al surco por la sembradora.
+  var FORMAS_SEMILLA = [
+    { k: 'semilla', n: 'Mezclado con la semilla' },
+    { k: 'surco',   n: 'Líquido en el surco (sembradora con tanque)' },
+    { k: 'industrial', n: 'Semilla tratada de fábrica (industrial)' }
+  ];
   var UNIDADES = {
-    semilla: ['mL/kg semilla', 'g/kg semilla', 'mL/100 kg semilla', 'g/100 kg semilla', 'dosis/bolsa'],
+    semilla: ['mL/kg semilla', 'g/kg semilla', 'mL/100 kg semilla', 'g/100 kg semilla', 'dosis/bolsa', 'mL/ha (surco)', 'L/ha (surco)', 'dosis/ha (surco)'],
     fertilizacion: ['kg/ha', 't/ha', 'L/ha'],
     ciclo: ['L/ha', 'kg/ha', 'mL/ha', 'g/ha', 'dosis/ha']
   };
@@ -63,6 +69,7 @@
   var PRACTICAS = [
     { k: 'tratamientoSemilla', n: 'Tratamiento de semilla (fungicida/insecticida)', peso: 0.35 },
     { k: 'inoculacion',        n: 'Inoculación',                 peso: 0.35 },
+    { k: 'inoculacionSurco',   n: 'Inoculación líquida en el surco', peso: 0.25 },
     { k: 'coinoculacion',      n: 'Co-inoculación',              peso: 0.2 },
     { k: 'microSemilla',       n: 'CoMo / micronutrientes en semilla', peso: 0.2 },
     { k: 'bioSemilla',         n: 'Bioestimulante en semilla',   peso: 0.15 },
@@ -93,6 +100,8 @@
   ];
   var POR_K = {}; CATEGORIAS.forEach(function (c) { POR_K[c.k] = c; });
   var METODO_POR_K = {}; METODOS.forEach(function (m) { METODO_POR_K[m.k] = m; });
+  var FORMA_POR_K = {}; FORMAS_SEMILLA.forEach(function (f) { FORMA_POR_K[f.k] = f; });
+  function nombreForma(k) { return FORMA_POR_K[k] ? FORMA_POR_K[k].n : (k || ''); }
 
   function nombreCategoria(k) { return POR_K[k] ? POR_K[k].n : (k || 'Otro'); }
   function nombreMetodo(k) { return METODO_POR_K[k] ? METODO_POR_K[k].n : (k || ''); }
@@ -130,6 +139,7 @@
       var c = POR_K[i.categoria];
       if (c && c.practica) r[c.practica] = (r[c.practica] || 0) + 1;
       if (i.metodo === 'tasa_variable') r.tasaVariable = (r.tasaVariable || 0) + 1;
+      if ((i.categoria === 'inoculante' || i.categoria === 'coinoculante') && i.forma === 'surco') r.inoculacionSurco = (r.inoculacionSurco || 0) + 1;
       if (i.producto || i.formula) r.productos.push(i.producto || i.formula);
     });
     aplicaciones.forEach(function (a) { if (a.producto) r.productos.push(a.producto); });
@@ -148,6 +158,6 @@
     return partes.join(' · ') || 'sin insumos (manejo completo)';
   }
 
-  window.SafiaInsumos = { SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
+  window.SafiaInsumos = { SECCIONES: SECCIONES, CATEGORIAS: CATEGORIAS, METODOS: METODOS, FORMAS_SEMILLA: FORMAS_SEMILLA, nombreForma: nombreForma, UNIDADES: UNIDADES, ETAPAS: ETAPAS, PRACTICAS: PRACTICAS, FERTILIZANTES: FERTILIZANTES,
     nombreCategoria: nombreCategoria, nombreMetodo: nombreMetodo, seccionDe: seccionDe, gradoDe: gradoDe, npkDe: npkDe, totalesNPK: totalesNPK, resumen: resumen, tiene: tiene, textoCorto: textoCorto };
 })();
