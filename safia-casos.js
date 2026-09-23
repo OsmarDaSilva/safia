@@ -234,7 +234,7 @@
       d.time.forEach(function (_, i) {
         var tm = d.temperature_2m_mean[i], tx = d.temperature_2m_max[i], tn = d.temperature_2m_min[i];
         if (tm == null) return;
-        n++; sMed += tm; sMax += tx; sMin += tn;
+        n++; sMed += tm; sMax += (tx != null ? tx : tm); sMin += (tn != null ? tn : tm);
         if (maxAbs == null || tx > maxAbs) maxAbs = tx;
         if (minAbs == null || tn < minAbs) minAbs = tn;
         if (tx >= 35) dias35++;

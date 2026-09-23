@@ -20,7 +20,7 @@ quedaron por debajo. Lo que tenían los campeones en **0–20 cm**:
 
 | Parámetro (0–20 cm) | Lotes > 4.200–6.000 kg/ha (CESB) | Rango "adecuado" clásico (CAPECO / Embrapa) | Objetivo que usa SAFIA para 6–7 t |
 |---|---|---|---|
-| Saturación de bases V% | 56–68 % (70 % en 0–10 cm) | 50–60 % soja, 60 % maíz (CAPECO 2012) | **≥ 70 %** |
+| Saturación de bases V% | 56–68 % en 0–20 cm (70 % en 0–10 cm) | 65 % soja / 70 % maíz (RS/SC, Boletim 100) | **≥ 65 % en 0–20 cm** (70 en 0–10; repetir cada 2 años) |
 | pH en agua | 5,8–6,3 (CaCl₂ 5,2–5,7) | 5,5–6,5 | **6,0–6,5** |
 | Materia orgánica | 3,9–4,5 % (39–45 g/dm³) | > 2,5 % | **≥ 3 %** (se construye, no se compra) |
 | Fósforo | 29–49 mg/dm³ resina (≈ 17–25 Mehlich-1) | crítico 12 (arcilla > 40 %) / 15 (< 40 %) | **≥ 1,4 × crítico** = 17 / 21 mg/dm³ (Embrapa CT33: riego o alto valor → 90 % del potencial) |
@@ -35,7 +35,7 @@ quedaron por debajo. Lo que tenían los campeones en **0–20 cm**:
 | Cobre (Mehlich-1) | 1,3–3,4 mg/dm³ | 0,5–1,2 (Embrapa); MT 1,6–2,4 | **≥ 0,8** |
 | Zinc (Mehlich-1) | — (no lo reporta) | 1,0–1,6 (Embrapa); MT crítico 2,5 | **≥ 1,5** |
 | Manganeso | 2,4–4,7 mg/dm³ | 2–8 (Embrapa) | **≥ 2** (el exceso en suelos ácidos baja al encalar) |
-| Azufre (S-SO₄) | — | < 5 bajo, 5–10 medio, > 10 alto (Embrapa) | **≥ 10 mg/dm³** |
+| Azufre (S-SO₄) | — | < 5 bajo, 5–10 medio, > 10 alto (Embrapa 2020) | **≥ 10 mg/dm³**; reponer ≈ 5 kg S por t (Fertilizar) |
 
 Y en **profundidad**, que es lo que distingue a los campeones:
 
@@ -71,9 +71,9 @@ de Anderson) ya informa en cmolc y %.
   productivos) × 9,9, y para cada meta los **mm que exige**. Si el lote tiene
   riego, la diferencia se completa y se costea a `riegoUSDmm` (1,3 US$/mm por
   defecto, editable en Precios).
-- **Techo climático de referencia** (agua sin límite): soja 7.000 kg/ha
-  (CESB irrigado 7.600, récord secano 8.130; GYGA Brasil Yp 4,4–7,1; UNL
-  6–7 t/ha en ensayos óptimos), maíz 14.000. El motor nunca proyecta por
+- **Techo climático de referencia** (agua sin límite): soja 7.600 kg/ha
+  (CESB irrigado nacional 2024/25; récord secano 8.130; GYGA Brasil Yp
+  4,4–7,1; UNL 6–7 t/ha en ensayos óptimos), maíz 14.000. El motor nunca proyecta por
   encima de ese techo.
 
 ## 3. Cómo lo aplica SAFIA (Motor 6 + Motor 8)
@@ -87,13 +87,13 @@ de Anderson) ya informa en cmolc y %.
    zinc, cobre, manganeso (con la interacción P alto → menos Zn).
 2. **Recomendaciones (`SafiaAgro.recomendaciones`)**: además de las
    básicas (encalado a V% del cultivo, P y K al crítico, MO) suma las de
-   **alto rinde**: encalado hasta V% 70 (NC = (70 − V) × CIC / 100),
+   **alto rinde**: encalado hasta V% 65 en 0–20 cm (NC = (65 − V) × CIC / 100),
    P hasta 1,4 × crítico, K hasta 0,30 cmolc, Mg ≥ 1,3 con dolomítico,
    aluminio (calcáreo + yeso), S, B, Zn, Cu y CoMo en semilla cuando el pH
    es ácido (el Mo se vuelve menos disponible).
 3. **Plan de meta (`SafiaMeta.plan`)**: cuando la meta es ≥ 5.500 kg/ha de
    soja (o ≥ 10.000 de maíz) el suelo objetivo pasa a ser el de los
-   campeones (V% 70, P 1,4 × crítico, K 117 mg/dm³, Mg 1,3). Cada ítem
+   campeones (V% 65, P 1,4 × crítico, K 117 mg/dm³, Mg 1,3). Cada ítem
    tiene dosis, costo (inversión de una vez o gasto por campaña) y aporte
    estimado. Nuevos ítems: boro, zinc de suelo, cobre, azufre por análisis,
    agua por productividad del agua (Grassini) con costo de riego.
@@ -111,7 +111,7 @@ Promedio de las 7 muestras BIOSOLLO del 05-08-2026 (0–20 cm):
 | Parámetro | Hoy | Objetivo 6–7 t | Estado |
 |---|---|---|---|
 | pH | 5,6 | 6,0–6,5 | falta |
-| V% | 60,7 | ≥ 70 | falta → 1,1 t/ha de calcáreo |
+| V% | 60,7 | ≥ 65 (0–20 cm) | falta → 0,5 t/ha de calcáreo |
 | P Mehlich-1 | 12,4 | ≥ 17 | falta → ~115 kg/ha P₂O₅ extra en 2–3 cultivos |
 | K | 0,36 cmolc (141 mg/dm³) | ≥ 0,30 | alcanzado |
 | Ca / Mg | 5,20 / 1,62 | ≥ 3,0 / ≥ 1,3 | alcanzado |
@@ -119,16 +119,17 @@ Promedio de las 7 muestras BIOSOLLO del 05-08-2026 (0–20 cm):
 | MO | 2,53 % | ≥ 3 % | falta (cobertura, rastrojo, sin arar) |
 | Al (m%) | 0,8 % | < 5 % | alcanzado |
 | S | 16,8 | ≥ 10 | alcanzado |
-| B | 0,35 | ≥ 0,5 | falta → 1 kg B/ha |
+| B | 0,35 | ≥ 0,5 | falta → 0,5 kg B/ha (tenor medio) |
 | Zn | 1,61 | ≥ 1,5 | alcanzado |
 | Cu (según observaciones del lab) | 3,7–3,9 | ≥ 0,8 | alcanzado |
 
 Agua: 847 mm en el ciclo → techo por agua 7.690 kg/ha. **El agua no es el
 límite; el suelo (V%, P, B, MO) sí.** Plan del motor para 6.000 kg/ha:
-inversión de una vez ≈ US$ 286/ha (calcáreo, P, B, muestreo profundo) y
+inversión de una vez ≈ US$ 248/ha (calcáreo, P, B, muestreo profundo) y
 gasto extra por campaña ≈ US$ 78/ha (reposición P/K, CoMo, inoculación,
 tratamiento de semilla); ingreso extra ≈ US$ 287/ha a los precios por
-defecto; potencial estimado 5.900–7.000. Veredicto del motor: "posible".
+defecto, margen ≈ US$ 117/ha por campaña; potencial estimado
+5.900–7.600. Veredicto del motor: "posible".
 (Los precios son los por defecto de SAFIA: hay que cargar los reales en
 Meta de rinde → Precios.)
 
@@ -146,7 +147,44 @@ Meta de rinde → Precios.)
   el lector IA los guarda como `cobre` y `manganeso` cuando vienen como
   columna; si vienen en texto, hay que cargarlos a mano.
 
-## 6. Fuentes
+## 6. Auditoría de los motores (23-sep-2026)
+
+Se revisaron safia-agronomia.js, safia-meta.js, safia-cultivos-fao.js,
+safia-casos.js y safia-rotacion.js contra los textos descargados de
+CAPECO 2012/2022, CESB CT2, Embrapa (micronutrientes, CT33, 2020),
+Fertilizar/INTA y UNL EC117.
+
+**Confirmado contra la fuente (SÍ):** clases y críticos de P por arcilla,
+kg P₂O₅ por mg/dm³ (derivado de las tablas 7/8), factor 1,4 con riego,
+clases y correctiva de K, 391 mg por cmolc, NC = (V2 − V1) × CIC / PRNT,
+Fatecha 1,5–2,6 t/ha, manutención y exportación de P y K por tonelada
+(soja, trigo, maíz), N por t (maíz, trigo, girasol), rangos Embrapa de B,
+Cu, Mn, Zn y sus dosis correctivas, todos los números de CESB (con la
+conversión mmolc → cmolc), (Ca+Mg)/K > 36 y 20–30 (Oliveira 2001),
+umbrales de Al (Nicolodi), Kc y etapas FAO-56 de los cultivos principales,
+ET₀ FAO-56 de Open-Meteo, respuesta a CoMo e inoculación (Fertilizar).
+
+**Corregido en esta auditoría:** girasol 15 kg P₂O₅/t (era 19); citas de
+Ca y Mg → Manual RS/SC, clases de S → Embrapa 2020, EC117 es de maíz; V%
+objetivo 65 en 0–20 cm (el 70 de CESB es en 0–10); Zn 6 kg/ha (¼ si
+medio), boro sin dosis foliar inventada; azufre por exportación (5 kg/t);
+techo de soja 7.600; girasol 600 mm (FAO-33); precio de riego duplicado;
+reposición P/K nunca negativa; nitrógeno aplicado solo si el manejo está
+cargado; m% sin exigir CIC; ponderación de micronutrientes coherente;
+temperaturas con huecos en el clima; aviso para suelos con menos de 21 %
+de arcilla.
+
+**Estimaciones declaradas (sin ensayo en las fuentes descargadas):** los
+aportes % de encalado, yeso, N, S, B, Zn, Cu, tratamiento de semilla,
+cobertura, subsolado, nivelación, directa, rotación y fungicidas (solo P,
+K, CoMo e inoculación tienen ensayo); intercepto de agua de soja (70 mm)
+y la productividad del agua de "otro" cultivo; V% 70 para maíz (Boletim
+100, no RS/SC); Ca/Mg ideal 3–5; sorgo 22 kg N/t; Kc de invierno de los
+perennes y chía; reglas de intervalo de rotación (girasol 4 años, canola
+3) y el +15 % de brachiaria antes de soja. Todo se muestra en pantalla
+como "estimado" u "orientativo".
+
+## 7. Fuentes
 
 - CESB. *Circular Técnica 2 – Fatores decisivos para se obter produtividade
   de soja acima de 4.200 kg/ha.* (47 lotes, análisis hasta 1 m.)
@@ -158,7 +196,8 @@ Meta de rinde → Precios.)
 - Embrapa Soja. *Tecnologias de Produção de Soja* (agua 450–800 mm, fecha
   de siembra).
 - Universidad de Nebraska-Lincoln. EC117 *Nutrient Management for Agronomic
-  Crops in Nebraska* (P Bray-1 crítico 15, K 125, encalar pH ≤ 5,5);
+  Crops in Nebraska* (maíz: P Bray-1 crítico 15–20, K₂O = 125 − K ppm,
+  encalar pH ≤ 5,5);
   G1367 *Irrigating Soybean*; Grassini et al. (productividad del agua
   9,9 / 19,3 kg/ha/mm; Field Crops Research).
 - Fertilizar AC / INTA. *Soja: nutrición y fertilización en la región

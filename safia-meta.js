@@ -49,15 +49,16 @@
         4,4–7,1 t/ha; brecha de los regados ~20 %. UNL G1367: soja usa
         508–660 mm por ciclo, 65 % entre R1 y R6, pico 8 mm/día; críticos
         R3–R6. Embrapa: 450–800 mm; atraso de siembra −38 kg/ha/día.
-   [16] Embrapa Cerrados (micronutrientes): B 1 kg/ha, Zn 4–6, Cu 2 kg/ha
-        al suelo (4–5 años); S < 10 mg/dm³ → 20–30 kg S/ha.
+   [16] Embrapa Cerrados (micronutrientes): B 1–2 kg/ha, Zn 6, Cu 1–2, Mn 6
+        kg/ha al suelo cada 4–5 años (¼ si el tenor es medio). S < 10
+        mg/dm³ (Embrapa 2020) → reponer ≈ 5 kg S por t (Fertilizar).
    Validación completa en FUNDAMENTOS_META_RINDE.md y FUNDAMENTOS_ALTO_RINDE.md. */
 (function () {
   'use strict';
 
   // Techo de rinde de referencia con agua sin límite (kg/ha) y productividad del agua límite (Grassini, UNL) [15]
-  var TECHO_REF = { soja: 7000, maiz: 14000, trigo: 6000, girasol: 4000, sorgo: 9000, otro: 6000 };
-  var WP_LIMITE = { soja: { kgMm: 9.9, noProductiva: 70 }, maiz: { kgMm: 19.3, noProductiva: 100 }, otro: { kgMm: 12, noProductiva: 80 } };
+  var TECHO_REF = { soja: 7600, maiz: 14000, trigo: 6000, girasol: 4000, sorgo: 9000, otro: 6000 };   // soja: CESB irrigado nacional 7.600 (récord secano 8.130); el resto orientativo
+  var WP_LIMITE = { soja: { kgMm: 9.9, noProductiva: 70 }, maiz: { kgMm: 19.3, noProductiva: 100 }, otro: { kgMm: 12, noProductiva: 80 } };   // soja/maíz: Grassini (UNL); intercepto de soja y "otro" son estimaciones a calibrar
   var PRECIOS_DEFAULT = {
     granoUSDt: { soja: 350, maiz: 170, trigo: 230, girasol: 400, sorgo: 150, otro: 250 },
     calcareoUSDt: 60,        // puesto y aplicado, PRNT ~80–100 %
@@ -74,7 +75,6 @@
     boroUSDkg: 6.0,          // kg de B (bórax/ulexita puesto en el lote)
     znSueloUSDkg: 4.5,       // kg de Zn (sulfato de zinc)
     cuUSDkg: 7.0,            // kg de Cu (sulfato de cobre)
-    riegoUSDmm: 1.3,         // US$ por mm y por ha (energía + operación del pivote)
     coberturaUSDha: 45,      // semilla + siembra de la cobertura
     fungicidaUSDapl: 35,
     insecticidaUSDapl: 22,
@@ -86,7 +86,7 @@
     analisisPerfilUSD: 40,   // muestreo 20–40 y 40–60 cm
     tierraUSDha: 20000
   };
-  var AGUA_NECESARIA = { soja: 600, maiz: 650, trigo: 450, girasol: 550, sorgo: 500, otro: 550 }; // mm por ciclo, orientativo [9]
+  var AGUA_NECESARIA = { soja: 600, maiz: 650, trigo: 450, girasol: 600, sorgo: 500, otro: 550 }; // mm por ciclo, orientativo [9] (FAO-33: soja 450–700, maíz 500–800, trigo 450–650, girasol 600–1.000, sorgo 450–650)
   var N_POR_T = { maiz: 22, trigo: 26, girasol: 40, sorgo: 22 };   // kg N absorbidos por t de grano (soja: fija N)
 
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
@@ -188,7 +188,7 @@
       var manTotal = cat === 'muy alta' ? Math.round(metaT * perfil.expP) : Math.round(metaT * perfil.mP);
       var aplicadoP = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? Math.round(caso.manejo.npk.p2o5) : null;
       // Gasto ADICIONAL por campaña: si el manejo está cargado, lo que falta sobre lo aplicado; si no, solo reponer los kg extra de la meta
-      var man = aplicadoP != null ? Math.max(0, manTotal - aplicadoP) : Math.round((metaT - actual / 1000) * (cat === 'muy alta' ? perfil.expP : perfil.mP));
+      var man = aplicadoP != null ? Math.max(0, manTotal - aplicadoP) : Math.max(0, Math.round((metaT - actual / 1000) * (cat === 'muy alta' ? perfil.expP : perfil.mP)));
       var apP = { 'muy baja': [0.25, 0.45], baja: [0.10, 0.25], media: [0.03, 0.10], alta: [0, 0.03], 'muy alta': [0, 0] }[cat];
       item({ k: 'fosforo', tipo: 'suelo', nombre: 'Fósforo', hoy: fmt(p, 1) + ' mg/dm³ (' + cat + ')', objetivo: fmt(pObj, 0) + ' mg/dm³' + (bm && bm.suelo.p ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.p, 1) : ''),
         accion: (corr ? 'Corregir ' + fmt(corr, 0) + ' kg/ha de P₂O₅ (' + pc.kgPorMg + ' kg por mg/dm³, gradual en 3 cultivos) + ' : '') + 'manutención total ' + fmt(manTotal, 0) + ' kg/ha de P₂O₅ para ' + fmt(meta, 0) + ' kg/ha (' + (cat === 'muy alta' ? 'solo reposición' : perfil.mP + ' kg/t × 1,25') + ')' + (aplicadoP != null ? ' — hoy aplicás ' + fmt(aplicadoP, 0) + ': el adicional son ' + fmt(man, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo lo que se llevan los ' + fmt(meta - actual, 0) + ' kg extra: ' + fmt(man, 0) + ' kg/ha'),
@@ -203,7 +203,7 @@
       if ((opciones.construirPK || metaAlta) && !corrK && kmg < 117) corrK = Math.round((117 - kmg) * 2.4 * 1.2 / 10) * 10; // llevar K a ~117 mg/dm³ = 0,30 cmolc (campeones 0,25–0,41 [14]); ≈ 2 kg K2O por mg/dm³ + 20 % pérdidas
       var manKTotal = catK === 'muy alta' ? Math.round(metaT * perfil.expK) : Math.round(metaT * perfil.mK);
       var aplicadoK = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? Math.round(caso.manejo.npk.k2o) : null;
-      var manK = aplicadoK != null ? Math.max(0, manKTotal - aplicadoK) : Math.round((metaT - actual / 1000) * (catK === 'muy alta' ? perfil.expK : perfil.mK));
+      var manK = aplicadoK != null ? Math.max(0, manKTotal - aplicadoK) : Math.max(0, Math.round((metaT - actual / 1000) * (catK === 'muy alta' ? perfil.expK : perfil.mK)));
       var apK = { 'muy baja': [0.20, 0.45], baja: [0.10, 0.20], media: [0.03, 0.10], alta: [0, 0.03], 'muy alta': [0, 0] }[catK];
       item({ k: 'potasio', tipo: 'suelo', nombre: 'Potasio', hoy: fmt(kmg, 0) + ' mg/dm³ (' + catK + ')', objetivo: '> 75 mg/dm³' + (bm && bm.suelo.k ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.k * 391, 0) : ''),
         accion: (corrK ? 'Corregir ' + fmt(corrK, 0) + ' kg/ha de K₂O en 3 cultivos + ' : '') + (catK === 'muy alta' ? 'solo reponer lo exportado: ' : 'manutención total ') + fmt(manKTotal, 0) + ' kg/ha de K₂O (KCl al voleo o por fertirriego)' + (aplicadoK != null ? ' — hoy aplicás ' + fmt(aplicadoK, 0) + ': el adicional son ' + fmt(manK, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo lo que se llevan los kg extra: ' + fmt(manK, 0) + ' kg/ha'),
@@ -211,7 +211,7 @@
     }
     /* 5. Nitrógeno (no soja) */
     if (N_POR_T[cu]) {
-      var mo = num(s.mo), aplicadoN = caso.manejo && caso.manejo.npk ? caso.manejo.npk.n : 0;
+      var mo = num(s.mo), aplicadoN = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? caso.manejo.npk.n : 0;
       var necesidad = metaT * N_POR_T[cu], aporteMO = mo != null ? mo * 20 : 40, dosisN = Math.max(0, Math.round(necesidad - aporteMO));
       var faltaHoy = Math.max(0, necesidad - aporteMO - (aplicadoN || 0));
       item({ k: 'nitrogeno', tipo: 'suelo', nombre: 'Nitrógeno', hoy: (aplicadoN ? fmt(aplicadoN, 0) + ' kg N/ha aplicados' : 'sin N registrado') + (mo != null ? ' · MO ' + fmt(mo, 2) + ' % aporta ~' + fmt(aporteMO, 0) + ' kg N' : ''), objetivo: fmt(necesidad, 0) + ' kg N/ha absorbidos para ' + fmt(meta, 0) + ' kg/ha',
@@ -220,10 +220,10 @@
     /* 6. Azufre y micronutrientes */
     var tieneS = caso.manejo && caso.manejo.npk && caso.manejo.npk.s > 5;
     var sSuelo = num(s.azufre), bSuelo = num(s.boro), znSuelo = num(s.zinc), cuSuelo = num(s.cobre);
-    if (!tieneS && sSuelo != null && sSuelo < 10) item({ k: 'azufre', tipo: 'suelo', nombre: 'Azufre', hoy: fmt(sSuelo, 1) + ' mg/dm³ (' + (sSuelo < 5 ? 'bajo' : 'medio') + ')', objetivo: '≥ 10 mg/dm³ · 20–30 kg S/ha por ciclo', accion: '25 kg S/ha (yeso 150 kg/ha o sulfato de amonio); el yeso además lleva Ca al subsuelo', costo: 25 * pr.sUSDkg, aporteMin: sSuelo < 5 ? 0.03 : 0.01, aporteMax: sSuelo < 5 ? 0.08 : 0.04, fuente: '[16]' });
+    if (!tieneS && sSuelo != null && sSuelo < 10) item({ k: 'azufre', tipo: 'suelo', nombre: 'Azufre', hoy: fmt(sSuelo, 1) + ' mg/dm³ (' + (sSuelo < 5 ? 'bajo' : 'medio') + ')', objetivo: '≥ 10 mg/dm³ · reponer ≈ 5 kg S por t', accion: fmt(Math.round(metaT * 5), 0) + ' kg S/ha (yeso ' + fmt(Math.round(metaT * 5 * 6.5), 0) + ' kg/ha o sulfato de amonio); el yeso además lleva Ca al subsuelo', costo: Math.round(metaT * 5) * pr.sUSDkg, aporteMin: sSuelo < 5 ? 0.03 : 0.01, aporteMax: sSuelo < 5 ? 0.08 : 0.04, fuente: '[16]' });
     else if (!tieneS && sSuelo == null && (num(s.mo) == null || num(s.mo) < 3)) item({ k: 'azufre', tipo: 'suelo', nombre: 'Azufre', hoy: 'sin fuente de S registrada', objetivo: '20–30 kg S/ha', accion: '25 kg S/ha (yeso 150 kg/ha o sulfato de amonio)', costo: 25 * pr.sUSDkg, aporteMin: 0.02, aporteMax: 0.05, fuente: '[1] RS/SC: S en suelos con MO < 3 %' });
-    if (bSuelo != null && bSuelo < (AR ? AR.b : 0.5)) item({ k: 'boro', tipo: 'suelo', nombre: 'Boro', hoy: fmt(bSuelo, 2) + ' mg/dm³ (' + (bSuelo < 0.3 ? 'bajo' : 'medio') + ')', objetivo: '≥ 0,5 mg/dm³ (campeones 0,7–1,0)', accion: '1 kg B/ha al suelo (bórax o ulexita, 4–5 años) o 0,3–0,5 kg B/ha foliar en R1–R2; no pasar de 1 kg/ha por vez', inversion: 1 * pr.boroUSDkg + 6, vidaUtil: 4, aporteMin: bSuelo < 0.3 ? 0.04 : 0.02, aporteMax: bSuelo < 0.3 ? 0.10 : 0.05, fuente: '[14][16]' });
-    if (znSuelo != null && znSuelo < (AR ? AR.zn : 1.5)) item({ k: 'zinc_suelo', tipo: 'suelo', nombre: 'Zinc (suelo)', hoy: fmt(znSuelo, 2) + ' mg/dm³ (' + (znSuelo < 1.0 ? 'bajo' : 'medio') + ')', objetivo: '≥ 1,5 mg/dm³', accion: znSuelo < 1.0 ? '4–6 kg Zn/ha al suelo (sulfato de zinc 20–30 kg/ha), dura 4–5 años' : '2 kg Zn/ha al suelo o zinc en semilla + 1 foliar en V4–V6', inversion: (znSuelo < 1.0 ? 5 : 2) * pr.znSueloUSDkg + 6, vidaUtil: 4, aporteMin: znSuelo < 1.0 ? 0.03 : 0.01, aporteMax: znSuelo < 1.0 ? 0.08 : 0.04, fuente: '[16]' });
+    if (bSuelo != null && bSuelo < (AR ? AR.b : 0.5)) item({ k: 'boro', tipo: 'suelo', nombre: 'Boro', hoy: fmt(bSuelo, 2) + ' mg/dm³ (' + (bSuelo < 0.3 ? 'bajo' : 'medio') + ')', objetivo: '≥ 0,5 mg/dm³ (campeones 0,7–1,0)', accion: (bSuelo < 0.3 ? '1–2 kg B/ha' : '0,5 kg B/ha (tenor medio)') + ' al suelo (bórax o ulexita, dura 4–5 años) o foliar en floración según el agrónomo; franja estrecha con la toxicidad, no exceder', inversion: (bSuelo < 0.3 ? 1.5 : 0.5) * pr.boroUSDkg + 6, vidaUtil: 4, aporteMin: bSuelo < 0.3 ? 0.04 : 0.02, aporteMax: bSuelo < 0.3 ? 0.10 : 0.05, fuente: '[14][16]' });
+    if (znSuelo != null && znSuelo < (AR ? AR.zn : 1.5)) item({ k: 'zinc_suelo', tipo: 'suelo', nombre: 'Zinc (suelo)', hoy: fmt(znSuelo, 2) + ' mg/dm³ (' + (znSuelo < 1.0 ? 'bajo' : 'medio') + ')', objetivo: '≥ 1,5 mg/dm³', accion: znSuelo < 1.0 ? '6 kg Zn/ha al suelo (sulfato de zinc ~30 kg/ha), dura 4–5 años' : '1,5 kg Zn/ha al suelo (¼ de la dosis, tenor medio) o zinc en semilla + foliar', inversion: (znSuelo < 1.0 ? 6 : 1.5) * pr.znSueloUSDkg + 6, vidaUtil: 4, aporteMin: znSuelo < 1.0 ? 0.03 : 0.01, aporteMax: znSuelo < 1.0 ? 0.08 : 0.04, fuente: '[16]' });
     if (cuSuelo != null && cuSuelo < (AR ? AR.cu : 0.8)) item({ k: 'cobre', tipo: 'suelo', nombre: 'Cobre', hoy: fmt(cuSuelo, 2) + ' mg/dm³', objetivo: '≥ 0,8 mg/dm³ (campeones 1,3–3,4)', accion: '1–2 kg Cu/ha al suelo (sulfato de cobre) o foliar', inversion: 1.5 * pr.cuUSDkg + 6, vidaUtil: 4, aporteMin: 0.01, aporteMax: 0.04, fuente: '[14][16]' });
     var man = caso.manejo || {};
     if (cu === 'soja' && !(man.cargado && man.microSemilla)) item({ k: 'como', tipo: 'manejo', nombre: 'Cobalto y molibdeno en semilla', hoy: man.cargado ? 'no se usó' : 'no registrado', objetivo: 'CoMo en cada siembra', accion: 'CoMo en el tratamiento de semilla (mejora la fijación de N)', costo: pr.comoUSDha, aporteMin: 0.02, aporteMax: 0.05, fuente: '[8]' });
@@ -251,7 +251,6 @@
       var deficit = Math.max(0, necesita - agua);
       var costoRiego = (caso.riego !== false && deficit > 30) ? Math.round(deficit * pr.riegoUSDmm) : 0;
       if (deficit > 30 && caso.riego !== false) item({ k: 'agua', tipo: 'agua', nombre: 'Agua del ciclo', hoy: fmt(agua, 0) + ' mm (lluvia ' + fmt(caso.lluviaMM || 0, 0) + ' + riego ' + fmt(caso.riegoMM || 0, 0) + ') = ' + fmt(agua > wp.noProductiva ? (agua - wp.noProductiva) * wp.kgMm : 0, 0) + ' kg/ha de techo por agua', objetivo: fmt(necesita, 0) + ' mm (' + fmt(meta, 0) + ' kg/ha ÷ ' + wp.kgMm + ' kg/mm + ' + wp.noProductiva + ' no productivos' + (necesitaClima > necesitaMeta ? '; ET₀ del ciclo ' + fmt(necesitaClima, 0) : '') + ')', accion: 'Completar ~' + fmt(deficit, 0) + ' mm con riego, concentrados entre R1 y R6 (65 % del consumo; críticos R3–R6, pico 8 mm/día). Costo estimado US$ ' + fmt(costoRiego, 0) + '/ha (' + pr.riegoUSDmm + ' US$/mm)', recurrente: costoRiego, aporteMin: clamp(deficit / necesita * 0.6, 0.03, 0.25), aporteMax: clamp(deficit / necesita, 0.05, 0.35), fuente: '[15][9]' });
-      else if (false) item({ k: 'agua', tipo: 'agua', nombre: 'Agua del ciclo', hoy: '', objetivo: fmt(necesita, 0) + ' mm' + (caso.clima && caso.clima.et0Total ? ' (ET₀ del ciclo)' : ' (referencia ' + caso.cultivo + ')') + (bm && bm.agua ? ' · los que rinden ≥ meta: ' + fmt(bm.agua, 0) : ''), accion: 'Completar ~' + fmt(deficit, 0) + ' mm con riego, concentrados en floración y llenado', costo: deficit * pr.riegoUSDmm, aporteMin: clamp(deficit / necesita * 0.5, 0.02, 0.15), aporteMax: clamp(deficit / necesita * 1.0, 0.05, 0.30), fuente: '[9]' });
       else if (deficit > 30) item({ k: 'agua', tipo: 'agua', nombre: 'Agua del ciclo', hoy: fmt(agua, 0) + ' mm en secano', objetivo: fmt(necesita, 0) + ' mm', accion: 'Faltaron ~' + fmt(deficit, 0) + ' mm: es el techo del secano; con riego se cubre', costo: 0, aporteMin: 0, aporteMax: clamp(deficit / necesita, 0.05, 0.30), condicional: true, fuente: '[9]' });
       else item({ k: 'agua', tipo: 'agua', nombre: 'Agua del ciclo', hoy: fmt(agua, 0) + ' mm = techo por agua ' + fmt(Math.max(0, (agua - wp.noProductiva) * wp.kgMm), 0) + ' kg/ha', objetivo: fmt(necesita, 0) + ' mm para ' + fmt(meta, 0) + ' kg/ha', accion: 'Cubierta en volumen. Lo que decide es el momento: sin déficit en R3–R6 (llenado), que concentra el 65 % del consumo', costo: 0, fuente: '[15][9]' });
     }
@@ -350,7 +349,7 @@
       '<div class="stat"><div class="sl">Meta</div><div class="sv green">' + fmt(pl.meta, 0) + '</div></div>' +
       '<div class="stat"><div class="sl">Potencial con el plan</div><div class="sv">' + fmt(pl.potencial.min, 0) + ' – ' + fmt(pl.potencial.max, 0) + '</div></div>' +
       (pl.potencial.techoZona ? '<div class="stat"><div class="sl">Mejor caso de referencia</div><div class="sv">' + fmt(pl.potencial.techoZona, 0) + '</div></div>' : '') +
-      '<div class="stat"><div class="sl">Techo climático (agua sin límite)</div><div class="sv">' + fmt(pl.potencial.techoReferencia, 0) + '</div><div class="ss">CESB irrigado 7.600 · GYGA · UNL [15]</div></div>' +
+      '<div class="stat"><div class="sl">Techo climático (agua sin límite)</div><div class="sv">' + fmt(pl.potencial.techoReferencia, 0) + '</div><div class="ss">CESB irrigado 7.600 (2024/25) · GYGA · UNL [15]</div></div>' +
       (pl.potencial.techoAgua != null ? '<div class="stat"><div class="sl">Techo por el agua que tuvo</div><div class="sv">' + fmt(pl.potencial.techoAgua, 0) + '</div><div class="ss">Grassini: ' + (pl.cu === 'maiz' ? '19,3' : '9,9') + ' kg/ha por mm</div></div>' : '') +
       '<div class="stat"><div class="sl">Inversión (una vez)</div><div class="sv">US$ ' + fmt(e.inversionTotal, 0) + '/ha</div></div>' +
       '<div class="stat"><div class="sl">Gasto adicional por campaña</div><div class="sv">US$ ' + fmt(e.recurrenteCultivo + e.recurrenteLote, 0) + '/ha</div></div>' +
