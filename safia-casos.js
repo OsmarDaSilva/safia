@@ -112,6 +112,7 @@
         var siembra = cu.fechaSiembra || null;
         var cosecha = cu.fechaCosecha || ((c.cosechas && c.cosechas[i] && c.cosechas[i].fecha)) || (i === 0 && c.cosecha && c.cosecha.fecha) || null;
         var dias = (siembra && cosecha) ? Math.round((new Date(cosecha) - new Date(siembra)) / 86400000) : null;
+        if (dias != null && dias < 0) dias = null;   // fechas al revés (año mal cargado): no se usan
 
         // Cosecha de ESTE cultivo (campañas mixtas guardan una por cultivo);
         // para campañas viejas, la cosecha única de la campaña vale para el primero.

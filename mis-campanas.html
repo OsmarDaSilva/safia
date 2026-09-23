@@ -1420,6 +1420,16 @@
       const obs = document.getElementById('cosechaObs').value.trim();
 
       if (!fecha) { alert('Cargá la fecha de cosecha.'); return; }
+      {
+        const campanasChk = JSON.parse(localStorage.getItem('campanas') || '[]');
+        const campChk = campanasChk.find(c => c.id === cosechandoCampanaId);
+        const idxChk = parseInt(document.getElementById('cosechaCultivoIdx').value || '0', 10);
+        const cuChk = campChk && campChk.cultivos ? campChk.cultivos[idxChk] : null;
+        if (cuChk && cuChk.fechaSiembra && fecha < cuChk.fechaSiembra) {
+          mostrarToast('La cosecha (' + fecha.split('-').reverse().join('/') + ') queda ANTES de la siembra (' + cuChk.fechaSiembra.split('-').reverse().join('/') + '). Corregí primero la fecha de siembra en "Editar campaña" (seguramente el año).');
+          return;
+        }
+      }
       if (!superficie || superficie <= 0) { alert('Cargá la superficie cosechada.'); return; }
       if (!produccion || produccion <= 0) { alert('Cargá la producción en kg.'); return; }
 
@@ -2033,6 +2043,19 @@
         alert('Cargá al menos un cultivo con su fecha de siembra.');
         return;
       }
+      // Fechas al revés (típico: año equivocado): no se guarda hasta corregir
+      const fmtD = f => f ? f.split('-').reverse().join('/') : '';
+      for (const c of cultivosValidos) {
+        if (c.fechaCosecha && c.fechaCosecha < c.fechaSiembra) {
+          mostrarToast('En ' + c.cultivo + ' la cosecha (' + fmtD(c.fechaCosecha) + ') queda ANTES de la siembra (' + fmtD(c.fechaSiembra) + '). Revisá el año de la siembra.');
+          return;
+        }
+        const enUnAnio = new Date(); enUnAnio.setDate(enUnAnio.getDate() + 400);
+        if (new Date(c.fechaSiembra) > enUnAnio) {
+          mostrarToast('La siembra de ' + c.cultivo + ' está cargada en ' + fmtD(c.fechaSiembra) + ', más de un año adelante. ¿El año está bien?');
+          return;
+        }
+      }
 
       let campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
 
@@ -2341,7 +2364,7 @@
           let diasCampana = '—';
           if (cultivo && cultivo.fechaSiembra && cosecha && cosecha.fecha) {
             const dias = Math.floor((new Date(cosecha.fecha) - new Date(cultivo.fechaSiembra)) / 86400000);
-            diasCampana = dias + ' días';
+            diasCampana = dias >= 0 ? dias + ' días' : '<span style="color:#B3261E;" title="La cosecha está antes de la siembra: revisá el año de la siembra en Editar campaña y volvé a traer la lluvia">Fechas al revés</span>';
           }
 
           // Estadísticas de eventos de este equipo durante la campaña
