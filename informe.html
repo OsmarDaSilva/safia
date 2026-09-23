@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Informe para el cliente</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0F3D14">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    body{background:#E9EBEE;}
+    .barra{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--bd);padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+    .barra .field{display:flex;flex-direction:column;gap:3px;min-width:160px;}
+    .barra label{font-size:11px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:.06em;}
+    .barra select,.barra input{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:7px;background:#fff;}
+    .barra .chk{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;align-items:center;}
+    .barra .chk label{text-transform:none;letter-spacing:0;font-weight:500;color:var(--body);display:flex;gap:5px;align-items:center;cursor:pointer;font-size:12px;}
+    .hoja{background:#fff;max-width:210mm;margin:18px auto;padding:16mm 16mm 14mm;box-shadow:0 2px 12px rgba(0,0,0,.08);color:#2E3236;font-size:12.5px;line-height:1.45;}
+    .hoja h1{font-size:22px;font-weight:800;color:#0F3D14;margin:0;}
+    .hoja h2{font-size:15px;font-weight:800;color:#0F3D14;border-bottom:2px solid #22A93A;padding-bottom:4px;margin:22px 0 10px;}
+    .hoja h3{font-size:13px;font-weight:700;margin:12px 0 6px;color:#2E3236;}
+    .hoja .tbl{width:100%;border-collapse:collapse;font-size:11.5px;}
+    .hoja .tbl th{background:#F2F3F5;color:#41464B;text-transform:uppercase;font-size:10px;letter-spacing:.05em;padding:6px 7px;text-align:left;border-bottom:1px solid var(--bd);}
+    .hoja .tbl td{padding:5px 7px;border-bottom:1px solid #EEF0F2;vertical-align:top;}
+    .hoja .tbl .r{text-align:right;}
+    .hoja .muted{color:#8C9196;}
+    .hoja .sub{font-size:10.5px;color:#8C9196;}
+    .hoja .note{border-left:3px solid var(--bd);background:#F7F8F9;padding:8px 11px;border-radius:6px;font-size:12px;margin:8px 0;}
+    .hoja .note.ok{border-left-color:#22A93A;background:#E7F6EA;} .hoja .note.warn{border-left-color:#B8731A;background:#FBF1DF;} .hoja .note.info{border-left-color:#2E72C8;background:#E7F0FB;}
+    .hoja .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 4px;}
+    .hoja .kpi{border:1px solid var(--bd);border-radius:8px;padding:8px 10px;}
+    .hoja .kpi .sl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#8C9196;}
+    .hoja .kpi .sv{font-size:18px;font-weight:800;color:#0F3D14;margin-top:2px;}
+    .hoja .kpi .ss{font-size:10.5px;color:#8C9196;}
+    .hoja .cab{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #0F3D14;padding-bottom:10px;}
+    .hoja .marca{display:flex;align-items:center;gap:10px;}
+    .hoja .marca svg{width:34px;height:40px;}
+    .hoja .marca .t1{font-size:17px;font-weight:800;letter-spacing:.06em;color:#0F3D14;line-height:1.1;}
+    .hoja .marca .t2{font-size:9px;letter-spacing:.14em;color:#6B6356;}
+    .hoja .cab .der{text-align:right;font-size:12px;color:#41464B;}
+    .hoja .pie{margin-top:22px;border-top:1px solid var(--bd);padding-top:8px;font-size:10px;color:#8C9196;display:flex;justify-content:space-between;gap:12px;}
+    .hoja img.sat{width:100%;max-width:340px;border-radius:8px;border:1px solid var(--bd);display:block;}
+    .hoja .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .hoja ol,.hoja ul{margin:6px 0 6px 18px;}
+    .hoja .seccion{break-inside:avoid;}
+    .hoja .salto{break-before:page;}
+    .hoja .stats{display:flex;gap:8px;flex-wrap:wrap;} .hoja .stat{border:1px solid var(--bd);border-radius:8px;padding:6px 10px;min-width:120px;}
+    .hoja .stat .sl{font-size:10px;color:#8C9196;text-transform:uppercase;} .hoja .stat .sv{font-size:15px;font-weight:800;color:#0F3D14;} .hoja .stat .ss{font-size:10px;color:#8C9196;}
+    .hoja .card{border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin:8px 0;} .hoja .card-h h3{margin:0 0 6px;}
+    .hoja table.tbl td .num{font-weight:700;}
+    .hoja .evo-mejor{color:#178029;font-weight:700;} .hoja .evo-peor{color:#C0392B;font-weight:700;}
+    .hoja .interp{font-size:11px;}
+    @media print{
+      @page{size:A4;margin:12mm 12mm 14mm;}
+      body{background:#fff;} .barra{display:none !important;} .hoja{box-shadow:none;margin:0;padding:0;max-width:none;}
+      .hoja h2{break-after:avoid;} .hoja .tbl{break-inside:auto;} .hoja tr{break-inside:avoid;}
+      #safiaOffline,#safiaInstalar,.toast{display:none !important;}
+    }
+  </style>
+</head>
+<body>
+  <div class="barra no-print">
+    <div class="field"><label>Cliente / campo</label><select id="selCampo"></select></div>
+    <div class="field"><label>Lote</label><select id="selLote"><option value="">Todos los lotes</option></select></div>
+    <div class="field"><label>Preparado por</label><input type="text" id="autor" placeholder="Ing. Agr. …" style="min-width:180px;"></div>
+    <div class="chk" id="secciones">
+      <label><input type="checkbox" data-s="resumen" checked> Resumen</label>
+      <label><input type="checkbox" data-s="lotes" checked> Lotes e imagen satelital</label>
+      <label><input type="checkbox" data-s="campanas" checked> Campañas y rinde</label>
+      <label><input type="checkbox" data-s="agua" checked> Agua</label>
+      <label><input type="checkbox" data-s="suelo" checked> Suelo</label>
+      <label><input type="checkbox" data-s="ndvi" checked> Vigor satelital</label>
+      <label><input type="checkbox" data-s="rotacion" checked> Rotación</label>
+      <label><input type="checkbox" data-s="diagnostico" checked> Diagnóstico y recomendaciones</label>
+    </div>
+    <button class="btn" id="btnActualizar" type="button">Actualizar</button>
+    <button class="btn green" id="btnPdf" type="button">Guardar como PDF / Imprimir</button>
+    <a class="btn" href="banco.html">Volver al Banco</a>
+    <span class="muted" id="estado" style="font-size:12px;align-self:center;"></span>
+  </div>
+  <div class="hoja" id="hoja"><div class="muted" style="padding:40px;text-align:center;">Cargando el informe…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+<script src="safia-pwa.js"></script>
+<script src="safia-iconos.js"></script>
+<script src="safia-cultivos-fao.js"></script>
+<script src="safia-casos.js"></script>
+<script src="safia-insumos.js"></script>
+<script src="safia-catalogo.js"></script>
+<script src="safia-agronomia.js"></script>
+<script src="safia-lotes.js"></script>
+<script src="safia-ndvi.js"></script>
+<script src="safia-rotacion.js"></script>
+<script src="safia-informe.js"></script>
+</body>
+</html>

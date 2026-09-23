@@ -312,5 +312,5 @@
   }
   function alCambiarCampo() { planActual = null; if (iniciado && $('panel-rotacion').classList.contains('on')) activar(); }
 
-  window.SafiaRotacion = { activar: activar, alCambiarCampo: alCambiarCampo, temporadaDe: temporadaDe, etiqueta: etiqueta, avisos: avisos, especie: especie, historialDelLote: historialDelLote, _plan: function () { return planActual; } };
+  window.SafiaRotacion = { activar: activar, alCambiarCampo: alCambiarCampo, temporadaDe: temporadaDe, etiqueta: etiqueta, avisos: avisos, especie: especie, historialDelLote: historialDelLote, planDelLote: planDelLote, indiceRotacion: indiceRotacion, esCobertura: esCobertura, DESCANSO: DESCANSO, _plan: function () { return planActual; } };
 })();

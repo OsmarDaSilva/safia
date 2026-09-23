@@ -196,10 +196,11 @@
     return (sxx && syy) ? sxy / Math.sqrt(sxx * syy) : null;
   }
 
-  function dibujarCampanas(lote, lista) {
-    var cont = $('ndviCampanas');
+  function dibujarCampanas(lote, lista) { $('ndviCampanas').innerHTML = htmlCampanas(lote, lista); }
+  // HTML de la comparación entre campañas (lo usa la pestaña y el informe para el cliente)
+  function htmlCampanas(lote, lista) {
     var camps = campanasDelLote(lote.id);
-    if (!camps.length) { cont.innerHTML = '<div class="muted">Este lote no tiene campañas con fecha de siembra. Cargalas en Campañas para comparar el vigor entre años.</div>'; return; }
+    if (!camps.length) return '<div class="muted">Este lote no tiene campañas con fecha de siembra. Cargalas en Campañas para comparar el vigor entre años.</div>';
     var curvas = [], vacias = [];
     camps.forEach(function (c, i) {
       var cv = curvaDe(c, lista);
@@ -210,7 +211,7 @@
     var html = '';
     if (!curvas.length) {
       html += '<div class="muted">Hay ' + camps.length + ' campaña(s) pero todavía no hay NDVI en sus fechas. Pedí el satélite para el período de cada campaña (por ejemplo desde la siembra hasta la cosecha).</div>';
-      cont.innerHTML = html; return;
+      return html;
     }
     html += svgCampanas(curvas);
     // leyenda + tabla
@@ -246,7 +247,7 @@
       if (r != null) html += '<div class="muted" style="font-size:12px;margin-top:8px;">En este lote, el NDVI acumulado y el rinde van ' + (r > 0.6 ? 'muy de la mano (r = ' + n2(r) + '): el vigor que ve el satélite anticipa la cosecha.' : (r > 0.3 ? 'parcialmente juntos (r = ' + n2(r) + ').' : 'poco relacionados (r = ' + n2(r) + '): otros factores (agua al final del ciclo, granizo, enfermedades) pesaron más que el vigor promedio.')) + '</div>';
     }
     if (vacias.length) html += '<div class="muted" style="font-size:11px;margin-top:6px;">Sin NDVI todavía: ' + esc(vacias.map(function (v) { return v.etiqueta; }).join(' · ')) + '. Pedí el satélite para esas fechas para sumarlas a la comparación.</div>';
-    cont.innerHTML = html;
+    return html;
   }
 
   function dibujarTodo() {
@@ -376,5 +377,8 @@
   }
   function alCambiarCampo() { if (iniciado && $('panel-ndvi').classList.contains('on')) activar(); }
 
-  window.SafiaNDVI = { activar: activar, alCambiarCampo: alCambiarCampo, curvaDe: curvaDe, ndviEnDia: ndviEnDia, _series: function () { return series; }, _fusionar: fusionar };
+  window.SafiaNDVI = { activar: activar, alCambiarCampo: alCambiarCampo, curvaDe: curvaDe, ndviEnDia: ndviEnDia, _series: function () { return series; }, _fusionar: fusionar,
+    // para el informe: serie guardada de un lote (caché local + tabla), gráficos y comparación entre campañas
+    serieDe: function (equipoId) { if (!series[equipoId]) series[equipoId] = leerCache(equipoId); return series[equipoId]; },
+    cargarDeTabla: cargarDeTabla, svgSerie: svgSerie, htmlCampanas: htmlCampanas, campanasDelLote: campanasDelLote };
 })();

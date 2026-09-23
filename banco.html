@@ -148,6 +148,7 @@
           </div>
         </div>
 
+        <div style="display:flex;justify-content:flex-end;margin:-4px 0 8px;"><a class="btn green" id="btnInforme" href="informe.html">Informe para el cliente (PDF)</a></div>
         <div class="tabs">
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
           <button data-tab="rotacion">Plan de rotación</button>
@@ -715,6 +716,7 @@
     out.scrollIntoView({ behavior: 'smooth' });
   });
 
+  document.getElementById('btnInforme').addEventListener('click', function () { try { if (campoActual) sessionStorage.setItem('banco_campo', String(campoActual.id)); } catch (e) {} });
   /* ---------- pestañas ---------- */
   // Otra pantalla puede pedir que el Banco abra en una pestaña (por ejemplo, Equipos → "Vigor satelital")
   setTimeout(function () {
