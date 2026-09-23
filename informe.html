@@ -66,6 +66,12 @@
     .hoja table.tbl td .num{font-weight:700;}
     .hoja .evo-mejor{color:#178029;font-weight:700;} .hoja .evo-peor{color:#C0392B;font-weight:700;}
     .hoja .interp{font-size:11px;}
+    .cfgcard{background:#fff;border:1px solid var(--bd);border-radius:10px;max-width:210mm;margin:14px auto 0;padding:14px 16px;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+    .cfggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;}
+    .cfggrid .field{display:flex;flex-direction:column;gap:3px;} .cfggrid label{font-size:11px;font-weight:600;color:var(--label);text-transform:uppercase;letter-spacing:.06em;} .cfggrid input[type=text]{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:7px;}
+    .hoja .marca img.logo{height:44px;max-width:220px;object-fit:contain;}
+    .hoja .firma{margin-top:26px;display:flex;justify-content:flex-end;} .hoja .firma .bloque{text-align:center;min-width:220px;border-top:1px solid #2E3236;padding-top:6px;font-size:12px;} .hoja .firma img{max-height:64px;max-width:220px;display:block;margin:0 auto 4px;}
+    @media print{ .cfgcard{display:none !important;} }
     .hoja .statbar{display:flex;gap:8px;flex-wrap:wrap;border:0;padding:0;margin:8px 0;} .hoja .statbar .stat{flex:1 1 120px;} .hoja .sv.green{color:#178029;} .hoja .sv.red{color:#B3261E;}
     .hoja .tbl th:first-child,.hoja .tbl td:first-child{width:auto;}
     .hoja .interp .tbl th:first-child,.hoja .interp .tbl td:first-child{width:16%;}
@@ -81,6 +87,7 @@
   <div class="barra no-print">
     <div class="field"><label>Cliente / campo</label><select id="selCampo"></select></div>
     <div class="field"><label>Lote</label><select id="selLote"><option value="">Todos los lotes</option></select></div>
+    <div class="field"><label>Campaña</label><select id="selCampana"><option value="">Todo el historial</option></select></div>
     <div class="field"><label>Preparado por</label><input type="text" id="autor" placeholder="Ing. Agr. …" style="min-width:180px;"></div>
     <div class="chk" id="secciones">
       <label><input type="checkbox" data-s="resumen" checked> Resumen</label>
@@ -96,8 +103,30 @@
     </div>
     <button class="btn" id="btnActualizar" type="button">Actualizar</button>
     <button class="btn green" id="btnPdf" type="button">Guardar como PDF / Imprimir</button>
+    <button class="btn" id="btnEnviar" type="button">Enviar al cliente</button>
+    <button class="btn" id="btnConfig" type="button">Logo y firma</button>
     <a class="btn" href="banco.html">Volver al Banco</a>
     <span class="muted" id="estado" style="font-size:12px;align-self:center;"></span>
+  </div>
+  <div class="cfgcard no-print" id="cfgInforme" style="display:none;">
+    <h3 style="margin:0 0 6px;font-size:14px;">Logo y firma del informe</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:8px;">Se guarda en esta computadora y en la nube de SAFIA (para que todos los informes de Irrigar salgan iguales).</div>
+    <div class="cfggrid">
+      <div class="field"><label>Empresa</label><input type="text" id="cfgEmpresa" placeholder="Irrigar"></div>
+      <div class="field"><label>Agrónomo responsable</label><input type="text" id="cfgAgronomo" placeholder="Ing. Agr. …"></div>
+      <div class="field"><label>Registro / matrícula</label><input type="text" id="cfgMatricula" placeholder="Reg. MAG …"></div>
+      <div class="field"><label>Teléfono</label><input type="text" id="cfgTelefono" placeholder="+595 …"></div>
+      <div class="field"><label>Correo</label><input type="text" id="cfgCorreo" placeholder="agronomo@irrigar.com.py"></div>
+      <div class="field"><label>Logo (imagen)</label><input type="file" id="cfgLogo" accept="image/*"><img id="cfgLogoPrev" alt="" style="max-height:44px;max-width:200px;display:none;margin-top:4px;"></div>
+      <div class="field"><label>Firma (imagen, fondo blanco)</label><input type="file" id="cfgFirma" accept="image/*"><img id="cfgFirmaPrev" alt="" style="max-height:60px;max-width:220px;display:none;margin-top:4px;"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;"><button class="btn" id="btnCfgQuitar" type="button">Quitar logo y firma</button><button class="btn" id="btnCfgCerrar" type="button">Cerrar</button><button class="btn green" id="btnCfgGuardar" type="button">Guardar</button></div>
+  </div>
+  <div class="cfgcard no-print" id="envInforme" style="display:none;">
+    <h3 style="margin:0 0 6px;font-size:14px;">Enviar el informe al cliente</h3>
+    <div class="muted" style="font-size:12px;" id="envEstado">Se publica una copia del informe en la nube de SAFIA con un link privado válido 30 días, y se abre WhatsApp o el correo con el mensaje listo.</div>
+    <div id="envLink" style="margin:8px 0;font-size:13px;word-break:break-all;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:8px;"><button class="btn" id="btnEnvCerrar" type="button">Cerrar</button><button class="btn" id="btnEnvCopiar" type="button" disabled>Copiar link</button><button class="btn" id="btnEnvCorreo" type="button" disabled>Enviar por correo</button><button class="btn green" id="btnEnvWhatsapp" type="button" disabled>Enviar por WhatsApp</button></div>
   </div>
   <div class="hoja" id="hoja"><div class="muted" style="padding:40px;text-align:center;">Cargando el informe…</div></div>
 

@@ -21,7 +21,7 @@
   function td(v, r) { return '<td' + (r ? ' class="r"' : '') + '>' + v + '</td>'; }
   function toast(m, err) { var e = $('estado'); e.textContent = m; e.style.color = err ? '#C0392B' : '#8C9196'; }
 
-  var campoActual = null, equipoSel = '', refZona = null, refAmbito = '';
+  var campoActual = null, equipoSel = '', campanaSel = '', refZona = null, refAmbito = '', config = {};
   // Puente para los módulos del Banco (mismo contrato que banco.html)
   window.SafiaBanco = { campoActual: function () { return campoActual; }, leer: leer, guardar: guardar, toast: toast, refrescar: function () {} };
 
@@ -50,7 +50,7 @@
   }
   function casosDelCampo() {
     var todos = SafiaCasos.armarCasos();
-    return { todos: todos, mios: todos.filter(function (c) { return String(c.campoId) === String(campoActual.id) && (!equipoSel || String(c.equipoId) === String(equipoSel)); }).sort(function (a, b) { return String(a.siembra).localeCompare(String(b.siembra)); }) };
+    return { todos: todos, mios: todos.filter(function (c) { return String(c.campoId) === String(campoActual.id) && (!equipoSel || String(c.equipoId) === String(equipoSel)) && (!campanaSel || String(c.campanaId) === String(campanaSel)); }).sort(function (a, b) { return String(a.siembra).localeCompare(String(b.siembra)); }) };
   }
   function cargarReferenciaZona() {
     refZona = null; refAmbito = '';
@@ -198,6 +198,8 @@
       var s = SafiaNDVI.serieDe(l.id) || []; if (!s.length) return; alguno = true;
       var hasta = s[s.length - 1].fecha, desdeD = new Date(hasta + 'T12:00:00'); desdeD.setDate(desdeD.getDate() - 365);
       var desde = desdeD.toISOString().slice(0, 10);
+      var cs = campanaSeleccionada();
+      if (cs && cs.siembra) { var dI = new Date(cs.siembra + 'T12:00:00'); dI.setDate(dI.getDate() - 15); desde = dI.toISOString().slice(0, 10); var fI = new Date((cs.fin || cs.siembra) + 'T12:00:00'); fI.setDate(fI.getDate() + (cs.fin ? 15 : 160)); var h2 = fI.toISOString().slice(0, 10); if (h2 < hasta) hasta = h2; }
       var vis = s.filter(function (p) { return p.fecha >= desde; });
       var marcas = []; SafiaNDVI.campanasDelLote(l.id).forEach(function (c, i) { marcas.push({ fecha: c.siembra, color: ['#178029', '#2E72C8', '#B8731A', '#8E44AD'][i % 4], texto: 'siembra ' + c.cultivo }); if (c.cosecha) marcas.push({ fecha: c.cosecha, color: ['#178029', '#2E72C8', '#B8731A', '#8E44AD'][i % 4], texto: 'cosecha' }); });
       html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · últimos 12 meses (' + vis.length + ' pasadas del satélite)</h3>' + SafiaNDVI.svgSerie(vis, marcas, { desde: desde, hasta: hasta }) + '<div style="margin-top:6px;" id="ndviCamp_' + esc(l.id) + '">' + SafiaNDVI.htmlCampanas(l, s) + '</div></div>';
@@ -281,9 +283,11 @@
     var s = secciones(), cx = casosDelCampo();
     var lote = equipoSel ? lotesDelCampo()[0] : null;
     var hoy = new Date();
-    var html = '<div class="cab"><div class="marca">' + LOGO + '<div><div class="t1">SAFIA</div><div class="t2">SMART · AGRO · INTELLIGENCE</div></div></div>' +
+    var cs = campanaSeleccionada();
+    var marca = config.logo ? '<img class="logo" src="' + config.logo + '" alt="' + esc(config.empresa || '') + '"><div><div class="t1" style="font-size:15px;">' + esc(config.empresa || 'SAFIA') + '</div><div class="t2">INFORME AGRONÓMICO · SAFIA</div></div>' : LOGO + '<div><div class="t1">SAFIA</div><div class="t2">SMART · AGRO · INTELLIGENCE' + (config.empresa ? ' · ' + esc(config.empresa.toUpperCase()) : '') + '</div></div>';
+    var html = '<div class="cab"><div class="marca">' + marca + '</div>' +
       '<div class="der"><div style="font-size:11px;color:#8C9196;">INFORME AGRONÓMICO</div><div><b>' + esc(nombreCliente(campoActual.clienteId)) + '</b></div><div>' + esc(campoActual.nombre) + (lote ? ' · ' + esc(lote.nombre) : '') + '</div><div class="sub">' + esc([campoActual.localidad, campoActual.departamento, campoActual.pais].filter(Boolean).join(', ')) + '</div><div class="sub">' + hoy.toLocaleDateString('es-PY', { day: '2-digit', month: 'long', year: 'numeric' }) + ($('autor').value ? ' · ' + esc($('autor').value) : '') + '</div></div></div>';
-    html += '<h1 style="margin-top:14px;">' + (lote ? esc(lote.nombre) : esc(campoActual.nombre)) + '</h1><div class="sub">' + (lote ? 'Informe del lote' : 'Informe del campo, ' + lotesDelCampo().length + ' lote(s)') + ' · datos cargados en SAFIA hasta el ' + fmtF(hoy.toISOString().slice(0, 10)) + '</div>';
+    html += '<h1 style="margin-top:14px;">' + (lote ? esc(lote.nombre) : esc(campoActual.nombre)) + '</h1><div class="sub">' + (lote ? 'Informe del lote' : 'Informe del campo, ' + lotesDelCampo().length + ' lote(s)') + (cs ? ' · campaña <b>' + esc(cs.nombre) + '</b> (' + esc(cs.cultivo) + ', siembra ' + fmtF(cs.siembra) + ')' : ' · todo el historial') + ' · datos cargados en SAFIA hasta el ' + fmtF(hoy.toISOString().slice(0, 10)) + '</div>';
     if (s.resumen) html += secResumen(cx);
     if (s.lotes) html += secLotes();
     if (s.campanas) html += secCampanas(cx);
@@ -294,7 +298,9 @@
     if (s.rotacion) html += secRotacion();
     if (s.diagnostico) html += '<div class="salto"></div>' + secDiagnostico(cx);
     if (s.meta) html += '<div class="salto"></div>' + secMeta(cx);
-    html += '<div class="pie"><span>SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>Irrigar · SAFIA</span></div>';
+    var autor = $('autor').value.trim() || config.agronomo || '';
+    if (autor || config.firma) html += '<div class="firma"><div class="bloque">' + (config.firma ? '<img src="' + config.firma + '" alt="firma">' : '<div style="height:40px;"></div>') + '<b>' + esc(autor) + '</b>' + (config.matricula ? '<div class="sub">' + esc(config.matricula) + '</div>' : '') + '<div class="sub">' + esc([config.empresa, config.telefono, config.correo].filter(Boolean).join(' · ')) + '</div><div class="sub">' + fmtF(hoy.toISOString().slice(0, 10)) + '</div></div></div>';
+    html += '<div class="pie"><span>SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
     $('hoja').innerHTML = html;
     if (s.lotes) cargarImagenes();
     // balance hídrico por etapa de cada lote (se calcula en segundo plano)
@@ -318,20 +324,113 @@
     var sel = $('selLote'); equipoSel = '';
     var lotes = campoActual ? leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); }) : [];
     sel.innerHTML = '<option value="">Todos los lotes</option>' + lotes.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join('');
+    llenarCampanas();
   }
+  function campanasDelCampo() {
+    if (!campoActual) return [];
+    var ids = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id) && (!equipoSel || String(e.id) === String(equipoSel)); }).map(function (e) { return String(e.id); });
+    return leer('campanas').filter(function (c) { return ids.indexOf(String(c.equipoId)) >= 0; }).map(function (c) {
+      var cu = (c.cultivos || [])[0] || {}, cos = (c.cosechas && c.cosechas[0] && c.cosechas[0].fecha) || (c.cosecha && c.cosecha.fecha) || null;
+      return { id: c.id, nombre: c.nombre || '', cultivo: (c.cultivos || []).map(function (x) { return x.cultivo; }).filter(Boolean).join(' + ') || '—', siembra: cu.fechaSiembra ? String(cu.fechaSiembra).slice(0, 10) : '', fin: cos ? String(cos).slice(0, 10) : (cu.fechaCosecha ? String(cu.fechaCosecha).slice(0, 10) : null) };
+    }).sort(function (a, b) { return b.siembra.localeCompare(a.siembra); });
+  }
+  function campanaSeleccionada() { return campanaSel ? campanasDelCampo().find(function (c) { return String(c.id) === String(campanaSel); }) || null : null; }
+  function llenarCampanas() {
+    var sel = $('selCampana'); if (!sel) return; campanaSel = '';
+    sel.innerHTML = '<option value="">Todo el historial</option>' + campanasDelCampo().map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nombre) + ' · ' + esc(c.cultivo) + (c.siembra ? ' · siembra ' + fmtF(c.siembra) : '') + '</option>'; }).join('');
+  }
+
+  /* ---------- logo y firma (config local + copia en la nube: storage safia/config/informe.json) ---------- */
+  function leerConfigLocal() { try { return JSON.parse(localStorage.getItem('informe_config') || '{}') || {}; } catch (e) { return {}; } }
+  function cargarConfig() {
+    config = leerConfigLocal();
+    if (!window.safiaSupabase) return Promise.resolve();
+    return window.safiaSupabase.storage.from('safia').download('config/informe.json').then(function (r) {
+      if (r.error || !r.data) return;
+      return r.data.text().then(function (t) { var nube = JSON.parse(t || '{}'); if (nube && (!config.actualizado || (nube.actualizado || '') > config.actualizado)) { config = nube; localStorage.setItem('informe_config', JSON.stringify(config)); } });
+    }).catch(function () {});
+  }
+  function imagenADataURL(archivo, maxLado) {
+    return new Promise(function (res, rej) {
+      var img = new Image(), url = URL.createObjectURL(archivo);
+      img.onload = function () { var k = Math.min(1, maxLado / Math.max(img.width, img.height)); var cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); res(cv.toDataURL('image/png')); };
+      img.onerror = rej; img.src = url;
+    });
+  }
+  function pintarConfig() {
+    $('cfgEmpresa').value = config.empresa || ''; $('cfgAgronomo').value = config.agronomo || ''; $('cfgMatricula').value = config.matricula || ''; $('cfgTelefono').value = config.telefono || ''; $('cfgCorreo').value = config.correo || '';
+    var lp = $('cfgLogoPrev'), fp = $('cfgFirmaPrev'); lp.style.display = config.logo ? '' : 'none'; if (config.logo) lp.src = config.logo; fp.style.display = config.firma ? '' : 'none'; if (config.firma) fp.src = config.firma;
+    if (!$('autor').value && config.agronomo) $('autor').value = config.agronomo;
+  }
+  function guardarConfig() {
+    var nueva = { empresa: $('cfgEmpresa').value.trim(), agronomo: $('cfgAgronomo').value.trim(), matricula: $('cfgMatricula').value.trim(), telefono: $('cfgTelefono').value.trim(), correo: $('cfgCorreo').value.trim(), logo: config.logo || null, firma: config.firma || null, actualizado: new Date().toISOString() };
+    var fl = $('cfgLogo').files && $('cfgLogo').files[0], ff = $('cfgFirma').files && $('cfgFirma').files[0];
+    return Promise.all([fl ? imagenADataURL(fl, 600) : Promise.resolve(nueva.logo), ff ? imagenADataURL(ff, 500) : Promise.resolve(nueva.firma)]).then(function (im) {
+      nueva.logo = im[0]; nueva.firma = im[1]; config = nueva;
+      localStorage.setItem('informe_config', JSON.stringify(config));
+      if (window.safiaSupabase) return window.safiaSupabase.storage.from('safia').upload('config/informe.json', new Blob([JSON.stringify(config)], { type: 'application/json' }), { upsert: true, contentType: 'application/json' }).then(function (r) { if (r.error) console.warn('config informe: no se subió', r.error.message); });
+    }).then(function () { pintarConfig(); toast('Logo y firma guardados'); armar(); });
+  }
+
+  /* ---------- enviar al cliente: copia del informe en la nube + WhatsApp / correo ---------- */
+  var CSS_BASE = '.tbl{width:100%;border-collapse:collapse}.tbl th,.tbl td{padding:5px 7px;border-bottom:1px solid #EEF0F2;text-align:left;vertical-align:top}.tbl th{background:#F2F3F5;color:#41464B;font-size:10px;text-transform:uppercase;letter-spacing:.05em}.tbl .r{text-align:right}.note{border-left:3px solid #E1E4E7;background:#F7F8F9;padding:8px 11px;border-radius:6px;font-size:12px;margin:8px 0}.note.ok{border-left-color:#22A93A;background:#E7F6EA}.note.warn{border-left-color:#B8731A;background:#FBF1DF}.note.info{border-left-color:#2E72C8;background:#E7F0FB}.muted{color:#8C9196}.sub{font-size:10.5px;color:#8C9196}.statbar,.stats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.stat{border:1px solid #E1E4E7;border-radius:8px;padding:6px 10px;min-width:110px}.stat .sl{font-size:10px;color:#8C9196;text-transform:uppercase}.stat .sv{font-size:15px;font-weight:800;color:#0F3D14}.stat .ss{font-size:10px;color:#8C9196}.sv.green{color:#178029}.sv.red{color:#B3261E}.card{border:1px solid #E1E4E7;border-radius:8px;padding:10px 12px;margin:8px 0}.card-h{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px}.card-h h3{margin:0;font-size:14px}.badge{display:inline-block;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:700}.tablewrap,.tablescroll{overflow:visible}.evo-mejor{color:#178029;font-weight:700}.evo-peor{color:#C0392B;font-weight:700}.num{font-weight:700}';
+  function htmlAutonomo() {
+    var estilos = Array.prototype.map.call(document.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+    var titulo = 'Informe agronómico · ' + (campoActual ? campoActual.nombre : '') + ' · ' + nombreCliente(campoActual.clienteId);
+    return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' + esc(titulo) + '</title><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>:root{--bd:#E1E4E7;--label:#6B6F73;--body:#2E3236;--green:#22A93A;--green-d:#178029;--red:#B3261E;--head:#0F3D14;--radius:10px}*{box-sizing:border-box}body{margin:0;background:#E9EBEE;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#2E3236}' + CSS_BASE + estilos + '.hoja{margin:12px auto}@media(max-width:700px){.hoja{padding:12px;margin:0}.hoja .kpis,.hoja .dos{grid-template-columns:1fr 1fr}}</style></head><body><div class="hoja">' + $('hoja').innerHTML + '</div></body></html>';
+  }
+  var linkActual = null;
+  function publicar() {
+    var est = $('envEstado'), lk = $('envLink');
+    if (!window.safiaSupabase) { est.textContent = 'Sin conexión: para enviar hace falta internet y la sesión de SAFIA.'; return Promise.resolve(null); }
+    est.textContent = 'Publicando el informe en la nube…';
+    var ruta = 'informes/campo_' + campoActual.id + '/' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + (equipoSel ? '_lote' + equipoSel : '') + '.html';
+    return window.safiaSupabase.storage.from('safia').upload(ruta, new Blob([htmlAutonomo()], { type: 'text/html' }), { upsert: true, contentType: 'text/html' }).then(function (r) {
+      if (r.error) throw r.error;
+      return window.safiaSupabase.storage.from('safia').createSignedUrl(ruta, 2592000);
+    }).then(function (r) {
+      if (r.error) throw r.error;
+      linkActual = r.data.signedUrl; est.textContent = 'Informe publicado. El link es privado y vale 30 días.';
+      lk.innerHTML = '<a href="' + esc(linkActual) + '" target="_blank">' + esc(linkActual.slice(0, 90)) + '…</a>';
+      ['btnEnvCopiar', 'btnEnvCorreo', 'btnEnvWhatsapp'].forEach(function (id) { $(id).disabled = false; });
+      return linkActual;
+    }).catch(function (e) { console.error(e); est.textContent = 'No se pudo publicar: ' + (e.message || e); return null; });
+  }
+  function mensajeCliente() {
+    var cl = leer('clientes').find(function (x) { return String(x.id) === String(campoActual.clienteId); }) || {};
+    var nombre = (cl.nombre || '').split(' ')[0], cs = campanaSeleccionada();
+    var texto = 'Hola ' + nombre + ', te comparto el informe agronómico de ' + campoActual.nombre + (equipoSel && lotesDelCampo()[0] ? ' (' + lotesDelCampo()[0].nombre + ')' : '') + (cs ? ', campaña ' + cs.nombre : '') + ', preparado con SAFIA:\n' + (linkActual || '') + '\n(el link vale 30 días)\n' + ($('autor').value.trim() || config.agronomo || '') + (config.empresa ? ' · ' + config.empresa : '');
+    return { cliente: cl, texto: texto };
+  }
+  function abrirEnvio() {
+    $('envInforme').style.display = ''; $('cfgInforme').style.display = 'none';
+    ['btnEnvCopiar', 'btnEnvCorreo', 'btnEnvWhatsapp'].forEach(function (id) { $(id).disabled = true; }); $('envLink').innerHTML = ''; linkActual = null;
+    publicar();
+  }
+  function telefonoWa(t) { var d = String(t || '').replace(/\D/g, ''); if (!d) return ''; if (d.indexOf('595') === 0) return d; if (d.indexOf('0') === 0) return '595' + d.slice(1); return d.length <= 10 ? '595' + d : d; }
   function iniciar() {
     llenarSelectores();
     $('selCampo').addEventListener('change', function () { campoActual = leer('campos').find(function (c) { return String(c.id) === String($('selCampo').value); }) || null; llenarLotes(); preparar(); });
-    $('selLote').addEventListener('change', function () { equipoSel = $('selLote').value; armar(); });
+    $('selLote').addEventListener('change', function () { equipoSel = $('selLote').value; llenarCampanas(); armar(); });
+    $('selCampana').addEventListener('change', function () { campanaSel = $('selCampana').value; armar(); });
     $('btnActualizar').addEventListener('click', armar);
     $('btnPdf').addEventListener('click', function () { window.print(); });
+    $('btnConfig').addEventListener('click', function () { pintarConfig(); $('cfgInforme').style.display = $('cfgInforme').style.display === 'none' ? '' : 'none'; $('envInforme').style.display = 'none'; });
+    $('btnCfgCerrar').addEventListener('click', function () { $('cfgInforme').style.display = 'none'; });
+    $('btnCfgGuardar').addEventListener('click', function () { guardarConfig().catch(function (e) { toast('No se pudo guardar: ' + e.message, true); }); });
+    $('btnCfgQuitar').addEventListener('click', function () { config.logo = null; config.firma = null; $('cfgLogo').value = ''; $('cfgFirma').value = ''; pintarConfig(); });
+    $('btnEnviar').addEventListener('click', abrirEnvio);
+    $('btnEnvCerrar').addEventListener('click', function () { $('envInforme').style.display = 'none'; });
+    $('btnEnvCopiar').addEventListener('click', function () { if (linkActual && navigator.clipboard) navigator.clipboard.writeText(linkActual).then(function () { toast('Link copiado'); }); });
+    $('btnEnvWhatsapp').addEventListener('click', function () { var m = mensajeCliente(), tel = telefonoWa(m.cliente.telefono); window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(m.texto), '_blank'); if (!tel) toast('El cliente no tiene teléfono cargado: WhatsApp se abre sin destinatario, elegí el contacto a mano'); });
+    $('btnEnvCorreo').addEventListener('click', function () { var m = mensajeCliente(); window.location.href = 'mailto:' + encodeURIComponent(m.cliente.email || '') + '?subject=' + encodeURIComponent('Informe agronómico · ' + campoActual.nombre) + '&body=' + encodeURIComponent(m.texto); if (!m.cliente.email) toast('El cliente no tiene correo cargado: completalo en el correo que se abre'); });
     document.querySelectorAll('#secciones input').forEach(function (c) { c.addEventListener('change', armar); });
     preparar();
   }
   // Trae lo que vive en la nube (referencia de zona, series NDVI) y arma
   function preparar() {
     armar();
-    var tareas = [cargarReferenciaZona()];
+    var tareas = [cargarReferenciaZona(), cargarConfig()];
     if (window.SafiaNDVI && window.safiaSupabase) tareas.push(SafiaNDVI.cargarDeTabla());
     Promise.all(tareas).then(armar, armar);
   }
