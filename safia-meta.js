@@ -55,6 +55,11 @@
    [17] Embrapa Soja, Comunicado Técnico 75 (Hungria, Campo, Franchini &
         Loureiro 2001) y Embrapa Cerrados (Mendes, Reis Jr., Hungria, Sousa
         & Campo 2008, PAB): no aplicar N a la soja en ningún estadio.
+   [18] IPNI / Fertilizar, Requerimientos nutricionales de los cultivos
+        (Archivo Agronómico 3, datos INTA): kg de nutriente exportado por t
+        de grano seco (soja N 55 · P 6 · K 19; maíz 15/3/4; trigo 21/4/4;
+        girasol 24/7/6; sorgo 20/4/4). Balance de nutrientes al cierre de
+        campaña: ver FUNDAMENTOS_NUTRIENTES.md.
    Validación completa en FUNDAMENTOS_META_RINDE.md, FUNDAMENTOS_ALTO_RINDE.md y FUNDAMENTOS_FOLIAR.md. */
 (function () {
   'use strict';
@@ -211,6 +216,14 @@
       item({ k: 'potasio', tipo: 'suelo', nombre: 'Potasio', hoy: fmt(kmg, 0) + ' mg/dm³ (' + catK + ')', objetivo: '> 75 mg/dm³' + (bm && bm.suelo.k ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.k * 391, 0) : ''),
         accion: (corrK ? 'Corregir ' + fmt(corrK, 0) + ' kg/ha de K₂O en 3 cultivos + ' : '') + (catK === 'muy alta' ? 'solo reponer lo exportado: ' : 'manutención total ') + fmt(manKTotal, 0) + ' kg/ha de K₂O (KCl al voleo o por fertirriego)' + (aplicadoK != null ? ' — hoy aplicás ' + fmt(aplicadoK, 0) + ': el adicional son ' + fmt(manK, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo lo que se llevan los kg extra: ' + fmt(manK, 0) + ' kg/ha'),
         inversion: corrK * pr.k2oUSDkg, vidaUtil: 4, recurrente: manK * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], fuente: '[1]' });
+    }
+    /* 4b. Reposición del saldo de la cosecha anterior (balance de nutrientes: lo que el grano se llevó y no se repuso) */
+    var sa = opciones.saldoAnterior;
+    if (sa && ((sa.p2o5 || 0) > 5 || (sa.k2o || 0) > 5)) {
+      var repP = Math.round(sa.p2o5 || 0), repK = Math.round(sa.k2o || 0);
+      item({ k: 'reposicion', tipo: 'suelo', nombre: 'Reposición de la cosecha anterior', hoy: 'La campaña anterior (' + (sa.cultivo || '') + ', ' + fmt(sa.rinde, 0) + ' kg/ha) se llevó más ' + (repP && repK ? 'P y K' : (repP ? 'P' : 'K')) + ' de lo que se aplicó', objetivo: 'Volver a dejar el suelo como estaba',
+        accion: 'Reponer ' + (repP ? fmt(repP, 0) + ' kg/ha de P₂O₅' : '') + (repP && repK ? ' y ' : '') + (repK ? fmt(repK, 0) + ' kg/ha de K₂O' : '') + ' además de la manutención de esta campaña (saldo negativo del balance de nutrientes de ' + (sa.campana || 'la cosecha anterior') + ')' + (sa.sinCarga ? '. Ojo: esa campaña no tiene fertilizantes cargados; si se aplicó algo, cargalo y el saldo baja' : ''),
+        recurrente: repP * pr.p2o5USDkg + repK * pr.k2oUSDkg, aporteMin: 0.02, aporteMax: 0.06, fuente: '[18]' });
     }
     /* 5. Nitrógeno (no soja) */
     if (N_POR_T[cu]) {
@@ -462,6 +475,11 @@
     var c = r.caso; pr = pr || precios(); opciones = opciones || {};
     if (!meta || meta <= c.rindeKgHa) return { error: 'La meta tiene que ser mayor al rinde de partida (' + Math.round(c.rindeKgHa) + ' kg/ha).', caso: c };
     if (window.SafiaFoliar && !opciones.foliar) opciones.foliar = SafiaFoliar.ultimoDelLote(c.equipoId);
+    // balance de la última cosecha del lote: si quedó saldo negativo, el plan lo repone
+    if (window.SafiaNutrientes && !opciones.saldoAnterior) {
+      var bal = SafiaNutrientes.ultimoBalanceDelLote(c.equipoId);
+      if (bal) opciones.saldoAnterior = { p2o5: Math.max(0, -bal.saldo.p2o5), k2o: Math.max(0, -bal.saldo.k2o), cultivo: bal.cultivo, rinde: bal.rinde, campana: bal.campana, sinCarga: !bal.aplicado.items };
+    }
     var pl = plan(c, meta, pr, r.casos, r.prof, opciones);
     var otros = {};
     r.casos.filter(function (x) { return String(x.campoId) === String(campo.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && claveCultivo(x.cultivo) !== claveCultivo(c.cultivo); })

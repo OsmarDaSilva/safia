@@ -58,6 +58,7 @@
 <script src="safia-agua.js"></script>
 <script src="safia-meta.js"></script>
 <script src="safia-seguimiento.js"></script>
+<script src="safia-nutrientes.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 </head>
 <body>
@@ -203,6 +204,7 @@
           <div class="field full"><label>Observaciones</label><textarea id="fObs" placeholder="Lo que valga la pena recordar de esta campaña"></textarea></div>
         </div>
         <div id="rindeCalc" class="muted" style="font-size:13px;margin-top:6px;"></div>
+        <div id="balanceNutrientes"></div>
       </div>
 
       <!-- 6 · Meta de rinde -->
@@ -303,7 +305,7 @@
       fichaCargada = SafiaFicha.desdeCampana(camp, parseInt(idx, 10));
       pintarFicha(fichaCargada);
       $('estadoGuardado').textContent = 'Ficha cargada: ' + (camp.nombre || '') + '. Completá lo que falte y guardá.' + (fichaCargada.cosecha && fichaCargada.cosecha.fecha ? ' Como ya está cosechada, podés planificar la próxima con el botón de arriba.' : '');
-      pintarMetaFicha(); actualizarBotonProxima();
+      pintarMetaFicha(); actualizarBotonProxima(); pintarBalanceFicha();
     }
 
     /* ---------- siembra ---------- */
@@ -389,6 +391,7 @@
       if (todo) { $('fCultivo').value = ''; alCambiarCultivo(); $('fExistente').value = ''; $('estadoGuardado').textContent = ''; }
       if ($('filaProxima')) $('filaProxima').style.display = 'none';
       if ($('metaSeguimientoFicha')) { $('metaSeguimientoFicha').innerHTML = ''; $('metaResultadoFicha').innerHTML = ''; $('metaEstado').textContent = ''; $('metaSinBase').style.display = 'none'; }
+      if ($('balanceNutrientes')) $('balanceNutrientes').innerHTML = '';
     }
     function calcRinde() { const kg = parseFloat($('fCosechaKg').value), sup = parseFloat($('fCosechaSup').value) || parseFloat($('fSuperficie').value); $('rindeCalc').textContent = kg > 0 && sup > 0 ? 'Rinde: ' + Math.round(kg / sup).toLocaleString('es-PY') + ' kg/ha' : ''; }
 
@@ -405,7 +408,7 @@
       toast('Guardado: campaña ' + r.accion);
       fichaCargada = SafiaFicha.desdeCampana(leer('campanas').find(c => c.id === r.campanaId), r.cultivoIdx);
       llenarExistentes(); $('fExistente').value = r.campanaId + '_' + r.cultivoIdx;
-      pintarMetaFicha(); actualizarBotonProxima();
+      pintarMetaFicha(); actualizarBotonProxima(); pintarBalanceFicha();
       if (r.cerrada) {
         const real = fichaCargada.cosecha && fichaCargada.cosecha.produccionKg && fichaCargada.cosecha.superficie ? Math.round(fichaCargada.cosecha.produccionKg / fichaCargada.cosecha.superficie) : null;
         $('estadoGuardado').innerHTML += '<div class="note ok" style="margin-top:10px;"><b>Campaña cerrada' + (real ? ' con ' + real.toLocaleString('es-PY') + ' kg/ha' : '') + '.</b> Es el momento de planificar la que viene en este lote: qué meta y qué hacer con anticipación. <button type="button" class="btn green" style="margin-left:8px;" onclick="planificarProxima()">Planificar la próxima campaña</button></div>';
@@ -490,6 +493,16 @@
       return { calcareoTnHa: parseFloat($('mCalcareo').value) || 0, preparacionCompleta: $('mPrep').checked, yeso: $('mYeso').checked, subsolado: $('mSubsolado').checked, nivelacion: $('mNivelacion').checked, construirPK: $('mPK').checked, otrosUSD: parseFloat($('mOtrosUSD').value) || 0, otrosDetalle: $('mOtrosDetalle').value.trim() };
     }
     // Muestra el seguimiento si la campaña cargada ya tiene meta guardada
+    // Balance de nutrientes de la campaña cargada (solo con cosecha)
+    function pintarBalanceFicha() {
+      const el = $('balanceNutrientes'); if (!el) return; el.innerHTML = '';
+      if (!fichaCargada || !window.SafiaNutrientes) return;
+      const camp = leer('campanas').find(c => c.id === fichaCargada.campanaId); if (!camp) return;
+      const bal = SafiaNutrientes.balanceCampana(camp, fichaCargada.cultivoIdx || 0); if (!bal) return;
+      // ejemplo para la próxima: mismo cultivo, 10 % más que el rinde real (la meta real se fija al planificar la próxima)
+      const metaEj = Math.round(bal.rinde * 1.1 / 100) * 100;
+      el.innerHTML = SafiaNutrientes.htmlBalance(bal, { metaSiguiente: metaEj, cultivoSiguiente: bal.cultivo, metaNota: '10 % más que esta cosecha, como ejemplo' });
+    }
     function pintarMetaFicha() {
       const cont = $('metaSeguimientoFicha'), res = $('metaResultadoFicha'), aviso = $('metaSinBase');
       cont.innerHTML = ''; res.innerHTML = ''; aviso.style.display = 'none';

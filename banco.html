@@ -71,6 +71,7 @@
 <script src="safia-sensores.js"></script>
 <script src="safia-balance.js"></script>
 <script src="safia-pasturas.js"></script>
+<script src="safia-nutrientes.js"></script>
 <script src="safia-humedad.js"></script>
 <script src="safia-agua.js"></script>
 <script src="safia-seguimiento.js"></script>
@@ -176,6 +177,7 @@
         <!-- ================= TAB CICLOS ================= -->
         <section class="panel on" id="panel-ciclos">
           <div id="pasturasResumen"></div>
+          <div id="nutrientesResumen"></div>
 
           <!-- Comparador: tu rinde vs la referencia de tu zona -->
           <div class="card" id="tarjetaComparativo" style="margin-bottom:14px;display:none;">
@@ -753,6 +755,7 @@
     if (window.SafiaHumedad) SafiaHumedad.alCambiarCampo();
     if (window.SafiaAgua) SafiaAgua.alCambiarCampo();
     if (window.SafiaPasturas) SafiaPasturas.alCambiarCampo();
+    if (window.SafiaNutrientes) SafiaNutrientes.alCambiarCampo();
     llenarLotesAnalisis(); llenarCoberturas();
     cargarReferenciaZona().then(function () {
       armarSelectorFinalidad();
@@ -2202,6 +2205,6 @@
   iniciar();
 })();
 </script>
-<script>window.addEventListener("load", function () { setTimeout(function () { if (window.SafiaPasturas) SafiaPasturas.alCambiarCampo(); }, 400); });</script>
+<script>window.addEventListener("load", function () { setTimeout(function () { if (window.SafiaPasturas) SafiaPasturas.alCambiarCampo(); if (window.SafiaNutrientes) SafiaNutrientes.alCambiarCampo(); }, 400); });</script>
 </body>
 </html>

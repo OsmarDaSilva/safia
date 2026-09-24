@@ -15,7 +15,7 @@ var SHELL = [
   './operador.html', './eventos.html', './encargado.html', './propietario.html', './analisis.html', './voz.html', './backup.html', './informe.html',
   './safia-theme.css', './safia-sync.js', './safia-pwa.js', './safia-iconos.js', './safia-cultivos-fao.js', './safia-casos.js',
   './safia-insumos.js', './safia-catalogo.js', './safia-agronomia.js', './safia-mapas.js', './safia-lotes.js', './safia-ndvi.js', './safia-rotacion.js', './safia-meta.js', './safia-informe.js', './safia-foliar.js', './safia-sensores.js', './safia-humedad.js', './safia-agua.js', './safia-seguimiento.js',
-  './safia-clima.js', './safia-balance.js', './safia-accesos.js', './safia-cuenta.js', './safia-pasturas.js', './safia-ficha.js', './manifest.webmanifest', './icons/safia-192.png', './icons/safia-512.png'
+  './safia-clima.js', './safia-balance.js', './safia-accesos.js', './safia-cuenta.js', './safia-pasturas.js', './safia-ficha.js', './safia-nutrientes.js', './manifest.webmanifest', './icons/safia-192.png', './icons/safia-512.png'
 ];
 var NO_CACHEAR = /supabase\.co|open-meteo\.com|anthropic\.com|dataspace\.copernicus\.eu|arcgisonline\.com\/.*\/tile\/|tile\.openstreetmap\.org/;
 
