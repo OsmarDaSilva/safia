@@ -383,13 +383,15 @@
     var ver = { alcanzable: ['ok', 'La meta parece <b>alcanzable</b>: incluso con el aporte mínimo estimado de cada ítem se llega.'], posible: ['ok', 'La meta es <b>posible</b>: entra en el rango estimado, pero depende de que varios ítems respondan.'], ambiciosa: ['warn', 'La meta es <b>ambiciosa</b> para este lote con lo que hoy se puede corregir: el rango estimado llega a ' + fmt(pl.potencial.max, 0) + ' kg/ha. Conviene ir por etapas.'] }[pl.veredicto];
     html += '<div class="note ' + ver[0] + '">' + ver[1] + (pl.benchmark ? ' Referencia: ' + pl.benchmark.n + ' caso(s) en ' + esc(pl.benchmark.ambito) + ' que ' + esc(pl.benchmark.criterio) + ' (promedio ' + fmt(pl.benchmark.rindeProm, 0) + ', máximo ' + fmt(pl.benchmark.rindeMax, 0) + ' kg/ha' + (pl.benchmark.agua ? ', ' + fmt(pl.benchmark.agua, 0) + ' mm de agua' : '') + ').' : ' Todavía no hay otros casos de ' + esc(pl.cultivo) + ' en el banco para usar de referencia.') + '</div>';
     function filaItem(i, modo) {
-      var ap = i.aporteMax ? (i.aporteMin ? '+' + fmt(i.aporteMin * 100, 0) + ' a +' + fmt(i.aporteMax * 100, 0) + ' %' : 'hasta +' + fmt(i.aporteMax * 100, 0) + ' %') : '<span class="muted">—</span>';
-      var costo = modo === 'inversion' ? '<span class="num">' + fmt(i.inversion, 0) + '</span><div class="sub">dura ' + i.vidaUtil + ' año' + (i.vidaUtil === 1 ? '' : 's') + '</div>' : (modo === 'gasto' ? '<span class="num">' + fmt(i.recurrente, 0) + '</span><div class="sub">por campaña</div>' : '<span class="muted">0</span>');
-      return '<tr><td><b>' + esc(i.nombre) + '</b><div class="sub">' + (tipoIc[i.tipo] || '') + (i.condicional ? ' · condicional' : '') + (i.alcance === 'lote' ? ' · todo el lote' : '') + '</div></td><td style="font-size:12px;">' + i.hoy + '</td><td style="font-size:12px;">' + i.objetivo + '</td><td style="font-size:12px;">' + i.accion + ' <span class="muted">' + esc(i.fuente || '') + '</span></td>' +
-        '<td class="r">' + costo + '</td><td class="r">' + ap + '</td></tr>';
+      var ap = i.aporteMax ? (i.aporteMin ? '+' + fmt(i.aporteMin * 100, 0) + ' a +' + fmt(i.aporteMax * 100, 0) + ' %' : 'hasta +' + fmt(i.aporteMax * 100, 0) + ' %') : '';
+      var costo = modo === 'inversion' ? 'US$ ' + fmt(i.inversion, 0) + '/ha una vez · dura ' + i.vidaUtil + ' año' + (i.vidaUtil === 1 ? '' : 's') : (modo === 'gasto' ? 'US$ ' + fmt(i.recurrente, 0) + '/ha por campaña' : 'sin costo');
+      return '<div style="padding:10px 0;border-bottom:1px solid rgba(0,0,0,.07);">' +
+        '<div style="display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;"><b>' + esc(i.nombre) + '</b><span class="muted" style="font-size:11px;">' + (tipoIc[i.tipo] || '') + (i.condicional ? ' · condicional' : '') + (i.alcance === 'lote' ? ' · todo el lote' : '') + '</span><span style="margin-left:auto;font-size:12px;white-space:nowrap;">' + (ap ? '<b style="color:#178029;">' + ap + '</b> · ' : '') + costo + '</span></div>' +
+        '<div style="font-size:13px;margin-top:4px;">' + i.accion + ' <span class="muted" style="font-size:11px;">' + esc(i.fuente || '') + '</span></div>' +
+        '<div class="muted" style="font-size:12px;margin-top:3px;">Hoy: ' + i.hoy + ' · Objetivo: ' + i.objetivo + '</div></div>';
     }
     function tablaItems(lista, modo, etiquetaCosto) {
-      return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Ítem</th><th>Hoy</th><th>Objetivo</th><th>Qué hacer (dosis / acción)</th><th class="r">' + etiquetaCosto + '</th><th class="r">Aporte estimado</th></tr></thead><tbody>' + lista.map(function (i) { return filaItem(i, modo); }).join('') + '</tbody></table></div></div>';
+      return '<div style="margin-bottom:6px;">' + lista.map(function (i) { return filaItem(i, modo); }).join('') + '</div>';
     }
     var inv = pl.items.filter(function (i) { return i.inversion > 0; }), gas = pl.items.filter(function (i) { return i.recurrente > 0; }), info = pl.items.filter(function (i) { return !i.inversion && !i.recurrente; });
     var subInv = inv.reduce(function (a, i) { return a + i.inversion; }, 0), subGas = gas.reduce(function (a, i) { return a + i.recurrente; }, 0);
