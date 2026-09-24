@@ -32,6 +32,7 @@
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-accesos.js"></script>
 </head>
 <body>
   <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
@@ -86,30 +87,6 @@
 
       <div id="contenido"><div class="note info">Cargando usuarios…</div></div>
     </main>
-  </div>
-
-  <!-- Modal: crear acceso -->
-  <div class="modal-overlay" id="modalNuevo">
-    <div class="modal">
-      <div class="modal-titulo">Crear acceso a SAFIA</div>
-      <div id="nuevoForm">
-        <div class="field"><label>Nombre y apellido</label><input type="text" id="nNombre" placeholder="Ej: Anderson Pereira"></div>
-        <div class="field"><label>Correo (con este entra)</label><input type="email" id="nEmail" placeholder="correo@ejemplo.com"></div>
-        <div class="field"><label>WhatsApp</label><input type="tel" id="nTelefono" placeholder="+595 981 234567"></div>
-        <div class="form-grid">
-          <div class="field"><label>Rol</label><select id="nRol"><option value="cliente">Cliente (productor)</option><option value="operador">Operador (encargado de campo)</option><option value="admin">Administrador (Irrigar)</option></select></div>
-          <div class="field"><label>Cliente al que pertenece</label><select id="nCliente"><option value="">— Ninguno (Irrigar) —</option></select></div>
-        </div>
-        <div class="field"><label>Contraseña temporal (se la pasás vos; puede cambiarla con "Olvidé mi contraseña")</label><div style="display:flex;gap:8px;"><input type="text" id="nPass" style="font-family:ui-monospace,Menlo,Consolas,monospace;"><button class="btn" type="button" id="btnGenerar" style="white-space:nowrap;">Generar</button></div></div>
-        <div class="note info" style="margin-top:8px;">Si el correo ya tiene cuenta en otra app del grupo (SIGA, AGROinvest360), no se crea otra: se le da acceso a SAFIA con la contraseña que ya usa (la temporal se ignora).</div>
-        <div class="modal-actions"><button class="btn green" id="btnCrear">Crear acceso</button><button class="btn" id="btnCerrarNuevo">Cancelar</button></div>
-      </div>
-      <div id="nuevoListo" style="display:none;">
-        <div class="note ok">Acceso creado.</div>
-        <div class="cred" id="credTexto"></div>
-        <div class="modal-actions"><a class="btn green" id="btnWhatsApp" target="_blank" rel="noopener">Enviar por WhatsApp</a><button class="btn" id="btnCopiar">Copiar</button><button class="btn" id="btnCerrarListo">Cerrar</button></div>
-      </div>
-    </div>
   </div>
 
   <!-- Modal: nueva contraseña -->
@@ -205,38 +182,9 @@
       SafiaSync.accionUsuario({ accion: 'clave', id, password: p }).then(() => { $('modalClave').classList.remove('visible'); toast('Contraseña cambiada: ' + p); }).catch(e => toast(e.message, true));
     });
 
-    // crear acceso
-    function abrirNuevo(pre) {
-      pre = pre || {};
-      $('nuevoForm').style.display = ''; $('nuevoListo').style.display = 'none';
-      $('nNombre').value = pre.nombre || ''; $('nEmail').value = pre.email || ''; $('nTelefono').value = pre.telefono || ''; $('nRol').value = pre.rol || 'cliente';
-      $('nCliente').innerHTML = opcionesClientes(pre.cliente || ''); $('nPass').value = generarClave();
-      $('modalNuevo').classList.add('visible');
-    }
+    // crear acceso: ventana compartida (safia-accesos.js)
+    function abrirNuevo(pre) { SafiaAccesos.abrir(pre || {}, { onDone: function () { cargar(); } }); }
     $('btnNuevo').addEventListener('click', () => abrirNuevo());
-    $('btnGenerar').addEventListener('click', () => { $('nPass').value = generarClave(); });
-    $('btnCerrarNuevo').addEventListener('click', () => $('modalNuevo').classList.remove('visible'));
-    $('btnCerrarListo').addEventListener('click', () => { $('modalNuevo').classList.remove('visible'); cargar(); });
-    $('btnCrear').addEventListener('click', () => {
-      const datos = { accion: 'crear', nombre: $('nNombre').value.trim(), email: $('nEmail').value.trim().toLowerCase(), telefono: $('nTelefono').value.trim(), rol: $('nRol').value, clienteId: $('nCliente').value || null, password: $('nPass').value.trim() };
-      if (!datos.nombre) { toast('Poné el nombre', true); return; }
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { toast('Correo inválido', true); return; }
-      if (datos.password.length < 6) { toast('Contraseña de al menos 6 caracteres', true); return; }
-      const b = $('btnCrear'); ocupar(b, true);
-      SafiaSync.accionUsuario(datos).then(r => {
-        ocupar(b, false);
-        const url = location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
-        const texto = r.existia
-          ? `Hola ${datos.nombre}, ya tenés acceso a SAFIA.\nEntrá en ${url} con tu correo ${datos.email} y la misma contraseña que usás en las otras apps del grupo. Si no la recordás, tocá "Olvidé mi contraseña".`
-          : `Hola ${datos.nombre}, te creamos el acceso a SAFIA.\nEntrá en ${url}\nCorreo: ${datos.email}\nContraseña: ${datos.password}\nPodés cambiarla con "Olvidé mi contraseña".`;
-        $('credTexto').innerHTML = r.existia ? `Ese correo ya tenía cuenta en el grupo: quedó <b>activo en SAFIA</b> con su contraseña de siempre.<br>Correo: <b>${esc(datos.email)}</b>` : `Correo: <b>${esc(datos.email)}</b><br>Contraseña temporal: <b>${esc(datos.password)}</b><br>Rol: ${ROL[datos.rol]}${datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : ''}`;
-        $('credTexto').dataset.texto = texto;
-        const tel = datos.telefono.replace(/[^0-9]/g, '');
-        $('btnWhatsApp').href = 'https://wa.me/' + (tel ? (tel.startsWith('595') ? tel : (tel.startsWith('0') ? '595' + tel.slice(1) : tel)) : '') + '?text=' + encodeURIComponent(texto);
-        $('nuevoForm').style.display = 'none'; $('nuevoListo').style.display = '';
-      }).catch(e => { ocupar(b, false); toast(e.message || 'No se pudo crear', true); });
-    });
-    $('btnCopiar').addEventListener('click', () => { const t = $('credTexto').dataset.texto || ''; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copiado'), () => toast('No se pudo copiar: seleccioná el texto', true)); });
 
     function cargar() {
       if (!SafiaSync.esAdmin()) { $('contenido').innerHTML = '<div class="note warn">Esta pantalla es solo para administradores de SAFIA (Irrigar).</div>'; $('btnNuevo').style.display = 'none'; return Promise.resolve(); }
@@ -245,7 +193,7 @@
     function arrancar() {
       cargar().then(() => {
         const q = new URLSearchParams(location.search);
-        if (q.get('nuevo') === '1' && SafiaSync.esAdmin()) abrirNuevo({ nombre: q.get('nombre') || '', email: q.get('email') || '', telefono: q.get('telefono') || '', cliente: q.get('cliente') || '' });
+        if (q.get('nuevo') === '1' && SafiaSync.esAdmin()) abrirNuevo({ nombre: q.get('nombre') || '', email: q.get('email') || '', telefono: q.get('telefono') || '', clienteId: q.get('cliente') || '' });
       });
     }
     if (window.SafiaSync && SafiaSync.usuario()) arrancar(); else window.addEventListener('safia:usuario', arrancar, { once: true });

@@ -30,6 +30,7 @@
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-accesos.js"></script>
 </head>
 <body>
 
@@ -170,7 +171,7 @@
       const localidad = document.getElementById('localidad').value.trim();
 
       if (!nombre) {
-        alert('⚠️ El nombre es obligatorio');
+        mostrarToast('El nombre es obligatorio', true);
         return;
       }
 
@@ -193,6 +194,11 @@
         };
         clientes.push(nuevoCliente);
         guardarClientes(clientes);
+        // Cliente nuevo: si tiene correo y sos admin, le creás el acceso a SAFIA ahí mismo
+        if (window.SafiaAccesos && window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin()) {
+          if (email) setTimeout(() => SafiaAccesos.abrir({ nombre, email, telefono, clienteId: nuevoCliente.id, rol: 'cliente' }, { titulo: 'Cliente guardado. ¿Le creamos el acceso a SAFIA?', intro: 'Con este acceso ' + nombre + ' entra a SAFIA con su correo. Le pasás la contraseña temporal por WhatsApp. Si preferís hacerlo después, tocá "Ahora no": queda el botón "Crear acceso" en su fila.', onDone: () => { usuariosCache = null; mostrarClientes(); } }), 150);
+          else mostrarToast('Cliente guardado. Para darle acceso a SAFIA cargale un correo (editar cliente).');
+        }
       }
 
       limpiarFormulario();
@@ -290,6 +296,12 @@
       pintarAccesos(clientes);
     }
 
+    function mostrarToast(mensaje, esError) { let t = document.getElementById('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); } t.textContent = mensaje; t.className = 'toast visible' + (esError ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 3500); }
+    function abrirAcceso(id, rol) {
+      const c = obtenerClientes().find(x => x.id === id); if (!c) return;
+      if (!window.SafiaAccesos) { mostrarToast('Sin conexión con la nube', true); return; }
+      SafiaAccesos.abrir({ nombre: rol === 'operador' ? '' : (c.nombre || ''), email: rol === 'operador' ? '' : (c.email || ''), telefono: rol === 'operador' ? '' : (c.telefono || ''), clienteId: c.id, rol }, { titulo: rol === 'operador' ? 'Nuevo operador de ' + c.nombre : 'Crear acceso a SAFIA para ' + c.nombre, onDone: () => { usuariosCache = null; mostrarClientes(); } });
+    }
     // Acceso a SAFIA de cada cliente (usuarios con rol cliente/operador asignados a él); solo lo ve el admin
     let usuariosCache = null;
     function pintarAccesos(clientes) {
@@ -297,8 +309,8 @@
         const celda = document.querySelector('.acceso-' + c.id); if (!celda) return;
         const suyos = (lista || []).filter(u => String(u.cliente_id) === String(c.id));
         const q = 'usuarios.html?nuevo=1&cliente=' + encodeURIComponent(c.id) + '&nombre=' + encodeURIComponent(c.nombre || '') + '&email=' + encodeURIComponent(c.email || '') + '&telefono=' + encodeURIComponent(c.telefono || '');
-        if (suyos.length) celda.innerHTML = suyos.map(u => '<span class="badge ' + (u.estado === 'activo' ? 'green' : (u.estado === 'baja' ? 'red' : 'amber')) + '" title="' + (u.email || '') + '">' + (u.nombre || u.email) + (u.rol === 'operador' ? ' · operador' : '') + '</span>').join(' ') + ' <a href="' + q + '" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;">+ otro</a>';
-        else celda.innerHTML = '<a class="btn" style="padding:5px 10px;font-size:12px;" href="' + q + '">Crear acceso</a>';
+        if (suyos.length) celda.innerHTML = suyos.map(u => '<span class="badge ' + (u.estado === 'activo' ? 'green' : (u.estado === 'baja' ? 'red' : 'amber')) + '" title="' + (u.email || '') + '">' + (u.nombre || u.email) + (u.rol === 'operador' ? ' · operador' : '') + '</span>').join(' ') + ' <a href="#" onclick="abrirAcceso(' + c.id + ', \'operador\'); return false;" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;">+ operador</a>';
+        else celda.innerHTML = '<button class="btn" style="padding:5px 10px;font-size:12px;" onclick="abrirAcceso(' + c.id + ', \'cliente\')">Crear acceso</button>';
       });
       if (usuariosCache) { pintar(usuariosCache); return; }
       if (!window.SafiaSync || !SafiaSync.listarUsuarios) { clientes.forEach(c => { const el = document.querySelector('.acceso-' + c.id); if (el) el.innerHTML = '<span class="muted">—</span>'; }); return; }
