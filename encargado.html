@@ -492,6 +492,7 @@
 
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
+  <script src="safia-pasturas.js"></script>
   <script src="safia-clima.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
@@ -613,6 +614,7 @@
           }
           if (balance.sonda && balance.sonda.antiguedadDias <= 2) datos.recomendacion += ` <span style="color:#8C9196;">(sonda: ${balance.sonda.valor.toFixed(1)} % vol)</span>`;
           if (balance.etapaHoy && balance.etapaHoy.critica && pct < U.CRITICO) datos.recomendacion += ' <strong>Etapa crítica para el rinde.</strong>';
+          if (window.SafiaPasturas && campanaActiva.cultivos && campanaActiva.cultivos[0] && SafiaPasturas.esPastura(campanaActiva.cultivos[0].cultivo)) datos.recomendacion += SafiaPasturas.htmlEncargado(equipo.id, campanaActiva.cultivos[0], balance);
           datos.recomendacion += SafiaBalance.notaFallbackSuelo(balance.suelo);
         } catch (error) {
           // Mensaje honesto y diferenciado según el tipo de fallo de clima.
@@ -741,6 +743,7 @@
         mmRegar: r.recomendacion.mm,
         mmRegarTotal: r.recomendacion.mmTotal,
         umbrales: r.umbrales,
+        pastura: r.pastura,
         etapaHoy: r.etapaHoy,
         sonda: r.sonda,
         lluviaProxima,

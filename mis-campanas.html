@@ -654,6 +654,7 @@
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-pasturas.js"></script>
 <script src="safia-insumos.js"></script>
 <script src="safia-catalogo.js"></script>
 <script src="safia-casos.js"></script>
@@ -1827,7 +1828,8 @@
         consorcio: '',
         consorcioDetalle: '',
         labores: [],
-        cultivoAnteriorAuto: false
+        cultivoAnteriorAuto: false,
+        sistemaPastoreo: '', piquetes: '', diasOcupacion: '', diasDescanso: ''
       };
       if (!cultivo.idTemp) cultivo.idTemp = id;
       cultivosTemp.push(cultivo);
@@ -1986,6 +1988,20 @@
       cultivosTemp.forEach((cultivo, index) => {
         const numero = index + 1;
         const puedeQuitar = cultivosTemp.length > 1;
+        const esPastura = window.SafiaPasturas && SafiaPasturas.esPastura(cultivo.cultivo);
+        const bloquePastura = !esPastura ? '' : `
+            <div class="cultivo-bloque" style="background:#F2F7F3;border:1px dashed #9fd3a9;margin:4px 0 12px;">
+              <div class="cultivo-bloque-titulo">Manejo de la pastura</div>
+              <div class="ayuda" style="margin-bottom:8px;">La pastura no se cosecha: se maneja todo el año. Con estos datos SAFIA avisa cuándo rotar los animales y cuándo un piquete cumplió el descanso. Los pastoreos y cortes se cargan desde el Operador (botón Pastoreo).</div>
+              <div class="fila">
+                <div class="campo"><label>Sistema</label><select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'sistemaPastoreo', this.value)"><option value="">Seleccionar...</option>${SafiaPasturas.SISTEMAS.map(s => '<option value="' + s.k + '"' + (cultivo.sistemaPastoreo === s.k ? ' selected' : '') + '>' + s.n + '</option>').join('')}</select></div>
+                <div class="campo"><label>Cantidad de piquetes</label><input type="number" min="1" placeholder="Ej: 8" value="${cultivo.piquetes || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'piquetes', this.value)"></div>
+              </div>
+              <div class="fila">
+                <div class="campo"><label>Días de ocupación por piquete</label><input type="number" min="1" placeholder="Ej: 3" value="${cultivo.diasOcupacion || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'diasOcupacion', this.value)"></div>
+                <div class="campo"><label>Días de descanso del piquete</label><input type="number" min="1" placeholder="Ej: 28" value="${cultivo.diasDescanso || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'diasDescanso', this.value)"><div class="ayuda">Pastura tropical regada: 21 a 35 días en verano, más en invierno (Embrapa).</div></div>
+              </div>
+            </div>`;
 
         const html = `
           <div class="cultivo-bloque">
@@ -2024,14 +2040,15 @@
               </div>
             </div>
 
+            ${bloquePastura}
             <div class="fila">
               <div class="campo">
-                <label>Fecha de siembra</label>
+                <label>${esPastura ? 'Fecha de implantación (o desde cuándo la sigue SAFIA)' : 'Fecha de siembra'}</label>
                 <input type="date" value="${cultivo.fechaSiembra || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaSiembra', this.value)">
               </div>
 
               <div class="campo">
-                <label>Fecha estimada cosecha <span class="opcional">(opcional)</span></label>
+                <label>${esPastura ? 'Fin previsto <span class="opcional">(solo si se renueva)</span>' : 'Fecha estimada cosecha <span class="opcional">(opcional)</span>'}</label>
                 <input type="date" value="${cultivo.fechaCosecha || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaCosecha', this.value)">
               </div>
             </div>
@@ -2105,7 +2122,7 @@
 
             <div class="fila">
               <div class="campo">
-                <label>Rendimiento objetivo (kg/ha) <span class="opcional">(opcional)</span></label>
+                <label>${esPastura ? 'Meta de forraje (kg MS/ha por año)' : 'Rendimiento objetivo (kg/ha)'} <span class="opcional">(opcional)</span></label>
                 <input type="number" placeholder="Ej: 12000" value="${cultivo.rendimientoObj || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'rendimientoObj', this.value)">
               </div>
 
@@ -2197,7 +2214,7 @@
             cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
               labores: Array.isArray(c.labores) ? c.labores : [],
               cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
-              rendimientoReal: c.rendimientoReal || ''
+              rendimientoReal: c.rendimientoReal || '', sistemaPastoreo: c.sistemaPastoreo || '', piquetes: c.piquetes || '', diasOcupacion: c.diasOcupacion || '', diasDescanso: c.diasDescanso || ''
             })),
             fechaModificacion: new Date().toISOString()
           };
@@ -2244,7 +2261,7 @@
             consorcioDetalle: String(c.consorcioDetalle || '').trim(),
             labores: Array.isArray(c.labores) ? c.labores : [],
             cultivoAnteriorAuto: !!c.cultivoAnteriorAuto,
-            rendimientoReal: c.rendimientoReal || ''
+            rendimientoReal: c.rendimientoReal || '', sistemaPastoreo: c.sistemaPastoreo || '', piquetes: c.piquetes || '', diasOcupacion: c.diasOcupacion || '', diasDescanso: c.diasDescanso || ''
           })),
           fechaCreacion: new Date().toISOString()
         };

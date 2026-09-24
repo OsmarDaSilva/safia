@@ -787,6 +787,10 @@
             <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6l-5 9a1 1 0 0 0 .9 1.5h12.2a1 1 0 0 0 .9-1.5L14 9V3"/><path d="M8 15h8"/></svg></div>
             <div class="boton-carga-label">Aplicación</div>
           </button>
+          <button class="boton-carga boton-aplicacion" id="btnPastoreo" style="display:none;" onclick="abrirModal('pastoreo')">
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg></div>
+            <div class="boton-carga-label">Pastoreo</div>
+          </button>
         </div>
 
         <div id="eventosSeccion" style="display:none;">
@@ -816,6 +820,33 @@
         <div class="campo">
           <label id="labelCantidad">💧 Cantidad (mm)</label>
           <input type="number" id="modalCantidad" placeholder="Ej: 14" step="0.1">
+        </div>
+      </div>
+
+      <div id="camposPastoreo" style="display:none;">
+        <div class="campo">
+          <label>Qué pasó</label>
+          <select id="modalAccion">
+            <option value="entrada">Entraron animales al piquete</option>
+            <option value="salida">Salieron animales del piquete</option>
+            <option value="corte">Corte (heno, verde picado, ensilaje)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Piquete (número o nombre)</label>
+          <input type="text" id="modalPiquete" placeholder="Ej: 3">
+        </div>
+        <div class="campo">
+          <label>Cabezas <span style="color:#aaa;font-weight:400;font-size:11px;">(al entrar; opcional)</span></label>
+          <input type="number" id="modalCabezas" placeholder="Ej: 120" min="0">
+        </div>
+        <div class="campo">
+          <label>Forraje ofrecido (kg MS/ha) <span style="color:#aaa;font-weight:400;font-size:11px;">(medido con regla o plato, o estimado; opcional)</span></label>
+          <input type="number" id="modalKgMs" placeholder="Ej: 2500" min="0" step="10">
+        </div>
+        <div class="campo">
+          <label>Altura del pasto (cm) <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional)</span></label>
+          <input type="number" id="modalAltura" placeholder="Ej: 35" min="0" step="1">
         </div>
       </div>
 
@@ -905,6 +936,7 @@
 
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
+  <script src="safia-pasturas.js"></script>
   <script src="safia-clima.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
@@ -1009,6 +1041,9 @@
       if (primerCultivo.superficie) {
         metaTexto += `<div>📐 ${primerCultivo.superficie} ha</div>`;
       }
+      const esPastura = window.SafiaPasturas && SafiaPasturas.esPastura(primerCultivo.cultivo);
+      const bp = document.getElementById('btnPastoreo'); if (bp) bp.style.display = esPastura ? '' : 'none';
+      if (esPastura) { metaTexto = metaTexto.replace('días desde siembra', 'días desde la implantación') + SafiaPasturas.htmlOperador(equipoSeleccionadoId, primerCultivo); }
 
       document.getElementById('campanaCultivo').textContent = cultivosTexto;
       document.getElementById('campanaMeta').innerHTML = metaTexto;
@@ -1094,7 +1129,7 @@
         // timeout + reintento ante 502/503/red + respaldo de caché + error honesto.
         const rClima = await SafiaClima.obtenerClima({
           lat, lon,
-          daily: 'precipitation_sum,et0_fao_evapotranspiration',
+          daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min',
           pastDays: 92, forecastDays: 4,   // 92 días de historia: el balance arranca en la siembra
           cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
         });
@@ -1179,6 +1214,7 @@
         if (r.recomendacion.mmTotal > r.recomendacion.mm && !SafiaBalance.esSecano(equipo)) detalle.innerHTML += ` En total faltan <strong>${r.recomendacion.mmTotal} mm</strong> para llegar a capacidad de campo: repartirlos en más de una pasada.`;
         const fuenteHum = r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad (' + r.sonda.valor.toFixed(1) + ' % vol)' : (r.fuentes.estacion ? 'balance con lluvia y ET0 de la estación' : 'balance con clima estimado');
         detalle.innerHTML += `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, regar al ${U.CRITICO} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco.</div>`;
+        if (r.pastura) detalle.innerHTML += SafiaPasturas.htmlTemperatura(r.pastura);
         detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
 
       } catch (error) {
@@ -1270,6 +1306,8 @@
       document.getElementById('modalKpct').value = '';
       document.getElementById('npkPreview').style.display = 'none';
       document.getElementById('modalObservaciones').value = '';
+      document.getElementById('camposPastoreo').style.display = 'none';
+      document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
 
       if (tipo === 'riego') {
@@ -1286,6 +1324,15 @@
         titulo.innerHTML = '🧪 Cargar aplicación';
         camposRiegoLluvia.style.display = 'none';
         camposAplicacion.style.display = 'block';
+      } else if (tipo === 'pastoreo') {
+        titulo.innerHTML = 'Cargar pastoreo o corte';
+        camposRiegoLluvia.style.display = 'none';
+        camposAplicacion.style.display = 'none';
+        document.getElementById('camposPastoreo').style.display = 'block';
+        // sugerir el próximo piquete: el siguiente al último que se usó
+        const ult = SafiaPasturas.eventosLote(equipoSeleccionadoId).slice(-1)[0];
+        if (ult && ult.accion === 'entrada') { document.getElementById('modalAccion').value = 'salida'; document.getElementById('modalPiquete').value = ult.piquete || ''; }
+        else if (ult && /^\d+$/.test(String(ult.piquete || ''))) { document.getElementById('modalAccion').value = 'entrada'; document.getElementById('modalPiquete').value = String(parseInt(ult.piquete, 10) + 1); }
       }
 
       document.getElementById('modalOverlay').classList.add('visible');
@@ -1323,6 +1370,16 @@
         evento.cantidad = cantidad;
         evento.unidad = 'mm';
 
+      } else if (tipoEventoActual === 'pastoreo') {
+        const piquete = document.getElementById('modalPiquete').value.trim();
+        if (!piquete) { mostrarToast('Cargá el piquete.'); return; }
+        evento.accion = document.getElementById('modalAccion').value;
+        evento.piquete = piquete;
+        const cab = parseFloat(document.getElementById('modalCabezas').value), kg = parseFloat(document.getElementById('modalKgMs').value), alt = parseFloat(document.getElementById('modalAltura').value);
+        if (cab > 0) evento.cabezas = cab;
+        if (kg > 0) evento.kgMsHa = kg;
+        if (alt > 0) evento.alturaCm = alt;
+
       } else if (tipoEventoActual === 'aplicacion') {
         const producto = document.getElementById('modalProducto').value.trim();
         const dosis = parseFloat(document.getElementById('modalDosis').value);
@@ -1355,6 +1412,7 @@
       cerrarModal();
       mostrarToast('✓ ' + capitalizar(tipoEventoActual) + ' guardado');
       mostrarEventos();
+      mostrarCampana();
       mostrarRecomendacionClima();
     }
 
@@ -1400,6 +1458,10 @@
           icono = '🧪';
           titulo = `${ev.producto} (${ev.dosis} ${ev.unidad})`;
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'pastoreo') {
+          icono = '🐄';
+          titulo = (ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte') + ' · piquete ' + (ev.piquete || '?') + (ev.cabezas ? ' · ' + ev.cabezas + ' cab.' : '') + (ev.kgMsHa ? ' · ' + ev.kgMsHa + ' kg MS/ha' : '');
+          detalle = `${diaSemana} ${fechaStr}${ev.alturaCm ? ' · ' + ev.alturaCm + ' cm' : ''}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         }
 
         const origen = { manual: '', voz: 'voz', meteo: 'clima estimado', estacion: 'estación' }[ev.cargadoPor || 'manual'] || '';

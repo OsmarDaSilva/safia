@@ -19,8 +19,10 @@
       { nombre: 'Avena', emoji: '🌾', tipo: 'anual', kc_ini: 0.30, kc_med: 1.15, kc_fin: 0.40, L_ini: 25, L_des: 35, L_med: 35, L_fin: 25 },
       { nombre: 'Tomate', emoji: '🍅', tipo: 'anual', kc_ini: 0.60, kc_med: 1.15, kc_fin: 0.80, L_ini: 30, L_des: 40, L_med: 40, L_fin: 25 },
       { nombre: 'Lechuga', emoji: '🥬', tipo: 'anual', kc_ini: 0.70, kc_med: 1.00, kc_fin: 0.95, L_ini: 20, L_des: 25, L_med: 20, L_fin: 10 },
-      { nombre: 'Alfalfa', emoji: '🌿', tipo: 'perenne', kc_pri: 0.85, kc_ver: 1.20, kc_oto: 0.95, kc_inv: 0.40 },
-      { nombre: 'Pasturas', emoji: '🌾', tipo: 'perenne', kc_pri: 0.70, kc_ver: 0.95, kc_oto: 0.85, kc_inv: 0.50 },
+      // Pasturas: Kc de FAO-56 Tabla 12 (pastura bajo pastoreo rotado 0,40 / 0,85–1,05 / 0,85; alfalfa heno, cortes promediados 0,40 / 0,95 / 0,90),
+      // raíz y agotamiento permitido p de la Tabla 22 (pastura 0,5–1,5 m, p 0,60; alfalfa 1,0–2,0 m, p 0,55). tempBase: gramíneas tropicales ≈ 15 °C (Embrapa).
+      { nombre: 'Pastura tropical (Brachiaria, Mombaça, Tifton)', emoji: '🌾', tipo: 'perenne', pastura: true, kc_pri: 0.85, kc_ver: 0.95, kc_oto: 0.85, kc_inv: 0.60, p: 0.60, zr: 0.8, tempBase: 15, fuente: 'FAO-56 T12/T22 · Embrapa' },
+      { nombre: 'Alfalfa', emoji: '🌿', tipo: 'perenne', pastura: true, kc_pri: 0.90, kc_ver: 0.95, kc_oto: 0.90, kc_inv: 0.50, p: 0.55, zr: 1.0, tempBase: 10, fuente: 'FAO-56 T12/T22' },
       { nombre: 'Cítricos', emoji: '🍊', tipo: 'perenne', kc_pri: 0.75, kc_ver: 0.80, kc_oto: 0.75, kc_inv: 0.70 },
       { nombre: 'Vid (uva)', emoji: '🍇', tipo: 'perenne', kc_pri: 0.30, kc_ver: 0.85, kc_oto: 0.45, kc_inv: 0.20 },
       { nombre: 'Café', emoji: '☕', tipo: 'perenne', kc_pri: 0.90, kc_ver: 1.05, kc_oto: 0.95, kc_inv: 0.90 },
@@ -30,8 +32,10 @@
   ];
   try {
     var actual = JSON.parse(localStorage.getItem('cultivos_fao') || '[]');
-    if (!Array.isArray(actual) || actual.length < window.TABLA_FAO.length) {
+    var VERSION_FAO = '2026-09-24-pasturas';
+    if (!Array.isArray(actual) || actual.length < window.TABLA_FAO.length || localStorage.getItem('cultivos_fao_version') !== VERSION_FAO) {
       localStorage.setItem('cultivos_fao', JSON.stringify(window.TABLA_FAO));
+      localStorage.setItem('cultivos_fao_version', VERSION_FAO);
     }
   } catch (e) {}
 })();

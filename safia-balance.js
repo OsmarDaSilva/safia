@@ -70,13 +70,13 @@
     sorgo:   { veg: 0.2,  flor: 0.55, llen: 0.45, mad: 0.2, total: 0.9 },
     otro:    { veg: 0.3,  flor: 0.8,  llen: 0.7,  mad: 0.2, total: 1.0 }
   };
-  var P_TABLA = { soja: 0.5, maiz: 0.55, trigo: 0.55, girasol: 0.45, sorgo: 0.55, otro: 0.5 };   // FAO-56 Tabla 22
-  var ZR_MAX = { soja: 0.6, maiz: 1.0, trigo: 1.0, girasol: 0.8, sorgo: 1.0, otro: 0.8 };        // m; límite inferior de FAO-56 Tabla 22 (riego); UNL 0–60 cm en soja
+  var P_TABLA = { soja: 0.5, maiz: 0.55, trigo: 0.55, girasol: 0.45, sorgo: 0.55, pastura: 0.6, otro: 0.5 };   // FAO-56 Tabla 22 (pastura bajo pastoreo 0,60)
+  var ZR_MAX = { soja: 0.6, maiz: 1.0, trigo: 1.0, girasol: 0.8, sorgo: 1.0, pastura: 0.8, otro: 0.8 };        // m; límite inferior de FAO-56 Tabla 22 (riego); UNL 0–60 cm en soja; pastura 0,5–1,5
   var ETAPAS = [{ k: 'veg', n: 'Vegetativa' }, { k: 'flor', n: 'Floración' }, { k: 'llen', n: 'Llenado (formación del rinde)' }, { k: 'mad', n: 'Maduración' }];
   var NOMBRE_ETAPA = { pre: 'Pre-siembra', veg: 'Vegetativa', flor: 'Floración', llen: 'Llenado', mad: 'Maduración', per: 'Perenne', sin: 'Sin cultivo' };
 
   function normNombre(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
-  function claveCultivo(c) { var n = normNombre(c); if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
+  function claveCultivo(c) { var n = normNombre(c); if (/pastura|pasto\b|brachiaria|braquiaria|mombaca|tifton|alfalfa|panicum|cynodon|forraj/.test(n)) return 'pastura'; if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
 
   // Umbrales por defecto (soja): % del agua disponible que queda. Cada simulación devuelve los suyos según el cultivo (r.umbrales).
   var UMBRALES = { URGENTE: 35, CRITICO: 50, ATENCION: 70 };
@@ -303,7 +303,7 @@
       var k = claves[i], eto = (daily.et0_fao_evapotranspiration && daily.et0_fao_evapotranspiration[i]) || 0, fuenteEt0 = 'meteo';
       if (et0Estacion && et0Estacion[k] != null) { eto = et0Estacion[k]; fuenteEt0 = 'estacion'; }
       var prm;
-      if (perenne) { var kk = calcularKc(kcDef, k + 'T12:00:00'); prm = parametrosDia('otro', null, null, theta, eto, { kcFijo: kk.kc, etapa: 'per', zrMax: opts.zrMax }); prm.etapaLegacy = kk.etapa; prm.dds = null; }
+      if (perenne) { var kk = calcularKc(kcDef, k + 'T12:00:00'); prm = parametrosDia(cu, null, null, theta, eto, { kcFijo: kk.kc, etapa: 'per', zrMax: opts.zrMax || (+kcDef.zr || null), p: (+kcDef.p || null) }); prm.etapaLegacy = kk.etapa; prm.dds = null; }
       else if (conCultivo) { var dds = diasEntre(siembra, k); prm = parametrosDia(cu, kcDef, dds, theta, eto, { zrMax: opts.zrMax }); prm.dds = dds; prm.etapaLegacy = calcularKc(kcDef, k + 'T12:00:00', siembra).etapa; }
       else { prm = parametrosDia('otro', null, null, theta, eto, { zrMax: opts.zrMax || ZR_REF }); prm.dds = null; prm.etapaLegacy = kcDef ? 'Sin siembra' : 'Sin cultivo'; }
       prm.et0 = eto; prm.fuenteEt0 = fuenteEt0;
@@ -313,7 +313,7 @@
     var totalesPasado = { lluviaBruta: 0, lluviaEfectiva: 0, riegoBruto: 0, riegoEfectivo: 0, etc: 0, eta: 0, drenaje: 0, diasEstres: 0 };
     var totales = { lluviaBruta: 0, lluviaEfectiva: 0, riegoBruto: 0, riegoEfectivo: 0, etc: 0, eta: 0, drenaje: 0 };
     var fuentes = { estacion: 0, meteo: 0, pronostico: 0, sonda: 0, manual: 0 };
-    var dias = [], pasado = [], dr = null, ultimaSonda = null, drHoyInicio = 0, umbr = umbralesDe(conCultivo && !perenne ? cu : 'otro');
+    var dias = [], pasado = [], dr = null, ultimaSonda = null, drHoyInicio = 0, umbr = umbralesDe(conCultivo ? cu : 'otro');
 
     for (var i = inicio; i < claves.length && i < indiceHoy + diasFuturo; i++) {
       var k = claves[i], prm = prmDe(i), esPasado = i < indiceHoy, esHoy = i === indiceHoy;
@@ -374,6 +374,14 @@
     else if (pctHoy < criticoHoy + 20) estadoHoy = 'atencion';
     var ksHoy = drHoy > prmHoy.raw ? Math.max(0, (tawHoy - drHoy) / ((1 - prmHoy.p) * tawHoy)) : 1;
 
+    // Pasturas: temperatura media de los últimos 7 días (si el daily trae temperaturas) para avisar la parada invernal
+    var pasturaInfo = null;
+    if (kcDef && (kcDef.pastura || cu === 'pastura') && daily.temperature_2m_max && daily.temperature_2m_min) {
+      var tm = [], t0 = Math.max(0, indiceHoy - 7);
+      for (var q = t0; q < indiceHoy; q++) { var a = daily.temperature_2m_max[q], b = daily.temperature_2m_min[q]; if (a != null && b != null) tm.push((a + b) / 2); }
+      var tempBase = +kcDef.tempBase || 15;
+      pasturaInfo = { tempMedia7: tm.length ? Math.round(tm.reduce(function (s, v) { return s + v; }, 0) / tm.length * 10) / 10 : null, tempBase: tempBase, crecimiento: tm.length ? (tm.reduce(function (s, v) { return s + v; }, 0) / tm.length < tempBase ? 'minimo' : 'normal') : null };
+    }
     var sueloOut = Object.assign({}, suelo, { CC: Math.round(suelo.cc / 100 * prmHoy.zr * 1000), PMP: Math.round(pmpHoy), AAU: Math.round(tawHoy), zr: prmHoy.zr, coefLluvia: 1 });
     return {
       suelo: sueloOut, eficiencia: eficiencia, indiceHoy: indiceHoy, cultivo: cu, desdeSiembra: !!desdeSiembra, diasSimulados: indiceHoy - inicio,
@@ -381,6 +389,7 @@
       humedadHoyMM: pmpHoy + aguaHoy, aguaDisponibleHoy: aguaHoy, porcentajeHoy: pctHoy, deficitHastaCC: drHoy, tawHoy: tawHoy, rawHoy: prmHoy.raw, ksHoy: ksHoy,
       etapaHoy: { k: prmHoy.etapa, nombre: prmHoy.nombreEtapa, dds: prmHoy.dds, ky: prmHoy.ky, kc: prmHoy.kc, zr: prmHoy.zr, critica: prmHoy.etapa === 'flor' || prmHoy.etapa === 'llen' },
       sonda: ultimaSonda ? Object.assign({}, ultimaSonda, { antiguedadDias: diasEntre(ultimaSonda.fecha, claveHoy) }) : null,
+      pastura: pasturaInfo,
       fuentes: fuentes,
       recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta },
       dias: dias, pasado: pasado, totales: totales, totalesPasado: totalesPasado

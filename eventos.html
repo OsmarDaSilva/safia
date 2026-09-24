@@ -26,6 +26,7 @@
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-pasturas.js"></script>
 </head>
 <body>
 
@@ -95,6 +96,7 @@
             <option value="riego">Riegos</option>
             <option value="lluvia">Lluvias</option>
             <option value="aplicacion">Aplicaciones</option>
+            <option value="pastoreo">Pastoreos y cortes</option>
           </select>
         </div>
         <div class="filter">
@@ -186,6 +188,7 @@
             <option value="riego">Riego</option>
             <option value="lluvia">Lluvia</option>
             <option value="aplicacion">Aplicación</option>
+            <option value="pastoreo">Pastoreo / corte</option>
           </select>
         </div>
         <div class="field full"><label>Equipo</label><select id="editEquipo"></select></div>
@@ -355,6 +358,7 @@
         let badgeClase, tipoLabel, cantidad, prodSub = '';
         if (ev.tipo === 'riego') { badgeClase = 'green'; tipoLabel = 'Riego'; cantidad = `${ev.cantidad} mm`; }
         else if (ev.tipo === 'lluvia') { badgeClase = 'blue'; tipoLabel = 'Lluvia'; cantidad = `${ev.cantidad} mm`; }
+        else if (ev.tipo === 'pastoreo') { badgeClase = 'green'; tipoLabel = ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte'; cantidad = 'piquete ' + (ev.piquete || '?'); prodSub = '<div class="sub">' + [ev.cabezas ? ev.cabezas + ' cab.' : '', ev.kgMsHa ? ev.kgMsHa + ' kg MS/ha' : '', ev.alturaCm ? ev.alturaCm + ' cm' : ''].filter(Boolean).join(' · ') + '</div>'; }
         else { badgeClase = 'amber'; tipoLabel = 'Aplicación'; cantidad = `${ev.dosis || ''} ${ev.unidad || ''}`.trim() || '—'; prodSub = ev.producto ? `<div class="sub">${ev.producto}</div>` : ''; }
 
         const origenBadge = ev.cargadoPor === 'voz'
@@ -409,7 +413,10 @@
         selectEquipo.appendChild(opt);
       });
 
-      if (ev.tipo === 'aplicacion') {
+      if (ev.tipo === 'pastoreo') {
+        document.getElementById('editCamposRiegoLluvia').style.display = 'none';
+        document.getElementById('editCamposAplicacion').style.display = 'none';
+      } else if (ev.tipo === 'aplicacion') {
         document.getElementById('editCamposRiegoLluvia').style.display = 'none';
         document.getElementById('editCamposAplicacion').style.display = 'block';
         document.getElementById('editProducto').value = ev.producto || '';
@@ -630,7 +637,9 @@
       const ca = campanas.find(c => c.equipoId === equipoId && c.estado === 'Activa');
       ev.campanaId = ca ? ca.id : null;
 
-      if (ev.tipo === 'aplicacion') {
+      if (ev.tipo === 'pastoreo') {
+        // fecha, lote y observaciones se editan; el detalle del pastoreo se carga desde el Operador
+      } else if (ev.tipo === 'aplicacion') {
         const producto = document.getElementById('editProducto').value.trim();
         const dosis = parseFloat(document.getElementById('editDosis').value);
         const unidad = document.getElementById('editUnidad').value;
@@ -681,7 +690,7 @@
 
         return {
           fecha: ev.fecha,
-          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : 'Aplicación',
+          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : 'Aplicación',
           cliente: cliente ? cliente.nombre : '',
           campo: campo ? campo.nombre : '',
           equipo: equipo ? equipo.nombre : '',
