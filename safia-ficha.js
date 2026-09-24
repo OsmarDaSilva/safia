@@ -107,6 +107,7 @@
       campanas.push(camp); cIdx = 0; accion = 'creada';
     }
     if (f.observaciones) camp.observaciones = String(f.observaciones).trim();
+    if (f.manejoCompleto != null) camp.manejoCompleto = !!f.manejoCompleto;   // 'no se cargó' ≠ 'no se hizo': con la marca, el diagnóstico puede decir qué falta
     // insumos (sin duplicar: misma categoría + producto + fecha)
     (f.insumos || []).forEach(function (it, k) {
       if (!it || !(it.producto || it.categoria)) return;
@@ -131,7 +132,7 @@
       if ((camp.cultivos || []).every(function (x) { return x.rendimientoReal; })) { camp.estado = 'Cerrada'; if (!camp.fechaCierre) camp.fechaCierre = ahora; }
     }
     localStorage.setItem('campanas', JSON.stringify(campanas));
-    return { ok: true, accion: accion, campanaId: camp.id, cultivoIdx: cIdx, nombre: camp.nombre, cerrada: camp.estado === 'Cerrada', avisos: v.avisos };
+    return { ok: true, accion: accion, campanaId: camp.id, cultivoIdx: cIdx, nombre: camp.nombre, cerrada: camp.estado === 'Cerrada', avisos: v.avisos, campoId: eq.campoId, tieneMeta: !!camp.cultivos[cIdx].rendimientoObj && !camp.cultivos[cIdx].rendimientoReal };
   }
   function laboresDesde(v) {
     if (Array.isArray(v)) return v.filter(Boolean);
@@ -142,7 +143,7 @@
   // Ficha a partir de una campaña existente (para completar o corregir)
   function desdeCampana(camp, cultivoIdx) {
     var cu = (camp.cultivos || [])[cultivoIdx || 0] || {}, co = (camp.cosechas && camp.cosechas[cultivoIdx || 0]) || ((cultivoIdx || 0) === 0 ? camp.cosecha : null) || {};
-    return { campanaId: camp.id, equipoId: camp.equipoId, nombre: camp.nombre || '', cultivo: cu.cultivo || '', variedad: cu.variedad || '', finalidad: cu.finalidad || 'Granos Comercial', fechaSiembra: cu.fechaSiembra || '', fechaCosechaEstimada: cu.fechaCosecha && !cu.rendimientoReal ? cu.fechaCosecha : '', superficie: cu.superficie || '', densidad: cu.densidad || '', cultivoAnterior: cu.cultivoAnterior || '', cobertura: cu.cobertura || '', coberturaManejo: cu.coberturaManejo || '', sistemaSiembra: cu.sistemaSiembra || '', consorcio: cu.consorcio || '', labores: cu.labores || [], encaladoTnHa: cu.encaladoTnHa || '', fertilizacion: cu.fertilizacion || '', rendimientoObj: cu.rendimientoObj || '', observaciones: camp.observaciones || '',
+    return { campanaId: camp.id, campoId: (leer('equipos').find(function (e) { return String(e.id) === String(camp.equipoId); }) || {}).campoId, manejoCompleto: !!camp.manejoCompleto, equipoId: camp.equipoId, nombre: camp.nombre || '', cultivo: cu.cultivo || '', variedad: cu.variedad || '', finalidad: cu.finalidad || 'Granos Comercial', fechaSiembra: cu.fechaSiembra || '', fechaCosechaEstimada: cu.fechaCosecha && !cu.rendimientoReal ? cu.fechaCosecha : '', superficie: cu.superficie || '', densidad: cu.densidad || '', cultivoAnterior: cu.cultivoAnterior || '', cobertura: cu.cobertura || '', coberturaManejo: cu.coberturaManejo || '', sistemaSiembra: cu.sistemaSiembra || '', consorcio: cu.consorcio || '', labores: cu.labores || [], encaladoTnHa: cu.encaladoTnHa || '', fertilizacion: cu.fertilizacion || '', rendimientoObj: cu.rendimientoObj || '', observaciones: camp.observaciones || '',
       sistemaPastoreo: cu.sistemaPastoreo || '', piquetes: cu.piquetes || '', diasOcupacion: cu.diasOcupacion || '', diasDescanso: cu.diasDescanso || '',
       insumos: (camp.insumos || []).filter(function (i) { return i.cultivoIdx == null || i.cultivoIdx === (cultivoIdx || 0); }),
       cosecha: co && co.fecha ? { fecha: co.fecha, produccionKg: co.produccionKg, superficie: co.superficie, humedad: co.humedad, destino: co.destino, riegoMM: co.riegoMM, lluviaMM: co.lluviaMM, observaciones: co.observaciones } : {} };

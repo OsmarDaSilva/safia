@@ -806,6 +806,9 @@
     var sel = document.getElementById('metaCaso');
     sel.innerHTML = (mios.length || nuevas.length) ? nuevas.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.cultivo) + ' · ' + esc(c.campana) + ' · nueva (parte de ' + fmt(c.rindeKgHa, 0) + ' kg/ha de ' + esc(c.baseCampana) + ')</option>'; }).join('') + mios.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.cultivo) + ' · ' + esc(c.campana) + ' · ' + fmt(c.rindeKgHa, 0) + ' kg/ha' + (c.riego === false ? ' (secano)' : '') + '</option>'; }).join('') : '<option value="">(no hay campañas cosechadas en este lote)</option>';
     if (!document.getElementById('metaPrecios').children.length) pintarPreciosMeta();
+    // La Ficha de campaña puede pedir que la Meta abra con una campaña recién guardada
+    // (se conserva hasta que aparezca en la lista, porque el selector se llena varias veces mientras carga; vence a los 60 s)
+    try { var pedidoMeta = sessionStorage.getItem('banco_meta_caso'), tsMeta = parseInt(sessionStorage.getItem('banco_meta_caso_ts') || '0', 10); if (pedidoMeta && (Date.now() - tsMeta) > 60000) { sessionStorage.removeItem('banco_meta_caso'); pedidoMeta = null; } if (pedidoMeta && Array.prototype.some.call(sel.options, function (o) { return o.value === pedidoMeta; })) { sel.value = pedidoMeta; sessionStorage.removeItem('banco_meta_caso'); } } catch (e) {}
     alCambiarCasoMeta();
   }
   function casoMeta() { var id = document.getElementById('metaCaso').value; return metaCasos.find(function (c) { return String(c.id) === id; }) || null; }
