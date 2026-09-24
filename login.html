@@ -138,7 +138,7 @@
   </div>
 <script>
   var caja = document.getElementById('mensaje');
-  (function () { var s = document.getElementById('significado'); if (s && window.SafiaMarca) { s.textContent = SafiaMarca.frase(); s.addEventListener('click', function () { if (window.SafiaCuenta) SafiaCuenta.acerca(); }); } })();
+  (function () { var s = document.getElementById('significado'); if (s && window.SafiaMarca) { s.textContent = SafiaMarca.frase() + ' · ' + SafiaMarca.traduccion; s.addEventListener('click', function () { if (window.SafiaCuenta) SafiaCuenta.acerca(); }); } })();
   function mensaje(texto, tipo) { caja.textContent = texto; caja.className = 'msg visible ' + (tipo || 'error'); }
   function limpiar() { caja.className = 'msg'; }
   function mostrarVista(v) {
