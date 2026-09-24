@@ -94,7 +94,7 @@
     var b = $('accCrear'); b.disabled = true; b.textContent = 'Creando…'; aviso('');
     SafiaSync.accionUsuario(datos).then(function (r) {
       b.disabled = false; b.textContent = 'Crear acceso';
-      var url = location.origin === 'null' || /^file:/.test(location.href) ? 'https://safia.vercel.app/login.html' : location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
+      var url = location.origin === 'null' || /^file:/.test(location.href) ? 'https://safia-beige.vercel.app/login.html' : location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
       var texto = r.existia
         ? 'Hola ' + datos.nombre + ', ya tenés acceso a SAFIA.\nEntrá en ' + url + ' con tu ' + (interno ? 'usuario ' : 'correo ') + usuarioMostrar + ' y la misma contraseña que usás en las otras apps del grupo.' + (interno ? '' : ' Si no la recordás, tocá "Olvidé mi contraseña".')
         : 'Hola ' + datos.nombre + ', te creamos el acceso a SAFIA.\nEntrá en ' + url + '\n' + (interno ? 'Usuario: ' : 'Correo: ') + usuarioMostrar + '\nContraseña: ' + datos.password + (interno ? '\nSi la olvidás, avisá a Irrigar y te damos una nueva.' : '\nPodés cambiarla con "Olvidé mi contraseña".');
