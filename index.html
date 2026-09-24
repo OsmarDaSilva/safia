@@ -677,6 +677,26 @@
       </div>`;
     }
 
+    // ===== Lotes cosechados sin campaña siguiente: momento de planificar =====
+    function renderParaPlanificar() {
+      const campanas = leer('campanas'), equipos = leer('equipos'), campos = leer('campos'), clientes = leer('clientes');
+      const porLote = {};
+      campanas.forEach(c => { (c.cultivos || []).forEach((cu, i) => { if (!cu || !cu.fechaSiembra) return; const k = String(c.equipoId); if (!porLote[k]) porLote[k] = []; porLote[k].push({ c, cu, i }); }); });
+      const lista = [];
+      Object.keys(porLote).forEach(k => {
+        const arr = porLote[k].sort((a, b) => String(b.cu.fechaSiembra).localeCompare(String(a.cu.fechaSiembra)));
+        const ult = arr[0];
+        if (!ult.cu.rendimientoReal || ult.c.estado !== 'Cerrada') return;   // la última campaña del lote está cosechada y no hay otra después
+        if (window.SafiaPasturas && SafiaPasturas.esPastura(ult.cu.cultivo)) return;
+        const eq = equipos.find(e => String(e.id) === k); if (!eq) return;
+        const campo = campos.find(f => String(f.id) === String(eq.campoId)), cli = campo && clientes.find(x => String(x.id) === String(campo.clienteId));
+        lista.push({ eq, campo, cli, c: ult.c, cu: ult.cu, i: ult.i });
+      });
+      if (!lista.length) return '';
+      return `<div class="card" style="border-left:4px solid #178029;margin-bottom:14px;"><div class="card-header"><div class="card-titulo" style="color:#178029;">${ICONO.meta} ${lista.length} lote${lista.length > 1 ? 's' : ''} cosechado${lista.length > 1 ? 's' : ''} sin la próxima campaña planificada</div><a href="ficha.html" class="card-link">Ficha de campaña →</a></div>` +
+        lista.map(l => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px;"><div style="flex:1;"><strong>${esc(l.eq.nombre)}</strong> <span style="color:var(--gris-texto);">· ${esc(l.cli ? l.cli.nombre : '')} · ${esc(l.cu.cultivo)} ${esc(l.c.nombre || '')} · ${Number(l.cu.rendimientoReal).toLocaleString('es-PY')} kg/ha</span></div><a href="ficha.html?proxima=${l.c.id}_${l.i}" onclick="try{sessionStorage.setItem('ficha_proxima','${l.c.id}_${l.i}')}catch(e){}" style="font-size:12px;font-weight:700;color:#178029;">Planificar la próxima →</a></div>`).join('') +
+        '<div style="font-size:11px;color:var(--gris-texto);margin-top:8px;">Con el rinde real en la mano se fija la meta de la campaña que viene y el plan dice qué hacer con anticipación (calcáreo, yeso, subsolado).</div></div>';
+    }
     // ===== Campañas: en ciclo y terminadas sin cerrar =====
     function renderCampanas(ctxs) {
       const fila = (c) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
@@ -817,6 +837,7 @@
         ${renderKPIs(ctxs, lotes)}
         ${principal ? `<div class="grid-2col">${renderPrediccion7Dias(principal)}${renderClimaAhora(clima[principal.ctx.campo.id].datos, principal)}</div>` : ''}
         <div class="grid-2col-igual">${renderSensores()}${renderMetas(ctxs)}</div>
+        ${renderParaPlanificar()}
         <div class="grid-2col-igual">${renderUltimosEventos()}${renderCampanas(ctxs)}</div>
       `;
     }

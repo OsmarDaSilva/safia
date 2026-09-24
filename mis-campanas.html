@@ -1519,6 +1519,16 @@
       // guarda en la campaña: es parte de la "ficha del caso".
       traerClimaDeCampana(cosechandoCampanaId);
       mostrarToast('🌾 ¡Cosecha registrada! Campaña cerrada.');
+      // Al terminar es el momento de planificar la que viene: la Ficha de campaña arma la próxima a partir de esta
+      (function (id, idx) {
+        const camp = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => c.id === id);
+        if (!camp || camp.estado !== 'Cerrada') return;
+        let n = document.getElementById('notaProxima');
+        if (!n) { n = document.createElement('div'); n.id = 'notaProxima'; n.className = 'note ok'; n.style.cssText = 'position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:3000;max-width:640px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.25);'; document.body.appendChild(n); }
+        const cu = camp.cultivos && camp.cultivos[idx];
+        n.innerHTML = '<b>' + (cu ? cu.cultivo + ' ' : '') + (camp.nombre || '') + ' cerrada' + (cu && cu.rendimientoReal ? ' con ' + Number(cu.rendimientoReal).toLocaleString('es-PY') + ' kg/ha' : '') + '.</b> ¿Planificamos la próxima campaña de este lote (meta y qué hacer con anticipación)? ' +
+          '<a class="btn green" style="margin-left:6px;" href="ficha.html?proxima=' + id + '_' + idx + '" onclick="try{sessionStorage.setItem(\'ficha_proxima\',\'' + id + '_' + idx + '\')}catch(e){}">Planificar la próxima</a> <button type="button" class="btn" onclick="document.getElementById(\'notaProxima\').remove()">Ahora no</button>';
+      })(cosechandoCampanaId, parseInt(document.getElementById('cosechaCultivoIdx').value || '0', 10));
     }
 
     // ===== LLUVIA AUTOMÁTICA: mantenerla al día con las fechas =====

@@ -406,7 +406,11 @@
       fichaCargada = SafiaFicha.desdeCampana(leer('campanas').find(c => c.id === r.campanaId), r.cultivoIdx);
       llenarExistentes(); $('fExistente').value = r.campanaId + '_' + r.cultivoIdx;
       pintarMetaFicha(); actualizarBotonProxima();
-      if (r.cerrada) $('estadoGuardado').innerHTML += ' <a href="#" onclick="planificarProxima(); return false;"><b>Planificar la próxima campaña de este lote</b></a>';
+      if (r.cerrada) {
+        const real = fichaCargada.cosecha && fichaCargada.cosecha.produccionKg && fichaCargada.cosecha.superficie ? Math.round(fichaCargada.cosecha.produccionKg / fichaCargada.cosecha.superficie) : null;
+        $('estadoGuardado').innerHTML += '<div class="note ok" style="margin-top:10px;"><b>Campaña cerrada' + (real ? ' con ' + real.toLocaleString('es-PY') + ' kg/ha' : '') + '.</b> Es el momento de planificar la que viene en este lote: qué meta y qué hacer con anticipación. <button type="button" class="btn green" style="margin-left:8px;" onclick="planificarProxima()">Planificar la próxima campaña</button></div>';
+        $('estadoGuardado').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
     // Abre el Banco en este campo (y, si se pide, en la pestaña Meta con la campaña recién guardada)
     function abrirBanco(campoId, campanaId, cultivoIdx) {
@@ -538,6 +542,17 @@
     ['fCosechaKg', 'fCosechaSup', 'fSuperficie'].forEach(id => $(id).addEventListener('input', calcRinde));
     window.addEventListener('safia:usuario', llenarClientes);
     alCambiarCultivo();
+    (function () {
+      let pedido = null; try { pedido = new URLSearchParams(location.search).get('proxima') || sessionStorage.getItem('ficha_proxima'); sessionStorage.removeItem('ficha_proxima'); } catch (e) {}
+      if (!pedido) return;
+      const [id, idx] = String(pedido).split('_');
+      const camp = leer('campanas').find(c => String(c.id) === id); if (!camp) return;
+      const eq = leer('equipos').find(e => String(e.id) === String(camp.equipoId)), campo = eq && leer('campos').find(c => String(c.id) === String(eq.campoId));
+      if (!campo) return;
+      $('fCliente').value = String(campo.clienteId); llenarCampos(); $('fCampo').value = String(campo.id); llenarLotes(); $('fLote').value = String(eq.id); llenarExistentes();
+      $('fExistente').value = id + '_' + (idx || 0); cargarExistente();
+      if (fichaCargada) planificarProxima();
+    })();
   </script>
   <script>
     /* SAFIA · control del menú móvil (theme) */

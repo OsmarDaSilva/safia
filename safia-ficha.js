@@ -64,7 +64,7 @@
       if (!fc) errores.push('La cosecha no tiene fecha válida.');
       else if (fs && fc < fs) errores.push('La cosecha (' + fc + ') es anterior a la siembra (' + fs + ').');
       if (!(num(f.cosecha.produccionKg) > 0)) errores.push('La cosecha no tiene producción total en kg.');
-      if (!(num(f.cosecha.superficie) > 0 || num(f.superficie) > 0)) errores.push('La cosecha necesita la superficie cosechada (ha).');
+      if (!(num(f.cosecha.superficie) > 0 || num(f.superficie) > 0 || (eq && num(eq.superficie) > 0))) errores.push('La cosecha necesita la superficie cosechada (ha).');
     }
     if (fs && fs > hoy() && !pastura) avisos.push('La siembra está en el futuro: queda como campaña planificada.');
     if (!f.superficie && eq && eq.superficie) avisos.push('Sin superficie: se usa la del lote (' + eq.superficie + ' ha).');
@@ -123,7 +123,7 @@
     // cosecha (solo cultivos con cosecha; las pasturas no)
     var co = f.cosecha;
     if (!pastura && co && fechaISO(co.fecha) && num(co.produccionKg) > 0) {
-      var sup = num(co.superficie) || num(camp.cultivos[cIdx].superficie) || 0, prod = num(co.produccionKg);
+      var sup = num(co.superficie) || num(camp.cultivos[cIdx].superficie) || (eq && num(eq.superficie)) || 0, prod = num(co.produccionKg);
       var cosecha = { fecha: fechaISO(co.fecha), superficie: sup, produccionKg: prod, humedad: num(co.humedad) || 14, rendimientoNeto: sup > 0 ? Math.round(prod / sup) : 0, destino: porNombreOClave(DESTINOS, co.destino) || 'cooperativa', observaciones: String(co.observaciones || '').trim(),
         riegoMM: num(co.riegoMM), lluviaMM: num(co.lluviaMM), lluviaAuto: false, fechaRegistro: ahora };
       camp.cosechas = camp.cosechas || {}; camp.cosechas[cIdx] = cosecha;
