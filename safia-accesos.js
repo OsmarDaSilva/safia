@@ -32,7 +32,7 @@
       '<div id="accIntro" class="note info" style="display:none;"></div>' +
       '<div class="form-grid">' +
       '<div class="field full"><label>Nombre y apellido</label><input type="text" id="accNombre" placeholder="Ej: Anderson Pereira"></div>' +
-      '<div class="field"><label>Correo (con este entra)</label><input type="email" id="accEmail" placeholder="correo@ejemplo.com"></div>' +
+      '<div class="field"><label>Correo o nombre de usuario (con esto entra)</label><input type="text" id="accEmail" placeholder="correo@ejemplo.com o, si no tiene correo, un usuario: anderson" autocomplete="off"><div class="muted" id="accEmailAyuda" style="font-size:11px;margin-top:4px;"></div></div>' +
       '<div class="field"><label>WhatsApp</label><input type="tel" id="accTelefono" placeholder="+595 981 234567"></div>' +
       '<div class="field"><label>Rol</label><select id="accRol"><option value="cliente">Cliente (productor)</option><option value="operador">Operador (encargado de campo)</option><option value="admin">Administrador (Irrigar)</option></select></div>' +
       '<div class="field"><label>Cliente al que pertenece</label><select id="accCliente"></select></div>' +
@@ -49,10 +49,18 @@
       '</div></div>';
     document.body.appendChild(d);
     $('accGenerar').addEventListener('click', function () { $('accPass').value = generarClave(); });
+    $('accEmail').addEventListener('input', ayudaUsuario);
     $('accCancelar').addEventListener('click', cerrar);
     $('accCerrar').addEventListener('click', function () { cerrar(); if (estado.onDone) estado.onDone(estado.resultado); });
     $('accCrear').addEventListener('click', crear);
     $('accCopiar').addEventListener('click', function () { var t = $('accCred').dataset.texto || ''; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { aviso2('Copiado'); }, function () { aviso2('No se pudo copiar: seleccioná el texto'); }); });
+  }
+  function ayudaUsuario() {
+    var v = $('accEmail').value.trim(), a = $('accEmailAyuda'); if (!a) return;
+    if (!v) { a.textContent = ''; return; }
+    if (v.indexOf('@') !== -1) { a.textContent = 'Entra con este correo. Puede recuperar la contraseña con "Olvidé mi contraseña".'; return; }
+    var u = window.SafiaUsuario ? SafiaUsuario.aUsuario(SafiaUsuario.aCorreo(v)) : v;
+    a.textContent = 'Sin correo: entra escribiendo el usuario "' + u + '" y su contraseña. Si la olvida, se la cambiás vos desde Usuarios.';
   }
   function aviso2(t) { var el = document.getElementById('toast'); if (el) { el.textContent = t; el.className = 'toast visible ok'; setTimeout(function () { el.className = 'toast'; }, 3000); } }
   var estado = { onDone: null, resultado: null };
@@ -66,6 +74,7 @@
     $('accTitulo').textContent = opts.titulo || ('Crear acceso a SAFIA' + (pre.nombre ? ' para ' + pre.nombre : ''));
     var intro = $('accIntro'); if (opts.intro) { intro.textContent = opts.intro; intro.style.display = ''; } else intro.style.display = 'none';
     $('accNombre').value = pre.nombre || ''; $('accEmail').value = pre.email || ''; $('accTelefono').value = pre.telefono || '';
+    ayudaUsuario();
     $('accRol').value = pre.rol || 'cliente'; $('accCliente').innerHTML = opcionesClientes(pre.clienteId || ''); $('accPass').value = generarClave();
     if (!window.SafiaSync || !SafiaSync.esAdmin || !SafiaSync.esAdmin()) aviso('Solo un administrador de SAFIA puede crear accesos.', true);
     $('modalAcceso').classList.add('visible');
@@ -73,9 +82,11 @@
   }
 
   function crear() {
-    var datos = { accion: 'crear', nombre: $('accNombre').value.trim(), email: $('accEmail').value.trim().toLowerCase(), telefono: $('accTelefono').value.trim(), rol: $('accRol').value, clienteId: $('accCliente').value || null, password: $('accPass').value.trim() };
+    var escrito = $('accEmail').value.trim(), interno = escrito.indexOf('@') === -1;
+    var datos = { accion: 'crear', nombre: $('accNombre').value.trim(), email: window.SafiaUsuario ? SafiaUsuario.aCorreo(escrito) : escrito.toLowerCase(), telefono: $('accTelefono').value.trim(), rol: $('accRol').value, clienteId: $('accCliente').value || null, password: $('accPass').value.trim() };
     if (!datos.nombre) { aviso('Poné el nombre.', true); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { aviso('El correo no es válido.', true); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { aviso(interno ? 'Poné un correo o un nombre de usuario (letras y números).' : 'El correo no es válido.', true); return; }
+    var usuarioMostrar = interno ? SafiaUsuario.aUsuario(datos.email) : datos.email;
     if (datos.password.length < 6) { aviso('La contraseña tiene que tener al menos 6 caracteres.', true); return; }
     if (!window.SafiaSync || !SafiaSync.accionUsuario) { aviso('Sin conexión con la nube.', true); return; }
     var b = $('accCrear'); b.disabled = true; b.textContent = 'Creando…'; aviso('');
@@ -83,10 +94,10 @@
       b.disabled = false; b.textContent = 'Crear acceso';
       var url = location.origin === 'null' || /^file:/.test(location.href) ? 'https://safia.vercel.app/login.html' : location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
       var texto = r.existia
-        ? 'Hola ' + datos.nombre + ', ya tenés acceso a SAFIA.\nEntrá en ' + url + ' con tu correo ' + datos.email + ' y la misma contraseña que usás en las otras apps del grupo. Si no la recordás, tocá "Olvidé mi contraseña".'
-        : 'Hola ' + datos.nombre + ', te creamos el acceso a SAFIA.\nEntrá en ' + url + '\nCorreo: ' + datos.email + '\nContraseña: ' + datos.password + '\nPodés cambiarla con "Olvidé mi contraseña".';
+        ? 'Hola ' + datos.nombre + ', ya tenés acceso a SAFIA.\nEntrá en ' + url + ' con tu ' + (interno ? 'usuario ' : 'correo ') + usuarioMostrar + ' y la misma contraseña que usás en las otras apps del grupo.' + (interno ? '' : ' Si no la recordás, tocá "Olvidé mi contraseña".')
+        : 'Hola ' + datos.nombre + ', te creamos el acceso a SAFIA.\nEntrá en ' + url + '\n' + (interno ? 'Usuario: ' : 'Correo: ') + usuarioMostrar + '\nContraseña: ' + datos.password + (interno ? '\nSi la olvidás, avisá a Irrigar y te damos una nueva.' : '\nPodés cambiarla con "Olvidé mi contraseña".');
       $('accCred').innerHTML = (r.existia ? 'Ese correo ya tenía cuenta en el grupo: quedó <b>activo en SAFIA</b> con su contraseña de siempre.<br>' : 'Contraseña temporal: <b style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;">' + esc(datos.password) + '</b><br>') +
-        'Correo: <b>' + esc(datos.email) + '</b><br>Rol: ' + ROL[datos.rol] + (datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : '');
+        (interno ? 'Usuario: <b>' : 'Correo: <b>') + esc(usuarioMostrar) + '</b><br>Rol: ' + ROL[datos.rol] + (datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : '');
       $('accCred').dataset.texto = texto;
       var tel = datos.telefono.replace(/[^0-9]/g, ''); if (tel.indexOf('0') === 0) tel = '595' + tel.slice(1); else if (tel && tel.indexOf('595') !== 0) tel = '595' + tel;
       $('accWhatsApp').href = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);

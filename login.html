@@ -82,8 +82,8 @@
     <div class="vista activa" id="vistaEntrar">
       <p class="sub">Ingresá con tu usuario para ver los datos de riego.</p>
       <form id="formLogin">
-        <label for="correo">Correo</label>
-        <input type="email" id="correo" autocomplete="username" required>
+        <label for="correo">Correo o usuario</label>
+        <input type="text" id="correo" autocomplete="username" required placeholder="correo@ejemplo.com o tu usuario">
         <label for="contrasena">Contraseña</label>
         <input type="password" id="contrasena" autocomplete="current-password" required>
         <div class="fila"><span></span><a class="link" onclick="mostrarVista('olvide')">Olvidé mi contraseña</a></div>
@@ -113,7 +113,7 @@
 
     <!-- OLVIDÉ MI CONTRASEÑA -->
     <div class="vista" id="vistaOlvide">
-      <p class="sub">Te mandamos un correo con un enlace para elegir una contraseña nueva.</p>
+      <p class="sub">Te mandamos un correo con un enlace para elegir una contraseña nueva. Si entrás con un usuario sin correo, pedile la contraseña nueva a Irrigar.</p>
       <form id="formOlvide">
         <label for="oCorreo">Correo</label>
         <input type="email" id="oCorreo" autocomplete="username" required>
@@ -158,7 +158,9 @@
     ev.preventDefault(); limpiar();
     if (!sb()) { mensaje('No hay conexión a internet. Revisá la conexión y volvé a intentar.'); return; }
     var b = document.getElementById('botonEntrar'); ocupado(b, 'Entrando', true);
-    sb().auth.signInWithPassword({ email: document.getElementById('correo').value.trim(), password: document.getElementById('contrasena').value }).then(function (r) {
+    var escrito = document.getElementById('correo').value.trim();
+    var correoEntrar = window.SafiaUsuario ? SafiaUsuario.aCorreo(escrito) : escrito;
+    sb().auth.signInWithPassword({ email: correoEntrar, password: document.getElementById('contrasena').value }).then(function (r) {
       if (r.error) {
         var m = (r.error.message || '').toLowerCase();
         if (m.indexOf('invalid') !== -1) mensaje('Correo o contraseña incorrectos.');

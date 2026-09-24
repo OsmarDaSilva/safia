@@ -19,6 +19,19 @@
   var SUPABASE_URL = 'https://btwxhsaarfopyjhmydlw.supabase.co';
   var SUPABASE_KEY = 'sb_publishable_yu9-JQM8-_dr9vIHAdDCuA_NVR2qkrZ';
 
+  // Clientes sin correo: entran con un nombre de usuario; por dentro es usuario@safia.irrigar.com.py (no es una casilla real)
+  var DOMINIO_USUARIO = 'safia.irrigar.com.py';
+  function usuarioACorreo(texto) {
+    var t = String(texto || '').trim().toLowerCase();
+    if (!t) return '';
+    if (t.indexOf('@') !== -1) return t;
+    t = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9._-]+/g, '.').replace(/^\.+|\.+$/g, '');
+    return t ? t + '@' + DOMINIO_USUARIO : '';
+  }
+  function correoAUsuario(email) { var e = String(email || ''); return e.toLowerCase().endsWith('@' + DOMINIO_USUARIO) ? e.slice(0, e.length - DOMINIO_USUARIO.length - 1) : e; }
+  function esUsuarioInterno(email) { return String(email || '').toLowerCase().endsWith('@' + DOMINIO_USUARIO); }
+  window.SafiaUsuario = { DOMINIO: DOMINIO_USUARIO, aCorreo: usuarioACorreo, aUsuario: correoAUsuario, esInterno: esUsuarioInterno };
+
   // clave de localStorage -> tabla en Supabase
   var TABLAS = {
     clientes:        'safia_clientes',
@@ -260,10 +273,10 @@
   // cualquier pantalla salude por el nombre y, más adelante, filtre por rol.
   var usuarioActual = null;
   try { usuarioActual = JSON.parse(setGet('safia_usuario') || 'null'); } catch (e) { usuarioActual = null; }
-  function nombreDesdeCorreo(email) { var n = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim(); return n ? n.charAt(0).toUpperCase() + n.slice(1) : ''; }
+  function nombreDesdeCorreo(email) { var n = correoAUsuario(email).split('@')[0].replace(/[._-]+/g, ' ').trim(); return n ? n.charAt(0).toUpperCase() + n.slice(1) : ''; }
   function publicarUsuario(u) {
     usuarioActual = u; setOriginal('safia_usuario', JSON.stringify(u));
-    var span = document.getElementById('safiaSyncNombre'); if (span) span.textContent = (u.nombre || '') + (u.email ? ' · ' + u.email : '');
+    var span = document.getElementById('safiaSyncNombre'); if (span) span.textContent = (u.nombre || '') + (u.email ? ' · ' + correoAUsuario(u.email) : '');
     try { window.dispatchEvent(new CustomEvent('safia:usuario', { detail: u })); } catch (e) {}
   }
   // Pantalla de espera: la cuenta existe pero Irrigar todavía no la aprobó (o la dio de baja)

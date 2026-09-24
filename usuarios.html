@@ -136,7 +136,7 @@
       if (pend.length) {
         h += `<div class="card" style="border-left:4px solid var(--amber);margin-bottom:14px;"><div class="card-h"><h3>Solicitudes de acceso pendientes (${pend.length})</h3><span class="muted">elegí rol y cliente, y aprobá</span></div>` +
           pend.map(u => `<div class="fila-usr pend" data-id="${esc(u.id)}">
-            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(u.email || '')}${u.telefono ? ' · ' + esc(u.telefono) : ''} · pidió el ${fmtF(u.creado_en)}</div>${u.solicitud ? '<div style="font-size:12px;margin-top:4px;">“' + esc(u.solicitud) + '”</div>' : ''}</div>
+            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''} · pidió el ${fmtF(u.creado_en)}</div>${u.solicitud ? '<div style="font-size:12px;margin-top:4px;">“' + esc(u.solicitud) + '”</div>' : ''}</div>
             <div></div>
             <div><select class="f-rol"><option value="cliente">Cliente</option><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
             <div><select class="f-cliente">${opcionesClientes('')}</select></div>
@@ -147,7 +147,7 @@
         (resto.length ? resto.map(u => {
           const esYo = yo && yo.id === u.id;
           return `<div class="fila-usr" data-id="${esc(u.id)}">
-            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(u.email || '')}${u.telefono ? ' · ' + esc(u.telefono) : ''}${esYo ? ' · <b>vos</b>' : ''}</div></div>
+            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''}${esYo ? ' · <b>vos</b>' : ''}</div></div>
             <div><span class="badge ${u.estado === 'activo' ? 'green' : 'red'}">${u.estado === 'activo' ? 'Activo' : 'De baja'}</span>${u.aprobado_en ? '<div class="correo">desde ' + fmtF(u.aprobado_en) + '</div>' : ''}</div>
             <div><select class="f-rol" ${esYo ? 'disabled' : ''}><option value="cliente"${u.rol === 'cliente' ? ' selected' : ''}>Cliente</option><option value="operador"${u.rol === 'operador' ? ' selected' : ''}>Operador</option><option value="admin"${u.rol === 'admin' ? ' selected' : ''}>Administrador</option></select></div>
             <div><select class="f-cliente">${opcionesClientes(u.cliente_id)}</select></div>
@@ -172,7 +172,7 @@
       if (acc === 'baja') confirmar('Dar de baja', `<b>${esc(d.nombre || u.email)}</b> no va a poder entrar más a SAFIA${u.email ? ' (' + esc(u.email) + ')' : ''}. Si usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas apps.`, () => correr(SafiaSync.accionUsuario({ accion: 'baja', id: d.id }), 'Usuario dado de baja'));
       if (acc === 'reactivar') correr(SafiaSync.accionUsuario({ accion: 'reactivar', id: d.id }), 'Usuario reactivado');
       if (acc === 'quitar') confirmar('Quitar de SAFIA', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista. No borra la cuenta.`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Usuario quitado'));
-      if (acc === 'clave') { $('modalClave').dataset.id = d.id; $('claveSub').textContent = (d.nombre || u.email) + ' · ' + (u.email || ''); $('cPass').value = generarClave(); $('modalClave').classList.add('visible'); }
+      if (acc === 'clave') { $('modalClave').dataset.id = d.id; $('claveSub').textContent = (d.nombre || u.email) + ' · ' + (window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || '')); $('cPass').value = generarClave(); $('modalClave').classList.add('visible'); }
     });
     $('btnGenerar2').addEventListener('click', () => { $('cPass').value = generarClave(); });
     $('btnCerrarClave').addEventListener('click', () => $('modalClave').classList.remove('visible'));
