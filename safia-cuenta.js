@@ -63,6 +63,7 @@
     }
     h += '<a href="#" id="safiaCuentaClave" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;">Cambiar mi contraseña</a>';
     if (alto) h += '<a href="usuarios.html" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Usuarios y accesos</a>';
+    if (usuario.rol === 'propietario') h += '<a href="backup.html" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Copia de seguridad (.json)</a>';
     h += '<a href="#" id="safiaCuentaSalir" style="display:block;padding:9px 12px;color:#C0392B;text-decoration:none;font-size:13px;font-weight:700;border-top:1px solid #f0f2f4;">Salir</a>';
     m.innerHTML = h; m.style.display = 'block';
     var sel = $('safiaVerComoSel'); if (sel) sel.addEventListener('change', function () { if (sel.value) verComo(sel.value); else salirVerComo(); });
