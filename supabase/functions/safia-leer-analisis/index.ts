@@ -1,8 +1,9 @@
-// SAFIA · Edge Function: safia-leer-analisis (v6)
+// SAFIA · Edge Function: safia-leer-analisis (v7)
 // Lee una foto o PDF de un análisis de SUELO o de un análisis FOLIAR (tejido vegetal), de CUALQUIER
 // laboratorio, y devuelve los valores normalizados (mismos nombres y unidades) en JSON, una entrada por muestra.
 // v4: varias muestras + parseo robusto + registro de fallas. v5: sinónimos y unidades por laboratorio.
 // v6: modo `tipo: 'foliar'` (hoja) y Cu/Mn como campos propios en el suelo.
+// v7: H+Al, índice SMP y extractor de P como campos propios (manual RS/SC: SMP para el calcáreo, chequeo SB/CTC/V%).
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,9 @@ const ESQUEMA = `{
   "magnesio": "magnesio Mg intercambiable en cmolc/dm³ como número, o null",
   "cic": "CIC a pH 7 (T, CTC total) en cmolc/dm³ como número, o null",
   "saturacion_bases": "saturación de bases V% como número, o null",
+  "h_al": "acidez potencial H+Al en cmolc/dm³ como número, o null",
+  "ph_smp": "índice SMP (pH SMP) como número, o null",
+  "extractor_p": "método de extracción del fósforo tal cual figura (ej 'Mehlich-1', 'Bray-1', 'resina', 'Olsen'), o null",
   "arena": "arena en % como número, o null",
   "limo": "limo en % como número, o null",
   "arcilla": "arcilla en % como número, o null",
@@ -50,6 +54,7 @@ CÓMO RECONOCER CADA DATO (sinónimos habituales):
 - magnesio: "Mg", "Mg2+", "Mg trocável", "Magnésio". Si viene en mg/dm³, cmolc = mg / 121,5. Si viene en mmolc/dm³, dividí por 10.
 - cic: "CIC", "CTC", "CTC pH 7,0", "CTC (T)", "T", "Capacidad de intercambio catiónico", "CTC total". NO uses la "CTC efetiva" (t) si hay ambas; anotala en observaciones. En mmolc/dm³, dividí por 10.
 - saturacion_bases: "V", "V%", "Sat. de bases", "Saturação por bases", "Sat. bases". Si no figura pero hay S (suma de bases) y CIC, calculala: V% = S / CIC × 100 y anotá "V% calculada".
+- h_al: "H+Al", "H + Al", "Acidez potencial", "Hidrógeno + Aluminio", "Al + H" en cmolc/dm³ (mmolc: dividí por 10). ph_smp: "pH SMP", "índice SMP", "SMP". extractor_p: el método del fósforo que declare el informe (pie de página "Extractores: Mehlich 1: P..." o el encabezado de la columna).
 - aluminio: "Al", "Al3+", "Al trocável", "Alumínio". saturacion_aluminio: "m", "m%", "Sat. Al", "Saturação por alumínio".
 - azufre: "S", "S-SO4", "SO4", "Enxofre", "Azufre" en mg/dm³. boro: "B". zinc: "Zn". cobre: "Cu". manganeso: "Mn". Fe va a observaciones.
 - arcilla / limo / arena: "Argila", "Silte", "Areia"; en g/kg dividí por 10 para llevar a %.

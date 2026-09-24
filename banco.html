@@ -61,6 +61,7 @@
 <script src="safia-casos.js"></script>
 <script src="safia-insumos.js"></script>
 <script src="safia-catalogo.js"></script>
+<script src="safia-fertilidad.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-lotes.js"></script>
 <script src="safia-mapas.js"></script>
@@ -292,6 +293,8 @@
               <div class="field"><label>Magnesio Mg (cmolc/dm³)</label><input type="number" id="aMg" step="0.01" min="0"></div>
               <div class="field"><label>CIC (cmolc/dm³)</label><input type="number" id="aCic" step="0.01" min="0"></div>
               <div class="field"><label>Saturación de bases (%)</label><input type="number" id="aSat" step="0.1" min="0" max="100"></div>
+              <div class="field"><label>H+Al (cmolc/dm³) <span class="hint">acidez potencial</span></label><input type="number" id="aHal" step="0.01" min="0"></div>
+              <div class="field"><label>pH SMP <span class="hint">índice del laboratorio, para el calcáreo</span></label><input type="number" id="aSmp" step="0.1" min="3" max="8"></div>
               <div class="field"><label>Arena (%)</label><input type="number" id="aArena" step="0.1" min="0" max="100"></div>
               <div class="field"><label>Limo (%)</label><input type="number" id="aLimo" step="0.1" min="0" max="100"></div>
               <div class="field"><label>Arcilla (%)</label><input type="number" id="aArcilla" step="0.1" min="0" max="100"></div>
@@ -1207,6 +1210,8 @@
     { k: 'mg',      n: 'Magnesio Mg',        dec: 2 },
     { k: 'cic',     n: 'CIC',                dec: 2 },
     { k: 'satBases',n: 'Sat. de bases %',    dec: 1 },
+    { k: 'hAl',     n: 'H+Al',               dec: 2 },
+    { k: 'phSmp',   n: 'pH SMP',             dec: 1 },
     { k: 'arena',   n: 'Arena %',            dec: 1 },
     { k: 'limo',    n: 'Limo %',             dec: 1 },
     { k: 'arcilla', n: 'Arcilla %',          dec: 1 }
@@ -1221,7 +1226,7 @@
     var rep = lista.filter(function (a) { return !a.enPromedio; });
     return rep.length ? rep : lista;
   }
-  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso'];
+  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'hAl', 'phSmp', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso'];
   // Promedio aritmético de cada valor (solo los que están cargados). Es lo que usan los laboratorios al informar la "media" de una gleba.
   function promediarAnalisis(items) {
     var out = {};
@@ -1394,7 +1399,7 @@
     editandoAnalisisId = null; extrasIA = null;
     document.getElementById('tituloFormAnalisis').textContent = 'Nuevo análisis de suelo';
     document.getElementById('aArchivoActual').textContent = '';
-    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aArena','aLimo','aArcilla','aObs','aArchivo'].forEach(function (i) {
+    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aHal','aSmp','aArena','aLimo','aArcilla','aObs','aArchivo'].forEach(function (i) {
       document.getElementById(i).value = '';
     });
   }
@@ -1411,7 +1416,7 @@
     document.getElementById('aProf').value = a.profundidad || '';
     llenarLotesAnalisis();
     document.getElementById('aEquipo').value = a.equipoId ? String(a.equipoId) : '';
-    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','arena|aArena','limo|aLimo','arcilla|aArcilla'].forEach(function (par) {
+    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','hAl|aHal','phSmp|aSmp','arena|aArena','limo|aLimo','arcilla|aArcilla'].forEach(function (par) {
       var pp = par.split('|');
       document.getElementById(pp[1]).value = a[pp[0]] != null ? a[pp[0]] : '';
     });
@@ -1519,14 +1524,15 @@
   }
 
   // Datos que la IA lee pero el formulario no tiene casillero: se guardan igual en el análisis y en Observaciones.
-  var EXTRAS_IA = [['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³']];
+  var EXTRAS_IA = [['h_al', 'hAl', 'H+Al', 'cmolc/dm³'], ['ph_smp', 'phSmp', 'pH SMP', ''], ['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³']];
   var extrasIA = null;
   function extrasDeMuestra(m) {
     var o = {}, hay = false;
     EXTRAS_IA.forEach(function (e) { var v = num(m[e[0]]); if (v !== null) { o[e[1]] = v; hay = true; } });
     if (m.muestra) o.muestra = String(m.muestra);
     if (m.laboratorio) o.laboratorio = String(m.laboratorio);
-    return hay || o.muestra || o.laboratorio ? o : null;
+    if (m.extractor_p) o.extractorP = String(m.extractor_p);
+    return hay || o.muestra || o.laboratorio || o.extractorP ? o : null;
   }
   function obsDeMuestra(m, i) {
     var extras = EXTRAS_IA.map(function (e) { var v = num(m[e[0]]); return v === null ? '' : e[2] + ' ' + v + ' ' + e[3]; }).filter(Boolean).join(', ');
@@ -1554,7 +1560,7 @@
     pre.then(function (ruta) {
       var lista = leer('analisis_suelo');
       var fechaForm = document.getElementById('aFecha').value;
-      var base = Date.now(), creados = 0, conLote = 0;
+      var base = Date.now(), creados = 0, conLote = 0, inconsistentes = 0;
       muestras.forEach(function (m, i) {
         var fecha = m.fecha || fechaForm;
         if (!fecha) return;
@@ -1567,9 +1573,11 @@
           observaciones: obsDeMuestra(m, i), archivoRuta: ruta || null, archivoNombre: archivo ? archivo.name : null, fechaCreacion: new Date().toISOString()
         };
         var ex = extrasDeMuestra(m); if (ex) Object.assign(item, ex);
+        if (window.SafiaFertilidad) { var chkM = SafiaFertilidad.consistencia(item); if (!chkM.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkM.avisos.join('; '); inconsistentes = (inconsistentes || 0) + 1; } if (item.extractorP && !/mehlich/i.test(item.extractorP)) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Extractor de P "' + item.extractorP + '": las clases del manual valen para Mehlich-1'; } }
         lista.push(item); creados++;
       });
       guardar('analisis_suelo', lista);
+      if (inconsistentes) toast('Ojo: ' + inconsistentes + ' muestra(s) no cierran (suma de bases, CIC o V%): quedó anotado en observaciones', true);
       var chk = document.getElementById('chkMismaParcela');
       if (chk && chk.checked && creados >= 2) {
         var idsNuevos = lista.slice(-creados).map(function (a) { return a.id; });
@@ -1641,11 +1649,14 @@
       item.mg = num(document.getElementById('aMg').value);
       item.cic = num(document.getElementById('aCic').value);
       item.satBases = num(document.getElementById('aSat').value);
+      item.hAl = num(document.getElementById('aHal').value);
+      item.phSmp = num(document.getElementById('aSmp').value);
       item.arena = num(document.getElementById('aArena').value);
       item.limo = num(document.getElementById('aLimo').value);
       item.arcilla = num(document.getElementById('aArcilla').value);
       item.observaciones = document.getElementById('aObs').value.trim();
       if (extrasIA) { Object.assign(item, extrasIA); item.origen = 'ia'; extrasIA = null; }
+      if (window.SafiaFertilidad) { var chkA = SafiaFertilidad.consistencia(item); if (!chkA.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkA.avisos.join('; '); toast('Ojo: el análisis no cierra (' + chkA.avisos[0] + '). Revisá los valores.', true); } }
       if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
       if (!editandoAnalisisId) lista.push(item);
       guardar('analisis_suelo', lista);

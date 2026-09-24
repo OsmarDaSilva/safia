@@ -149,29 +149,27 @@
       o.alcance = o.alcance || (o.tipo === 'suelo' ? 'lote' : 'cultivo');           // 'lote' beneficia a todos los cultivos del lote
       o.aporteMin = o.aporteMin || 0; o.aporteMax = o.aporteMax || 0; items.push(o);
     }
-    var T = window.SafiaAgro ? SafiaAgro.TABLAS : null;
+    var T = window.SafiaAgro ? SafiaAgro.TABLAS : null, F = window.SafiaFertilidad || null;   // tablas RS/SC 2016
     var AR = window.SafiaAgro && SafiaAgro.ALTO_RINDE ? SafiaAgro.ALTO_RINDE : null;
     var metaAlta = AR && ((cu === 'soja' && meta >= 5500) || (cu === 'maiz' && meta >= 10000) || (cu !== 'soja' && cu !== 'maiz' && metaT >= 4));   // el suelo objetivo pasa a ser el de los campeones [14]
 
-    /* 1. Encalado (V%) */
+    /* 1. Encalado: manual RS/SC (SMP si lo hay; si no, V 75 % para pH 6,0). Los que rinden la meta o el suelo de campeones pueden pedir más V% */
     var v = num(s.satBases), cic = num(s.cic), ph = num(s.ph);
+    var cal = F ? F.calcario(s, { sistema: 'directa' }) : null;
+    var vObj = cal && cal.dosisV ? cal.dosisV.vObjetivo : 75;
+    var vExtra = Math.max(bm && bm.suelo.satBases ? Math.min(80, Math.round(bm.suelo.satBases)) : 0, metaAlta ? AR.v : 0);   // referencia de los que ya rinden la meta
     if (opciones.calcareoTnHa > 0) {
-      var ncCalc = (v != null && cic != null) ? Math.max(0, (Math.max(perfil.v, bm && bm.suelo.satBases ? Math.min(75, Math.round(bm.suelo.satBases)) : 0) - v) * cic / 100) : null;
-      item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado (dosis definida por el usuario)', hoy: v != null ? 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : '') : 'sin V% en el análisis', objetivo: ncCalc != null ? 'la dosis calculada por V% era ' + fmt(ncCalc, 1) + ' t/ha' : 'según criterio del agrónomo',
-        accion: fmt(opciones.calcareoTnHa, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < 1.0) ? 'dolomítico' : 'calcítico o dolomítico') + ', al voleo sobre el rastrojo apenas cosechado el cultivo anterior, con una pasada de escarificador/subsolador para que penetre; sin arar',
+      item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado (dosis definida por el usuario)', hoy: v != null ? 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : '') : 'sin V% en el análisis', objetivo: cal && cal.completa != null ? 'la dosis del manual era ' + fmt(cal.completa, 1) + ' t/ha (' + cal.metodo + ')' : 'según criterio del agrónomo',
+        accion: fmt(opciones.calcareoTnHa, 1) + ' t/ha de calcáreo ' + (cal ? cal.tipo : 'calcítico o dolomítico') + ', al voleo sobre el rastrojo apenas cosechado el cultivo anterior, con una pasada de escarificador/subsolador para que penetre; sin arar',
         inversion: opciones.calcareoTnHa * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: v != null && v < 50 ? 0.10 : (v != null && v < 60 ? 0.05 : 0.02), aporteMax: v != null && v < 50 ? 0.20 : (v != null && v < 60 ? 0.12 : 0.06), fuente: '[2][7] dosis del usuario' });
-    } else if (v != null && cic != null) {
-      var vObj = Math.max(perfil.v, bm && bm.suelo.satBases ? Math.min(75, Math.round(bm.suelo.satBases)) : 0, metaAlta ? AR.v : 0);
-      var nc = (vObj - v) * cic / 100;
-      if (nc > 0.3) {
-        var ap = v < 50 ? [0.10, 0.20] : (v < 60 ? [0.05, 0.12] : [0.02, 0.06]);
-        item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : ''), objetivo: 'V% ' + vObj + (bm && bm.suelo.satBases ? ' (los que rinden ≥ meta: ' + fmt(bm.suelo.satBases, 0) + ')' : ''),
-          accion: fmt(nc, 1) + ' t/ha de calcáreo ' + ((num(s.mg) != null && num(s.mg) < (metaAlta ? AR.mg : 1.0)) ? 'dolomítico (falta Mg)' : 'calcítico o dolomítico') + ' (PRNT 100 %), al voleo sobre el rastrojo apenas cosechado el cultivo anterior, con una pasada de escarificador/subsolador para que penetre; sin arar. Efecto pleno en 6–12 meses' + (num(s.satAluminio) != null && num(s.satAluminio) > 5 ? '. Neutraliza el aluminio (saturación ' + fmt(num(s.satAluminio), 1) + ' %)' : ''),
-          inversion: nc * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
-      } else if (opciones.preparacionCompleta) {
-        item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado de mantenimiento', hoy: 'V% ' + fmt(v, 1), objetivo: 'sostener V% ' + vObj, accion: '1,0 t/ha de calcáreo cada 3–4 años para reponer lo que se acidifica con la fertilización nitrogenada y la extracción', inversion: 1.0 * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: 0, aporteMax: 0.03, fuente: '[2]' });
-      } else item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1), objetivo: 'V% ' + vObj, accion: 'No hace falta: ya está en el objetivo. Repetir análisis cada 2 años', fuente: '[2]' });
-    }
+    } else if (cal && (cal.necesita || (v != null && v < vExtra)) && cal.completa != null) {
+      var nc = cal.sugerida, ap = v == null || v < 50 ? [0.10, 0.20] : (v < 60 ? [0.05, 0.12] : [0.02, 0.06]);
+      item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: (v != null ? 'V% ' + fmt(v, 1) : '') + (ph != null ? ' · pH ' + fmt(ph, 1) : '') + (num(s.phSmp) != null ? ' · SMP ' + fmt(num(s.phSmp), 1) : ''), objetivo: 'pH 6,0 (V% ' + vObj + ')' + (bm && bm.suelo.satBases ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.satBases, 0) : ''),
+        accion: fmt(nc, 1) + ' t/ha de calcáreo ' + cal.tipo + ' (PRNT 100 %) por ' + cal.metodo + '; ' + cal.regla + '. Al voleo sobre el rastrojo apenas cosechado el cultivo anterior' + (cal.nota ? '. ' + cal.nota : '') + (cal.motivos.length && !cal.necesita ? '. El manual no lo exige (' + cal.motivos.join('; ') + '); se incluye por la referencia de los que rinden la meta' : ''),
+        inversion: nc * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: ap[0], aporteMax: ap[1], fuente: '[2][7]' });
+    } else if (cal && opciones.preparacionCompleta) {
+      item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado de mantenimiento', hoy: 'V% ' + fmt(v, 1), objetivo: 'sostener pH 6,0', accion: '1,0 t/ha de calcáreo cada 3–4 años para reponer lo que se acidifica con la fertilización nitrogenada y la extracción', inversion: 1.0 * pr.calcareoUSDt + pr.aplicacionVoleoUSDha, vidaUtil: 4, aporteMin: 0.01, aporteMax: 0.03, fuente: '[2]' });
+    } else if (cal && v != null) item({ k: 'encalado', tipo: 'suelo', nombre: 'Encalado', hoy: 'V% ' + fmt(v, 1) + (ph != null ? ' · pH ' + fmt(ph, 1) : ''), objetivo: 'pH ≥ 5,5 · V% ≥ 65 · Al < 10 %', accion: 'No hace falta: ' + (cal.motivos.length ? cal.motivos.join('; ') : 'ya está en el objetivo') + '. Repetir análisis cada 2 años', fuente: '[2]' });
     /* 2. Perfil (yeso) */
     var arc = num(s.arcilla);
     var prof = (analisisProfundos || []).filter(function (a) { return /(20|30|40).*(40|60)/.test(String(a.profundidad || '')); });
@@ -185,37 +183,41 @@
     } else {
       item({ k: 'yeso', tipo: 'suelo', nombre: 'Perfil profundo (20–40 y 40–60 cm)', hoy: 'sin análisis en profundidad', objetivo: 'Ca > 0,5 cmolc/dm³ y Al < 20 % hasta 60 cm', accion: 'Muestrear 20–40 y 40–60 cm. Si hay Ca bajo o Al alto: ' + (dosisYeso ? fmt(dosisYeso, 0) + ' kg/ha de yeso (50 × % arcilla)' : 'yeso = 50 × % arcilla kg/ha') + '. Hoy la corrección del perfil se hace con calcáreo + yeso en directa, no solo 0–20 cm', inversion: pr.analisisPerfilUSD, vidaUtil: 1, aporteMin: 0, aporteMax: 0.08, condicional: true, fuente: '[3][7]' });
     }
-    /* 3. Fósforo */
-    var p = num(s.p);
-    if (p != null && T) {
-      var cl = (arc != null && arc <= 40) ? 2 : 1, pc = T.P_CLASES[cl];
-      var cat = p <= pc.limites[0] ? 'muy baja' : (p <= pc.limites[1] ? 'baja' : (p <= pc.limites[2] ? 'media' : (p <= pc.limites[3] ? 'alta' : 'muy alta')));
-      var pObj = Math.max(pc.critico, bm && bm.suelo.p ? Math.min(pc.critico * 2, bm.suelo.p) : 0, metaAlta ? Math.round(pc.critico * AR.pFactor) : 0);   // con riego/alto rinde: 1,4 × crítico (Embrapa CT33)
-      if (opciones.construirPK) pObj = Math.max(pObj, Math.round(pc.critico * 1.5));   // construir reserva: mitad de la categoría "alta"
-      var corr = p < pObj ? Math.round((pObj - p) * pc.kgPorMg) : 0; if (corr < 10) corr = 0;
-      var manTotal = cat === 'muy alta' ? Math.round(metaT * perfil.expP) : Math.round(metaT * perfil.mP);
+    /* 3. Fósforo: clase por arcilla (RS/SC 6.4), corrección 6.1.1 gradual + manutención 6.1.2 por la meta; "construir" más allá del crítico solo para alto rinde */
+    var p = num(s.p), iP = F ? F.interpretarP(p, arc) : null;
+    if (iP) {
+      var cat = iP.clase, pc = iP, kgPorMg = T && T.KG_P2O5_POR_MG ? T.KG_P2O5_POR_MG[iP.claseArcilla] : 25;
+      var dP = F.dosisPK(cat, caso.cultivo, metaT, 'p2o5', false, iP.limites[3] ? p / iP.limites[3] : null);
+      var pObj = Math.max(pc.critico, bm && bm.suelo.p ? Math.min(pc.critico * 2, bm.suelo.p) : 0, metaAlta ? Math.round(pc.critico * AR.pFactor) : 0);   // alto rinde: 1,4 × crítico (Embrapa CT33)
+      if (opciones.construirPK) pObj = Math.max(pObj, Math.round(pc.critico * 1.5));
+      var corr = dP.correccion ? F.correccion(cat, 'p2o5').total : 0;                       // corrección del manual (total, gradual 2/3 + 1/3)
+      var construir = !corr && p < pObj ? Math.round((pObj - p) * kgPorMg) : 0; if (construir < 10) construir = 0;   // por encima del crítico: costo Cubilla
+      var manTotal = dP.manutencion || dP.reposicion || 0;
       var aplicadoP = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? Math.round(caso.manejo.npk.p2o5) : null;
-      // Gasto ADICIONAL por campaña: si el manejo está cargado, lo que falta sobre lo aplicado; si no, solo reponer los kg extra de la meta
-      var man = aplicadoP != null ? Math.max(0, manTotal - aplicadoP) : Math.max(0, Math.round((metaT - actual / 1000) * (cat === 'muy alta' ? perfil.expP : perfil.mP)));
-      var apP = { 'muy baja': [0.25, 0.45], baja: [0.10, 0.25], media: [0.03, 0.10], alta: [0, 0.03], 'muy alta': [0, 0] }[cat];
-      item({ k: 'fosforo', tipo: 'suelo', nombre: 'Fósforo', hoy: fmt(p, 1) + ' mg/dm³ (' + cat + ')', objetivo: fmt(pObj, 0) + ' mg/dm³' + (bm && bm.suelo.p ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.p, 1) : ''),
-        accion: (corr ? 'Corregir ' + fmt(corr, 0) + ' kg/ha de P₂O₅ (' + pc.kgPorMg + ' kg por mg/dm³, gradual en 3 cultivos) + ' : '') + 'manutención total ' + fmt(manTotal, 0) + ' kg/ha de P₂O₅ para ' + fmt(meta, 0) + ' kg/ha (' + (cat === 'muy alta' ? 'solo reposición' : perfil.mP + ' kg/t × 1,25') + ')' + (aplicadoP != null ? ' — hoy aplicás ' + fmt(aplicadoP, 0) + ': el adicional son ' + fmt(man, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo lo que se llevan los ' + fmt(meta - actual, 0) + ' kg extra: ' + fmt(man, 0) + ' kg/ha'),
-        inversion: corr * pr.p2o5USDkg, vidaUtil: 4, recurrente: man * pr.p2o5USDkg, aporteMin: apP[0], aporteMax: apP[1], fuente: '[1]' });
+      var manActual = F.dosisPK(cat, caso.cultivo, actual / 1000, 'p2o5').manutencion || F.dosisPK(cat, caso.cultivo, actual / 1000, 'p2o5').reposicion || 0;
+      // Gasto ADICIONAL por campaña: si el manejo está cargado, lo que falta sobre lo aplicado; si no, la diferencia de manutención entre la meta y el rinde actual
+      var man = aplicadoP != null ? Math.max(0, manTotal - aplicadoP) : Math.max(0, manTotal - manActual);
+      var apP = { 'muy bajo': [0.25, 0.45], bajo: [0.10, 0.25], medio: [0.03, 0.10], alto: [0, 0.03], 'muy alto': [0, 0] }[cat];
+      item({ k: 'fosforo', tipo: 'suelo', nombre: 'Fósforo', hoy: fmt(p, 1) + ' mg/dm³ (' + cat + ', crítico ' + pc.critico + (iP.asumida ? ', arcilla asumida 41–60 %' : '') + ')', objetivo: fmt(pObj, 0) + ' mg/dm³' + (bm && bm.suelo.p ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.p, 1) : ''),
+        accion: (corr ? 'Corregir ' + fmt(corr, 0) + ' kg/ha de P₂O₅ (' + F.correccion(cat, 'p2o5').primero + ' ahora y ' + F.correccion(cat, 'p2o5').segundo + ' en el cultivo siguiente, RS/SC) + ' : (construir ? 'Construir ' + fmt(construir, 0) + ' kg/ha de P₂O₅ para llegar a ' + fmt(pObj, 0) + ' mg/dm³ (' + kgPorMg + ' kg por mg/dm³) + ' : '')) + (cat === 'muy alto' ? 'solo reposición ' : 'manutención ') + fmt(manTotal, 0) + ' kg/ha de P₂O₅ para ' + fmt(meta, 0) + ' kg/ha (RS/SC: ' + F.manutencion(caso.cultivo).p2o5 + ' kg para ' + F.manutencion(caso.cultivo).ref + ' t + ' + F.manutencion(caso.cultivo).base.addP + ' por t extra)' + (aplicadoP != null ? ' — hoy aplicás ' + fmt(aplicadoP, 0) + ': el adicional son ' + fmt(man, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo la diferencia con la manutención del rinde actual: ' + fmt(man, 0) + ' kg/ha'),
+        inversion: (corr + construir) * pr.p2o5USDkg, vidaUtil: 4, recurrente: man * pr.p2o5USDkg, aporteMin: apP[0], aporteMax: apP[1], fuente: '[2]' + (construir ? '[1]' : '') });
     }
-    /* 4. Potasio */
-    var k = num(s.k);
-    if (k != null && T) {
-      var kmg = k * 391, K = T.K_CLASE;
-      var catK = kmg <= K.limites[0] ? 'muy baja' : (kmg <= K.limites[1] ? 'baja' : (kmg <= K.limites[2] ? 'media' : (kmg <= K.limites[3] ? 'alta' : 'muy alta')));
-      var corrK = K.correctiva[catK] || 0;
-      if ((opciones.construirPK || metaAlta) && !corrK && kmg < 117) corrK = Math.round((117 - kmg) * 2.4 * 1.2 / 10) * 10; // llevar K a ~117 mg/dm³ = 0,30 cmolc (campeones 0,25–0,41 [14]); ≈ 2 kg K2O por mg/dm³ + 20 % pérdidas
-      var manKTotal = catK === 'muy alta' ? Math.round(metaT * perfil.expK) : Math.round(metaT * perfil.mK);
+    /* 4. Potasio: clase por CTC (RS/SC 6.9), corrección 6.1.1 + manutención 6.1.2 */
+    var k = num(s.k), iK = F ? F.interpretarK(k, num(s.cic)) : null;
+    if (iK) {
+      var kmg = iK.valorMg, catK = iK.clase;
+      var dK = F.dosisPK(catK, caso.cultivo, metaT, 'k2o', false, iK.limites[3] ? kmg / iK.limites[3] : null);
+      var corrK = dK.correccion ? F.correccion(catK, 'k2o').total : 0;
+      var construirK = 0;
+      if ((opciones.construirPK || metaAlta) && !corrK && kmg < 117) construirK = Math.round((117 - kmg) * 2.4 * 1.2 / 10) * 10; // llevar K a ~117 mg/dm³ = 0,30 cmolc (campeones 0,25–0,41 [14]); ≈ 2 kg K2O por mg/dm³ + 20 % pérdidas
+      var manKTotal = dK.manutencion || dK.reposicion || 0;
       var aplicadoK = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? Math.round(caso.manejo.npk.k2o) : null;
-      var manK = aplicadoK != null ? Math.max(0, manKTotal - aplicadoK) : Math.max(0, Math.round((metaT - actual / 1000) * (catK === 'muy alta' ? perfil.expK : perfil.mK)));
-      var apK = { 'muy baja': [0.20, 0.45], baja: [0.10, 0.20], media: [0.03, 0.10], alta: [0, 0.03], 'muy alta': [0, 0] }[catK];
-      item({ k: 'potasio', tipo: 'suelo', nombre: 'Potasio', hoy: fmt(kmg, 0) + ' mg/dm³ (' + catK + ')', objetivo: '> 75 mg/dm³' + (bm && bm.suelo.k ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.k * 391, 0) : ''),
-        accion: (corrK ? 'Corregir ' + fmt(corrK, 0) + ' kg/ha de K₂O en 3 cultivos + ' : '') + (catK === 'muy alta' ? 'solo reponer lo exportado: ' : 'manutención total ') + fmt(manKTotal, 0) + ' kg/ha de K₂O (KCl al voleo o por fertirriego)' + (aplicadoK != null ? ' — hoy aplicás ' + fmt(aplicadoK, 0) + ': el adicional son ' + fmt(manK, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo lo que se llevan los kg extra: ' + fmt(manK, 0) + ' kg/ha'),
-        inversion: corrK * pr.k2oUSDkg, vidaUtil: 4, recurrente: manK * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], fuente: '[1]' });
+      var manKActual = F.dosisPK(catK, caso.cultivo, actual / 1000, 'k2o').manutencion || F.dosisPK(catK, caso.cultivo, actual / 1000, 'k2o').reposicion || 0;
+      var manK = aplicadoK != null ? Math.max(0, manKTotal - aplicadoK) : Math.max(0, manKTotal - manKActual);
+      var apK = { 'muy bajo': [0.20, 0.45], bajo: [0.10, 0.20], medio: [0.03, 0.10], alto: [0, 0.03], 'muy alto': [0, 0] }[catK];
+      item({ k: 'potasio', tipo: 'suelo', nombre: 'Potasio', hoy: fmt(kmg, 0) + ' mg/dm³ (' + catK + ', crítico ' + iK.critico + ' para CTC ' + iK.ctcTexto + ')', objetivo: '> ' + iK.critico + ' mg/dm³' + (bm && bm.suelo.k ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.k * 391, 0) : ''),
+        accion: (corrK ? 'Corregir ' + fmt(corrK, 0) + ' kg/ha de K₂O (' + F.correccion(catK, 'k2o').primero + ' ahora y ' + F.correccion(catK, 'k2o').segundo + ' en el cultivo siguiente, RS/SC) + ' : (construirK ? 'Construir ' + fmt(construirK, 0) + ' kg/ha de K₂O para llegar a ~117 mg/dm³ + ' : '')) + (catK === 'muy alto' ? 'solo reponer lo exportado: ' : 'manutención ') + fmt(manKTotal, 0) + ' kg/ha de K₂O (KCl al voleo o por fertirriego; RS/SC: ' + F.manutencion(caso.cultivo).k2o + ' kg para ' + F.manutencion(caso.cultivo).ref + ' t + ' + F.manutencion(caso.cultivo).base.addK + ' por t extra)' + (aplicadoK != null ? ' — hoy aplicás ' + fmt(aplicadoK, 0) + ': el adicional son ' + fmt(manK, 0) + ' kg/ha' : ' — adicional sobre la manutención del rinde actual: ' + fmt(manK, 0) + ' kg/ha'),
+        inversion: (corrK + construirK) * pr.k2oUSDkg, vidaUtil: 4, recurrente: manK * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], fuente: '[2]' + (construirK ? '[14]' : '') });
     }
     /* 4b. Reposición del saldo de la cosecha anterior (balance de nutrientes: lo que el grano se llevó y no se repuso) */
     var sa = opciones.saldoAnterior;
@@ -225,13 +227,15 @@
         accion: 'Reponer ' + (repP ? fmt(repP, 0) + ' kg/ha de P₂O₅' : '') + (repP && repK ? ' y ' : '') + (repK ? fmt(repK, 0) + ' kg/ha de K₂O' : '') + ' además de la manutención de esta campaña (saldo negativo del balance de nutrientes de ' + (sa.campana || 'la cosecha anterior') + ')' + (sa.sinCarga ? '. Ojo: esa campaña no tiene fertilizantes cargados; si se aplicó algo, cargalo y el saldo baja' : ''),
         recurrente: repP * pr.p2o5USDkg + repK * pr.k2oUSDkg, aporteMin: 0.02, aporteMax: 0.06, fuente: '[18]' });
     }
-    /* 5. Nitrógeno (no soja) */
-    if (N_POR_T[cu]) {
+    /* 5. Nitrógeno (no soja): RS/SC por materia orgánica, cultivo anterior y rinde esperado (maíz cap. 6.1.14, trigo cap. 6.1.29) */
+    if (cu !== 'soja') {
       var mo = num(s.mo), aplicadoN = caso.manejo && caso.manejo.cargado && caso.manejo.npk ? caso.manejo.npk.n : 0;
-      var necesidad = metaT * N_POR_T[cu], aporteMO = mo != null ? mo * 20 : 40, dosisN = Math.max(0, Math.round(necesidad - aporteMO));
-      var faltaHoy = Math.max(0, necesidad - aporteMO - (aplicadoN || 0));
-      item({ k: 'nitrogeno', tipo: 'suelo', nombre: 'Nitrógeno', hoy: (aplicadoN ? fmt(aplicadoN, 0) + ' kg N/ha aplicados' : 'sin N registrado') + (mo != null ? ' · MO ' + fmt(mo, 2) + ' % aporta ~' + fmt(aporteMO, 0) + ' kg N' : ''), objetivo: fmt(necesidad, 0) + ' kg N/ha absorbidos para ' + fmt(meta, 0) + ' kg/ha',
-        accion: 'Aplicar ~' + fmt(dosisN, 0) + ' kg N/ha (' + fmt(dosisN / 0.46, 0) + ' kg de urea) partido: base + cobertura V4–V6' + (caso.riegoMM != null ? ' o por fertirriego' : ''), costo: dosisN * pr.nUSDkg, aporteMin: faltaHoy > 30 ? 0.08 : 0, aporteMax: faltaHoy > 30 ? 0.20 : 0.03, fuente: '[1] N por tonelada: Embrapa/IPNI' });
+      var rN = F ? F.nitrogeno(caso.cultivo, mo, caso.cultivoAnterior || (caso.rotacion && caso.rotacion.anterior) || '', metaT) : { n: Math.round(metaT * (N_POR_T[cu] || 20)), regla: 'kg N por t' };
+      var dosisN = rN.n, faltaHoy = Math.max(0, dosisN - (aplicadoN || 0));
+      var rNActual = F ? F.nitrogeno(caso.cultivo, mo, caso.cultivoAnterior || '', actual / 1000).n : Math.round(actual / 1000 * (N_POR_T[cu] || 20));
+      var nAdicional = aplicadoN ? faltaHoy : Math.max(0, dosisN - rNActual);
+      item({ k: 'nitrogeno', tipo: 'suelo', nombre: 'Nitrógeno', hoy: (aplicadoN ? fmt(aplicadoN, 0) + ' kg N/ha aplicados' : 'sin N registrado') + (mo != null ? ' · MO ' + fmt(mo, 2) + ' % (' + (F ? F.claseMO(mo) : '') + ')' : ' · MO sin dato (se asume media)') + (rN.antecesor ? ' · antecesor ' + rN.antecesor : ''), objetivo: fmt(dosisN, 0) + ' kg N/ha para ' + fmt(meta, 0) + ' kg/ha (' + rN.regla + ')',
+        accion: 'Aplicar ~' + fmt(dosisN, 0) + ' kg N/ha (' + fmt(dosisN / 0.46, 0) + ' kg de urea): 15–20 a la siembra y el resto en cobertura ' + (cu === 'trigo' ? 'entre macollaje y encañazón' : 'V4–V6') + (caso.riegoMM != null ? ' o por fertirriego' : '') + (aplicadoN ? ' — faltan ' + fmt(faltaHoy, 0) + ' kg/ha' : ''), costo: nAdicional * pr.nUSDkg, aporteMin: faltaHoy > 30 ? 0.08 : 0, aporteMax: faltaHoy > 30 ? 0.20 : 0.03, fuente: '[2] ' + (rN.fuente || '') });
     }
     /* 6. Azufre y micronutrientes */
     var tieneS = caso.manejo && caso.manejo.npk && caso.manejo.npk.s > 5;
