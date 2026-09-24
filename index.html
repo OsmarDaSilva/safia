@@ -335,6 +335,8 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-insumos.js"></script>
+<script src="safia-nutrientes.js"></script>
+<script src="safia-seguimiento.js"></script>
 <script src="safia-casos.js"></script>
 </head>
 <body>
@@ -664,9 +666,11 @@
     function renderMetas(ctxs) {
       const conMeta = ctxs.filter(c => c.cultivo.planMeta && c.cultivo.planMeta.kgHa);
       const filas = conMeta.map(c => {
-        const pm = c.cultivo.planMeta, items = pm.items || [], hechos = items.filter(i => i.hecho).length;
-        const pct = items.length ? Math.round(hechos / items.length * 100) : 0;
-        return `<div style="padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);">
+        const pm = c.cultivo.planMeta, items = pm.items || [];
+        const mv = window.SafiaSeguimiento ? SafiaSeguimiento.resumenMetaViva(c.campana, c.campana.cultivos.indexOf(c.cultivo)) : null;   // marca los ítems detectados en insumos
+        const hechos = items.filter(i => i.hecho || i._auto).length, pct = items.length ? Math.round(hechos / items.length * 100) : 0;
+        const COLOR_MV = { verde: '#178029', ambar: '#B8731A', rojo: '#B3261E' };
+        return `<div style="padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);">${mv ? '<div style="font-size:12px;margin-bottom:3px;"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + COLOR_MV[mv.k] + ';margin-right:5px;"></span>Meta ' + mv.texto + '</div>' : ''}
           <div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;font-size:13px;"><strong>${esc(c.cultivo.cultivo)} · ${esc(c.equipo.nombre)}</strong> <span style="color:var(--gris-texto);">· ${esc(c.cliente ? c.cliente.nombre : '')}</span></div><div style="font-size:13px;font-weight:700;color:#178029;">${fmtN(pm.kgHa)} kg/ha</div></div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:4px;"><div style="flex:1;height:6px;background:rgba(0,0,0,0.06);border-radius:3px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:#178029;"></div></div><div style="font-size:11px;color:var(--gris-texto);">${hechos}/${items.length} ítems hechos${pm.base ? ' · parte de ' + fmtN(pm.base) : ''}${c.dds != null ? ' · día ' + c.dds : ''}</div></div>
         </div>`;
