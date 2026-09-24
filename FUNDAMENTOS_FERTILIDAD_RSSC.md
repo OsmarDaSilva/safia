@@ -113,7 +113,7 @@ Las clases de P (crítico 12/15 por dos clases de arcilla), de K (crítico únic
 
 ## 11. Segunda opinión: Embrapa 2013 (Cerrado) vía Fundação MS
 
-Pedido de Osmar (24 de septiembre de 2026): verificar contra Fundação MS. Se bajaron "Tecnologia e Produção: Soja 2018/2019" (cap. Manejo e Fertilidade do Solo, pp. 19–50) y "Milho Safrinha 2014" (cap. Manejo da adubação). Fundação MS no publica tablas propias: reproduce las de **Embrapa 2013** ("Fonte: Embrapa (2013)" al pie de cada tabla), calibradas en oxisoles del Cerrado con Mehlich-1, parecidos a los suelos de Alto Paraná y Canindeyú y con los mismos métodos que BIOSOLLO ("Metodologias: Embrapa 2009"). SAFIA las muestra al lado de RS/SC como segunda opinión y avisa cuando las clases no coinciden. Viven en .
+Pedido de Osmar (24 de septiembre de 2026): verificar contra Fundação MS. Se bajaron "Tecnologia e Produção: Soja 2018/2019" (cap. Manejo e Fertilidade do Solo, pp. 19–50) y "Milho Safrinha 2014" (cap. Manejo da adubação). Fundação MS no publica tablas propias: reproduce las de **Embrapa 2013** ("Fonte: Embrapa (2013)" al pie de cada tabla), calibradas en oxisoles del Cerrado con Mehlich-1, parecidos a los suelos de Alto Paraná y Canindeyú y con los mismos métodos que BIOSOLLO ("Metodologias: Embrapa 2009"). SAFIA las muestra al lado de RS/SC como segunda opinión y avisa cuando las clases no coinciden. Viven en SafiaFertilidad.cerrado (safia-fertilidad.js).
 
 **P Mehlich-1 por arcilla (Tabela 10, p. 35)**, mg/dm³:
 
