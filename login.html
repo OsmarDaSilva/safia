@@ -71,6 +71,7 @@
         <div class="btag">SMART · AGRO · INTELLIGENCE</div>
       </div>
     </div>
+    <div id="significado" style="font-size:12px;color:var(--label);margin:6px 0 0;cursor:pointer;" title="Qué significa SAFIA"></div>
 
     <div class="tabs" id="tabs">
       <button type="button" class="on" id="tabEntrar" onclick="mostrarVista('entrar')">Entrar</button>
@@ -137,6 +138,7 @@
   </div>
 <script>
   var caja = document.getElementById('mensaje');
+  (function () { var s = document.getElementById('significado'); if (s && window.SafiaMarca) { s.textContent = SafiaMarca.frase(); s.addEventListener('click', function () { if (window.SafiaCuenta) SafiaCuenta.acerca(); }); } })();
   function mensaje(texto, tipo) { caja.textContent = texto; caja.className = 'msg visible ' + (tipo || 'error'); }
   function limpiar() { caja.className = 'msg'; }
   function mostrarVista(v) {

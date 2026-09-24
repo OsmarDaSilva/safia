@@ -14,6 +14,10 @@
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
   var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+  // Significado del nombre (un solo lugar para cambiarlo): cada palabra empieza con una letra de SAFIA
+  var SIGNIFICADO = window.SAFIA_SIGNIFICADO || ['Sistema', 'Agrícola de', 'Fertirriego con', 'Inteligencia', 'Analítica'];
+  var LEMA = 'Smart Agro Intelligence';
+  window.SafiaMarca = { significado: SIGNIFICADO, lema: LEMA, frase: function () { return SIGNIFICADO.join(' '); } };
   var usuario = null, abierto = false;
 
   function verComoActual() { try { return JSON.parse(localStorage.getItem('safia_ver_como') || 'null'); } catch (e) { return null; } }
@@ -64,11 +68,13 @@
     h += '<a href="#" id="safiaCuentaClave" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;">Cambiar mi contraseña</a>';
     if (alto) h += '<a href="usuarios.html" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Usuarios y accesos</a>';
     if (usuario.rol === 'propietario') h += '<a href="backup.html" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Copia de seguridad (.json)</a>';
+    h += '<a href="#" id="safiaCuentaAcerca" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Qué significa SAFIA</a>';
     h += '<a href="#" id="safiaCuentaSalir" style="display:block;padding:9px 12px;color:#C0392B;text-decoration:none;font-size:13px;font-weight:700;border-top:1px solid #f0f2f4;">Salir</a>';
     m.innerHTML = h; m.style.display = 'block';
     var sel = $('safiaVerComoSel'); if (sel) sel.addEventListener('change', function () { if (sel.value) verComo(sel.value); else salirVerComo(); });
     $('safiaCuentaClave').addEventListener('click', function (ev) { ev.preventDefault(); cerrarMenu(); modalClave(); });
     $('safiaCuentaSalir').addEventListener('click', function (ev) { ev.preventDefault(); salir(); });
+    $('safiaCuentaAcerca').addEventListener('click', function (ev) { ev.preventDefault(); cerrarMenu(); modalAcerca(); });
   }
   function salir() {
     try { ['safia_usuario', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo'].forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('banco_campo'); } catch (e) {}
@@ -100,6 +106,22 @@
     setTimeout(function () { $('safiaClave1').focus(); }, 30);
   }
 
+  // Ventana "Qué significa SAFIA"
+  function modalAcerca() {
+    var d = $('safiaAcercaModal'); if (d) d.remove();
+    d = document.createElement('div'); d.id = 'safiaAcercaModal';
+    d.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
+    var letras = SIGNIFICADO.map(function (p) { return '<div style="display:flex;align-items:baseline;gap:10px;"><span style="font-weight:800;font-size:22px;color:#22A93A;width:22px;">' + esc(p.charAt(0)) + '</span><span style="font-size:15px;color:#2E3236;">' + esc(p) + '</span></div>'; }).join('');
+    d.innerHTML = '<div style="background:#fff;border-radius:14px;padding:24px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;"><div style="width:44px;height:44px;border-radius:12px;background:#22A93A;display:flex;align-items:center;justify-content:center;color:#fff;"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></div><div><div style="font-weight:800;font-size:22px;color:#2E3236;letter-spacing:.3px;">SAFIA</div><div style="font-size:9px;letter-spacing:1.6px;color:#8C9196;">' + esc(LEMA.toUpperCase().split(' ').join(' · ')) + '</div></div></div>' +
+      '<div style="display:grid;gap:6px;margin-bottom:14px;">' + letras + '</div>' +
+      '<div style="font-size:13px;color:#41464B;line-height:1.55;">SAFIA acompaña el riego de cada lote y, mientras riega, arma el expediente agronómico del campo: suelo, agua, clima, cultivo y cosecha. Con eso compara cada campaña con las mejores de la zona y dice qué falta para rendir más. Un producto de <b>Irrigar</b>.</div>' +
+      '<div style="margin-top:16px;display:flex;justify-content:flex-end;"><button id="safiaAcercaCerrar" style="padding:10px 16px;border:0;border-radius:10px;background:#22A93A;color:#fff;font-weight:700;font-size:14px;cursor:pointer;">Cerrar</button></div></div>';
+    document.body.appendChild(d);
+    $('safiaAcercaCerrar').addEventListener('click', function () { d.remove(); });
+    d.addEventListener('click', function (ev) { if (ev.target === d) d.remove(); });
+  }
+
   function montar(u) {
     usuario = u || usuario; if (!usuario) return;
     var pill = $('safiaSyncBarra');
@@ -123,5 +145,5 @@
     franja();
   }
 
-  window.SafiaCuenta = { montar: montar, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
+  window.SafiaCuenta = { acerca: modalAcerca, montar: montar, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
 })();
