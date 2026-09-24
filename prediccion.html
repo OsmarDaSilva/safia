@@ -617,7 +617,7 @@
           lat: ev.campo.latitud, lon: ev.campo.longitud,
           current: 'temperature_2m',
           daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
-          pastDays: 14, forecastDays: 7,
+          pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra
           cacheKey: 'campo:' + ev.campo.id
         });
         if (rClima.datos) {
@@ -669,12 +669,11 @@
         equipo: ev.equipo,
         kcDef: ev.kcDef,
         fechaSiembra: ev.cultivo.fechaSiembra,
-        diasPasado: 14,
-        diasFuturo: 7,
-        humedadInicialFrac: 0.8
+        diasFuturo: 7
       });
 
       const suelo = r.suelo;
+      const UM = r.umbrales || UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
 
       // Adaptar la salida del motor al shape que ya consume el render.
       const dias = r.dias.map((d, i) => {
@@ -698,6 +697,7 @@
           etoDia: d.etoDia,
           etcDia: d.etcDia,
           kcInfo: { kc: d.kc, etapa: d.etapa },
+          umbrales: UM,
           riegoManual: d.riegoBruto,
           tMax: d.tMax,
           tMin: d.tMin,
@@ -827,8 +827,8 @@
           </div>
           <div class="detalle-suelo">
             ${sueloInfo.emoji} <strong>Suelo ${sueloInfo.nombre}</strong>
-            · ${sueloInfo.CC}mm CC
-            · ${(sueloInfo.coefLluvia * 100).toFixed(0)}% aprovecha lluvia
+            · CC ${sueloInfo.cc} % vol · PMP ${sueloInfo.pmp} % vol
+            · ${sueloInfo.AAU} mm de agua útil en 60 cm · ${sueloInfo.origen}
           </div>
           ${SafiaBalance.notaFallbackSuelo(sueloInfo)}
         </div>
@@ -885,12 +885,13 @@
         else iconoGrande = '🟢';
 
         // Barra de humedad
+        const UMB = dia.umbrales || UMBRALES;
         let claseBarra = 'barra-verde';
-        if (dia.porcentajeAAU < UMBRALES.CRITICO) claseBarra = 'barra-roja';
-        else if (dia.porcentajeAAU < UMBRALES.ATENCION) claseBarra = 'barra-amarilla';
+        if (dia.porcentajeAAU < UMB.CRITICO) claseBarra = 'barra-roja';
+        else if (dia.porcentajeAAU < UMB.ATENCION) claseBarra = 'barra-amarilla';
 
         const anchoBarra = Math.max(0, Math.min(100, dia.porcentajeAAU));
-        const umbralPos = UMBRALES.CRITICO;
+        const umbralPos = UMB.CRITICO;
 
         // Mensaje detallado
         let mensaje = '';
@@ -902,7 +903,7 @@
         } else if (dia.estado === 'atencion') {
           mensaje = `<strong>Humedad bajando a ${dia.porcentajeAAU.toFixed(0)}%.</strong> Hoy todavía no, pero prepará el equipo para regar pronto.`;
         } else {
-          mensaje = `<strong>Humedad en ${dia.porcentajeAAU.toFixed(0)}%</strong>, por encima del umbral crítico (${UMBRALES.CRITICO}%). Día tranquilo.`;
+          mensaje = `<strong>Humedad en ${dia.porcentajeAAU.toFixed(0)}%</strong>, por encima del umbral crítico (${UMB.CRITICO}%). Día tranquilo.`;
         }
 
         // Riego manual cargado hoy

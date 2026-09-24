@@ -468,6 +468,7 @@
       return null;
     }
 
+    function indiceHoyDe(daily) { const hoy = SafiaBalance.hoyLocal(); let k = daily.time.indexOf(hoy); if (k < 0) { k = 0; for (let t = 0; t < daily.time.length; t++) if (String(daily.time[t]).slice(0, 10) <= hoy) k = t; } return k; }
     function calcularKc(kcDef, fechaCalculo, fechaSiembra) {
       if (!kcDef) return { kc: 1.0, etapa: 'Desconocida' };
       if (kcDef.tipo === 'perenne') {
@@ -553,17 +554,16 @@
         equipo: ctx.equipo,
         kcDef: ctx.kcDef,
         fechaSiembra: ctx.cultivo.fechaSiembra,
-        diasPasado: 2,
         diasFuturo: 7,
-        humedadInicialFrac: 0.85,
         asumirRiegoRecomendado: false
       });
 
+      const UM = r.umbrales || UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
       const dias = r.dias.map(d => {
         const porcentaje = Math.round(d.porcentajeAAU);
         let semaforo = 'verde';
-        if (porcentaje < UMBRALES.CRITICO) semaforo = 'rojo';
-        else if (porcentaje < UMBRALES.ATENCION) semaforo = 'amarillo';
+        if (porcentaje < UM.CRITICO) semaforo = 'rojo';
+        else if (porcentaje < UM.ATENCION) semaforo = 'amarillo';
         return {
           fecha: d.fechaObj,
           porcentaje,
@@ -776,7 +776,8 @@
     function renderClimaAhora(datosClima, ctx) {
       const actual = datosClima.current;
       const wmoCode = actual.weather_code;
-      const etoHoy = datosClima.daily.et0_fao_evapotranspiration[2] || 0;
+      const H0 = indiceHoyDe(datosClima.daily);   // índice de hoy (antes era fijo = 2)
+      const etoHoy = datosClima.daily.et0_fao_evapotranspiration[H0] || 0;
       let etcInfo = '';
       if (ctx) {
         const kcInfo = calcularKc(ctx.kcDef, new Date(), ctx.cultivo.fechaSiembra);
@@ -796,9 +797,9 @@
         `;
       }
 
-      const lluvia3d = ((datosClima.daily.precipitation_sum[2] || 0) +
-                       (datosClima.daily.precipitation_sum[3] || 0) +
-                       (datosClima.daily.precipitation_sum[4] || 0)).toFixed(1);
+      const lluvia3d = ((datosClima.daily.precipitation_sum[H0] || 0) +
+                       (datosClima.daily.precipitation_sum[H0 + 1] || 0) +
+                       (datosClima.daily.precipitation_sum[H0 + 2] || 0)).toFixed(1);
 
       return `
         <div class="card">
@@ -956,8 +957,9 @@
     function renderAlertasClima(datosClima) {
       const alertas = [];
       const proximos = datosClima.daily;
+      const h0 = indiceHoyDe(proximos);
 
-      for (let i = 2; i < Math.min(5, proximos.weather_code.length); i++) {
+      for (let i = h0; i < Math.min(h0 + 3, proximos.weather_code.length); i++) {
         const code = proximos.weather_code[i];
         const fecha = new Date(proximos.time[i]).toLocaleDateString('es-PY', { weekday: 'short', day:'2-digit', month:'2-digit' });
         const lluvia = proximos.precipitation_sum[i] || 0;
@@ -1090,7 +1092,7 @@
           lat: ctx.campo.latitud, lon: ctx.campo.longitud,
           current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code',
           daily: 'precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
-          pastDays: 2, forecastDays: 7,
+          pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra
           cacheKey: 'campo:' + ctx.campo.id
         });
         SafiaClima.avisoCache(rClima.desactualizado ? rClima.fechaCache : null);

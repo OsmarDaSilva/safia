@@ -1091,7 +1091,7 @@
         const rClima = await SafiaClima.obtenerClima({
           lat, lon,
           daily: 'precipitation_sum,et0_fao_evapotranspiration',
-          pastDays: 7, forecastDays: 4,
+          pastDays: 92, forecastDays: 4,   // 92 días de historia: el balance arranca en la siembra
           cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
         });
 
@@ -1134,13 +1134,11 @@
           equipo,
           kcDef,
           fechaSiembra,
-          diasPasado: 7,
           diasFuturo: 4,
-          humedadInicialFrac: 0.8,
           asumirRiegoRecomendado: false
         });
 
-        const U = SafiaBalance.UMBRALES;
+        const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
         const pct = r.porcentajeHoy;                                  // % agua útil HOY
         const deficitCC = r.deficitHastaCC;                           // mm para reponer hasta CC
         const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);  // lluvia ventana próxima
@@ -1173,7 +1171,10 @@
           card.className = "reco-card visible regar";
         }
 
-        // Aviso si el suelo se resolvió por fallback a "franco"
+        // Cómo se calculó: suelo, etapa, fuente de la humedad (modelo / sonda / estación)
+        if (r.recomendacion.mmTotal > r.recomendacion.mm && !SafiaBalance.esSecano(equipo)) detalle.innerHTML += ` En total faltan <strong>${r.recomendacion.mmTotal} mm</strong> para llegar a capacidad de campo: repartirlos en más de una pasada.`;
+        const fuenteHum = r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad (' + r.sonda.valor.toFixed(1) + ' % vol)' : (r.fuentes.estacion ? 'balance con lluvia y ET0 de la estación' : 'balance con clima estimado');
+        detalle.innerHTML += `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, regar al ${U.CRITICO} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco.</div>`;
         detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
 
       } catch (error) {

@@ -261,11 +261,12 @@
     let editandoId = null;
 
     const TIPOS_SUELO = {
-      arenoso: { nombre: 'Arenoso', emoji: '🏖️', CC: 40, PMP: 18, AAU: 22, coefLluvia: 0.95, infiltracion: '25-50 mm/h', desc: 'Suelo suelto y poroso. Drena muy rápido pero retiene poca agua. Necesita riegos frecuentes y livianos. Casi nada de escorrentía superficial.' },
-      franco_arenoso: { nombre: 'Franco arenoso', emoji: '🌾', CC: 65, PMP: 30, AAU: 35, coefLluvia: 0.90, infiltracion: '13-20 mm/h', desc: 'Buena mezcla con algo de arena. Drena bien y retiene moderado. Aprovecha la mayoría de la lluvia. Común en suelos cultivados.' },
-      franco: { nombre: 'Franco', emoji: '🌱', CC: 90, PMP: 40, AAU: 50, coefLluvia: 0.85, infiltracion: '8-15 mm/h', desc: 'Suelo balanceado, ideal para cultivos. Buena retención de agua y aireación. Es el suelo más común en zonas agrícolas paraguayas. Default recomendado.' },
-      franco_arcilloso: { nombre: 'Franco arcilloso', emoji: '🟫', CC: 105, PMP: 55, AAU: 50, coefLluvia: 0.75, infiltracion: '3-8 mm/h', desc: 'Suelo más pesado, rico en arcilla. Retiene mucha agua pero infiltra lento. En lluvias intensas, parte del agua escurre. Riegos espaciados pero abundantes.' },
-      arcilloso: { nombre: 'Arcilloso', emoji: '🧱', CC: 110, PMP: 70, AAU: 40, coefLluvia: 0.65, infiltracion: '1-5 mm/h', desc: 'Suelo muy pesado y compactable. Retiene mucha agua pero la infiltración es muy lenta. En lluvias fuertes, hasta el 35% se escurre. Riegos lentos para no encharcar.' }
+      // CC y PMP en % volumétrico (FAO-56 Tabla 19); agua útil en mm para 60 cm de raíz (UNL: soja 0–60 cm). Mismos números que el motor de agua (safia-balance.js).
+      arenoso: { nombre: 'Arenoso', emoji: '🏖️', cc: 12, pmp: 4, AAU: 48, arcilla: '< 15 %', infiltracion: '25-50 mm/h', desc: 'Suelo suelto y poroso. Drena muy rápido pero retiene poca agua. Necesita riegos frecuentes y livianos.' },
+      franco_arenoso: { nombre: 'Franco arenoso', emoji: '🌾', cc: 15, pmp: 6, AAU: 54, arcilla: '15–20 %', infiltracion: '13-20 mm/h', desc: 'Buena mezcla con algo de arena. Drena bien y retiene moderado. Común en suelos cultivados.' },
+      franco: { nombre: 'Franco', emoji: '🌱', cc: 25, pmp: 12, AAU: 78, arcilla: '20–30 %', infiltracion: '8-15 mm/h', desc: 'Suelo balanceado, ideal para cultivos. Buena retención de agua y aireación. Es el que se usa por defecto cuando el campo no tiene suelo cargado.' },
+      franco_arcilloso: { nombre: 'Franco arcilloso', emoji: '🟫', cc: 28, pmp: 13, AAU: 90, arcilla: '30–40 %', infiltracion: '3-8 mm/h', desc: 'Suelo más pesado, rico en arcilla. Retiene mucha agua pero infiltra lento. Riegos espaciados pero abundantes.' },
+      arcilloso: { nombre: 'Arcilloso', emoji: '🧱', cc: 36, pmp: 22, AAU: 84, arcilla: '> 40 %', infiltracion: '1-5 mm/h', desc: 'Suelo muy pesado y compactable. Retiene mucha agua pero la infiltración es muy lenta. Riegos lentos para no encharcar.' }
     };
 
     function mostrarInfoSuelo() {
@@ -277,11 +278,12 @@
         <div class="suelo-info-titulo">${s.emoji} Suelo ${s.nombre}</div>
         <div class="suelo-info-desc">${s.desc}</div>
         <div class="suelo-stats">
-          <div class="suelo-stat"><strong>${s.CC} mm</strong>Capacidad de campo</div>
-          <div class="suelo-stat"><strong>${s.AAU} mm</strong>Agua útil disponible</div>
-          <div class="suelo-stat"><strong>${(s.coefLluvia * 100).toFixed(0)}%</strong>Aprovecha de lluvia</div>
+          <div class="suelo-stat"><strong>${s.cc} % vol</strong>Capacidad de campo</div>
+          <div class="suelo-stat"><strong>${s.pmp} % vol</strong>Punto de marchitez</div>
+          <div class="suelo-stat"><strong>${s.AAU} mm</strong>Agua útil en 60 cm de raíz</div>
           <div class="suelo-stat"><strong>${s.infiltracion}</strong>Infiltración</div>
-        </div>`;
+        </div>
+        <div class="suelo-info-desc" style="margin-top:6px;font-size:11px;color:#8C9196;">Arcilla ${s.arcilla} · FAO-56 Tabla 19. Si el campo tiene un análisis de suelo con % de arcilla, el motor de agua usa ese en vez de este tipo; si tiene sonda configurada, usa la sonda.</div>`;
       div.classList.add('visible');
     }
 

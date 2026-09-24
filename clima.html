@@ -645,7 +645,7 @@
         lat, lon,
         current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation',
         daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code',
-        pastDays: 7, forecastDays: 7,
+        pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra
         cacheKey: contexto.campo ? ('campo:' + contexto.campo.id) : (lat + ',' + lon)
       });
 
@@ -661,6 +661,7 @@
     }
 
     // ============ CALCULAR Kc DEL DÍA SEGÚN ETAPA O ESTACIÓN ============
+    function indiceHoyDe(daily) { const hoy = SafiaBalance.hoyLocal(); let k = daily.time.indexOf(hoy); if (k < 0) { k = 0; for (let t = 0; t < daily.time.length; t++) if (String(daily.time[t]).slice(0, 10) <= hoy) k = t; } return k; }
     function calcularKc(kcDef, fechaCalculo, fechaSiembra) {
       if (!kcDef) return { kc: 1.0, etapa: 'Desconocida', etapaIdx: -1 };
 
@@ -745,7 +746,7 @@
 
       // Mostrar tipo de suelo del campo
       const dashSuelo = document.getElementById('dashSuelo');
-      dashSuelo.innerHTML = `${suelo.emoji} <strong>Suelo ${suelo.nombre}</strong> · ${suelo.CC}mm CC · ${(suelo.coefLluvia * 100).toFixed(0)}% aprovecha lluvia` + SafiaBalance.notaFallbackSuelo(suelo);
+      dashSuelo.innerHTML = `${suelo.emoji} <strong>Suelo ${suelo.nombre}</strong> · CC ${suelo.cc} % vol · PMP ${suelo.pmp} % vol · ${suelo.AAU} mm de agua útil en 60 cm` + SafiaBalance.notaFallbackSuelo(suelo);
       dashSuelo.style.display = 'inline-block';
 
       const actual = datos.current;
@@ -753,7 +754,8 @@
       document.getElementById('kpiHumedad').textContent = Math.round(actual.relative_humidity_2m);
       document.getElementById('kpiViento').textContent = Math.round(actual.wind_speed_10m);
 
-      const etoHoy = datos.daily.et0_fao_evapotranspiration[7] || 0;
+      const H0 = indiceHoyDe(datos.daily);   // índice de hoy (antes era fijo = 7)
+      const etoHoy = datos.daily.et0_fao_evapotranspiration[H0] || 0;
       document.getElementById('kpiETo').textContent = etoHoy.toFixed(1);
 
       let kcInfo = null;
@@ -827,14 +829,14 @@
       // Pronóstico futuro
       const pronosticoFuturo = document.getElementById('pronosticoFuturo');
       pronosticoFuturo.innerHTML = '';
-      for (let i = 7; i < 14; i++) {
-        pronosticoFuturo.innerHTML += generarDiaCard(datos.daily, i, i === 7, contexto);
+      for (let i = H0; i < Math.min(H0 + 7, datos.daily.time.length); i++) {
+        pronosticoFuturo.innerHTML += generarDiaCard(datos.daily, i, i === H0, contexto);
       }
 
       // Histórico
       const pronosticoPasado = document.getElementById('pronosticoPasado');
       pronosticoPasado.innerHTML = '';
-      for (let i = 0; i < 7; i++) {
+      for (let i = Math.max(0, H0 - 7); i < H0; i++) {
         pronosticoPasado.innerHTML += generarDiaCard(datos.daily, i, false, contexto);
       }
 
@@ -875,12 +877,12 @@
         equipo: equipoBal,
         kcDef: kcDefBal,
         fechaSiembra: fechaSiembraBal,
-        diasPasado: 7,
         diasFuturo: 7,
-        humedadInicialFrac: 0.8,
         asumirRiegoRecomendado: false
       });
-      const tp = rBal.totalesPasado;
+      // Últimos 7 días (el motor simula desde la siembra; acá se muestran solo los últimos 7)
+      const u7 = (rBal.pasado || []).slice(-7), suma = (k) => u7.reduce((s, d) => s + (d[k] || 0), 0);
+      const tp = { lluviaBruta: suma('lluviaBruta'), lluviaEfectiva: suma('lluviaEfectiva'), etc: suma('etcDia'), riegoEfectivo: suma('riegoEfectivo') };
       const lluviaTotal = tp.lluviaBruta;       // Lluvia bruta caída (últimos 7 días)
       const lluviaEfectiva = tp.lluviaEfectiva; // Descuenta escorrentía (coefLluvia)
       const etTotal = tp.etc;                   // ETc/ETo acumulada
@@ -1103,7 +1105,8 @@
 
       // Lluvia prevista próximos 3 días (override "viene lluvia").
       let lluviaProxima = 0;
-      for (let i = 7; i < 10; i++) {
+      const h0 = indiceHoyDe(datos.daily);
+      for (let i = h0; i < h0 + 3; i++) {
         lluviaProxima += datos.daily.precipitation_sum[i] || 0;
       }
 
@@ -1124,7 +1127,7 @@
 
       // Recomendación basada en la humedad del suelo de HOY (% de agua útil),
       // unificada con el resto de las páginas vía el motor compartido.
-      const U = SafiaBalance.UMBRALES;
+      const U = rBal.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
       const pct = rBal.porcentajeHoy;
       const mmRegar = (rBal.recomendacion.mm || 0);
 
@@ -1133,7 +1136,7 @@
         titulo.textContent = 'No regar — viene lluvia';
         detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(1)} mm</strong> en los próximos 3 días.${esCampana ? ` Tu ${cultivoNombre} en <strong>${etapa}</strong> tendrá agua suficiente.` : ''}`;
         reco.classList.add('no-regar');
-      } else if (pct < 35) {
+      } else if (pct < U.URGENTE) {
         icono.textContent = '⚠️';
         titulo.textContent = 'Riego URGENTE recomendado';
         detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico).${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está bajo estrés hídrico fuerte. ` : ' '}Regar al menos <strong>${mmRegar.toFixed(0)} mm</strong> hoy o mañana.`;

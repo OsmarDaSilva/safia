@@ -28,7 +28,9 @@
    cargados como eventos del lote mandan sobre el estimado. Suelo: CC y
    PMP de la configuración de la sonda del campo, o por textura (arcilla
    del análisis, FAO-56 Tabla 19), o franco por defecto (25 / 12 % vol).
-   Depende de window.SafiaBanco. */
+   Física compartida: constantes, Kc/etapa, suelo y paso diario vienen de
+   safia-balance.js (SafiaBalance), el mismo motor que usa Operación.
+   Depende de window.SafiaBanco y de SafiaBalance. */
 (function () {
   'use strict';
   var B = function () { return window.SafiaBanco; };
@@ -41,23 +43,14 @@
   function fmtF(f) { if (!f) return '—'; var p = String(f).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; }
   function sumarDias(f, n) { var d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
   function diasEntre(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
-  function hoyISO() { return new Date().toISOString().slice(0, 10); }
+  function hoyISO() { return window.SafiaBalance ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }   // hoy en hora local (Paraguay), no UTC
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
   function clave(c) { var n = norm(c); if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
 
   /* ---------- constantes con fuente ---------- */
-  var KY = {   // FAO-33 Tabla 24
-    soja:    { veg: 0.2,  flor: 0.8,  llen: 1.0,  mad: 0.0, total: 0.85 },
-    maiz:    { veg: 0.4,  flor: 1.5,  llen: 0.5,  mad: 0.2, total: 1.25 },
-    trigo:   { veg: 0.2,  flor: 0.6,  llen: 0.5,  mad: 0.0, total: 1.15 },
-    girasol: { veg: 0.25, flor: 0.5,  llen: 1.0,  mad: 0.8, total: 0.95 },
-    sorgo:   { veg: 0.2,  flor: 0.55, llen: 0.45, mad: 0.2, total: 0.9 },
-    otro:    { veg: 0.3,  flor: 0.8,  llen: 0.7,  mad: 0.2, total: 1.0 }
-  };
-  var P_TABLA = { soja: 0.5, maiz: 0.55, trigo: 0.55, girasol: 0.45, sorgo: 0.55, otro: 0.5 };          // FAO-56 Tabla 22
-  var ZR_MAX = { soja: 0.6, maiz: 1.0, trigo: 1.0, girasol: 0.8, sorgo: 1.0, otro: 0.8 };               // m; límite inferior de FAO-56 Tabla 22 (riego), UNL 0–60 cm en soja
-  var ETAPAS = [{ k: 'veg', n: 'Vegetativa' }, { k: 'flor', n: 'Floración' }, { k: 'llen', n: 'Llenado (formación del rinde)' }, { k: 'mad', n: 'Maduración' }];
-  var SUELO_DEFECTO = { cc: 25, pmp: 12, origen: 'franco por defecto (FAO-56 Tabla 19)' };
+  // Constantes con fuente: viven en safia-balance.js (una sola copia para toda la app)
+  var SB = function () { return window.SafiaBalance; };
+  var KY = SB().KY, P_TABLA = SB().P_TABLA, ZR_MAX = SB().ZR_MAX, ETAPAS = SB().ETAPAS;
 
   function fao(cultivo) {
     var lista = []; try { lista = JSON.parse(localStorage.getItem('cultivos_fao') || '[]'); } catch (e) {}
@@ -65,17 +58,8 @@
     var n = norm(cultivo);
     return lista.find(function (c) { return norm(c.nombre) === n; }) || lista.find(function (c) { return n.indexOf(norm(c.nombre)) === 0 || norm(c.nombre).indexOf(n) === 0; }) || { nombre: cultivo, kc_ini: 0.4, kc_med: 1.15, kc_fin: 0.5, L_ini: 20, L_des: 30, L_med: 60, L_fin: 25 };
   }
-  // Kc y etapa fenológica (FAO-33) según los días desde la siembra
-  function kcYEtapa(f, dds) {
-    var Li = +f.L_ini || 20, Ld = +f.L_des || 30, Lm = +f.L_med || 60, Lf = +f.L_fin || 25;
-    var kc, etapa;
-    if (dds < Li) { kc = +f.kc_ini; etapa = 'veg'; }
-    else if (dds < Li + Ld) { kc = +f.kc_ini + (+f.kc_med - +f.kc_ini) * (dds - Li) / Ld; etapa = 'veg'; }
-    else if (dds < Li + Ld + Lm) { kc = +f.kc_med; etapa = (dds - Li - Ld) < Lm * 0.4 ? 'flor' : 'llen'; }
-    else if (dds < Li + Ld + Lm + Lf) { kc = +f.kc_med + (+f.kc_fin - +f.kc_med) * (dds - Li - Ld - Lm) / Lf; etapa = 'mad'; }
-    else { kc = +f.kc_fin; etapa = 'mad'; }
-    return { kc: Math.round(kc * 100) / 100, etapa: etapa, fin: Li + Ld + Lm + Lf, crecimientoRaiz: Li + Ld };
-  }
+  // Kc y etapa fenológica (FAO-33) según los días desde la siembra: la misma función que usa Operación
+  function kcYEtapa(f, dds) { return SB().kcYEtapa(f, dds); }
 
   /* ---------- datos diarios ---------- */
   function cacheGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
@@ -124,33 +108,25 @@
       return { filas: filas, fuentes: fuentes, lluviaDeEventos: hayLluviaEv };
     });
   }
-  function sueloDe(campo) {
-    var s = campo && campo.sonda;
-    if (s && num(s.cc) != null && num(s.pmp) != null && (s.unidad || 'vwc') === 'vwc') return { cc: num(s.cc), pmp: num(s.pmp), origen: 'configuración de la sonda del campo' };
-    var an = B().leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campo.id) && num(a.arcilla) != null && !a.enPromedio; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
-    if (an.length && window.SafiaHumedad) { var t = SafiaHumedad.texturaPorArcilla(num(an[an.length - 1].arcilla)); if (t) return { cc: t.cc, pmp: t.pmp, origen: 'textura del análisis (' + fmt(num(an[an.length - 1].arcilla), 0) + ' % arcilla, FAO-56 Tabla 19)' }; }
-    return SUELO_DEFECTO;
-  }
+  // Suelo del campo (sonda → análisis con arcilla → tipo de suelo → franco): mismo orden que Operación
+  function sueloDe(campo) { return SB().sueloDe(campo); }
 
   /* ---------- balance ---------- */
   function balance(filas, cultivo, suelo, opciones) {
     opciones = opciones || {};
     var cu = clave(cultivo), f = fao(cultivo), ky = KY[cu] || KY.otro, pTab = P_TABLA[cu] || 0.5, zrMax = opciones.zrMax || ZR_MAX[cu] || 0.8;
-    var theta = Math.max(0.02, (suelo.cc - suelo.pmp) / 100);
+    var theta = Math.max(0.02, (suelo.cc - suelo.pmp) / 100), ef = opciones.eficiencia != null ? opciones.eficiencia : 1;
     var dias = [], dr = null, etap = {}; ETAPAS.forEach(function (e) { etap[e.k] = { k: e.k, n: e.n, dias: 0, etc: 0, eta: 0, diasEstres: 0, lluvia: 0, riego: 0 }; });
     var episodios = [], epi = null, riegoRestante = opciones.riegoDeclarado > 0 ? opciones.riegoDeclarado : 0, lamina = opciones.lamina || 20, riegoRepartido = 0;
     filas.forEach(function (r, i) {
-      var ke = kcYEtapa(f, i), zr = i < ke.crecimientoRaiz ? 0.25 + (zrMax - 0.25) * i / ke.crecimientoRaiz : zrMax;
-      var taw = 1000 * theta * zr, et0 = r.et0 != null ? r.et0 : 0, etc = ke.kc * et0;
-      var p = Math.max(0.1, Math.min(0.8, pTab + 0.04 * (5 - etc))), raw = p * taw;
+      // Parámetros del día y paso diario: el MISMO código que usa el semáforo de Operación (SafiaBalance)
+      var prm = SB().parametrosDia(cu, f, i, theta, r.et0 != null ? r.et0 : 0, { zrMax: zrMax, p: pTab });
+      var ke = { kc: prm.kc, etapa: prm.etapa }, zr = prm.zr, taw = prm.taw, et0 = r.et0 != null ? r.et0 : 0, etc = prm.etc, p = prm.p, raw = prm.raw;
       if (dr == null) dr = Math.min(taw, raw * (opciones.agotamientoInicial != null ? opciones.agotamientoInicial : 0.5));   // arranca con la mitad del agua fácilmente disponible ya consumida
       dr = Math.min(taw, dr);   // la raíz creció: el agotamiento no puede superar la reserva
       if (riegoRestante > 0 && dr > raw && !r.pronostico && !r.riego) { var apl = Math.min(lamina, riegoRestante); r = Object.assign({}, r, { riego: apl, riegoRepartido: true }); riegoRestante -= apl; riegoRepartido += apl; }
-      var ks = dr > raw ? Math.max(0, (taw - dr) / ((1 - p) * taw)) : 1, eta = ks * etc;
-      var drFin = dr - r.lluvia - r.riego + eta, dp = 0;
-      if (drFin < 0) { dp = -drFin; drFin = 0; }
-      if (drFin > taw) drFin = taw;
-      var d = { fecha: r.fecha, dds: i, etapa: ke.etapa, kc: ke.kc, et0: et0, etc: Math.round(etc * 100) / 100, eta: Math.round(eta * 100) / 100, ks: Math.round(ks * 100) / 100, dr: Math.round(drFin * 10) / 10, taw: Math.round(taw), raw: Math.round(raw), disponible: Math.round((taw - drFin) * 10) / 10, lluvia: r.lluvia, riego: r.riego, riegoRepartido: !!r.riegoRepartido, dp: Math.round(dp * 10) / 10, pronostico: !!r.pronostico };
+      var paso = SB().pasoDia(dr, prm, r.lluvia + r.riego * ef), ks = paso.ks, eta = paso.eta, drFin = paso.dr, dp = paso.dp;
+      var d = { fecha: r.fecha, dds: i, etapa: ke.etapa, kc: ke.kc, et0: et0, etc: Math.round(etc * 100) / 100, eta: Math.round(eta * 100) / 100, ks: Math.round(ks * 100) / 100, dr: Math.round(drFin * 10) / 10, taw: Math.round(taw), raw: Math.round(raw), disponible: Math.round((taw - drFin) * 10) / 10, lluvia: r.lluvia, riego: r.riego, riegoNeto: Math.round(r.riego * ef * 10) / 10, riegoRepartido: !!r.riegoRepartido, dp: Math.round(dp * 10) / 10, pronostico: !!r.pronostico };
       dias.push(d);
       var s = etap[ke.etapa]; s.dias++; s.etc += etc; s.eta += eta; s.lluvia += r.lluvia; s.riego += r.riego; if (ks < 1) s.diasEstres++;
       if (ks < 1 && !r.pronostico) { if (!epi) { epi = { desde: r.fecha, hasta: r.fecha, dias: 1, etapa: ke.etapa, faltaMM: Math.round(dr - raw), ksMin: ks }; episodios.push(epi); } else { epi.hasta = r.fecha; epi.dias++; epi.ksMin = Math.min(epi.ksMin, ks); } }
@@ -162,7 +138,7 @@
       factor *= (1 - perd);
       return { k: e.k, n: e.n, dias: s.dias, etc: Math.round(s.etc), eta: Math.round(s.eta), deficitPct: Math.round(deficit * 100), ky: ky[e.k], perdidaPct: Math.round(perd * 1000) / 10, diasEstres: s.diasEstres, lluvia: Math.round(s.lluvia), riego: Math.round(s.riego) };
     });
-    return { cultivo: cultivo, cu: cu, fao: f, suelo: suelo, ky: ky, dias: dias, etapas: etapas, riegoRepartido: Math.round(riegoRepartido), riegoDeclarado: opciones.riegoDeclarado || 0, relacionRinde: Math.round(factor * 1000) / 1000, perdidaPct: Math.round((1 - factor) * 1000) / 10, episodios: episodios,
+    return { cultivo: cultivo, cu: cu, fao: f, suelo: suelo, ky: ky, eficiencia: ef, dias: dias, etapas: etapas, riegoRepartido: Math.round(riegoRepartido), riegoDeclarado: opciones.riegoDeclarado || 0, relacionRinde: Math.round(factor * 1000) / 1000, perdidaPct: Math.round((1 - factor) * 1000) / 10, episodios: episodios,
       totales: { etc: Math.round(dias.reduce(function (a, d) { return a + d.etc; }, 0)), eta: Math.round(dias.reduce(function (a, d) { return a + d.eta; }, 0)), lluvia: Math.round(dias.reduce(function (a, d) { return a + d.lluvia; }, 0)), riego: Math.round(dias.reduce(function (a, d) { return a + d.riego; }, 0)), percolado: Math.round(dias.reduce(function (a, d) { return a + d.dp; }, 0)) } };
   }
   // Campañas del lote (una por cultivo de cada campaña)
@@ -185,7 +161,7 @@
     var hoy = hoyISO(), fin = finDe(camp), hasta = camp.abierta ? (fin > sumarDias(hoy, 7) ? sumarDias(hoy, 7) : fin) : fin;
     return datosDiarios(campo, lote, camp.siembra, hasta).then(function (d) {
       var hayRiegoEv = d.filas.some(function (x) { return x.riego > 0; });
-      var res = balance(d.filas, camp.cultivo, sueloDe(campo), { riegoDeclarado: !hayRiegoEv && camp.riegoDeclarado > 0 ? camp.riegoDeclarado : 0 });
+      var res = balance(d.filas, camp.cultivo, sueloDe(campo), { riegoDeclarado: !hayRiegoEv && camp.riegoDeclarado > 0 ? camp.riegoDeclarado : 0, eficiencia: SB().getEficienciaEquipo(lote) });
       res.campana = camp; res.fuentes = d.fuentes; res.lluviaDeEventos = d.lluviaDeEventos; res.lote = lote;
       if (camp.abierta && fin >= hoy) {
         var reales = res.dias.filter(function (x) { return !x.pronostico; }), ult = reales[reales.length - 1];
@@ -244,7 +220,7 @@
     if (res.riegoRepartido > 0) h += '<div class="note info" style="margin-top:8px;">La cosecha declara <b>' + fmt(res.riegoDeclarado) + ' mm de riego</b> pero el lote no tiene riegos cargados por fecha: el balance los repartió en láminas de 20 mm en los días en que el suelo llegó al punto de recarga (' + fmt(res.riegoRepartido) + ' mm usados). Cargando los riegos en Eventos con su fecha, el balance usa los reales.</div>';
     if (res.episodios.length) h += '<div style="margin-top:8px;font-size:13px;"><b>Cuándo faltó agua:</b> ' + res.episodios.map(function (e) { return fmtF(e.desde) + (e.dias > 1 ? ' al ' + fmtF(e.hasta) + ' (' + e.dias + ' días)' : '') + ' en ' + NOMBRE_ETAPA[e.etapa].toLowerCase() + (e.faltaMM > 0 ? ', hacían falta ~' + fmt(e.faltaMM) + ' mm al empezar' : ''); }).join(' · ') + '.</div>';
     else h += '<div style="margin-top:8px;font-size:13px;color:#178029;"><b>Sin días de estrés hídrico</b> en toda la campaña según el balance.</div>';
-    h += '<div class="muted" style="font-size:11px;margin-top:8px;">Suelo: CC ' + fmt(res.suelo.cc) + ' % · PMP ' + fmt(res.suelo.pmp) + ' % (' + esc(res.suelo.origen) + ') · raíz hasta ' + fmt((ZR_MAX[res.cu] || 0.8) * 100) + ' cm · datos: ' + (res.fuentes.estacion ? res.fuentes.estacion + ' días de estación' : '') + (res.fuentes.openMeteo ? (res.fuentes.estacion ? ', ' : '') + res.fuentes.openMeteo + ' días de Open-Meteo' : '') + (res.fuentes.pronostico ? ', ' + res.fuentes.pronostico + ' de pronóstico' : '') + ' · lluvia ' + (res.lluviaDeEventos ? 'de los eventos del lote' : 'estimada del clima') + ' · riego de los eventos del lote. Método FAO-56 (balance diario, Kc por etapa, agotamiento permitido ' + Math.round((P_TABLA[res.cu] || 0.5) * 100) + ' %) y FAO-33 (Ky por etapa); sin escurrimiento ni napa; arranca con la mitad del agua fácil consumida. Es una estimación para decidir, no una medición: la sonda de humedad la reemplaza cuando existe.</div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:8px;">Suelo: CC ' + fmt(res.suelo.cc) + ' % · PMP ' + fmt(res.suelo.pmp) + ' % (' + esc(res.suelo.origen) + ') · raíz hasta ' + fmt((ZR_MAX[res.cu] || 0.8) * 100) + ' cm · datos: ' + (res.fuentes.estacion ? res.fuentes.estacion + ' días de estación' : '') + (res.fuentes.openMeteo ? (res.fuentes.estacion ? ', ' : '') + res.fuentes.openMeteo + ' días de Open-Meteo' : '') + (res.fuentes.pronostico ? ', ' + res.fuentes.pronostico + ' de pronóstico' : '') + ' · lluvia ' + (res.lluviaDeEventos ? 'de los eventos del lote' : (res.fuentes && res.fuentes.estacion ? 'medida por la estación' : 'estimada del clima')) + ' · riego de los eventos del lote × eficiencia del equipo (' + Math.round((res.eficiencia == null ? 1 : res.eficiencia) * 100) + ' %). Método FAO-56 (balance diario, Kc por etapa, agotamiento permitido ' + Math.round((P_TABLA[res.cu] || 0.5) * 100) + ' %) y FAO-33 (Ky por etapa); sin escurrimiento ni napa; arranca con la mitad del agua fácil consumida. Es el mismo motor que usa el semáforo del Operador y del Encargado. Es una estimación para decidir, no una medición: la sonda de humedad la reemplaza cuando existe.</div>';
     return h;
   }
 

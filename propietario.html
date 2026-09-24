@@ -639,10 +639,12 @@
   };
 
   // ===== FETCH ESTADO RIEGO POR EQUIPO =====
+  function indiceHoyDe(daily) { const hoy = SafiaBalance.hoyLocal(); let k = daily.time.indexOf(hoy); if (k < 0) { k = 0; for (let t = 0; t < daily.time.length; t++) if (String(daily.time[t]).slice(0, 10) <= hoy) k = t; } return k; }
   function detectarAlertasClimaticasProp(daily) {
     const alertas = [];
     const diasSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-    for (let i = 7; i < Math.min(12, daily.time.length); i++) {
+    const h0 = indiceHoyDe(daily);   // hoy y los próximos 4 días (el pronóstico trae nulos en el pasado)
+    for (let i = h0; i < Math.min(h0 + 5, daily.time.length); i++) {
       const fecha = new Date(daily.time[i] + 'T12:00:00');
       const diaStr = diasSemana[fecha.getDay()] + ' ' + String(fecha.getDate()).padStart(2,'0') + '/' + String(fecha.getMonth()+1).padStart(2,'0');
       const tempMin  = daily.temperature_2m_min?.[i];
@@ -651,13 +653,13 @@
       const wCode    = daily.weather_code?.[i];
       const lluvia   = daily.precipitation_sum?.[i] || 0;
       const probLluv = daily.precipitation_probability_max?.[i] || 0;
-      if (tempMin !== undefined && tempMin <= 2)
+      if (tempMin != null && tempMin <= 2)
         alertas.push({ tipo:'helada', icono:'🧊', nombre:'Riesgo de helada', detalle:`Mín. ${tempMin.toFixed(1)}°C. Proteger cultivos.`, fecha: diaStr });
-      if (tempMax !== undefined && tempMax >= 38)
+      if (tempMax != null && tempMax >= 38)
         alertas.push({ tipo:'calor', icono:'🌡️', nombre:'Ola de calor', detalle:`Máx. ${tempMax.toFixed(1)}°C. Aumentar riego.`, fecha: diaStr });
-      if (wCode !== undefined && wCode >= 95)
+      if (wCode != null && wCode >= 95)
         alertas.push({ tipo:'tormenta', icono:'⛈️', nombre:'Tormenta eléctrica', detalle:`Posible granizo y vientos fuertes.`, fecha: diaStr });
-      if (viento !== undefined && viento >= 50)
+      if (viento != null && viento >= 50)
         alertas.push({ tipo:'viento', icono:'💨', nombre:'Viento fuerte', detalle:`${Math.round(viento)} km/h previstos.`, fecha: diaStr });
       if (lluvia >= 40 && probLluv >= 60)
         alertas.push({ tipo:'lluvia', icono:'🌊', nombre:'Lluvia intensa', detalle:`${lluvia.toFixed(0)} mm (${probLluv}% prob.). Suspender riegos.`, fecha: diaStr });
@@ -672,7 +674,7 @@
       const rClima = await SafiaClima.obtenerClima({
         lat: campo.latitud, lon: campo.longitud,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
-        pastDays: 7, forecastDays: 5,
+        pastDays: 92, forecastDays: 5,   // 92 días de historia: el balance arranca en la siembra
         cacheKey: 'campo:' + campo.id
       });
       if (!rClima.datos) {
@@ -713,12 +715,10 @@
         equipo: eq,
         kcDef,
         fechaSiembra: cul.fechaSiembra,
-        diasPasado: 7,
         diasFuturo: 5,
-        humedadInicialFrac: 0.8,
         asumirRiegoRecomendado: false
       });
-      const U = SafiaBalance.UMBRALES;
+      const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
       const pct = r.porcentajeHoy;
       const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 

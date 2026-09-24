@@ -39,10 +39,11 @@
   function fmtF(f) { if (!f) return '—'; var p = String(f).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; }
   function sumarDias(f, n) { var d = new Date(f + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
   function diasEntre(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
-  function hoyISO() { return new Date().toISOString().slice(0, 10); }
+  function hoyISO() { return window.SafiaBalance ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }   // hoy en hora local (Paraguay), no UTC
 
   // Capacidad de campo y punto de marchitez orientativos por textura (FAO-56 Tabla 19, en % volumétrico) [1]
-  var TEXTURAS = [
+  // Texturas: la misma tabla que el motor de agua (safia-balance.js); la copia local queda solo de respaldo
+  var TEXTURAS = (window.SafiaBalance && SafiaBalance.TEXTURAS) ? SafiaBalance.TEXTURAS.map(function (t) { return { k: t.k, n: t.nombreLargo, cc: t.cc, pmp: t.pmp }; }) : [
     { k: 'arenoso', n: 'Arenoso (< 15 % arcilla, mucha arena)', cc: 12, pmp: 4 },
     { k: 'franco_arenoso', n: 'Franco arenoso (15–20 % arcilla)', cc: 15, pmp: 6 },
     { k: 'franco', n: 'Franco (20–30 % arcilla)', cc: 25, pmp: 12 },

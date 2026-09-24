@@ -581,7 +581,7 @@
 
           // Semáforo según humedad del suelo (% agua útil HOY) + lluvia próxima.
           // Unificado con el motor: antes usaba un balance neto bruto de 7 días.
-          const U = SafiaBalance.UMBRALES;
+          const U = balance.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
           const pct = balance.pct;
           const mmRegar = (balance.mmRegar || 0).toFixed(0);
           if (balance.lluviaProxima >= 15) {
@@ -605,7 +605,8 @@
             datos.textoSemaforo = '🟡 Monitorear';
             datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Reevaluar en 2-3 días.`;
           }
-          // Aviso si el suelo se resolvió por fallback a "franco"
+          if (balance.sonda && balance.sonda.antiguedadDias <= 2) datos.recomendacion += ` <span style="color:#8C9196;">(sonda: ${balance.sonda.valor.toFixed(1)} % vol)</span>`;
+          if (balance.etapaHoy && balance.etapaHoy.critica && pct < U.CRITICO) datos.recomendacion += ' <strong>Etapa crítica para el rinde.</strong>';
           datos.recomendacion += SafiaBalance.notaFallbackSuelo(balance.suelo);
         } catch (error) {
           // Mensaje honesto y diferenciado según el tipo de fallo de clima.
@@ -643,10 +644,12 @@
 
 
     // ===== DETECCIÓN DE ALERTAS CLIMÁTICAS =====
+    function indiceHoyDe(daily) { const hoy = SafiaBalance.hoyLocal(); let k = daily.time.indexOf(hoy); if (k < 0) { k = 0; for (let t = 0; t < daily.time.length; t++) if (String(daily.time[t]).slice(0, 10) <= hoy) k = t; } return k; }
     function detectarAlertasClimaticas(daily) {
       const alertas = [];
       const diasSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-      for (let i = 7; i < Math.min(12, daily.time.length); i++) {
+      const h0 = indiceHoyDe(daily);   // hoy y los próximos 4 días (el pronóstico trae nulos en el pasado)
+      for (let i = h0; i < Math.min(h0 + 5, daily.time.length); i++) {
         const fecha = new Date(daily.time[i] + 'T12:00:00');
         const diaStr = diasSemana[fecha.getDay()] + ' ' + String(fecha.getDate()).padStart(2,'0') + '/' + String(fecha.getMonth()+1).padStart(2,'0');
         const tempMin  = daily.temperature_2m_min?.[i];
@@ -655,13 +658,13 @@
         const wCode    = daily.weather_code?.[i];
         const lluvia   = daily.precipitation_sum?.[i] || 0;
         const probLluv = daily.precipitation_probability_max?.[i] || 0;
-        if (tempMin !== undefined && tempMin <= 2)
+        if (tempMin != null && tempMin <= 2)
           alertas.push({ tipo:'helada',   icono:'🧊', nombre:'Riesgo de helada',       detalle:`Temperatura mínima prevista: ${tempMin.toFixed(1)}°C. Proteger cultivos sensibles.`, fecha: diaStr });
-        if (tempMax !== undefined && tempMax >= 38)
+        if (tempMax != null && tempMax >= 38)
           alertas.push({ tipo:'calor',    icono:'🌡️', nombre:'Ola de calor',            detalle:`Temperatura máxima: ${tempMax.toFixed(1)}°C. Aumentar frecuencia de riego.`, fecha: diaStr });
-        if (wCode !== undefined && wCode >= 95)
+        if (wCode != null && wCode >= 95)
           alertas.push({ tipo:'tormenta', icono:'⛈️', nombre:'Tormenta eléctrica',      detalle:`Posible granizo y vientos fuertes. No operar equipos eléctricos.`, fecha: diaStr });
-        if (viento !== undefined && viento >= 50)
+        if (viento != null && viento >= 50)
           alertas.push({ tipo:'viento',   icono:'💨', nombre:'Viento fuerte',           detalle:`Velocidad máxima: ${Math.round(viento)} km/h. Revisar equipos móviles.`, fecha: diaStr });
         if (lluvia >= 40 && probLluv >= 60)
           alertas.push({ tipo:'lluvia',   icono:'🌊', nombre:'Lluvia intensa',          detalle:`${lluvia.toFixed(0)} mm (${probLluv}% prob.). Suspender riegos.`, fecha: diaStr });
@@ -691,7 +694,7 @@
       const rClima = await SafiaClima.obtenerClima({
         lat: campo.latitud, lon: campo.longitud,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
-        pastDays: 7, forecastDays: 5,
+        pastDays: 92, forecastDays: 5,   // 92 días de historia: el balance arranca en la siembra
         cacheKey: 'campo:' + campo.id
       });
       if (!rClima.datos) {
@@ -718,9 +721,7 @@
         equipo,
         kcDef,
         fechaSiembra: campana.cultivos[0].fechaSiembra,
-        diasPasado: 7,
         diasFuturo: 5,
-        humedadInicialFrac: 0.8,
         asumirRiegoRecomendado: false
       });
 
@@ -732,6 +733,10 @@
         deficitCC: r.deficitHastaCC,
         eficiencia: r.eficiencia,
         mmRegar: r.recomendacion.mm,
+        mmRegarTotal: r.recomendacion.mmTotal,
+        umbrales: r.umbrales,
+        etapaHoy: r.etapaHoy,
+        sonda: r.sonda,
         lluviaProxima,
         suelo: r.suelo,
         // Totales del período (referencia / compat)
