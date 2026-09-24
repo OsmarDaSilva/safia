@@ -266,18 +266,60 @@
     var span = document.getElementById('safiaSyncNombre'); if (span) span.textContent = (u.nombre || '') + (u.email ? ' · ' + u.email : '');
     try { window.dispatchEvent(new CustomEvent('safia:usuario', { detail: u })); } catch (e) {}
   }
+  // Pantalla de espera: la cuenta existe pero Irrigar todavía no la aprobó (o la dio de baja)
+  function pantallaEspera(u) {
+    if (document.getElementById('safiaEspera')) return;
+    var baja = u.estado === 'baja';
+    var d = document.createElement('div'); d.id = 'safiaEspera';
+    d.style.cssText = 'position:fixed;inset:0;z-index:99998;background:linear-gradient(160deg,#2E3236 0%,#3A3E41 55%,#178029 140%);display:flex;align-items:center;justify-content:center;padding:20px;font-family:"Plus Jakarta Sans",system-ui,sans-serif;';
+    d.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:420px;width:100%;padding:32px 30px;box-shadow:0 18px 60px rgba(10,20,15,.35);color:#41464B;">' +
+      '<div style="font-weight:800;font-size:20px;color:#2E3236;margin-bottom:10px;">' + (baja ? 'Tu acceso a SAFIA está dado de baja' : 'Tu acceso está pendiente de aprobación') + '</div>' +
+      '<div style="font-size:14px;line-height:1.55;">' + (baja ? 'Si creés que es un error, hablá con Irrigar.' : 'Hola <b>' + String(u.nombre || u.email || '').replace(/</g, '&lt;') + '</b>. Tu cuenta ya existe: falta que Irrigar la apruebe y te asigne tus campos. Te avisamos por WhatsApp o correo cuando esté lista.') + '</div>' +
+      '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;"><a href="#" id="safiaEsperaVolver" style="padding:11px 16px;border-radius:10px;background:#22A93A;color:#fff;font-weight:700;text-decoration:none;font-size:14px;">Volver a comprobar</a>' +
+      '<a href="#" id="safiaEsperaSalir" style="padding:11px 16px;border-radius:10px;border:1.5px solid #E1E4E7;color:#41464B;font-weight:700;text-decoration:none;font-size:14px;">Salir</a></div>' +
+      '<div style="margin-top:14px;font-size:12px;color:#8C9196;">Irrigar · WhatsApp +595 981 000 000 · ' + String(u.email || '').replace(/</g, '&lt;') + '</div></div>';
+    function poner() { document.body.appendChild(d); document.getElementById('safiaEsperaVolver').addEventListener('click', function (ev) { ev.preventDefault(); location.reload(); }); document.getElementById('safiaEsperaSalir').addEventListener('click', function (ev) { ev.preventDefault(); try { window.localStorage.removeItem('safia_usuario'); } catch (e) {} sb.auth.signOut().finally(function () { location.replace('login.html'); }); }); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', poner); else poner();
+  }
+  function filaAUsuario(f, base) {
+    return { id: f.id, email: f.email || base.email, nombre: f.nombre || base.nombre, rol: f.rol || 'cliente', clienteId: f.cliente_id || null, estado: f.estado || 'activo', telefono: f.telefono || null };
+  }
+  // Devuelve una promesa con el usuario (activo o no). Si no tiene fila en safia_usuarios, la crea pendiente.
   function cargarUsuario(user) {
-    if (!user) return;
-    var base = { id: user.id, email: user.email || '', nombre: (user.user_metadata && user.user_metadata.nombre) || nombreDesdeCorreo(user.email), rol: 'cliente', clienteId: null };
+    if (!user) return Promise.resolve(null);
+    var meta = user.user_metadata || {};
+    var base = { id: user.id, email: user.email || '', nombre: meta.nombre || nombreDesdeCorreo(user.email), rol: 'cliente', clienteId: null, estado: 'activo' };
     if (!usuarioActual || usuarioActual.id !== user.id) publicarUsuario(base);
-    sb.from('safia_usuarios').select('id,email,nombre,rol,cliente_id').eq('id', user.id).maybeSingle().then(function (r) {
-      if (r.error || !r.data) return;   // sin tabla todavía: queda el nombre del correo
-      publicarUsuario({ id: r.data.id, email: r.data.email || base.email, nombre: r.data.nombre || base.nombre, rol: r.data.rol || 'cliente', clienteId: r.data.cliente_id || null });
-    }).catch(function () {});
+    return sb.from('safia_usuarios').select('id,email,nombre,rol,cliente_id,estado,telefono').eq('id', user.id).maybeSingle().then(function (r) {
+      if (r.error) { return usuarioActual; }   // tabla vieja o sin tabla: se sigue como hasta ahora
+      if (r.data) { var u = filaAUsuario(r.data, base); publicarUsuario(u); return u; }
+      // cuenta de otra app del grupo (o creada antes de la tabla): pedido de acceso automático, queda pendiente
+      return sb.from('safia_usuarios').insert({ id: user.id, email: base.email, nombre: base.nombre, rol: 'cliente', estado: 'pendiente', solicitud: meta.solicitud || null, telefono: meta.telefono || null }).then(function (ri) {
+        var u = Object.assign({}, base, { estado: ri.error ? 'activo' : 'pendiente' }); publicarUsuario(u); return u;
+      });
+    }).catch(function () { return usuarioActual; });
+  }
+  function llamarUsuarios(datos) {
+    return sb.functions.invoke('safia-usuarios', { body: datos }).then(function (r) {
+      if (r.error) {
+        // supabase-js no expone el cuerpo del error: lo leemos del contexto si está
+        var ctx = r.error && r.error.context;
+        if (ctx && typeof ctx.json === 'function') return ctx.json().then(function (j) { throw new Error((j && j.error) || r.error.message || 'Error'); }, function () { throw new Error(r.error.message || 'Error'); });
+        throw new Error(r.error.message || 'Error');
+      }
+      if (r.data && r.data.error) throw new Error(r.data.error);
+      return r.data;
+    });
   }
   window.SafiaSync = Object.assign(window.SafiaSync || {}, {
     usuario: function () { return usuarioActual; },
-    esAdmin: function () { return !!usuarioActual && usuarioActual.rol === 'admin'; }
+    esAdmin: function () { return !!usuarioActual && usuarioActual.rol === 'admin' && (usuarioActual.estado || 'activo') === 'activo'; },
+    sb: function () { return sb; },
+    // administración (solo admin): lista completa y acciones vía la función safia-usuarios
+    listarUsuarios: function () { return sb.from('safia_usuarios').select('*').order('estado').order('nombre').then(function (r) { if (r.error) throw new Error(r.error.message); return r.data || []; }); },
+    guardarUsuario: function (id, cambios) { return sb.from('safia_usuarios').update(Object.assign({}, cambios, { actualizado_en: new Date().toISOString() })).eq('id', id).then(function (r) { if (r.error) throw new Error(r.error.message); return true; }); },
+    accionUsuario: llamarUsuarios,
+    pendientes: function () { return sb.from('safia_usuarios').select('id,email,nombre,solicitud,telefono,creado_en').eq('estado', 'pendiente').then(function (r) { return r.error ? [] : (r.data || []); }); }
   });
 
   /* ---------- arranque: sesión + sincronización ---------- */
@@ -285,13 +327,15 @@
   sb.auth.getSession().then(function (r) {
     var sesion = r && r.data && r.data.session;
     if (ES_LOGIN) {
-      if (sesion) location.replace('index.html');
+      if (sesion && !/type=recovery/.test(location.hash) && !/reset=1/.test(location.search)) location.replace('index.html');
       return;
     }
     if (!sesion) { location.replace('login.html'); return; }
     insertarBarra(sesion.user && sesion.user.email);
-    cargarUsuario(sesion.user);
-    sincronizarTodo();
+    cargarUsuario(sesion.user).then(function (u) {
+      if (u && u.estado && u.estado !== 'activo') { pantallaEspera(u); marcarEstado(false, 'acceso ' + u.estado); return; }
+      sincronizarTodo();
+    });
   }).catch(function (e) {
     console.error('SAFIA sync (sesión):', e);
     // si no se puede verificar la sesión (sin internet), seguimos en modo local

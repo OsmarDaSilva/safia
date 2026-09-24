@@ -16,34 +16,44 @@
   :root{
     --green:#22A93A; --green-d:#178029; --green-t:#E7F6EA;
     --gray:#3A3E41; --bg:#F2F3F5; --card:#FFFFFF; --bd:#E1E4E7;
-    --label:#8C9196; --body:#41464B; --head:#2E3236; --red:#C0392B; --red-t:#FBECEA;
+    --label:#8C9196; --body:#41464B; --head:#2E3236; --red:#C0392B; --red-t:#FBECEA; --amber:#B8731A; --amber-t:#FBF3E6;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{min-height:100vh;display:flex;align-items:center;justify-content:center;
     background:linear-gradient(160deg,#2E3236 0%,#3A3E41 55%,#178029 140%);
     font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--body);padding:20px;}
-  .card{width:100%;max-width:380px;background:var(--card);border-radius:16px;
+  .card{width:100%;max-width:400px;background:var(--card);border-radius:16px;
     box-shadow:0 18px 60px rgba(10,20,15,.35);padding:34px 30px 30px;}
   .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
   .brand .mark{width:44px;height:44px;border-radius:12px;background:var(--green);
-    display:flex;align-items:center;justify-content:center;font-size:22px;}
+    display:flex;align-items:center;justify-content:center;color:#fff;}
+  .brand .mark svg{width:24px;height:24px;}
   .brand .bname{font-weight:800;font-size:22px;color:var(--head);letter-spacing:.3px;}
   .brand .btag{font-size:9px;letter-spacing:1.6px;color:var(--label);margin-top:3px;}
-  .sub{font-size:13.5px;color:#5b636d;margin:14px 0 22px;}
+  .sub{font-size:13.5px;color:#5b636d;margin:14px 0 18px;line-height:1.45;}
   label{display:block;font-size:11px;font-weight:700;letter-spacing:.8px;
     color:var(--label);text-transform:uppercase;margin:0 0 6px 2px;}
-  input{width:100%;padding:12px 14px;border:1.5px solid var(--bd);border-radius:10px;
+  input,select,textarea{width:100%;padding:12px 14px;border:1.5px solid var(--bd);border-radius:10px;
     font:500 15px 'Plus Jakarta Sans',system-ui,sans-serif;color:var(--head);
-    background:#FAFBFC;outline:none;margin-bottom:16px;}
-  input:focus{border-color:var(--green);background:#fff;}
+    background:#FAFBFC;outline:none;margin-bottom:14px;}
+  input:focus,select:focus,textarea:focus{border-color:var(--green);background:#fff;}
+  textarea{min-height:64px;resize:vertical;}
   button{width:100%;padding:13px;border:0;border-radius:10px;background:var(--green);
     color:#fff;font:700 15px 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;}
   button:hover{background:var(--green-d);}
   button:disabled{opacity:.6;cursor:wait;}
-  .error{display:none;background:var(--red-t);color:var(--red);border-radius:9px;
-    padding:11px 13px;font-size:13px;font-weight:600;margin-bottom:16px;}
-  .error.visible{display:block;}
-  .pie{margin-top:18px;font-size:12px;color:var(--label);text-align:center;}
+  .msg{display:none;border-radius:9px;padding:11px 13px;font-size:13px;font-weight:600;margin-bottom:14px;line-height:1.45;}
+  .msg.visible{display:block;}
+  .msg.error{background:var(--red-t);color:var(--red);}
+  .msg.ok{background:var(--green-t);color:var(--green-d);}
+  .msg.warn{background:var(--amber-t);color:#7a4d10;}
+  .pie{margin-top:16px;font-size:12px;color:var(--label);text-align:center;line-height:1.6;}
+  .pie a,.link{color:var(--green-d);font-weight:700;text-decoration:none;cursor:pointer;}
+  .vista{display:none;} .vista.activa{display:block;}
+  .tabs{display:flex;gap:6px;margin:14px 0 18px;background:var(--bg);padding:4px;border-radius:10px;}
+  .tabs button{background:transparent;color:var(--label);padding:9px;border-radius:8px;font-size:13px;}
+  .tabs button.on{background:#fff;color:var(--head);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+  .fila{display:flex;justify-content:space-between;align-items:center;margin:-6px 0 14px;font-size:12px;}
 </style>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0F3D14">
@@ -54,64 +64,168 @@
 <body>
   <div class="card">
     <div class="brand">
-      <div class="mark">💧</div>
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></div>
       <div>
         <div class="bname">SAFIA</div>
         <div class="btag">SMART · AGRO · INTELLIGENCE</div>
       </div>
     </div>
-    <p class="sub">Ingresá con tu usuario para ver los datos de riego.</p>
-    <div class="error" id="mensajeError"></div>
-    <form id="formLogin">
-      <label for="correo">Correo</label>
-      <input type="email" id="correo" autocomplete="username" required>
-      <label for="contrasena">Contraseña</label>
-      <input type="password" id="contrasena" autocomplete="current-password" required>
-      <button type="submit" id="botonEntrar">Entrar</button>
-    </form>
-    <p class="pie">Es el mismo usuario y contraseña de tus otras apps (SIGA / AGROinvest360).</p>
+
+    <div class="tabs" id="tabs">
+      <button type="button" class="on" id="tabEntrar" onclick="mostrarVista('entrar')">Entrar</button>
+      <button type="button" id="tabCrear" onclick="mostrarVista('crear')">Crear cuenta</button>
+    </div>
+
+    <div class="msg" id="mensaje"></div>
+
+    <!-- ENTRAR -->
+    <div class="vista activa" id="vistaEntrar">
+      <p class="sub">Ingresá con tu usuario para ver los datos de riego.</p>
+      <form id="formLogin">
+        <label for="correo">Correo</label>
+        <input type="email" id="correo" autocomplete="username" required>
+        <label for="contrasena">Contraseña</label>
+        <input type="password" id="contrasena" autocomplete="current-password" required>
+        <div class="fila"><span></span><a class="link" onclick="mostrarVista('olvide')">Olvidé mi contraseña</a></div>
+        <button type="submit" id="botonEntrar">Entrar</button>
+      </form>
+      <p class="pie">Es el mismo usuario y contraseña de tus otras apps del grupo (SIGA / AGROinvest360).<br>¿Primera vez? <a onclick="mostrarVista('crear')">Creá tu cuenta</a> y Irrigar te aprueba el acceso.</p>
+    </div>
+
+    <!-- CREAR CUENTA -->
+    <div class="vista" id="vistaCrear">
+      <p class="sub">Creá tu cuenta. Queda <b>pendiente</b> hasta que Irrigar la apruebe y te asigne tus campos.</p>
+      <form id="formCrear">
+        <label for="rNombre">Nombre y apellido</label>
+        <input type="text" id="rNombre" autocomplete="name" required placeholder="Ej: Anderson Pereira">
+        <label for="rCorreo">Correo</label>
+        <input type="email" id="rCorreo" autocomplete="username" required>
+        <label for="rTelefono">WhatsApp</label>
+        <input type="tel" id="rTelefono" autocomplete="tel" placeholder="Ej: +595 981 234567">
+        <label for="rSolicitud">Establecimiento o empresa (para que Irrigar sepa quién sos)</label>
+        <textarea id="rSolicitud" placeholder="Ej: Estancia Villa Alta, Katueté · soy el encargado del pivote de Anderson"></textarea>
+        <label for="rContrasena">Contraseña (mínimo 6 caracteres)</label>
+        <input type="password" id="rContrasena" autocomplete="new-password" minlength="6" required>
+        <button type="submit" id="botonCrear">Crear cuenta</button>
+      </form>
+      <p class="pie">¿Ya tenés cuenta en SIGA o AGROinvest360? No hace falta otra: <a onclick="mostrarVista('entrar')">entrá con esa</a> y el pedido de acceso a SAFIA se genera solo.</p>
+    </div>
+
+    <!-- OLVIDÉ MI CONTRASEÑA -->
+    <div class="vista" id="vistaOlvide">
+      <p class="sub">Te mandamos un correo con un enlace para elegir una contraseña nueva.</p>
+      <form id="formOlvide">
+        <label for="oCorreo">Correo</label>
+        <input type="email" id="oCorreo" autocomplete="username" required>
+        <button type="submit" id="botonOlvide">Enviar enlace</button>
+      </form>
+      <p class="pie"><a onclick="mostrarVista('entrar')">Volver a entrar</a></p>
+    </div>
+
+    <!-- NUEVA CONTRASEÑA (llega desde el enlace del correo) -->
+    <div class="vista" id="vistaNueva">
+      <p class="sub">Elegí tu contraseña nueva.</p>
+      <form id="formNueva">
+        <label for="nContrasena">Contraseña nueva (mínimo 6 caracteres)</label>
+        <input type="password" id="nContrasena" autocomplete="new-password" minlength="6" required>
+        <label for="nContrasena2">Repetila</label>
+        <input type="password" id="nContrasena2" autocomplete="new-password" minlength="6" required>
+        <button type="submit" id="botonNueva">Guardar contraseña</button>
+      </form>
+    </div>
   </div>
-
 <script>
-  var form = document.getElementById('formLogin');
-  var boton = document.getElementById('botonEntrar');
-  var cajaError = document.getElementById('mensajeError');
-
-  function mostrarError(msj) {
-    cajaError.textContent = msj;
-    cajaError.classList.add('visible');
+  var caja = document.getElementById('mensaje');
+  function mensaje(texto, tipo) { caja.textContent = texto; caja.className = 'msg visible ' + (tipo || 'error'); }
+  function limpiar() { caja.className = 'msg'; }
+  function mostrarVista(v) {
+    limpiar();
+    ['entrar', 'crear', 'olvide', 'nueva'].forEach(function (k) { document.getElementById('vista' + k.charAt(0).toUpperCase() + k.slice(1)).classList.toggle('activa', k === v); });
+    document.getElementById('tabEntrar').classList.toggle('on', v === 'entrar' || v === 'olvide');
+    document.getElementById('tabCrear').classList.toggle('on', v === 'crear');
+    document.getElementById('tabs').style.display = v === 'nueva' ? 'none' : 'flex';
   }
+  function sb() { return window.safiaSupabase; }
+  function ocupado(boton, texto, si) { boton.disabled = si; boton.textContent = si ? texto + '…' : boton.dataset.txt; }
+  ['botonEntrar', 'botonCrear', 'botonOlvide', 'botonNueva'].forEach(function (id) { var b = document.getElementById(id); b.dataset.txt = b.textContent; });
 
-  form.addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    cajaError.classList.remove('visible');
+  // ¿Vengo del enlace de "olvidé mi contraseña"? (Supabase manda #access_token=...&type=recovery)
+  var esRecuperacion = /type=recovery/.test(location.hash) || /reset=1/.test(location.search);
+  if (esRecuperacion) mostrarVista('nueva');
 
-    if (!window.safiaSupabase) {
-      mostrarError('No hay conexión a internet. Revisá la conexión y volvé a intentar.');
-      return;
-    }
-    boton.disabled = true;
-    boton.textContent = 'Entrando…';
-
-    window.safiaSupabase.auth.signInWithPassword({
-      email: document.getElementById('correo').value.trim(),
-      password: document.getElementById('contrasena').value
-    }).then(function (r) {
+  // ENTRAR
+  document.getElementById('formLogin').addEventListener('submit', function (ev) {
+    ev.preventDefault(); limpiar();
+    if (!sb()) { mensaje('No hay conexión a internet. Revisá la conexión y volvé a intentar.'); return; }
+    var b = document.getElementById('botonEntrar'); ocupado(b, 'Entrando', true);
+    sb().auth.signInWithPassword({ email: document.getElementById('correo').value.trim(), password: document.getElementById('contrasena').value }).then(function (r) {
       if (r.error) {
         var m = (r.error.message || '').toLowerCase();
-        if (m.indexOf('invalid') !== -1) mostrarError('Correo o contraseña incorrectos.');
-        else if (m.indexOf('confirm') !== -1) mostrarError('Ese correo todavía no fue confirmado.');
-        else mostrarError('No se pudo entrar: ' + r.error.message);
-        boton.disabled = false;
-        boton.textContent = 'Entrar';
-        return;
+        if (m.indexOf('invalid') !== -1) mensaje('Correo o contraseña incorrectos.');
+        else if (m.indexOf('confirm') !== -1) mensaje('Ese correo todavía no fue confirmado: revisá tu casilla (y el spam).');
+        else if (m.indexOf('banned') !== -1) mensaje('Este usuario fue dado de baja. Hablá con Irrigar.');
+        else mensaje('No se pudo entrar: ' + r.error.message);
+        ocupado(b, '', false); return;
       }
       location.replace('index.html');
-    }).catch(function () {
-      mostrarError('No se pudo conectar. Revisá tu internet y volvé a intentar.');
-      boton.disabled = false;
-      boton.textContent = 'Entrar';
-    });
+    }).catch(function () { mensaje('No se pudo conectar. Revisá tu internet y volvé a intentar.'); ocupado(b, '', false); });
+  });
+
+  // CREAR CUENTA
+  document.getElementById('formCrear').addEventListener('submit', function (ev) {
+    ev.preventDefault(); limpiar();
+    if (!sb()) { mensaje('No hay conexión a internet.'); return; }
+    var nombre = document.getElementById('rNombre').value.trim(), email = document.getElementById('rCorreo').value.trim().toLowerCase();
+    var telefono = document.getElementById('rTelefono').value.trim(), solicitud = document.getElementById('rSolicitud').value.trim(), pass = document.getElementById('rContrasena').value;
+    if (!nombre) { mensaje('Poné tu nombre.'); return; }
+    if (pass.length < 6) { mensaje('La contraseña tiene que tener al menos 6 caracteres.'); return; }
+    var b = document.getElementById('botonCrear'); ocupado(b, 'Creando', true);
+    sb().auth.signUp({ email: email, password: pass, options: { data: { nombre: nombre, app: 'safia', telefono: telefono, solicitud: solicitud } } }).then(function (r) {
+      ocupado(b, '', false);
+      if (r.error) {
+        var m = (r.error.message || '').toLowerCase();
+        if (/already|registered|exists/.test(m)) { mensaje('Ese correo ya tiene cuenta (por ejemplo en SIGA o AGROinvest360). Entrá con esa contraseña: el pedido de acceso a SAFIA se genera solo. Si no la recordás, usá "Olvidé mi contraseña".', 'warn'); mostrarVista('entrar'); document.getElementById('correo').value = email; mensaje('Ese correo ya tiene cuenta. Entrá con tu contraseña o recuperala con "Olvidé mi contraseña".', 'warn'); return; }
+        mensaje('No se pudo crear la cuenta: ' + r.error.message); return;
+      }
+      // Supabase devuelve identities vacío cuando el correo ya existía (sin decirlo, por seguridad)
+      var u = r.data && r.data.user;
+      if (u && Array.isArray(u.identities) && u.identities.length === 0) { mostrarVista('entrar'); document.getElementById('correo').value = email; mensaje('Ese correo ya tiene cuenta. Entrá con tu contraseña o recuperala con "Olvidé mi contraseña".', 'warn'); return; }
+      if (r.data && r.data.session) {
+        // sin confirmación de correo: entra directo y la app le muestra "pendiente de aprobación"
+        try { localStorage.setItem('safia_usuario', JSON.stringify({ id: u.id, email: email, nombre: nombre, rol: 'cliente', estado: 'pendiente' })); } catch (e) {}
+        location.replace('index.html'); return;
+      }
+      mostrarVista('entrar'); document.getElementById('correo').value = email;
+      mensaje('Cuenta creada. Revisá tu correo para confirmarla (mirá también el spam). Después entrá acá: tu acceso queda pendiente hasta que Irrigar lo apruebe.', 'ok');
+    }).catch(function () { ocupado(b, '', false); mensaje('No se pudo conectar. Revisá tu internet y volvé a intentar.'); });
+  });
+
+  // OLVIDÉ MI CONTRASEÑA
+  document.getElementById('formOlvide').addEventListener('submit', function (ev) {
+    ev.preventDefault(); limpiar();
+    if (!sb()) { mensaje('No hay conexión a internet.'); return; }
+    var email = document.getElementById('oCorreo').value.trim(), b = document.getElementById('botonOlvide'); ocupado(b, 'Enviando', true);
+    var destino = location.href.split('#')[0].split('?')[0] + '?reset=1';
+    sb().auth.resetPasswordForEmail(email, { redirectTo: destino }).then(function (r) {
+      ocupado(b, '', false);
+      if (r.error) { mensaje('No se pudo enviar: ' + r.error.message); return; }
+      mensaje('Listo: si ese correo tiene cuenta, te llega un enlace para elegir la contraseña nueva (mirá también el spam).', 'ok');
+    }).catch(function () { ocupado(b, '', false); mensaje('No se pudo conectar.'); });
+  });
+
+  // NUEVA CONTRASEÑA (con la sesión que trae el enlace del correo)
+  document.getElementById('formNueva').addEventListener('submit', function (ev) {
+    ev.preventDefault(); limpiar();
+    var p1 = document.getElementById('nContrasena').value, p2 = document.getElementById('nContrasena2').value;
+    if (p1.length < 6) { mensaje('Mínimo 6 caracteres.'); return; }
+    if (p1 !== p2) { mensaje('Las dos contraseñas no coinciden.'); return; }
+    var b = document.getElementById('botonNueva'); ocupado(b, 'Guardando', true);
+    sb().auth.updateUser({ password: p1 }).then(function (r) {
+      ocupado(b, '', false);
+      if (r.error) { mensaje('No se pudo guardar: ' + r.error.message + '. Pedí un enlace nuevo con "Olvidé mi contraseña".'); return; }
+      mensaje('Contraseña guardada. Entrando…', 'ok');
+      setTimeout(function () { location.replace('index.html'); }, 900);
+    }).catch(function () { ocupado(b, '', false); mensaje('No se pudo conectar.'); });
   });
 </script>
 </body>

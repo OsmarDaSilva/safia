@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Usuarios</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0F3D14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SAFIA">
+  <link rel="apple-touch-icon" href="icons/safia-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    .fila-usr{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(150px,1fr) 130px minmax(150px,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd2);font-size:13px;}
+    .fila-usr input,.fila-usr select{margin:0;padding:8px 10px;font-size:13px;}
+    .fila-usr .correo{font-size:12px;color:var(--label);word-break:break-all;}
+    .fila-usr .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+    .fila-usr .acc .btn{padding:6px 10px;font-size:12px;}
+    .fila-usr.pend{background:var(--amber-t);border-radius:10px;padding:10px 12px;margin-bottom:6px;border-bottom:0;}
+    .cab-usr{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(150px,1fr) 130px minmax(150px,1fr) auto;gap:10px;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;padding:0 0 8px;}
+    @media (max-width:760px){.fila-usr,.cab-usr{grid-template-columns:1fr;} .cab-usr{display:none;} .fila-usr .acc{justify-content:flex-start;}}
+    .cred{background:var(--bg);border:1px dashed var(--bd);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.7;margin:10px 0;}
+    .cred b{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;}
+    .modal .field{margin-bottom:10px;}
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+<script src="safia-pwa.js"></script>
+<script src="safia-iconos.js"></script>
+<script src="safia-cultivos-fao.js"></script>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
+  <div class="app">
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos y lotes</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Base de Referencia</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+        <a href="evaluar.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Evaluar proyecto</a>
+        <a href="rankings.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>Rankings</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="backup.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg>Respaldo</a><a href="usuarios.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.5 0 4.5 2 4.5 4.5"/></svg>Usuarios</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Sistema · <b>Usuarios</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Usuarios y accesos</h2>
+          <div class="sub">Quién puede entrar a SAFIA. Las personas se registran solas en la pantalla de inicio y vos las aprobás acá; también podés crear el acceso de un cliente directo.</div>
+        </div>
+        <div class="actions"><button class="btn green" id="btnNuevo">+ Crear acceso</button></div>
+      </div>
+
+      <div id="contenido"><div class="note info">Cargando usuarios…</div></div>
+    </main>
+  </div>
+
+  <!-- Modal: crear acceso -->
+  <div class="modal-overlay" id="modalNuevo">
+    <div class="modal">
+      <div class="modal-titulo">Crear acceso a SAFIA</div>
+      <div id="nuevoForm">
+        <div class="field"><label>Nombre y apellido</label><input type="text" id="nNombre" placeholder="Ej: Anderson Pereira"></div>
+        <div class="field"><label>Correo (con este entra)</label><input type="email" id="nEmail" placeholder="correo@ejemplo.com"></div>
+        <div class="field"><label>WhatsApp</label><input type="tel" id="nTelefono" placeholder="+595 981 234567"></div>
+        <div class="form-grid">
+          <div class="field"><label>Rol</label><select id="nRol"><option value="cliente">Cliente (productor)</option><option value="operador">Operador (encargado de campo)</option><option value="admin">Administrador (Irrigar)</option></select></div>
+          <div class="field"><label>Cliente al que pertenece</label><select id="nCliente"><option value="">— Ninguno (Irrigar) —</option></select></div>
+        </div>
+        <div class="field"><label>Contraseña temporal (se la pasás vos; puede cambiarla con "Olvidé mi contraseña")</label><div style="display:flex;gap:8px;"><input type="text" id="nPass" style="font-family:ui-monospace,Menlo,Consolas,monospace;"><button class="btn" type="button" id="btnGenerar" style="white-space:nowrap;">Generar</button></div></div>
+        <div class="note info" style="margin-top:8px;">Si el correo ya tiene cuenta en otra app del grupo (SIGA, AGROinvest360), no se crea otra: se le da acceso a SAFIA con la contraseña que ya usa (la temporal se ignora).</div>
+        <div class="modal-actions"><button class="btn green" id="btnCrear">Crear acceso</button><button class="btn" id="btnCerrarNuevo">Cancelar</button></div>
+      </div>
+      <div id="nuevoListo" style="display:none;">
+        <div class="note ok">Acceso creado.</div>
+        <div class="cred" id="credTexto"></div>
+        <div class="modal-actions"><a class="btn green" id="btnWhatsApp" target="_blank" rel="noopener">Enviar por WhatsApp</a><button class="btn" id="btnCopiar">Copiar</button><button class="btn" id="btnCerrarListo">Cerrar</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: nueva contraseña -->
+  <div class="modal-overlay" id="modalClave">
+    <div class="modal">
+      <div class="modal-titulo">Nueva contraseña</div>
+      <div class="sub" id="claveSub" style="margin-bottom:10px;"></div>
+      <div class="field"><label>Contraseña nueva</label><div style="display:flex;gap:8px;"><input type="text" id="cPass" style="font-family:ui-monospace,Menlo,Consolas,monospace;"><button class="btn" type="button" id="btnGenerar2" style="white-space:nowrap;">Generar</button></div></div>
+      <div class="modal-actions"><button class="btn green" id="btnGuardarClave">Guardar</button><button class="btn" id="btnCerrarClave">Cancelar</button></div>
+    </div>
+  </div>
+
+  <!-- Modal: confirmar -->
+  <div class="modal-overlay" id="modalConfirmar">
+    <div class="modal">
+      <div class="modal-titulo" id="confTitulo">Confirmar</div>
+      <div class="sub" id="confTexto"></div>
+      <div class="modal-actions"><button class="btn danger" id="btnConfirmarSi">Sí, continuar</button><button class="btn" id="btnConfirmarNo">Cancelar</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const fmtF = (f) => { if (!f) return '—'; const d = new Date(f); return isNaN(d) ? '—' : d.toLocaleDateString('es-PY'); };
+    function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast visible' + (err ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 3600); }
+    const ROL = { admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+    const clientes = (() => { try { return JSON.parse(localStorage.getItem('clientes') || '[]'); } catch (e) { return []; } })();
+    let usuarios = [];
+    let confirmarCb = null;
+
+    function generarClave() { const s = 'abcdefghjkmnpqrstuvwxyz23456789'; let p = ''; for (let i = 0; i < 4; i++) p += s.charAt(Math.floor(Math.random() * s.length)); return 'safia-' + p + Math.floor(10 + Math.random() * 89); }
+    function opcionesClientes(sel) { return '<option value="">— Ninguno (Irrigar) —</option>' + clientes.slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))).map(c => `<option value="${esc(c.id)}"${String(sel || '') === String(c.id) ? ' selected' : ''}>${esc(c.nombre)}</option>`).join(''); }
+    function nombreCliente(id) { const c = clientes.find(x => String(x.id) === String(id)); return c ? c.nombre : ''; }
+
+    function confirmar(titulo, texto, cb) { $('confTitulo').textContent = titulo; $('confTexto').innerHTML = texto; confirmarCb = cb; $('modalConfirmar').classList.add('visible'); }
+    $('btnConfirmarSi').addEventListener('click', () => { $('modalConfirmar').classList.remove('visible'); if (confirmarCb) confirmarCb(); });
+    $('btnConfirmarNo').addEventListener('click', () => $('modalConfirmar').classList.remove('visible'));
+
+    function pintar() {
+      const cont = $('contenido');
+      const yo = SafiaSync.usuario();
+      const pend = usuarios.filter(u => u.estado === 'pendiente'), resto = usuarios.filter(u => u.estado !== 'pendiente');
+      let h = '';
+      if (pend.length) {
+        h += `<div class="card" style="border-left:4px solid var(--amber);margin-bottom:14px;"><div class="card-h"><h3>Solicitudes de acceso pendientes (${pend.length})</h3><span class="muted">elegí rol y cliente, y aprobá</span></div>` +
+          pend.map(u => `<div class="fila-usr pend" data-id="${esc(u.id)}">
+            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(u.email || '')}${u.telefono ? ' · ' + esc(u.telefono) : ''} · pidió el ${fmtF(u.creado_en)}</div>${u.solicitud ? '<div style="font-size:12px;margin-top:4px;">“' + esc(u.solicitud) + '”</div>' : ''}</div>
+            <div></div>
+            <div><select class="f-rol"><option value="cliente">Cliente</option><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+            <div><select class="f-cliente">${opcionesClientes('')}</select></div>
+            <div class="acc"><button class="btn green" data-acc="aprobar">Aprobar</button><button class="btn danger" data-acc="rechazar">Rechazar</button></div>
+          </div>`).join('') + '</div>';
+      }
+      h += `<div class="card"><div class="card-h"><h3>Usuarios (${resto.length})</h3><span class="muted">nombre, rol y cliente se guardan con "Guardar"</span></div><div class="cab-usr"><div>Nombre · correo</div><div>Estado</div><div>Rol</div><div>Cliente</div><div></div></div>` +
+        (resto.length ? resto.map(u => {
+          const esYo = yo && yo.id === u.id;
+          return `<div class="fila-usr" data-id="${esc(u.id)}">
+            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(u.email || '')}${u.telefono ? ' · ' + esc(u.telefono) : ''}${esYo ? ' · <b>vos</b>' : ''}</div></div>
+            <div><span class="badge ${u.estado === 'activo' ? 'green' : 'red'}">${u.estado === 'activo' ? 'Activo' : 'De baja'}</span>${u.aprobado_en ? '<div class="correo">desde ' + fmtF(u.aprobado_en) + '</div>' : ''}</div>
+            <div><select class="f-rol" ${esYo ? 'disabled' : ''}><option value="cliente"${u.rol === 'cliente' ? ' selected' : ''}>Cliente</option><option value="operador"${u.rol === 'operador' ? ' selected' : ''}>Operador</option><option value="admin"${u.rol === 'admin' ? ' selected' : ''}>Administrador</option></select></div>
+            <div><select class="f-cliente">${opcionesClientes(u.cliente_id)}</select></div>
+            <div class="acc"><button class="btn" data-acc="guardar">Guardar</button><button class="btn" data-acc="clave">Contraseña</button>${esYo ? '' : (u.estado === 'activo' ? '<button class="btn danger" data-acc="baja">Dar de baja</button>' : '<button class="btn green" data-acc="reactivar">Reactivar</button><button class="btn danger" data-acc="quitar">Quitar</button>')}</div>
+          </div>`;
+        }).join('') : '<div class="muted" style="padding:12px 0;">Todavía no hay usuarios aprobados.</div>') +
+        `<div class="muted" style="font-size:11px;margin-top:10px;">Cliente = productor que ve solo lo suyo · Operador = encargado que carga eventos de los lotes de su cliente · Administrador = Irrigar, ve y edita todo. Por ahora los roles ordenan quién es quién; el filtro de "cada cliente ve solo lo suyo" es el próximo paso. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
+      cont.innerHTML = h;
+    }
+
+    function datosFila(fila) { return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), rol: fila.querySelector('.f-rol').value, clienteId: fila.querySelector('.f-cliente').value || null }; }
+    function ocupar(boton, si) { boton.disabled = si; boton.style.opacity = si ? '.6' : ''; }
+
+    $('contenido').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-acc]'); if (!b) return;
+      const fila = b.closest('.fila-usr'), d = datosFila(fila), u = usuarios.find(x => x.id === d.id) || {};
+      const acc = b.dataset.acc;
+      const correr = (p, msg) => { ocupar(b, true); p.then(() => { toast(msg); return cargar(); }).catch(e => { toast(e.message || 'No se pudo', true); ocupar(b, false); }); };
+      if (acc === 'aprobar') correr(SafiaSync.accionUsuario({ accion: 'aprobar', id: d.id, rol: d.rol, clienteId: d.clienteId, nombre: d.nombre }), 'Acceso aprobado: ' + (d.nombre || u.email));
+      if (acc === 'rechazar') confirmar('Rechazar solicitud', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista de SAFIA. La cuenta sigue existiendo (puede volver a pedir acceso).`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Solicitud rechazada'));
+      if (acc === 'guardar') correr(SafiaSync.guardarUsuario(d.id, { nombre: d.nombre, rol: d.rol, cliente_id: d.clienteId }), 'Guardado');
+      if (acc === 'baja') confirmar('Dar de baja', `<b>${esc(d.nombre || u.email)}</b> no va a poder entrar más a SAFIA${u.email ? ' (' + esc(u.email) + ')' : ''}. Si usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas apps.`, () => correr(SafiaSync.accionUsuario({ accion: 'baja', id: d.id }), 'Usuario dado de baja'));
+      if (acc === 'reactivar') correr(SafiaSync.accionUsuario({ accion: 'reactivar', id: d.id }), 'Usuario reactivado');
+      if (acc === 'quitar') confirmar('Quitar de SAFIA', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista. No borra la cuenta.`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Usuario quitado'));
+      if (acc === 'clave') { $('modalClave').dataset.id = d.id; $('claveSub').textContent = (d.nombre || u.email) + ' · ' + (u.email || ''); $('cPass').value = generarClave(); $('modalClave').classList.add('visible'); }
+    });
+    $('btnGenerar2').addEventListener('click', () => { $('cPass').value = generarClave(); });
+    $('btnCerrarClave').addEventListener('click', () => $('modalClave').classList.remove('visible'));
+    $('btnGuardarClave').addEventListener('click', () => {
+      const id = $('modalClave').dataset.id, p = $('cPass').value.trim();
+      if (p.length < 6) { toast('Mínimo 6 caracteres', true); return; }
+      SafiaSync.accionUsuario({ accion: 'clave', id, password: p }).then(() => { $('modalClave').classList.remove('visible'); toast('Contraseña cambiada: ' + p); }).catch(e => toast(e.message, true));
+    });
+
+    // crear acceso
+    function abrirNuevo(pre) {
+      pre = pre || {};
+      $('nuevoForm').style.display = ''; $('nuevoListo').style.display = 'none';
+      $('nNombre').value = pre.nombre || ''; $('nEmail').value = pre.email || ''; $('nTelefono').value = pre.telefono || ''; $('nRol').value = pre.rol || 'cliente';
+      $('nCliente').innerHTML = opcionesClientes(pre.cliente || ''); $('nPass').value = generarClave();
+      $('modalNuevo').classList.add('visible');
+    }
+    $('btnNuevo').addEventListener('click', () => abrirNuevo());
+    $('btnGenerar').addEventListener('click', () => { $('nPass').value = generarClave(); });
+    $('btnCerrarNuevo').addEventListener('click', () => $('modalNuevo').classList.remove('visible'));
+    $('btnCerrarListo').addEventListener('click', () => { $('modalNuevo').classList.remove('visible'); cargar(); });
+    $('btnCrear').addEventListener('click', () => {
+      const datos = { accion: 'crear', nombre: $('nNombre').value.trim(), email: $('nEmail').value.trim().toLowerCase(), telefono: $('nTelefono').value.trim(), rol: $('nRol').value, clienteId: $('nCliente').value || null, password: $('nPass').value.trim() };
+      if (!datos.nombre) { toast('Poné el nombre', true); return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { toast('Correo inválido', true); return; }
+      if (datos.password.length < 6) { toast('Contraseña de al menos 6 caracteres', true); return; }
+      const b = $('btnCrear'); ocupar(b, true);
+      SafiaSync.accionUsuario(datos).then(r => {
+        ocupar(b, false);
+        const url = location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
+        const texto = r.existia
+          ? `Hola ${datos.nombre}, ya tenés acceso a SAFIA.\nEntrá en ${url} con tu correo ${datos.email} y la misma contraseña que usás en las otras apps del grupo. Si no la recordás, tocá "Olvidé mi contraseña".`
+          : `Hola ${datos.nombre}, te creamos el acceso a SAFIA.\nEntrá en ${url}\nCorreo: ${datos.email}\nContraseña: ${datos.password}\nPodés cambiarla con "Olvidé mi contraseña".`;
+        $('credTexto').innerHTML = r.existia ? `Ese correo ya tenía cuenta en el grupo: quedó <b>activo en SAFIA</b> con su contraseña de siempre.<br>Correo: <b>${esc(datos.email)}</b>` : `Correo: <b>${esc(datos.email)}</b><br>Contraseña temporal: <b>${esc(datos.password)}</b><br>Rol: ${ROL[datos.rol]}${datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : ''}`;
+        $('credTexto').dataset.texto = texto;
+        const tel = datos.telefono.replace(/[^0-9]/g, '');
+        $('btnWhatsApp').href = 'https://wa.me/' + (tel ? (tel.startsWith('595') ? tel : (tel.startsWith('0') ? '595' + tel.slice(1) : tel)) : '') + '?text=' + encodeURIComponent(texto);
+        $('nuevoForm').style.display = 'none'; $('nuevoListo').style.display = '';
+      }).catch(e => { ocupar(b, false); toast(e.message || 'No se pudo crear', true); });
+    });
+    $('btnCopiar').addEventListener('click', () => { const t = $('credTexto').dataset.texto || ''; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Copiado'), () => toast('No se pudo copiar: seleccioná el texto', true)); });
+
+    function cargar() {
+      if (!SafiaSync.esAdmin()) { $('contenido').innerHTML = '<div class="note warn">Esta pantalla es solo para administradores de SAFIA (Irrigar).</div>'; $('btnNuevo').style.display = 'none'; return Promise.resolve(); }
+      return SafiaSync.listarUsuarios().then(lista => { usuarios = lista; pintar(); }).catch(e => { $('contenido').innerHTML = '<div class="note danger">No se pudo cargar la lista: ' + esc(e.message) + '. Si todavía no corriste el SQL de usuarios, corrélo primero.</div>'; });
+    }
+    function arrancar() {
+      cargar().then(() => {
+        const q = new URLSearchParams(location.search);
+        if (q.get('nuevo') === '1' && SafiaSync.esAdmin()) abrirNuevo({ nombre: q.get('nombre') || '', email: q.get('email') || '', telefono: q.get('telefono') || '', cliente: q.get('cliente') || '' });
+      });
+    }
+    if (window.SafiaSync && SafiaSync.usuario()) arrancar(); else window.addEventListener('safia:usuario', arrancar, { once: true });
+    if (!window.SafiaSync) $('contenido').innerHTML = '<div class="note warn">Sin conexión con la nube: esta pantalla necesita internet.</div>';
+  </script>
+  <script>
+    /* SAFIA · control del menú móvil (theme) */
+    (function () {
+      var btn = document.getElementById('menuToggle');
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
+      if (ov) ov.addEventListener('click', cerrar);
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
+    })();
+  </script>
+</body>
+</html>
