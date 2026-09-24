@@ -405,7 +405,19 @@
     /* ---------- arranque ---------- */
     llenarCatalogos(); llenarClientes(); pintarInsumos();
     $('fCliente').addEventListener('change', llenarCampos); $('fCampo').addEventListener('change', llenarLotes); $('fLote').addEventListener('change', llenarExistentes); $('fExistente').addEventListener('change', cargarExistente);
-    $('fCultivo').addEventListener('change', alCambiarCultivo); $('fFechaSiembra').addEventListener('change', sugerirNombre); $('fNombre').addEventListener('input', () => { $('fNombre').dataset.auto = '0'; });
+    $('fCultivo').addEventListener('change', alCambiarCultivo); $('fFechaSiembra').addEventListener('change', sugerirNombre);
+    // Ficha existente con otro cultivo u otra fecha de siembra = campaña NUEVA tomando la vieja como modelo: se limpia lo que no puede heredar (cosecha, totales de riego)
+    function comoModelo() {
+      if (!fichaCargada) return;
+      const cambio = SafiaFicha.fechaISO($('fFechaSiembra').value) !== SafiaFicha.fechaISO(fichaCargada.fechaSiembra) || $('fCultivo').value !== fichaCargada.cultivo;
+      if (!cambio) return;
+      ['fCosechaFecha', 'fCosechaKg', 'fCosechaSup', 'fCosechaHumedad', 'fRiegoMM', 'fLluviaMM', 'fObs'].forEach(id => { $(id).value = ''; });
+      insumos.forEach(i => { i.fecha = ''; }); pintarInsumos(); calcRinde();
+      $('fNombre').dataset.auto = '1'; sugerirNombre();
+      $('estadoGuardado').innerHTML = '<span style="color:#8a5713;">Cambiaste el cultivo o la fecha de siembra: al guardar se crea una <b>campaña nueva</b> usando la anterior como modelo. La vieja no se toca. Se limpiaron la cosecha y los totales de riego; revisá insumos y labores.</span>';
+      fichaCargada = null; $('fExistente').value = '';
+    }
+    $('fFechaSiembra').addEventListener('change', comoModelo); $('fCultivo').addEventListener('change', comoModelo); $('fNombre').addEventListener('input', () => { $('fNombre').dataset.auto = '0'; });
     ['fCosechaKg', 'fCosechaSup', 'fSuperficie'].forEach(id => $(id).addEventListener('input', calcRinde));
     window.addEventListener('safia:usuario', llenarClientes);
     alCambiarCultivo();
