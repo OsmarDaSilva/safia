@@ -4,6 +4,8 @@ Qué calcula SAFIA al cerrar una campaña con cosecha y de dónde salen los núm
 
 ## 1. Qué es el balance
 
+Dónde vive: la ficha de campaña solo carga fertilizantes y dosis; el balance se ve en Banco → Sucesión de cultivos. Mientras la campaña corre se muestra **en vivo** (aplicado hasta hoy contra lo que se llevará la meta). Al registrar la cosecha **queda firme** dentro de la campaña, con el rinde real, y no se recalcula: es la base de la campaña siguiente. Si después de esa cosecha se carga un análisis de suelo del lote, el análisis vuelve a ser el punto de partida y el saldo viejo no se suma al plan.
+
 Con el **rinde real** se calcula cuánto nutriente se llevaron los granos (exportación), se compara con lo **aplicado** en la campaña (insumos de la ficha y aplicaciones del Operador) y queda un **saldo** por nutriente:
 
 - saldo negativo: el suelo perdió reserva; hay que reponerla en la próxima campaña además de lo que se llevará la meta;

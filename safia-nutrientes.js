@@ -1,20 +1,19 @@
-/* SAFIA — Balance de nutrientes de una campaña (extracción por el grano vs aplicado)
+/* SAFIA — Balance de nutrientes de la campaña (lo que se lleva el grano vs lo aplicado)
    -------------------------------------------------------------------
-   Cierra el ciclo plan → seguimiento → cosecha → balance → plan siguiente:
-   con el rinde real calcula cuánto N, P, K, S, Ca y Mg se llevaron los
-   granos, lo compara con lo aplicado en la campaña (insumos de la ficha y
-   aplicaciones del Operador) y deja el saldo por nutriente. Ese saldo
-   entra al plan de la meta de la campaña siguiente como "reposición".
+   Regla de Osmar (24-sep-2026): la ficha solo carga (fertilizantes y
+   dosis); el balance se ve EN VIVO mientras la campaña corre (aplicado
+   hasta hoy contra lo que se llevará la meta) y, al cosechar, QUEDA FIRME
+   dentro de la campaña (camp.balanceNutrientes[idx]) con el rinde real.
+   Ese balance firme es la base de la campaña siguiente y del plan de la
+   meta. Si después de esa cosecha se carga un análisis de suelo nuevo del
+   lote, el análisis vuelve a ser el punto de partida y el saldo viejo no
+   se suma. Todo se ve en un solo lugar: Banco → Sucesión de cultivos.
 
    Coeficientes: kg de nutriente exportado por tonelada de grano (base
-   seca), tabla IPNI/Fertilizar "Requerimientos nutricionales de los
-   cultivos" (datos INTA Balcarce, Pergamino y bibliografía argentina),
-   Tablas 1 y 2 (ver FUNDAMENTOS_NUTRIENTES.md). Coinciden con Embrapa
-   (soja: N 51–55 · P₂O₅ 10–14 · K₂O 20–23 kg/t) y con la manutención de
-   CAPECO 2012 que ya usa el plan de la meta.
-   El rinde comercial (13–14 % de humedad) se pasa a base seca antes de
-   multiplicar. La soja fija su N del aire: el N exportado se informa pero
-   NO se repone con fertilizante (Embrapa CT75). */
+   seca), IPNI/Fertilizar "Requerimientos nutricionales de los cultivos"
+   (datos INTA), Tablas 1 y 2 (ver FUNDAMENTOS_NUTRIENTES.md). Coinciden
+   con Embrapa y con la manutención de CAPECO 2012 del plan de la meta.
+   La soja fija su N del aire: se informa, no se repone (Embrapa CT75). */
 (function () {
   'use strict';
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
@@ -22,7 +21,10 @@
   function fmt(n, d) { return n == null || isNaN(n) ? '—' : Number(n).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+  function fechaLarga(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
+  function hoy() { return window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
   function clave(c) { var n = norm(c); if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
+  function esPastura(c) { return !!(window.SafiaPasturas && SafiaPasturas.esPastura && SafiaPasturas.esPastura(c)); }
 
   // kg de nutriente ELEMENTAL exportado por tonelada de grano (base seca). IPNI/Fertilizar Tablas 1 y 2.
   var EXPORT = {
@@ -33,18 +35,17 @@
     girasol: { n: 24, p: 7, k: 6,  ca: 1,   mg: 3, s: 2 },
     otro:    { n: 18, p: 4, k: 5,  ca: 0.5, mg: 2, s: 1.5 }
   };
-  // absorción total (grano + rastrojo), solo informativa
   var ABSORCION = { soja: { n: 75, p: 7, k: 39, s: 4 }, maiz: { n: 22, p: 4, k: 19, s: 4 }, trigo: { n: 30, p: 5, k: 19, s: 5 }, sorgo: { n: 30, p: 4, k: 21, s: 4 }, girasol: { n: 40, p: 11, k: 29, s: 5 } };
-  var P2O5 = 2.29, K2O = 1.2;   // P → P₂O₅ · K → K₂O
+  var P2O5 = 2.29, K2O = 1.2;
   var NOMBRE = { n: 'Nitrógeno (N)', p2o5: 'Fósforo (P₂O₅)', k2o: 'Potasio (K₂O)', s: 'Azufre (S)', ca: 'Calcio (Ca)', mg: 'Magnesio (Mg)' };
 
-  // Kg/ha exportados por el grano de una campaña (rinde comercial → base seca)
+  // Kg/ha que se lleva (o llevará) el grano: rinde comercial → base seca
   function exportado(cultivo, rindeKgHa, humedad) {
     var e = EXPORT[clave(cultivo)] || EXPORT.otro, h = num(humedad); if (h == null || h < 5 || h > 30) h = 14;
     var tSeco = (num(rindeKgHa) || 0) / 1000 * (1 - h / 100);
-    return { n: tSeco * e.n, p2o5: tSeco * e.p * P2O5, k2o: tSeco * e.k * K2O, s: tSeco * e.s, ca: tSeco * e.ca, mg: tSeco * e.mg, tSeco: tSeco, humedad: h, fija: !!e.fija, coef: e };
+    return { n: tSeco * e.n, p2o5: tSeco * e.p * P2O5, k2o: tSeco * e.k * K2O, s: tSeco * e.s, ca: tSeco * e.ca, mg: tSeco * e.mg, tSeco: tSeco, humedad: h, fija: !!e.fija };
   }
-  // Kg/ha aplicados en la campaña: insumos de fertilización (fórmula × dosis) + aplicaciones del Operador con % N-P-K
+  // Kg/ha aplicados hasta hoy: insumos de fertilización de la ficha + aplicaciones del Operador con % N-P-K dentro del ciclo
   function aplicado(camp, cultivoIdx) {
     var t = { n: 0, p2o5: 0, k2o: 0, s: 0, items: 0, detalle: [] };
     if (!camp) return t;
@@ -55,78 +56,103 @@
       if (ev.tipo !== 'aplicacion' || String(ev.equipoId) !== String(camp.equipoId)) return;
       var f = String(ev.fecha || '').slice(0, 10); if (desde && f < desde) return; if (hasta && f > hasta) return;
       if (ev.n_kg_ha == null && ev.p_kg_ha == null && ev.k_kg_ha == null) return;
-      // el Operador guarda P y K elementales (% P, % K del catálogo)
       t.n += num(ev.n_kg_ha) || 0; t.p2o5 += (num(ev.p_kg_ha) || 0) * P2O5; t.k2o += (num(ev.k_kg_ha) || 0) * K2O; t.items++; t.detalle.push((ev.producto || 'aplicación') + ' ' + fmt(ev.dosis, 0) + ' ' + (ev.unidad || ''));
     });
     return t;
   }
-  // Balance completo de una campaña cosechada: { exportado, aplicado, saldo, rinde, cultivo, ... } o null si no hay rinde
-  function balanceCampana(camp, cultivoIdx) {
-    var cu = camp && camp.cultivos ? camp.cultivos[cultivoIdx || 0] : null;
-    var rinde = cu ? num(cu.rendimientoReal) : null; if (!cu || !(rinde > 0)) return null;
-    var co = (camp.cosechas && camp.cosechas[cultivoIdx || 0]) || ((cultivoIdx || 0) === 0 ? camp.cosecha : null) || {};
-    var ex = exportado(cu.cultivo, rinde, co.humedad), ap = aplicado(camp, cultivoIdx);
-    var saldo = { n: ap.n - ex.n, p2o5: ap.p2o5 - ex.p2o5, k2o: ap.k2o - ex.k2o, s: ap.s - ex.s };
-    return { campanaId: camp.id, campana: camp.nombre || '', cultivo: cu.cultivo, variedad: cu.variedad || '', rinde: rinde, humedad: ex.humedad, tSeco: ex.tSeco, exportado: ex, aplicado: ap, saldo: saldo, fija: ex.fija, manejoCompleto: !!camp.manejoCompleto };
+  function armar(camp, cultivoIdx, cu, rinde, humedad, enVivo) {
+    var ex = exportado(cu.cultivo, rinde, humedad), ap = aplicado(camp, cultivoIdx);
+    return { campanaId: camp.id, cultivoIdx: cultivoIdx || 0, equipoId: camp.equipoId, campana: camp.nombre || '', cultivo: cu.cultivo, variedad: cu.variedad || '', rinde: rinde, humedad: ex.humedad, tSeco: ex.tSeco,
+      exportado: { n: ex.n, p2o5: ex.p2o5, k2o: ex.k2o, s: ex.s, ca: ex.ca, mg: ex.mg }, aplicado: ap, saldo: { n: ap.n - ex.n, p2o5: ap.p2o5 - ex.p2o5, k2o: ap.k2o - ex.k2o, s: ap.s - ex.s },
+      fija: ex.fija, enVivo: !!enVivo, firme: false, fechaCosecha: cu.fechaCosecha ? String(cu.fechaCosecha).slice(0, 10) : null, fechaSiembra: cu.fechaSiembra ? String(cu.fechaSiembra).slice(0, 10) : null };
   }
-  // Última campaña cosechada del lote (opcionalmente del mismo cultivo) con su balance
+  /* Al cosechar: calcula con el rinde real y lo deja FIRME dentro de la campaña (quien guarda la campaña es quien llama). */
+  function cerrar(camp, cultivoIdx) {
+    var cu = camp && camp.cultivos ? camp.cultivos[cultivoIdx || 0] : null, rinde = cu ? num(cu.rendimientoReal) : null;
+    if (!cu || !(rinde > 0) || esPastura(cu.cultivo)) return null;
+    var co = (camp.cosechas && camp.cosechas[cultivoIdx || 0]) || ((cultivoIdx || 0) === 0 ? camp.cosecha : null) || {};
+    var b = armar(camp, cultivoIdx, cu, rinde, co.humedad, false); b.firme = true; b.fechaFirme = hoy();
+    camp.balanceNutrientes = camp.balanceNutrientes || {}; camp.balanceNutrientes[cultivoIdx || 0] = b;
+    return b;
+  }
+  /* Balance de una campaña: firme (guardado al cosechar), cosechada sin guardar (campañas viejas: se calcula igual) o en vivo (con meta). null si no hay nada que mostrar. */
+  function balanceCampana(camp, cultivoIdx) {
+    var i = cultivoIdx || 0, cu = camp && camp.cultivos ? camp.cultivos[i] : null; if (!cu || esPastura(cu.cultivo)) return null;
+    if (camp.balanceNutrientes && camp.balanceNutrientes[i]) return camp.balanceNutrientes[i];
+    var rinde = num(cu.rendimientoReal);
+    if (rinde > 0) { var co = (camp.cosechas && camp.cosechas[i]) || (i === 0 ? camp.cosecha : null) || {}; return armar(camp, i, cu, rinde, co.humedad, false); }
+    var meta = num(cu.rendimientoObj); if (!(meta > 0)) return null;
+    return armar(camp, i, cu, meta, 14, true);
+  }
+  // Último balance FIRME (cosechado) del lote, opcionalmente del mismo cultivo
   function ultimoBalanceDelLote(equipoId, cultivo) {
     var lista = [];
-    leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(equipoId)) return; (c.cultivos || []).forEach(function (cu, i) { if (cu && num(cu.rendimientoReal) > 0 && (!cultivo || clave(cu.cultivo) === clave(cultivo))) lista.push({ c: c, i: i, f: String(cu.fechaCosecha || cu.fechaSiembra || '') }); }); });
+    leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(equipoId)) return; (c.cultivos || []).forEach(function (cu, i) { if (cu && num(cu.rendimientoReal) > 0 && (!cultivo || clave(cu.cultivo) === clave(cultivo))) { var b = balanceCampana(c, i); if (b && !b.enVivo) lista.push({ b: b, f: String(cu.fechaCosecha || cu.fechaSiembra || '') }); } }); });
     if (!lista.length) return null;
     lista.sort(function (a, b) { return b.f.localeCompare(a.f); });
-    return balanceCampana(lista[0].c, lista[0].i);
+    return lista[0].b;
   }
-  // Reposición para la campaña siguiente: lo que faltó reponer (saldo negativo) + lo que se llevará la meta
-  function reposicionPara(bal, cultivoSiguiente, metaKgHa) {
-    var ex = exportado(cultivoSiguiente, metaKgHa || 0, 14);
-    var deuda = bal ? { n: Math.max(0, -bal.saldo.n), p2o5: Math.max(0, -bal.saldo.p2o5), k2o: Math.max(0, -bal.saldo.k2o), s: Math.max(0, -bal.saldo.s) } : { n: 0, p2o5: 0, k2o: 0, s: 0 };
-    if (bal && bal.fija) deuda.n = 0;   // la soja fijó su N: no es deuda de fertilizante
-    return { deuda: deuda, meta: ex, total: { p2o5: deuda.p2o5 + ex.p2o5, k2o: deuda.k2o + ex.k2o, s: deuda.s + ex.s, n: (ex.fija ? 0 : ex.n) + deuda.n } };
+  // ¿Hay un análisis de suelo del lote (o del campo entero) con fecha posterior a la cosecha? Entonces el análisis manda y el saldo viejo no se suma.
+  function analisisPosterior(equipoId, fechaISO) {
+    if (!fechaISO) return null;
+    var eq = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }), campoId = eq ? eq.campoId : null;
+    var lista = leer('analisis_suelo').filter(function (a) { return a.fecha && String(a.fecha).slice(0, 10) > fechaISO && (String(a.equipoId || '') === String(equipoId) || (!a.equipoId && campoId != null && String(a.campoId) === String(campoId))); });
+    lista.sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+    return lista[0] || null;
+  }
+  // Lo que el plan de la meta debe reponer de la cosecha anterior del lote: solo saldo negativo de P y K, y solo si no hay análisis posterior
+  function reposicionPendiente(equipoId) {
+    var bal = ultimoBalanceDelLote(equipoId); if (!bal) return null;
+    var an = analisisPosterior(equipoId, bal.fechaCosecha);
+    return { p2o5: an ? 0 : Math.max(0, -bal.saldo.p2o5), k2o: an ? 0 : Math.max(0, -bal.saldo.k2o), cultivo: bal.cultivo, rinde: bal.rinde, campana: bal.campana, sinCarga: !bal.aplicado.items, analisisPosterior: an ? String(an.fecha).slice(0, 10) : null };
   }
 
-  /* ---------- HTML ---------- */
+  /* ---------- HTML (un solo lugar: Banco → Sucesión de cultivos) ---------- */
   function fila(nombre, ex, ap, saldo, nota) {
     var neg = saldo != null && saldo < -1;
     return '<tr><td>' + nombre + '</td><td class="r">' + fmt(ex, 0) + '</td><td class="r">' + (ap == null ? '—' : fmt(ap, 0)) + '</td><td class="r" style="font-weight:700;color:' + (saldo == null ? '#8C9196' : (neg ? '#B3261E' : '#178029')) + ';">' + (saldo == null ? '—' : (saldo > 0 ? '+' : '') + fmt(saldo, 0)) + '</td><td class="muted" style="font-size:11px;">' + (nota || '') + '</td></tr>';
   }
-  function htmlBalance(bal, opts) {
-    opts = opts || {};
-    if (!bal) return '<div class="muted" style="font-size:13px;">Sin cosecha todavía: el balance se calcula con el rinde real.</div>';
-    var ex = bal.exportado, ap = bal.aplicado, s = bal.saldo, sinCarga = !ap.items;
-    var falta = function (saldo, exp) { return saldo < -Math.max(5, exp * 0.1); };   // significativo: más del 10 % de lo exportado (mínimo 5 kg/ha)
-    var h = '<div class="card" style="margin-top:10px;"><div class="card-h"><h3>Balance de nutrientes · ' + esc(bal.cultivo) + (bal.variedad ? ' ' + esc(bal.variedad) : '') + ' · ' + esc(bal.campana) + '</h3><span class="muted">' + fmt(bal.rinde) + ' kg/ha · ' + fmt(bal.tSeco, 2) + ' t/ha de grano seco (' + fmt(bal.humedad, 0) + ' % humedad)</span></div>';
-    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Nutriente</th><th class="r">Se llevó el grano (kg/ha)</th><th class="r">Aplicado (kg/ha)</th><th class="r">Saldo</th><th></th></tr></thead><tbody>' +
-      fila(NOMBRE.n, ex.n, ap.n, bal.fija ? null : s.n, bal.fija ? 'La soja lo fija del aire (Embrapa): no se repone con fertilizante' : (falta(s.n, ex.n) ? 'Faltó N: el rendimiento pudo quedar limitado (el suelo aportó el resto)' : '')) +
-      fila(NOMBRE.p2o5, ex.p2o5, ap.p2o5, s.p2o5, falta(s.p2o5, ex.p2o5) ? 'Se llevó más de lo aplicado: el suelo perdió reserva' : (s.p2o5 > 10 ? 'Sobró: construye reserva en el suelo' : '')) +
-      fila(NOMBRE.k2o, ex.k2o, ap.k2o, s.k2o, falta(s.k2o, ex.k2o) ? 'Se llevó más de lo aplicado: el suelo perdió reserva' : (s.k2o > 10 ? 'Sobró: construye reserva' : '')) +
-      fila(NOMBRE.s, ex.s, ap.s, ap.s || ex.s > 2 ? s.s : null, 'Solo cuenta el S declarado en la fórmula (ej. "+ 10 S")') +
+  function htmlBalance(bal, titulo) {
+    if (!bal) return '';
+    var ex = bal.exportado, ap = bal.aplicado, s = bal.saldo, sinCarga = !ap.items, vivo = bal.enVivo;
+    var falta = function (saldo, exp) { return saldo < -Math.max(5, exp * 0.1); };
+    var estado = vivo ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E8F1FB;color:#1A5FA8;font-size:11px;font-weight:700;">EN VIVO</span>'
+      : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E6F4EA;color:#178029;font-size:11px;font-weight:700;">FIRME' + (bal.fechaFirme ? ' · cerrado el ' + fechaLarga(bal.fechaFirme) : '') + '</span>';
+    var h = '<div class="card" style="margin-top:10px;"><div class="card-h"><h3>' + esc(titulo || '') + esc(bal.cultivo) + (bal.variedad ? ' ' + esc(bal.variedad) : '') + ' · ' + esc(bal.campana) + ' ' + estado + '</h3><span class="muted">' + (vivo ? 'meta ' : '') + fmt(bal.rinde) + ' kg/ha · ' + fmt(bal.tSeco, 2) + ' t/ha de grano seco</span></div>';
+    var colEx = vivo ? 'Se llevará la meta (kg/ha)' : 'Se llevó el grano (kg/ha)', colAp = vivo ? 'Aplicado hasta hoy (kg/ha)' : 'Aplicado (kg/ha)';
+    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Nutriente</th><th class="r">' + colEx + '</th><th class="r">' + colAp + '</th><th class="r">Saldo</th><th></th></tr></thead><tbody>' +
+      fila(NOMBRE.n, ex.n, ap.n, bal.fija ? null : s.n, bal.fija ? 'La soja lo fija del aire (Embrapa): no se repone con fertilizante' : (falta(s.n, ex.n) ? (vivo ? 'Falta N para la meta' : 'Faltó N: el rendimiento pudo quedar limitado') : '')) +
+      fila(NOMBRE.p2o5, ex.p2o5, ap.p2o5, s.p2o5, falta(s.p2o5, ex.p2o5) ? (vivo ? 'Falta para la meta' : 'Se llevó más de lo aplicado: el suelo perdió reserva') : (s.p2o5 > 10 ? 'Sobra: construye reserva' : '')) +
+      fila(NOMBRE.k2o, ex.k2o, ap.k2o, s.k2o, falta(s.k2o, ex.k2o) ? (vivo ? 'Falta para la meta' : 'Se llevó más de lo aplicado: el suelo perdió reserva') : (s.k2o > 10 ? 'Sobra: construye reserva' : '')) +
+      fila(NOMBRE.s, ex.s, ap.s, ap.s || ex.s > 2 ? s.s : null, 'Solo el S declarado en la fórmula (ej. "+ 10 S")') +
       fila(NOMBRE.ca, ex.ca, null, null, 'Lo repone el encalado') + fila(NOMBRE.mg, ex.mg, null, null, 'Lo repone el calcáreo dolomítico') +
       '</tbody></table></div></div>';
-    if (sinCarga) h += '<div class="note warn" style="margin-top:8px;">No hay fertilizantes cargados en esta campaña (insumos de la ficha o aplicaciones del Operador): el saldo asume que no se aplicó nada. Cargá lo aplicado para que el balance sea real.</div>';
-    else if (!bal.manejoCompleto) h += '<div class="muted" style="font-size:11px;margin-top:6px;">Aplicado según ' + ap.items + ' producto(s) cargado(s): ' + esc(ap.detalle.slice(0, 6).join(' · ')) + (ap.detalle.length > 6 ? ' …' : '') + '. Si falta algo, cargalo en la ficha (paso 3).</div>';
-    if (opts.metaSiguiente) {
-      var r = reposicionPara(bal, opts.cultivoSiguiente || bal.cultivo, opts.metaSiguiente);
-      h += '<div class="note info" style="margin-top:8px;"><b>Si la próxima campaña en este lote es ' + esc(opts.cultivoSiguiente || bal.cultivo) + ' a ' + fmt(opts.metaSiguiente) + ' kg/ha' + (opts.metaNota ? ' (' + opts.metaNota + ')' : '') + ':</b> el grano se llevará ~' + fmt(r.meta.p2o5, 0) + ' kg/ha de P₂O₅ y ' + fmt(r.meta.k2o, 0) + ' de K₂O' + (r.meta.fija ? '' : ' y ' + fmt(r.meta.n, 0) + ' de N') +
-        (r.deuda.p2o5 > 1 || r.deuda.k2o > 1 ? '; más lo que faltó reponer de esta cosecha (' + fmt(r.deuda.p2o5, 0) + ' P₂O₅ · ' + fmt(r.deuda.k2o, 0) + ' K₂O). Total a reponer: <b>' + fmt(r.total.p2o5, 0) + ' kg/ha de P₂O₅ y ' + fmt(r.total.k2o, 0) + ' de K₂O</b>' : '. Con lo aplicado esta campaña se cubrió lo extraído: la próxima repone solo lo que se lleve la meta') +
-        '. Al planificar la próxima campaña, el plan de la meta lo incluye junto con la corrección del suelo por análisis.</div>';
+    if (sinCarga) h += '<div class="note warn" style="margin-top:8px;">Sin fertilizantes cargados en esta campaña (ficha, paso 3, o aplicaciones del Operador): el saldo asume cero aplicado.</div>';
+    else h += '<div class="muted" style="font-size:11px;margin-top:6px;">Aplicado: ' + esc(ap.detalle.slice(0, 6).join(' · ')) + (ap.detalle.length > 6 ? ' …' : '') + '.</div>';
+    if (!vivo) {
+      var an = analisisPosterior(bal.equipoId, bal.fechaCosecha);
+      if (an) h += '<div class="note info" style="margin-top:8px;">Hay un análisis de suelo del ' + fechaLarga(an.fecha) + ', posterior a esta cosecha: el plan de la próxima campaña parte de ese análisis y no suma este saldo.</div>';
+      else if (s.p2o5 < -5 || s.k2o < -5) h += '<div class="note info" style="margin-top:8px;">Este saldo entra al plan de la próxima campaña del lote como "Reposición de la cosecha anterior". Un análisis de suelo nuevo lo reemplaza.</div>';
     }
-    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Coeficientes de exportación por tonelada de grano seco: IPNI/Fertilizar (INTA); P y K expresados como P₂O₅ y K₂O. Es un balance de lo que salió con el grano contra lo que entró con el fertilizante; no mide lo que quedó en el rastrojo ni las pérdidas.</div></div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Exportación por tonelada de grano seco: IPNI/Fertilizar (INTA); P y K como P₂O₅ y K₂O. Entradas por fertilizante contra salidas por grano; no cuenta rastrojo ni pérdidas.</div></div>';
     return h;
   }
-  // Banco → Sucesión: balances de las últimas campañas cosechadas del campo
+  // Banco → Sucesión: en vivo (campañas en curso con meta) + últimas cosechas firmes del campo
   function htmlCampo(campo, max) {
-    var lista = [];
+    var vivos = [], firmes = [];
     var equipos = leer('equipos').filter(function (e) { return String(e.campoId) === String(campo.id); });
-    leer('campanas').forEach(function (c) { var eq = equipos.find(function (e) { return String(e.id) === String(c.equipoId); }); if (!eq) return; (c.cultivos || []).forEach(function (cu, i) { var b = balanceCampana(c, i); if (b) lista.push({ b: b, eq: eq, f: String(cu.fechaCosecha || cu.fechaSiembra || '') }); }); });
-    if (!lista.length) return '';
-    lista.sort(function (a, b) { return b.f.localeCompare(a.f); });
-    return '<div class="section-title" style="margin:14px 0 6px;">Balance de nutrientes de las últimas cosechas</div>' + lista.slice(0, max || 3).map(function (x) { return htmlBalance(x.b).replace('<h3>Balance de nutrientes · ', '<h3>' + esc(x.eq.nombre) + ' · '); }).join('');
+    leer('campanas').forEach(function (c) { var eq = equipos.find(function (e) { return String(e.id) === String(c.equipoId); }); if (!eq) return; (c.cultivos || []).forEach(function (cu, i) { var b = balanceCampana(c, i); if (!b) return; (b.enVivo ? vivos : firmes).push({ b: b, eq: eq, f: String(cu.fechaCosecha || cu.fechaSiembra || '') }); }); });
+    if (!vivos.length && !firmes.length) return '';
+    firmes.sort(function (a, b) { return b.f.localeCompare(a.f); });
+    var h = '';
+    if (vivos.length) h += '<div class="section-title" style="margin:14px 0 6px;">Balance de nutrientes en vivo (campañas en curso)</div>' + vivos.map(function (x) { return htmlBalance(x.b, x.eq.nombre + ' · '); }).join('');
+    if (firmes.length) h += '<div class="section-title" style="margin:14px 0 6px;">Balance de nutrientes de las últimas cosechas (queda firme al cosechar)</div>' + firmes.slice(0, max || 3).map(function (x) { return htmlBalance(x.b, x.eq.nombre + ' · '); }).join('');
+    return h;
   }
   function alCambiarCampo() {
     var el = document.getElementById('nutrientesResumen'), c = window.SafiaBanco && SafiaBanco.campoActual ? SafiaBanco.campoActual() : null;
     if (!el) return; el.innerHTML = c ? htmlCampo(c, 3) : '';
   }
 
-  window.SafiaNutrientes = { EXPORT: EXPORT, ABSORCION: ABSORCION, exportado: exportado, aplicado: aplicado, balanceCampana: balanceCampana, ultimoBalanceDelLote: ultimoBalanceDelLote, reposicionPara: reposicionPara, htmlBalance: htmlBalance, htmlCampo: htmlCampo, alCambiarCampo: alCambiarCampo, clave: clave };
+  window.SafiaNutrientes = { EXPORT: EXPORT, ABSORCION: ABSORCION, exportado: exportado, aplicado: aplicado, cerrar: cerrar, balanceCampana: balanceCampana, ultimoBalanceDelLote: ultimoBalanceDelLote, analisisPosterior: analisisPosterior, reposicionPendiente: reposicionPendiente, htmlBalance: htmlBalance, htmlCampo: htmlCampo, alCambiarCampo: alCambiarCampo, clave: clave };
 })();

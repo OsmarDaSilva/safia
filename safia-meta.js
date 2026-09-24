@@ -475,11 +475,8 @@
     var c = r.caso; pr = pr || precios(); opciones = opciones || {};
     if (!meta || meta <= c.rindeKgHa) return { error: 'La meta tiene que ser mayor al rinde de partida (' + Math.round(c.rindeKgHa) + ' kg/ha).', caso: c };
     if (window.SafiaFoliar && !opciones.foliar) opciones.foliar = SafiaFoliar.ultimoDelLote(c.equipoId);
-    // balance de la última cosecha del lote: si quedó saldo negativo, el plan lo repone
-    if (window.SafiaNutrientes && !opciones.saldoAnterior) {
-      var bal = SafiaNutrientes.ultimoBalanceDelLote(c.equipoId);
-      if (bal) opciones.saldoAnterior = { p2o5: Math.max(0, -bal.saldo.p2o5), k2o: Math.max(0, -bal.saldo.k2o), cultivo: bal.cultivo, rinde: bal.rinde, campana: bal.campana, sinCarga: !bal.aplicado.items };
-    }
+    // balance firme de la última cosecha del lote: si quedó saldo negativo y no hay análisis de suelo posterior, el plan lo repone
+    if (window.SafiaNutrientes && !opciones.saldoAnterior) opciones.saldoAnterior = SafiaNutrientes.reposicionPendiente(c.equipoId);
     var pl = plan(c, meta, pr, r.casos, r.prof, opciones);
     var otros = {};
     r.casos.filter(function (x) { return String(x.campoId) === String(campo.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && claveCultivo(x.cultivo) !== claveCultivo(c.cultivo); })

@@ -129,6 +129,7 @@
       camp.cosechas = camp.cosechas || {}; camp.cosechas[cIdx] = cosecha;
       if (cIdx === 0 || !camp.cosecha) camp.cosecha = cosecha;
       camp.cultivos[cIdx].rendimientoReal = cosecha.rendimientoNeto; camp.cultivos[cIdx].fechaCosecha = cosecha.fecha;
+      if (window.SafiaNutrientes) SafiaNutrientes.cerrar(camp, cIdx);   // el balance de nutrientes queda firme con el rinde real
       if ((camp.cultivos || []).every(function (x) { return x.rendimientoReal; })) { camp.estado = 'Cerrada'; if (!camp.fechaCierre) camp.fechaCierre = ahora; }
     }
     localStorage.setItem('campanas', JSON.stringify(campanas));

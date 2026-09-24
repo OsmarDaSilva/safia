@@ -656,6 +656,7 @@
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-pasturas.js"></script>
 <script src="safia-insumos.js"></script>
+<script src="safia-nutrientes.js"></script>
 <script src="safia-catalogo.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-sensores.js"></script>
@@ -1502,6 +1503,7 @@
           campanas[idx].cultivos[cIdx].rendimientoReal = rendimientoNeto;
           campanas[idx].cultivos[cIdx].fechaCosecha = fecha;
         }
+        if (window.SafiaNutrientes) SafiaNutrientes.cerrar(campanas[idx], cIdx);   // el balance de nutrientes queda firme con el rinde real
         // La campaña se cierra cuando TODOS sus cultivos tienen cosecha
         const todosCosechados = (campanas[idx].cultivos || []).every(cu => cu.rendimientoReal);
         if (todosCosechados) {
