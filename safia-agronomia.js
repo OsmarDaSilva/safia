@@ -83,7 +83,7 @@
   // de más de 4.200–6.000 kg/ha auditados por CESB [7] acotado por los rangos de Embrapa [8][11] y UNL [9].
   var ALTO_RINDE = {
     ph: [6.0, 6.5], v: 65, mo: 3.0, pFactor: 1.4, k: 0.30, ca: 3.0, mg: 1.3, caMg: [2, 4], bk: [10, 30],   // V% 65 en 0–20 cm (CESB 56–68; el 70 % es en 0–10 cm)
-    b: 0.5, zn: 1.5, cu: 0.8, mn: 2.0, s: 10, al: 0.3, m: 5,
+    b: 0.5, zn: 1.3, cu: 0.8, mn: 5.0, s: 10, al: 0.3, m: 5,   // micros: "alto" de Embrapa 2013 (Tabela 21) salvo Cu (CESB 1,3–3,4 → 0,8 objetivo)
     profundo: { ca: 1.6, mg: 0.75, v: 40, m: 20 }   // 20–40 cm (CESB) y criterio de yeso (Embrapa)
   };
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
@@ -115,6 +115,7 @@
     var ph = num(s.ph), mo = num(s.mo), p = num(s.p), k = num(s.k), ca = num(s.ca), mg = num(s.mg), cic = num(s.cic), v = num(s.satBases), arc = num(s.arcilla);
     var kmg = k == null ? null : k * K_MG_POR_CMOL;
     var iP = F() ? F().interpretarP(p, arc) : null, iK = F() ? F().interpretarK(k, cic) : null;
+    var C = F() ? F().cerrado : null, iP2 = C ? C.interpretarP(p, arc) : null, iK2 = C ? C.interpretarK(k, arc, cic) : null;
     var pc = iP ? { critico: iP.critico, limites: iP.limites, kgPorMg: KG_P2O5_POR_MG[iP.claseArcilla] } : { critico: 12, limites: [4, 8, 12, 24], kgPorMg: 25 };   // crítico y límites de P para los objetivos de alto rinde
     var out = [];
 
@@ -138,7 +139,7 @@
       var catP = iP.clase, limP = p < iP.critico ? clamp((iP.critico - p) / iP.critico, 0.15, 1) : 0;
       var estP = limP >= 0.4 ? 'limita' : (limP > 0 ? 'atencion' : (catP === 'muy alto' ? 'reserva' : 'ok'));
       out.push({ k: 'p', n: 'Fósforo (P Mehlich-1)', valor: p, unidad: 'mg/dm³', categoria: catP, estado: estP, limitacion: limP * 1.0, peso: 1.0,
-        texto: 'Nivel "' + catP + '" para arcilla ' + iP.arcillaTexto + (iP.asumida ? ' (arcilla NO medida: se asume 41–60 %; pedir textura al laboratorio)' : '') + '; nivel crítico ' + iP.critico + ' mg/dm³ (límite de "medio", ~90 % del rinde relativo).' + (limP ? ' Por debajo del crítico hay respuesta a la corrección: ' + (F().correccion(catP, 'p2o5').total) + ' kg/ha de P₂O₅ además de la manutención.' : (catP === 'muy alto' ? ' Reserva muy alta: solo reposición de lo que exporta el grano, o nada si supera el doble del límite.' : ' Cubierto: manutención según el rinde esperado.')), fuente: '[2]', objetivo: '> ' + iP.critico + ' mg/dm³ (alto rinde: ' + Math.round(iP.critico * ALTO_RINDE.pFactor) + ')' });
+        texto: 'Nivel "' + catP + '" para arcilla ' + iP.arcillaTexto + (iP.asumida ? ' (arcilla NO medida: se asume 41–60 %; pedir textura al laboratorio)' : '') + '; nivel crítico ' + iP.critico + ' mg/dm³ (límite de "medio", ~90 % del rinde relativo).' + (iP2 ? ' Segunda opinión Embrapa 2013 (Fundação MS): "' + iP2.clase + '", crítico ' + iP2.critico + ' para arcilla ' + iP2.arcillaTexto + (iP2.clase !== catP ? '. LAS DOS REFERENCIAS NO COINCIDEN: RS/SC (suelos del sur de Brasil) es más exigente en P que Embrapa Cerrado; para oxisoles del Cerrado y del este paraguayo la de Embrapa suele ajustar mejor; pedir textura y decidir con el agrónomo' : ' (coinciden)') + '.' : '') + (limP ? ' Por debajo del crítico hay respuesta a la corrección: ' + (F().correccion(catP, 'p2o5').total) + ' kg/ha de P₂O₅ además de la manutención.' : (catP === 'muy alto' ? ' Reserva muy alta: solo reposición de lo que exporta el grano, o nada si supera el doble del límite.' : ' Cubierto: manutención según el rinde esperado.')), fuente: '[2]', objetivo: '> ' + iP.critico + ' mg/dm³ (alto rinde: ' + Math.round(iP.critico * ALTO_RINDE.pFactor) + ')' });
     }
     // Potasio: Mehlich-1 por clase de CTC pH 7 (RS/SC Tabela 6.9)
     if (iK) {
@@ -147,7 +148,7 @@
       var rBKk = (ca != null && mg != null && k > 0) ? (ca + mg) / k : null;
       var excesoK = (kPct != null && kPct > 6) || (rBKk != null && rBKk < 8); // solo es "exceso" si desequilibra frente a Ca y Mg
       var estK = limK >= 0.4 ? 'limita' : (limK > 0 ? 'atencion' : (excesoK ? 'exceso' : (catK === 'muy alto' ? 'reserva' : 'ok')));
-      var txtK = 'Nivel "' + catK + '" para CTC ' + iK.ctcTexto + (iK.asumida ? ' (CTC no informada: se asume media)' : '') + '; nivel crítico ' + iK.critico + ' mg/dm³ (' + fmt(iK.critico / K_MG_POR_CMOL, 2) + ' cmolc/dm³).';
+      var txtK = 'Nivel "' + catK + '" para CTC ' + iK.ctcTexto + (iK.asumida ? ' (CTC no informada: se asume media)' : '') + '; nivel crítico ' + iK.critico + ' mg/dm³ (' + fmt(iK.critico / K_MG_POR_CMOL, 2) + ' cmolc/dm³).' + (iK2 ? ' Segunda opinión Embrapa 2013 (Fundação MS, por arcilla ' + iK2.arcillaTexto + '): "' + iK2.clase + '", crítico ' + iK2.criticoMg + ' mg/dm³' + (iK2.pctCTC != null ? ', ocupa ' + fmt(iK2.pctCTC, 1) + ' % de la CTC (ideal 4 %)' : '') + (iK2.clase !== catK && !(catK === 'muy bajo' && iK2.clase === 'bajo') && !(catK === 'muy alto' && iK2.clase === 'alto') ? '. Las dos referencias no coinciden' : '') + '.' : '');
       if (limK) txtK += ' Falta K: afecta el llenado de grano y la tolerancia a la sequía; corrección ' + F().correccion(catK, 'k2o').total + ' kg/ha de K₂O además de la manutención.';
       else if (excesoK) txtK += ' Muy alto y desbalanceado: ocupa ' + fmt(kPct, 1) + ' % de la CIC' + (rBKk != null ? ' y (Ca+Mg)/K es ' + fmt(rBKk, 0) : '') + '. Tanto K frente a Ca y Mg puede frenar la absorción de magnesio; no aplicar K y revisar Mg.';
       else if (catK === 'muy alto') txtK += ' Reserva, no exceso' + (kPct != null ? ' (ocupa ' + fmt(kPct, 1) + ' % de la CIC)' : '') + ': solo reponer lo exportado o no aplicar si supera el doble del límite. Volver a analizar en 2 años.';
@@ -206,38 +207,28 @@
     // Azufre (RS/SC Tabela 6.11: bajo < 2, medio 2–5, alto > 5; leguminosas como la soja: crítico 10)
     var sS = num(s.azufre);
     if (sS != null) {
-      var legS = cu === CULTIVOS.soja, catS = F() ? F().interpretarS(sS, legS) : (sS < 5 ? 'bajo' : (sS < 10 ? 'medio' : 'alto'));
+      var legS = cu === CULTIVOS.soja, catS = F() ? F().interpretarS(sS, legS) : (sS < 5 ? 'bajo' : (sS < 10 ? 'medio' : 'alto')), iS2 = C ? C.interpretarS(sS, arc, cu.n) : null;
       var limS = catS === 'bajo' ? 0.5 : (catS === 'medio' ? 0.15 : 0);
       out.push({ k: 's', n: 'Azufre (S-SO₄)', valor: sS, unidad: 'mg/dm³', categoria: catS, estado: limS >= 0.3 ? 'limita' : (limS ? 'atencion' : 'ok'), limitacion: limS * 0.5, peso: 0.5,
-        texto: catS === 'bajo' ? 'Bajo' + (legS ? ' (< 5; la soja, leguminosa, exige el doble: crítico 10)' : ' (< 2)') + ': el azufre es parte de las proteínas y del aceite del grano; responde a yeso o sulfato.' : (catS === 'medio' ? 'Medio' + (legS ? ' (5–10)' : ' (2–5)') + ': conviene reponer lo que se lleva el grano; la capa de 10–20 cm suele tener más S que la de 0–10.' : 'Adecuado.'), fuente: '[2]', objetivo: legS ? '> 10 mg/dm³' : '> 5 mg/dm³' });
+        texto: catS === 'bajo' ? 'Bajo' + (legS ? ' (< 5; la soja, leguminosa, exige el doble: crítico 10)' : ' (< 2)') + ': el azufre es parte de las proteínas y del aceite del grano; responde a yeso o sulfato.' : (catS === 'medio' ? 'Medio' + (legS ? ' (5–10)' : ' (2–5)') + ': conviene reponer lo que se lleva el grano; la capa de 10–20 cm suele tener más S que la de 0–10.' : 'Adecuado.') + (iS2 ? ' Embrapa 2013 (Fundação MS, suelo ' + (iS2.arcilloso ? 'arcilloso' : 'arenoso') + '): "' + iS2.clase + '"' + (iS2.clase !== 'alto' ? ', aplicar ' + iS2.dosis + ' kg S/ha (' + (iS2.clase === 'bajo' ? '80' : '40') + ' + manutención)' : '') + '.' : ''), fuente: '[2][3]', objetivo: legS ? '> 10 mg/dm³' : '> 5 mg/dm³' });
     }
-    // Boro
-    var b = num(s.boro);
-    if (b != null) {
-      var limBo = b < 0.3 ? clamp((0.3 - b) / 0.3, 0.3, 0.7) : (b < ALTO_RINDE.b ? 0.15 : 0);
-      out.push({ k: 'b', n: 'Boro (B)', valor: b, unidad: 'mg/dm³', categoria: b < 0.3 ? 'baja' : (b < 0.6 ? 'media' : 'alta'), estado: limBo >= 0.3 ? 'limita' : (limBo ? 'atencion' : 'ok'), limitacion: limBo * 0.7, peso: 0.7,
-        texto: b < 0.3 ? 'Bajo (< 0,3): el boro hace la floración, el cuaje y la nodulación; su falta aborta flores y vainas. Corregir con 1–2 kg B/ha al suelo (4–5 años) o foliar en floración.' : (b < ALTO_RINDE.b ? 'Medio (0,3–0,5): adecuado según Embrapa, pero los lotes de más de 6.000 kg/ha tienen 0,7–1,0. Para alto rinde, sumar boro (suelo o foliar).' : 'Adecuado para alto rinde (los campeones tienen 0,7–1,0).'), fuente: '[7][8]', objetivo: '≥ 0,5 mg/dm³ (campeones 0,7–1,0)' });
-    }
-    // Zinc
-    var zn = num(s.zinc);
-    if (zn != null) {
-      var limZn = zn < 1.0 ? clamp((1.0 - zn) / 1.0, 0.3, 0.7) : (zn < ALTO_RINDE.zn ? 0.12 : 0);
-      var pAlto = p != null && p > (iP ? iP.limites[3] : Infinity);
-      out.push({ k: 'zn', n: 'Zinc (Zn)', valor: zn, unidad: 'mg/dm³', categoria: zn < 1.0 ? 'baja' : (zn < 1.6 ? 'media' : 'alta'), estado: limZn >= 0.3 ? 'limita' : (limZn ? 'atencion' : 'ok'), limitacion: limZn * (pAlto ? 1.2 : 1) * 0.6, peso: 0.6,
-        texto: (zn < 1.0 ? 'Bajo (< 1,0): el zinc regula el crecimiento y el llenado; en suelos ácidos y en maíz es el micro que más limita.' : (zn < ALTO_RINDE.zn ? 'Medio (1,0–1,5): cubierto para rindes normales; para 6–7 t conviene llegar a 1,5 (en Mato Grosso el crítico de soja es 2,5).' : 'Adecuado.')) + (pAlto ? ' Con fósforo muy alto el zinc se absorbe menos (antagonismo P–Zn): vigilarlo.' : ''), fuente: '[8]', objetivo: '≥ 1,5 mg/dm³' });
-    }
-    // Cobre y manganeso (si el laboratorio los informa como dato aparte)
-    var cuS = num(s.cobre), mn = num(s.manganeso);
-    if (cuS != null) {
-      var limCu = cuS < 0.5 ? 0.3 : (cuS < ALTO_RINDE.cu ? 0.1 : 0);
-      out.push({ k: 'cu', n: 'Cobre (Cu)', valor: cuS, unidad: 'mg/dm³', categoria: cuS < 0.5 ? 'baja' : (cuS < 1.2 ? 'media' : 'alta'), estado: limCu >= 0.3 ? 'limita' : (limCu ? 'atencion' : 'ok'), limitacion: limCu * 0.4, peso: 0.4,
-        texto: cuS < 0.5 ? 'Bajo (< 0,5): el cobre participa en la lignificación y la sanidad; corregir con 1–2 kg Cu/ha.' : (cuS < ALTO_RINDE.cu ? 'Medio: los lotes de más de 6.000 kg/ha tienen 1,3–3,4.' : 'Adecuado.'), fuente: '[7][8]', objetivo: '≥ 0,8 mg/dm³ (campeones 1,3–3,4)' });
-    }
-    if (mn != null) {
-      var limMn = mn < 2 ? 0.25 : 0;
-      out.push({ k: 'mn', n: 'Manganeso (Mn)', valor: mn, unidad: 'mg/dm³', categoria: mn < 2 ? 'baja' : (mn <= 8 ? 'adecuada' : 'alta'), estado: limMn ? 'atencion' : 'ok', limitacion: limMn * 0.3, peso: 0.3,
-        texto: mn < 2 ? 'Bajo (< 2): más frecuente con pH alto o encalado en exceso; foliar de Mn en V4–R1.' : (mn > 8 ? 'Alto: normal en suelos ácidos; baja al encalar.' : 'Adecuado (2–8).'), fuente: '[8]', objetivo: '2–8 mg/dm³' });
-    }
+    // Micronutrientes: Embrapa 2013 (Fundação MS Tabela 21: B agua caliente; Cu, Mn, Zn Mehlich-1) y dosis de la Tabela 22
+    var MICRO_TXT = {
+      boro: { n: 'Boro (B)', k: 'b', peso: 0.7, que: 'hace la floración, el cuaje y la nodulación; su falta aborta flores y vainas', como: 'al suelo (bórax o ulexita, dura 4–5 años) o foliar en floración; franja estrecha con la toxicidad, no exceder' },
+      zinc: { n: 'Zinc (Zn)', k: 'zn', peso: 0.6, que: 'regula el crecimiento y el llenado; en suelos ácidos y en maíz es el micro que más limita', como: 'al suelo (sulfato de zinc, dura 4–5 años) o en semilla + foliar' },
+      cobre: { n: 'Cobre (Cu)', k: 'cu', peso: 0.4, que: 'participa en la lignificación y la sanidad', como: 'al suelo (sulfato de cobre) o foliar' },
+      manganeso: { n: 'Manganeso (Mn)', k: 'mn', peso: 0.3, que: 'baja con pH alto o encalado en exceso', como: 'foliar en V4–R1 o al suelo' }
+    };
+    ['boro', 'zinc', 'cobre', 'manganeso'].forEach(function (kk) {
+      var val = num(s[kk]); if (val == null || !C) return;
+      var im = C.interpretarMicro(kk, val), t = MICRO_TXT[kk], objAlto = ALTO_RINDE[{ boro: 'b', zinc: 'zn', cobre: 'cu', manganeso: 'mn' }[kk]];
+      var lim = im.clase === 'bajo' ? 0.5 : (im.clase === 'medio' ? 0.15 : 0);
+      if (kk === 'zinc' && im.clase === 'bajo') lim = clamp((im.limites[0] - val) / im.limites[0] + 0.3, 0.3, 0.7);
+      var pAltoZn = kk === 'zinc' && p != null && p > (iP ? iP.limites[3] : Infinity);
+      out.push({ k: t.k, n: t.n, valor: val, unidad: 'mg/dm³', categoria: im.clase === 'bajo' ? 'baja' : (im.clase === 'medio' ? 'media' : (im.clase === 'muy alto' ? 'muy alta' : 'alta')), estado: lim >= 0.3 ? 'limita' : (lim ? 'atencion' : (im.clase === 'muy alto' ? 'exceso' : 'ok')), limitacion: lim * t.peso * (pAltoZn ? 1.2 : 1), peso: t.peso,
+        texto: (im.clase === 'bajo' ? 'Bajo (< ' + fmt(im.limites[0], 2) + '): ' + t.que + '. Aplicar ' + fmt(im.dosis, 1) + ' kg/ha ' + t.como + '.' : (im.clase === 'medio' ? 'Medio (' + fmt(im.limites[0], 2) + '–' + fmt(im.limites[1], 2) + '): cubierto para rindes normales; para alto rinde ' + fmt(im.dosis, 1) + ' kg/ha ' + t.como + '.' : (im.clase === 'muy alto' ? 'Muy alto (> ' + im.limites[2] + '): no aplicar; vigilar toxicidad.' : 'Adecuado (≥ ' + fmt(im.limites[1], 2) + ').'))) + (pAltoZn ? ' El P muy alto del suelo antagoniza con el Zn.' : '') + (kk === 'manganeso' && im.clase === 'alto' && val > 20 ? ' Alto: normal en suelos ácidos; baja al encalar.' : ''),
+        fuente: '[3][8]', objetivo: '≥ ' + fmt(im.limites[1], 2) + ' mg/dm³' + (objAlto && objAlto > im.limites[1] ? ' (alto rinde ' + fmt(objAlto, 2) + ')' : '') });
+    });
     // Objetivo de alto rinde (6–7 t/ha) para los parámetros clásicos y si el lote lo alcanza
     var OBJ = { ph: '6,0–6,5', satBases: '≥ ' + ALTO_RINDE.v + ' % en 0–20 cm (70 en 0–10)', p: '≥ ' + Math.round((iP ? iP.critico : 12) * ALTO_RINDE.pFactor) + ' mg/dm³ (1,4 × crítico, riego)', k: '≥ 0,30 cmolc (117 mg/dm³)', ca: '≥ 3,0 cmolc', mg: '≥ 1,3 cmolc', rel_camg: '2–4', rel_bk: '10–30', mo: '≥ 3 %', cic: '—', arcilla: '—' };
     out.forEach(function (i) {
@@ -280,20 +271,24 @@
 
     // Encalado según el manual RS/SC (Tabelas 5.2 y 5.3): índice SMP si lo hay, si no saturación de bases (V 75 % para pH 6,0)
     if (F()) {
-      var cal = F().calcario(s, { sistema: 'directa' });
-      if (cal.necesita && cal.sugerida != null) {
+      var cal = F().calcario(s, { sistema: 'directa' }), cal2 = F().cerrado.calcario(s);
+      var seg = cal2.necesita ? ' Segunda opinión Embrapa 2013 (Fundação MS): SÍ encalar (' + cal2.motivos.join('; ') + ')' + (cal2.tHa != null ? ', ' + fmt(cal2.tHa, 1) + ' t/ha para llevar V% a ' + cal2.vObjetivo : '') + '.' : ' Segunda opinión Embrapa 2013 (Fundação MS): no encalar (pH ≥ 5,8, V ≥ 60, sin Al).';
+      if (!cal.necesita && cal2.necesita) {
+        r.push({ k: 'encalado', titulo: 'Encalado: las referencias difieren' + (cal2.tHa != null ? ' — Embrapa/Fundação MS indica ' + fmt(cal2.tHa, 1) + ' t/ha' : ''), detalle: 'RS/SC no lo exige (' + (cal.motivos.length ? cal.motivos.join('; ') : 'pH ≥ 5,5 y V ≥ 65') + ').' + seg + (cal.completa != null ? ' Con el criterio RS/SC, llegar a pH 6,0 costaría ' + fmt(cal.completa, 1) + ' t/ha por ' + cal.metodo + '.' : '') + ' En oxisoles del Cerrado y del este paraguayo el criterio de Embrapa (pH < 5,8 o V < 60) suele ser el que usan los asesores; decidir con el agrónomo.', fuente: '[2][3]' });
+      } else if (cal.necesita && cal.sugerida != null) {
         r.push({ k: 'encalado', titulo: 'Encalar ' + fmt(cal.sugerida, 1) + ' t/ha de calcáreo ' + cal.tipo + ' (PRNT 100 %)',
-          detalle: 'Motivo: ' + cal.motivos.join('; ') + '. Dosis por ' + cal.metodo + ': ' + fmt(cal.completa, 1) + ' t/ha para llevar el pH de 0–20 cm a 6,0' + (cal.dosisSMP55 ? ' (a 5,5: ' + fmt(cal.dosisSMP55.tHa, 1) + ')' : '') + '. ' + cal.regla + '. Con PRNT menor, dividir por PRNT/100 (ej. 80 % → ' + fmt(cal.sugerida / 0.8, 1) + ' t/ha).' + (cal.nota ? ' ' + cal.nota + '.' : ''), fuente: '[2]' });
+          detalle: 'Motivo: ' + cal.motivos.join('; ') + '. Dosis por ' + cal.metodo + ': ' + fmt(cal.completa, 1) + ' t/ha para llevar el pH de 0–20 cm a 6,0' + (cal.dosisSMP55 ? ' (a 5,5: ' + fmt(cal.dosisSMP55.tHa, 1) + ')' : '') + '. ' + cal.regla + '. Con PRNT menor, dividir por PRNT/100 (ej. 80 % → ' + fmt(cal.sugerida / 0.8, 1) + ' t/ha).' + (cal.nota ? ' ' + cal.nota + '.' : '') + seg, fuente: '[2][3]' });
       } else if (cal.necesita) {
         r.push({ k: 'encalado', titulo: 'Encalar (' + cal.motivos.join('; ') + ')', detalle: 'Para calcular la dosis hacen falta el índice SMP o la CIC y la saturación de bases en el análisis.', fuente: '[2]' });
       } else {
-        r.push({ k: 'encalado', titulo: 'No hace falta encalar ahora', detalle: (cal.motivos.length ? cal.motivos.join('; ') + '. ' : '') + (cal.completa != null ? 'Referencia: llevar el pH a 6,0 costaría ' + fmt(cal.completa, 1) + ' t/ha por ' + cal.metodo + '. ' : '') + 'Repetir el análisis cada 2 años.', fuente: '[2]' });
+        r.push({ k: 'encalado', titulo: 'No hace falta encalar ahora', detalle: (cal.motivos.length ? cal.motivos.join('; ') + '. ' : '') + (cal.completa != null ? 'Referencia: llevar el pH a 6,0 costaría ' + fmt(cal.completa, 1) + ' t/ha por ' + cal.metodo + '. ' : '') + 'Repetir el análisis cada 2 años.' + seg, fuente: '[2][3]' });
       }
     }
     // Fósforo: corrección (Tabela 6.1.1, gradual 2/3 + 1/3) + manutención por rinde esperado (Tabela 6.1.2) o reposición (6.1.3)
     if (iP) {
       var catP = iP.clase, dP = F().dosisPK(catP, cu.n, tOb || F().manutencion(cu.n).ref, 'p2o5', false, iP.limites[3] ? p / iP.limites[3] : null);
-      var base = 'P ' + fmt(p, 1) + ' mg/dm³ ("' + catP + '", crítico ' + iP.critico + ' para arcilla ' + iP.arcillaTexto + (iP.asumida ? ', asumida' : '') + ').';
+      var iP2r = F().cerrado.interpretarP(p, arc);
+      var base = 'P ' + fmt(p, 1) + ' mg/dm³ ("' + catP + '", crítico ' + iP.critico + ' para arcilla ' + iP.arcillaTexto + (iP.asumida ? ', asumida' : '') + '). Embrapa 2013 / Fundação MS: "' + iP2r.clase + '" (crítico ' + iP2r.critico + ')' + (iP2r.correccionTotal ? ', correctiva total ' + iP2r.correccionTotal + ' kg/ha de P₂O₅ incorporada o gradual ' + iP2r.correccionGradual + ' kg/ha por año en el surco durante 4–5 zafras' : ', sin corrección: solo reposición') + (iP2r.clase !== catP ? '. Las dos referencias no coinciden: la dosis de abajo es RS/SC; la de Embrapa suele ajustar mejor en oxisoles' : '') + '.';
       if (dP.correccion) r.push({ k: 'fosforo', titulo: 'Fósforo: ' + fmt(dP.total, 0) + ' kg/ha de P₂O₅ este cultivo (' + dP.regla + ')', detalle: base + ' Corrección total ' + F().correccion(catP, 'p2o5').total + ' kg/ha' + (F().correccion(catP, 'p2o5').gradual ? ' repartida 2/3 ahora y 1/3 en el cultivo siguiente' : ' de una vez') + ', más manutención ' + fmt(dP.manutencion, 0) + ' kg/ha para ' + fmt((tOb || F().manutencion(cu.n).ref) * 1000, 0) + ' kg/ha de ' + cu.n.toLowerCase() + '.' + (ph != null && ph < 5.5 ? ' Encalar primero: con pH bajo el P se fija.' : ''), fuente: '[2]' });
       else if (catP === 'muy alto') r.push({ k: 'fosforo', titulo: 'Fósforo: reserva muy alta, ' + (dP.total ? 'solo reposición (' + fmt(dP.total, 0) + ' kg/ha de P₂O₅)' : 'no aplicar'), detalle: base + ' ' + dP.regla + '. Reponer ' + F().exportacion(cu.n).p2o5 + ' kg de P₂O₅ por tonelada exportada; volver a analizar en 2 años.', fuente: '[2]' });
       else r.push({ k: 'fosforo', titulo: 'Fósforo: manutención ' + fmt(dP.total, 0) + ' kg/ha de P₂O₅', detalle: base + ' Cubierto: manutención de ' + F().manutencion(cu.n).p2o5 + ' kg/ha para ' + F().manutencion(cu.n).ref + ' t/ha más ' + F().manutencion(cu.n).base.addP + ' kg por tonelada adicional.', fuente: '[2]' });
@@ -301,7 +296,8 @@
     // Potasio: idem, clases por CTC (Tabela 6.9)
     if (iK) {
       var catK = iK.clase, dK = F().dosisPK(catK, cu.n, tOb || F().manutencion(cu.n).ref, 'k2o', false, iK.limites[3] ? kmg / iK.limites[3] : null);
-      var baseK = 'K ' + fmt(kmg, 0) + ' mg/dm³ ("' + catK + '", crítico ' + iK.critico + ' para CTC ' + iK.ctcTexto + ').';
+      var iK2r = F().cerrado.interpretarK(k, arc, cic);
+      var baseK = 'K ' + fmt(kmg, 0) + ' mg/dm³ ("' + catK + '", crítico ' + iK.critico + ' para CTC ' + iK.ctcTexto + '). Embrapa 2013 / Fundação MS (arcilla ' + iK2r.arcillaTexto + '): "' + iK2r.clase + '" (crítico ' + iK2r.criticoMg + ')' + (iK2r.correccion ? ', correctiva ' + iK2r.correccion + ' kg/ha de K₂O total o repartida en 3–5 años' : ', sin corrección: reponer lo exportado') + '.';
       if (dK.correccion) r.push({ k: 'potasio', titulo: 'Potasio: ' + fmt(dK.total, 0) + ' kg/ha de K₂O este cultivo (' + dK.regla + ')', detalle: baseK + ' Corrección total ' + F().correccion(catK, 'k2o').total + ' kg/ha' + (F().correccion(catK, 'k2o').gradual ? ' repartida 2/3 ahora y 1/3 en el cultivo siguiente' : ' de una vez') + ', más manutención ' + fmt(dK.manutencion, 0) + ' kg/ha.', fuente: '[2]' });
       else if (catK === 'muy alto') r.push({ k: 'potasio', titulo: 'Potasio: reserva muy alta, ' + (dK.total ? 'solo reposición (' + fmt(dK.total, 0) + ' kg/ha de K₂O)' : 'no aplicar'), detalle: baseK + ' ' + dK.regla + '. Volver a analizar en 2 años.', fuente: '[2]' });
       else r.push({ k: 'potasio', titulo: 'Potasio: manutención ' + fmt(dK.total, 0) + ' kg/ha de K₂O', detalle: baseK + ' Cubierto: manutención de ' + F().manutencion(cu.n).k2o + ' kg/ha para ' + F().manutencion(cu.n).ref + ' t/ha más ' + F().manutencion(cu.n).base.addK + ' kg por tonelada adicional.', fuente: '[2]' });
@@ -327,12 +323,17 @@
     var alR = num(s.aluminio), mR = num(s.satAluminio);
     if ((mR != null && mR > 5) || (alR != null && alR > 0.3)) r.push({ k: 'aluminio', titulo: 'Aluminio ' + (mR != null ? 'con saturación ' + fmt(mR, 1) + ' %' : fmt(alR, 2) + ' cmolc/dm³') + ': neutralizarlo con el encalado' + ((mR != null && mR > 20) ? ' (prioridad 1)' : ''),
       detalle: 'La soja pierde rinde desde 5 % de saturación de Al; arriba de 20 % las raíces no exploran el perfil. El calcáreo lo neutraliza en 0–20 cm; para el subsuelo (20–60 cm) el yeso (50 × % arcilla kg/ha) baja el Al y sube el Ca. Los lotes de más de 6.000 kg/ha tienen Al cero.', fuente: '[7][12][3]' });
-    // Azufre, boro, zinc, cobre
-    var sR = num(s.azufre), bR = num(s.boro), znR = num(s.zinc), cuR = num(s.cobre);
-    if (sR != null && sR < ALTO_RINDE.s) r.push({ k: 'azufre', titulo: 'Azufre ' + fmt(sR, 1) + ' mg/dm³: aplicar 25–30 kg S/ha por ciclo (yeso 150–200 kg/ha o sulfato de amonio)', detalle: (sR < 5 ? 'Bajo' : 'Medio') + ' según Embrapa 2020 (< 5 bajo, 5–10 medio, > 10 alto). La soja requiere 7 kg S por tonelada y exporta 4,7 (Fertilizar): 6 t se llevan ~28 kg S/ha; sin S no arma proteína ni aceite. El yeso además lleva Ca al subsuelo.', fuente: '[3][10]' });
-    if (bR != null && bR < ALTO_RINDE.b) r.push({ k: 'boro', titulo: 'Boro ' + fmt(bR, 2) + ' mg/dm³: ' + (bR < 0.3 ? '1–2 kg B/ha' : '0,5 kg B/ha (¼–½ de la dosis, tenor medio)') + ' al suelo (bórax o ulexita), o vía foliar en floración según el agrónomo', detalle: (bR < 0.3 ? 'Bajo (< 0,3): responde con seguridad.' : 'Medio: adecuado para rindes normales, pero los lotes de más de 6.000 kg/ha tienen 0,7–1,0 y el boro fue uno de los factores decisivos (floración, cuaje, nodulación).') + ' La dosis correctiva al suelo dura 4–5 años. El boro es el micronutriente con la franja más estrecha entre deficiencia y toxicidad: no exceder la dosis.', fuente: '[7][8]' });
-    if (znR != null && znR < ALTO_RINDE.zn) r.push({ k: 'zinc', titulo: 'Zinc ' + fmt(znR, 2) + ' mg/dm³: ' + (znR < 1.0 ? '6 kg Zn/ha al suelo (sulfato de zinc ~30 kg/ha, dura 4–5 años)' : '1,5 kg Zn/ha al suelo (¼ de la dosis, tenor medio) o zinc en semilla + foliar'), detalle: (znR < 1.0 ? 'Bajo (< 1,0 Mehlich-1): limita crecimiento y llenado, sobre todo en maíz.' : 'Medio (1,0–1,5): para 6–7 t conviene llegar a 1,5.') + (p != null && p > (iP ? iP.limites[3] : Infinity) ? ' El fósforo muy alto reduce la absorción de Zn (antagonismo): más razón para corregirlo.' : ''), fuente: '[8]' });
-    if (cuR != null && cuR < ALTO_RINDE.cu) r.push({ k: 'cobre', titulo: 'Cobre ' + fmt(cuR, 2) + ' mg/dm³: 1–2 kg Cu/ha al suelo (sulfato de cobre) o foliar', detalle: 'Embrapa: 0,5–1,2 adecuado; los campeones tienen 1,3–3,4 y el cobre estuvo entre los factores decisivos (lignificación y sanidad).', fuente: '[7][8]' });
+    // Azufre (RS/SC + Embrapa 2013) y micronutrientes (Embrapa 2013 Tabelas 21 y 22)
+    var sR = num(s.azufre);
+    if (sR != null && F()) {
+      var iS2r = F().cerrado.interpretarS(sR, arc, cu.n, tOb), legR = cu === CULTIVOS.soja, catSR = F().interpretarS(sR, legR);
+      if (catSR !== 'alto' || iS2r.clase !== 'alto') r.push({ k: 'azufre', titulo: 'Azufre ' + fmt(sR, 1) + ' mg/dm³: aplicar ' + fmt(iS2r.dosis, 0) + ' kg S/ha (yeso ' + fmt(Math.round(iS2r.dosis * 6.5 / 10) * 10, 0) + ' kg/ha o sulfato de amonio)', detalle: 'RS/SC: "' + catSR + '"' + (legR ? ' (la soja exige el doble: crítico 10)' : '') + '. Embrapa 2013 / Fundação MS (suelo ' + (iS2r.arcilloso ? 'arcilloso' : 'arenoso') + '): "' + iS2r.clase + '" → ' + (iS2r.clase === 'bajo' ? '80' : (iS2r.clase === 'medio' ? '40' : '0')) + ' + manutención ' + iS2r.manutencion + ' kg S/ha (5,2 kg S por t de soja; 1,1 por t de maíz). Con fuentes concentradas de P (MAP, SFT) el S se vuelve limitante: el yeso o el superfosfato simple lo aportan.', fuente: '[2][3]' });
+    }
+    ['boro', 'zinc', 'cobre', 'manganeso'].forEach(function (kk) {
+      var val = num(s[kk]); if (val == null || !F()) return;
+      var im = F().cerrado.interpretarMicro(kk, val), t = { boro: ['boro', 'Boro', 'bórax o ulexita al suelo (4–5 años) o foliar en floración; no exceder'], zinc: ['zinc', 'Zinc', 'sulfato de zinc al suelo (4–5 años) o en semilla + foliar'], cobre: ['cobre', 'Cobre', 'sulfato de cobre al suelo o foliar'], manganeso: ['manganeso', 'Manganeso', 'foliar en V4–R1 o al suelo'] }[kk];
+      if (im.clase === 'bajo' || im.clase === 'medio') r.push({ k: t[0], titulo: t[1] + ' ' + fmt(val, 2) + ' mg/dm³ ("' + im.clase + '"): ' + fmt(im.dosis, 1) + ' kg/ha, ' + t[2], detalle: 'Embrapa 2013 / Fundação MS Tabelas 21 y 22: bajo < ' + fmt(im.limites[0], 2) + ', medio ' + fmt(im.limites[0], 2) + '–' + fmt(im.limites[1], 2) + ', alto ≥ ' + fmt(im.limites[1], 2) + ' mg/dm³; dosis bajo/medio/alto = ' + F().cerrado.MICROS[kk].dosis.map(function (x) { return fmt(x, 1); }).join(' / ') + ' kg/ha' + (im.clase === 'medio' ? ' (en "medio" la dosis es para alto rinde; con rindes normales se puede omitir)' : '') + '.', fuente: '[3][8]' });
+    });
     // Cobalto y molibdeno cuando el pH es ácido (el Mo se vuelve menos disponible)
     if (ph != null && ph < 5.8 && cu === CULTIVOS.soja) r.push({ k: 'como', titulo: 'Cobalto + molibdeno en la semilla (pH ' + fmt(ph, 1) + ')', detalle: 'En suelos ácidos el molibdeno está menos disponible y es la pieza central de la nitrogenasa del rizobio. Mo 12–25 g/ha + Co 1–5 g/ha en semilla junto con el inoculante: +540 kg/ha en ensayos de Paraná.', fuente: '[10]' });
     // Materia orgánica
@@ -479,7 +480,7 @@
     } else {
       html += '<div class="note">Este lote no tiene análisis de suelo cargado: sin eso SAFIA no puede decir qué le falta al suelo. Cargalo en la pestaña <b>Análisis de suelo</b> (foto o PDF, lo lee la IA).</div>';
     }
-    html += '<div class="muted" style="font-size:11px;margin-top:10px;">Fuentes: [2] Manual de Calagem e Adubação RS/SC, SBCS-NRS 2016 (clases de P por arcilla y de K por CTC, Ca/Mg/S, corrección, manutención, exportación, N, calcáreo por SMP y V%) · [1] Cubilla & Wendling 2012, CAPECO/IPTA (solo contraste local y costo de construir P) · [3] Embrapa · [4] Oliveira Jr. et al. 2001, Scientia Agricola · [5] PPI 1997 · [6] INTA/Fertilizar · [7] CESB Circular Técnica 2 (lotes > 4.200–6.000 kg/ha) · [8] Embrapa Cerrados (micronutrientes) · [9] UNL EC117 · [10] Fertilizar/INTA · [11] Embrapa CT33 · [12] Nicolodi 2008. SAFIA interpreta y compara; la prescripción la define el agrónomo con el análisis completo (Al, S, micronutrientes).</div>';
+    html += '<div class="muted" style="font-size:11px;margin-top:10px;">Fuentes: [2] Manual de Calagem e Adubação RS/SC, SBCS-NRS 2016 (clases de P por arcilla y de K por CTC, Ca/Mg/S, corrección, manutención, exportación, N, calcáreo por SMP y V%) · [3] Embrapa 2013 (Cerrado) tal como lo publica Fundação MS, Tecnologia e Produção Soja 2018/2019 (P y K por arcilla, S, micronutrientes Tabelas 21–22, calcáreo pH < 5,8 o V < 60): segunda opinión · [1] Cubilla & Wendling 2012, CAPECO/IPTA (solo contraste local y costo de construir P) · [3] Embrapa · [4] Oliveira Jr. et al. 2001, Scientia Agricola · [5] PPI 1997 · [6] INTA/Fertilizar · [7] CESB Circular Técnica 2 (lotes > 4.200–6.000 kg/ha) · [8] Embrapa Cerrados (micronutrientes) · [9] UNL EC117 · [10] Fertilizar/INTA · [11] Embrapa CT33 · [12] Nicolodi 2008. SAFIA interpreta y compara; la prescripción la define el agrónomo con el análisis completo (Al, S, micronutrientes).</div>';
     return html;
   }
 

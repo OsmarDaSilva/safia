@@ -110,12 +110,12 @@
   /* ---------- Micronutrientes y azufre: no van por balance (el grano se lleva gramos) sino por el análisis de suelo del lote.
      Umbrales iguales a los del motor agronómico (safia-agronomia.js): Embrapa Cerrados / CESB. ---------- */
   var MICROS = [
-    { k: 'boro', n: 'Boro (B)', bajo: 0.3, medio: 0.5, accionBajo: '1–2 kg B/ha al suelo (bórax o ulexita, dura 4–5 años) o foliar en floración', accionMedio: '0,5 kg B/ha al suelo o foliar en floración (para rindes altos)' },
-    { k: 'zinc', n: 'Zinc (Zn)', bajo: 1.0, medio: 1.5, accionBajo: '6 kg Zn/ha al suelo (sulfato de zinc ~30 kg/ha, dura 4–5 años) o Zn en semilla + foliar', accionMedio: '1,5 kg Zn/ha al suelo o Zn en semilla + foliar (para rindes altos)' },
-    { k: 'cobre', n: 'Cobre (Cu)', bajo: 0.5, medio: 0.8, accionBajo: '1–2 kg Cu/ha al suelo (sulfato de cobre) o foliar', accionMedio: '1 kg Cu/ha o foliar (para rindes altos)' },
-    { k: 'manganeso', n: 'Manganeso (Mn)', bajo: 2.0, medio: 2.0, accionBajo: 'foliar de Mn en V4–R1 (frecuente con pH alto o encalado en exceso)', accionMedio: '' },
-    { k: 'azufre', n: 'Azufre (S) en el suelo', bajo: 5, medio: 10, accionBajo: 'yeso agrícola 150–200 kg/ha o sulfato de amonio', accionMedio: '≈ 5 kg S por tonelada de meta (yeso o fórmula con S)' }
-  ];
+    { k: 'boro', n: 'Boro (B)', bajo: 0.30, medio: 0.50, accionBajo: '1,5 kg B/ha al suelo (bórax o ulexita, dura 4–5 años) o foliar en floración', accionMedio: '1,0 kg B/ha (para rindes altos) al suelo o foliar en floración' },
+    { k: 'zinc', n: 'Zinc (Zn)', bajo: 0.60, medio: 1.30, accionBajo: '6 kg Zn/ha al suelo (sulfato de zinc ~30 kg/ha, dura 4–5 años) o Zn en semilla + foliar', accionMedio: '5 kg Zn/ha al suelo (para rindes altos) o Zn en semilla + foliar' },
+    { k: 'cobre', n: 'Cobre (Cu)', bajo: 0.33, medio: 0.74, accionBajo: '2,5 kg Cu/ha al suelo (sulfato de cobre) o foliar', accionMedio: '1,5 kg Cu/ha (para rindes altos) o foliar' },
+    { k: 'manganeso', n: 'Manganeso (Mn)', bajo: 5.0, medio: 10.0, accionBajo: '6 kg Mn/ha al suelo o foliar en V4–R1', accionMedio: '4 kg Mn/ha (para rindes altos) o foliar en V4–R1' },
+    { k: 'azufre', n: 'Azufre (S) en el suelo', bajo: 5, medio: 10, accionBajo: 'yeso agrícola 150–200 kg/ha o sulfato de amonio (80 kg S + manutención)', accionMedio: '40 kg S/ha + manutención (≈ 5 kg S por t de soja): yeso o fórmula con S' }
+  ];   // Embrapa 2013 (Fundação MS Tabelas 16, 21 y 22): B agua caliente; Cu, Mn, Zn Mehlich-1; S en suelo arcilloso (> 40 %)
   // último análisis de suelo del lote (o del campo entero), el promedio si lo hay
   function analisisDelLote(equipoId) {
     var eq = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }), campoId = eq ? eq.campoId : null;
@@ -143,7 +143,7 @@
       return '<tr><td>' + m.n + '</td><td class="r">' + fmt(v, m.k === 'azufre' ? 1 : 2) + ' mg/dm³</td><td style="font-weight:700;color:' + color + ';">' + est + '</td><td style="font-size:11px;white-space:normal;min-width:220px;">' + (accion ? accion + ' <span class="muted">(el plan de la meta lo trae como ítem)</span>' : '<span class="muted">sin acción</span>') + '</td></tr>';
     }).join('');
     h += '<div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Elemento</th><th class="r">En el suelo</th><th>Estado</th><th>Qué hacer</th></tr></thead><tbody>' + filas + '</tbody></table></div></div>';
-    h += '<div class="muted" style="font-size:11px;margin-top:4px;">' + (aplic.length ? 'Micronutrientes aplicados en esta campaña: ' + esc(aplic.join(' · ')) + '.' : 'Sin micronutrientes cargados en esta campaña (semilla o foliar).') + ' El grano se lleva estos elementos en gramos por hectárea: lo que manda es el análisis de suelo y el foliar, no el balance.</div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:4px;">' + (aplic.length ? 'Micronutrientes aplicados en esta campaña: ' + esc(aplic.join(' · ')) + '.' : 'Sin micronutrientes cargados en esta campaña (semilla o foliar).') + ' El grano se lleva estos elementos en gramos por hectárea: lo que manda es el análisis de suelo y el foliar, no el balance. Umbrales y dosis: Embrapa 2013 (Fundação MS, Tabelas 21 y 22).</div>';
     return h;
   }
 

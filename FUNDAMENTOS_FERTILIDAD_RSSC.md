@@ -110,3 +110,39 @@ Lo primero que hace un especialista: SB = Ca + Mg + K (+ Na); CTC pH 7 = SB + H+
 ## 10. Lo que se dejó de usar
 
 Las clases de P (crítico 12/15 por dos clases de arcilla), de K (crítico único 75 mg/dm³) y las dosis correctivas de CAPECO/IPTA 2012, y el objetivo V% 65/70 por cultivo. Se conserva de Cubilla (2005) solo el costo de subir 1 mg/dm³ de P (25 kg P₂O₅/ha en suelos arcillosos, 15 en medios), usado únicamente para "construir" P por encima del crítico en planes de alto rinde.
+
+## 11. Segunda opinión: Embrapa 2013 (Cerrado) vía Fundação MS
+
+Pedido de Osmar (24 de septiembre de 2026): verificar contra Fundação MS. Se bajaron "Tecnologia e Produção: Soja 2018/2019" (cap. Manejo e Fertilidade do Solo, pp. 19–50) y "Milho Safrinha 2014" (cap. Manejo da adubação). Fundação MS no publica tablas propias: reproduce las de **Embrapa 2013** ("Fonte: Embrapa (2013)" al pie de cada tabla), calibradas en oxisoles del Cerrado con Mehlich-1, parecidos a los suelos de Alto Paraná y Canindeyú y con los mismos métodos que BIOSOLLO ("Metodologias: Embrapa 2009"). SAFIA las muestra al lado de RS/SC como segunda opinión y avisa cuando las clases no coinciden. Viven en .
+
+**P Mehlich-1 por arcilla (Tabela 10, p. 35)**, mg/dm³:
+
+| Arcilla | Muy bajo | Bajo | Medio | Adecuado | Alto |
+|---|---|---|---|---|---|
+| ≤ 15 % | ≤ 6,0 | 6,1–12,0 | 12,1–18,0 | 18,1–25,0 | > 25 |
+| 16–35 % | ≤ 5,0 | 5,1–10,0 | 10,1–15,0 | 15,1–20,0 | > 20 |
+| 36–59 % | ≤ 3,0 | 3,1–5,0 | 5,1–8,0 | 8,1–12,0 | > 12 |
+| ≥ 60 % | ≤ 2,0 | 2,1–3,0 | 3,1–4,0 | 4,1–6,0 | > 6 |
+
+**P₂O₅ correctivo (Tabela 11, p. 35)**, kg/ha, total (incorporado) / gradual (en el surco, 4–5 zafras): arcilla ≤ 15 %: muy bajo 60/70, bajo 30/65, medio 15/63; 16–35 %: 100/80, 50/70, 25/65; 36–60 %: 200/100, 100/80, 50/70; > 60 %: 280/120, 140/90, 70/75.
+
+**K Mehlich-1 por arcilla (Tabela 14, p. 41)**, cmolc/dm³: ≤ 15 %: bajo < 0,07, medio 0,08–0,12, alto > 0,12; 16–30 %: < 0,13 / 0,14–0,20 / > 0,20; 31–45 %: < 0,17 / 0,18–0,25 / > 0,25; 46–60 %: < 0,20 / 0,25–0,35 / > 0,35; > 60 %: < 0,27 / 0,28–0,45 / > 0,45. K ideal: 4 % de la CTC. **K₂O correctivo (Tabela 15, p. 42)**: suelos arcillosos (> 30 %) bajo 150, medio 75; arenosos 80 / 50; reposición de lo exportado (soja 20 kg K₂O por t) cuando está adecuado.
+
+**Azufre (Tabela 16, p. 43)**, 0–20 cm: arcillosos (> 40 %) bajo < 5, medio 5–10, alto > 10 mg/dm³; arenosos < 2 / 2–3 / > 3. Dosis: bajo 80 + M, medio 40 a 60 + M, alto M; M = 5,2 kg S por t de soja, 1,1 por t de maíz.
+
+**Micronutrientes (Tabela 21, p. 48; B agua caliente, Cu/Mn/Zn Mehlich-1)** y **dosis (Tabela 22, p. 49)**:
+
+| | Bajo | Medio | Alto | Muy alto | Dosis bajo / medio / alto (kg/ha) |
+|---|---|---|---|---|---|
+| B | < 0,30 | 0,30–0,49 | 0,50–2,0 | > 2,0 | 1,5 / 1,0 / 0,5 |
+| Cu | < 0,33 | 0,33–0,73 | 0,74–10 | > 10 | 2,5 / 1,5 / 0,5 |
+| Mn | < 5,0 | 5,0–9,9 | 10–30 | > 30 | 6 / 4 / 2 |
+| Zn | < 0,60 | 0,60–1,29 | 1,30–10 | > 10 | 6 / 5 / 4 |
+
+Desde esta versión SAFIA usa estas tablas para micronutrientes (antes: Embrapa Cerrados 2004, Zn crítico 1,0).
+
+**Encalado (pp. 21–23):** Fundação MS indica calcáreo en 0–20 cm cuando el pH en agua es menor que 5,8, la saturación de bases menor que 60 %, o hay aluminio con materia orgánica media o baja; el mismo criterio en directa consolidada. Fórmula NC = (V2 − V1) × CTC / PRNT; en sus ensayos la dosis apunta a V 70 %. Yeso: 50 × % arcilla, en superficie.
+
+**Nitrógeno en maíz safrinha tras soja (2014, p. 21):** 20 kg N por cada 1 % de MO más 35–45 kg del residuo de la soja; respuestas hasta 30–40 kg N/ha en el surco; la cobertura temprana (V2–V3).
+
+**Dónde difieren RS/SC y Embrapa 2013 (muestra de Anderson, BIOSOLLO 05/08/2026):** P 7,8 mg/dm³ es "bajo" por RS/SC (crítico 12) y "medio" por Embrapa (crítico 8); el encalado no hace falta por RS/SC (pH ≥ 5,5, Ca y Mg altos) y sí por Fundação MS (pH 5,7 < 5,8, 1,0 t/ha a V 70 %); zinc 0,86 es "medio" por Embrapa 2013. SAFIA muestra ambas y deja la decisión al agrónomo.

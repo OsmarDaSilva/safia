@@ -155,10 +155,68 @@
     return out;
   }
 
+  /* ---------- SEGUNDA OPINIÓN: Embrapa 2013 (Cerrado), tal como la publica Fundação MS en "Tecnologia e Produção: Soja 2018/2019"
+     (cap. Manejo e Fertilidade do Solo, pp. 19–50; cada tabla cita "Fonte: Embrapa (2013)"). Calibrado en oxisoles del Cerrado con Mehlich-1:
+     suelos parecidos a los de Alto Paraná / Canindeyú. Se muestra al lado de RS/SC; cuando difieren, SAFIA lo dice. ---------- */
+  var CERRADO = {
+    // Tabela 10: P Mehlich-1 por arcilla (≤15 · 16–35 · 36–59 · ≥60 %): límites superiores de Muito baixo · Baixo · Médio · Adequado; arriba = Alto. Crítico = límite de "Médio".
+    P_LIM: [[6, 12, 18, 25], [5, 10, 15, 20], [3, 5, 8, 12], [2, 3, 4, 6]],
+    P_CLASES: ['muy bajo', 'bajo', 'medio', 'adecuado', 'alto'],
+    // Tabela 11: P₂O₅ correctivo total (incorporado) y gradual (en el surco, 4–5 zafras) por arcilla (≤15 · 16–35 · 36–60 · >60) y clase (muy bajo · bajo · medio)
+    P_CORR_TOTAL: [[60, 30, 15], [100, 50, 25], [200, 100, 50], [280, 140, 70]],
+    P_CORR_GRADUAL: [[70, 65, 63], [80, 70, 65], [100, 80, 70], [120, 90, 75]],
+    // Tabela 14: K Mehlich-1 (cmolc/dm³) por arcilla (≤15 · 16–30 · 31–45 · 46–60 · >60): [baixo <, alto >]; K ideal = 4 % de la CTC
+    K_LIM: [[0.07, 0.12], [0.13, 0.20], [0.17, 0.25], [0.20, 0.35], [0.27, 0.45]],
+    // Tabela 15: K₂O correctivo (kg/ha) total / gradual (3–5 años) — arcilloso > 30 % · arenoso < 30 %
+    K_CORR: { arcilloso: { bajo: 150, medio: 75 }, arenoso: { bajo: 80, medio: 50 } },
+    // Tabela 16: S (mg/dm³) 0–20 cm — arcilloso (> 40 %) [5, 10] · arenoso [2, 3]; dosis: bajo 80 + M, medio 40–60 + M, alto M (M = 5,2 kg S por t de soja; 1,1 por t de maíz)
+    S_LIM: { arcilloso: [5, 10], arenoso: [2, 3] }, S_MANT: { soja: 5.2, maiz: 1.1, otro: 3 },
+    // Tabela 21 (B agua caliente; Cu, Mn, Zn Mehlich-1): [baixo <, alto ≥, muito alto >]. Tabela 22: dosis kg/ha para baixo · médio · alto
+    MICROS: { boro: { lim: [0.30, 0.50, 2.0], dosis: [1.5, 1.0, 0.5] }, cobre: { lim: [0.33, 0.74, 10], dosis: [2.5, 1.5, 0.5] }, manganeso: { lim: [5.0, 10.0, 30], dosis: [6, 4, 2] }, zinc: { lim: [0.60, 1.30, 10], dosis: [6, 5, 4] } },
+    // Encalado (pp. 21–23): decidir con pH agua < 5,8 o V < 60 % o Al presente con MO media/baja; en los ensayos de Fundação MS la dosis apunta a V 70 %
+    CAL: { phDecision: 5.8, vDecision: 60, vObjetivo: 70 },
+    claseArcillaP: function (arc) { arc = num(arc); if (arc == null) return null; return arc <= 15 ? 0 : (arc <= 35 ? 1 : (arc < 60 ? 2 : 3)); },
+    claseArcillaK: function (arc) { arc = num(arc); if (arc == null) return null; return arc <= 15 ? 0 : (arc <= 30 ? 1 : (arc <= 45 ? 2 : (arc <= 60 ? 3 : 4))); },
+    NOMBRE_ARC_P: ['≤ 15 %', '16–35 %', '36–59 %', '≥ 60 %'], NOMBRE_ARC_K: ['≤ 15 %', '16–30 %', '31–45 %', '46–60 %', '> 60 %'],
+    interpretarP: function (p, arc) {
+      p = num(p); if (p == null) return null;
+      var c = CERRADO.claseArcillaP(arc), asumida = c == null; if (asumida) c = 2;   // sin textura: 36–59 %, como la clase 2 de RS/SC
+      var lim = CERRADO.P_LIM[c], clase = null; for (var i = 0; i < 4; i++) if (p <= lim[i]) { clase = CERRADO.P_CLASES[i]; break; } if (!clase) clase = 'alto';
+      var corrIdx = { 'muy bajo': 0, bajo: 1, medio: 2 }[clase];
+      return { valor: p, clase: clase, critico: lim[2], limites: lim, claseArcilla: c, arcillaTexto: CERRADO.NOMBRE_ARC_P[c], asumida: asumida, correccionTotal: corrIdx != null ? CERRADO.P_CORR_TOTAL[c][corrIdx] : 0, correccionGradual: corrIdx != null ? CERRADO.P_CORR_GRADUAL[c][corrIdx] : 0, fuente: 'Embrapa 2013 · Fundação MS Tabelas 10 y 11' };
+    },
+    interpretarK: function (kCmolc, arc, cic) {
+      var k = num(kCmolc); if (k == null) return null;
+      var c = CERRADO.claseArcillaK(arc), asumida = c == null; if (asumida) c = 3;
+      var lim = CERRADO.K_LIM[c], clase = k < lim[0] ? 'bajo' : (k <= lim[1] ? 'medio' : 'alto');
+      var arcilloso = num(arc) == null ? true : num(arc) > 30, corr = clase === 'alto' ? 0 : CERRADO.K_CORR[arcilloso ? 'arcilloso' : 'arenoso'][clase];
+      var pctCTC = num(cic) ? k / num(cic) * 100 : null;
+      return { valorCmolc: k, valorMg: k * K_MG_POR_CMOL, clase: clase, critico: lim[1], criticoMg: Math.round(lim[1] * K_MG_POR_CMOL), limites: lim, claseArcilla: c, arcillaTexto: CERRADO.NOMBRE_ARC_K[c], asumida: asumida, correccion: corr, pctCTC: pctCTC, fuente: 'Embrapa 2013 · Fundação MS Tabelas 14 y 15' };
+    },
+    interpretarS: function (sMg, arc, cultivo, metaT) {
+      var s = num(sMg); if (s == null) return null;
+      var arcilloso = num(arc) == null ? true : num(arc) > 40, lim = CERRADO.S_LIM[arcilloso ? 'arcilloso' : 'arenoso'];
+      var clase = s < lim[0] ? 'bajo' : (s <= lim[1] ? 'medio' : 'alto'), M = Math.round((CERRADO.S_MANT[clave(cultivo)] || CERRADO.S_MANT.otro) * (num(metaT) || 3));
+      return { valor: s, clase: clase, limites: lim, arcilloso: arcilloso, manutencion: M, dosis: clase === 'bajo' ? 80 + M : (clase === 'medio' ? 40 + M : M), fuente: 'Embrapa 2013 · Fundação MS Tabela 16' };
+    },
+    interpretarMicro: function (k, valor) {
+      var v = num(valor), m = CERRADO.MICROS[k]; if (v == null || !m) return null;
+      var clase = v < m.lim[0] ? 'bajo' : (v < m.lim[1] ? 'medio' : (v > m.lim[2] ? 'muy alto' : 'alto'));
+      return { valor: v, clase: clase, limites: m.lim, dosis: clase === 'muy alto' ? 0 : m.dosis[{ bajo: 0, medio: 1, alto: 2 }[clase]], fuente: 'Embrapa 2013 · Fundação MS Tabelas 21 y 22' };
+    },
+    calcario: function (s) {
+      s = s || {}; var ph = num(s.ph), v = num(s.satBases), cic = num(s.cic), al = num(s.aluminio), mo = num(s.mo), motivos = [];
+      if (ph != null && ph < CERRADO.CAL.phDecision) motivos.push('pH ' + ph.toFixed(1) + ' < 5,8');
+      if (v != null && v < CERRADO.CAL.vDecision) motivos.push('V% ' + v.toFixed(1) + ' < 60');
+      if (al != null && al > 0 && (mo == null || mo <= 5)) motivos.push('Al intercambiable ' + al.toFixed(2) + ' con MO media o baja');
+      var tHa = (v != null && cic != null) ? Math.max(0, r1((CERRADO.CAL.vObjetivo - v) / 100 * cic)) : null;
+      return { necesita: motivos.length > 0, motivos: motivos, vObjetivo: CERRADO.CAL.vObjetivo, tHa: tHa, fuente: 'Embrapa 2013 · Fundação MS (pp. 21–23; V 70 % en sus ensayos)' };
+    }
+  };
   function clave(c) { var n = String(c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
   function esLeguminosa(c) { return clave(c) === 'soja'; }
 
   window.SafiaFertilidad = { FUENTE: 'Manual de Calagem e Adubação para os Estados do RS e de SC, SBCS-NRS 2016', K_MG_POR_CMOL: K_MG_POR_CMOL, P_LIM: P_LIM, K_LIM: K_LIM, CLASES: CLASES, CORRECCION: CORRECCION, MANUTENCION: MANUTENCION, EXPORTACION: EXPORTACION, MICROS_RSSC: MICROS_RSSC, SMP: SMP, NOMBRE_ARCILLA: NOMBRE_ARCILLA, NOMBRE_CTC: NOMBRE_CTC,
     claseArcilla: claseArcilla, claseCTC: claseCTC, claseMO: claseMO, interpretarP: interpretarP, interpretarK: interpretarK, interpretarCa: interpretarCa, interpretarMg: interpretarMg, interpretarS: interpretarS, correccion: correccion, manutencion: manutencion, exportacion: exportacion, dosisPK: dosisPK, nitrogeno: nitrogeno, tipoAntecesor: tipoAntecesor,
-    dosisSMP: dosisSMP, dosisV: dosisV, vObjetivo: vObjetivo, calcario: calcario, consistencia: consistencia, clave: clave, esLeguminosa: esLeguminosa };
+    dosisSMP: dosisSMP, dosisV: dosisV, vObjetivo: vObjetivo, calcario: calcario, consistencia: consistencia, clave: clave, esLeguminosa: esLeguminosa, cerrado: CERRADO };
 })();
