@@ -108,6 +108,8 @@
     }
     if (f.observaciones) camp.observaciones = String(f.observaciones).trim();
     if (f.manejoCompleto != null) camp.manejoCompleto = !!f.manejoCompleto;   // 'no se cargó' ≠ 'no se hizo': con la marca, el diagnóstico puede decir qué falta
+    // ficha existente editada en pantalla: la lista del formulario reemplaza a la de la campaña (lo que se quitó, se borra)
+    if (f.reemplazarInsumos && enc) camp.insumos = (camp.insumos || []).filter(function (i) { return i.cultivoIdx != null && i.cultivoIdx !== cIdx; });
     // insumos (sin duplicar: misma categoría + producto + fecha)
     (f.insumos || []).forEach(function (it, k) {
       if (!it || !(it.producto || it.categoria)) return;

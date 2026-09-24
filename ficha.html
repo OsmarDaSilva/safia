@@ -24,7 +24,10 @@
     .ins-fila{display:grid;grid-template-columns:1.1fr 1.6fr 1.4fr .6fr .9fr 1.2fr 1fr .9fr auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--bd2);}
     .ins-fila select,.ins-fila input{margin:0;padding:8px 9px;font-size:13px;}
     .ins-fila .lab{font-size:10px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;}
-    @media (max-width:900px){.ins-fila{grid-template-columns:1fr 1fr;}}
+    .ins-fila>div{min-width:0;} .ins-fila select,.ins-fila input{width:100%;min-width:0;box-sizing:border-box;}
+    .ins-fila .ins-x{align-self:end;}
+    @media (max-width:1500px){.ins-fila{grid-template-columns:1fr 1fr 1fr 1fr auto;} .ins-fila .ins-x{grid-column:5;grid-row:1;}}
+    @media (max-width:900px){.ins-fila{grid-template-columns:1fr 1fr auto;} .ins-fila .ins-x{grid-column:3;grid-row:1;}}
     .resumen-ok{border-left:4px solid var(--green);}
     .fila-prev{display:grid;grid-template-columns:2fr 1.4fr 1fr 1fr 1.2fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd2);font-size:13px;align-items:center;}
     .fila-prev .m{font-size:11px;color:var(--label);}
@@ -317,7 +320,7 @@
         <div><div class="lab">${it.seccion === 'semilla' ? 'Cómo' : 'Método'}</div>${metodos.length ? `<select onchange="setIns(${i}, '${it.seccion === 'semilla' ? 'forma' : 'metodo'}', this.value)">${opts(metodos, it.seccion === 'semilla' ? it.forma : it.metodo, '—')}</select>` : '<input type="text" disabled value="—">'}</div>
         <div><div class="lab">Etapa</div>${it.seccion === 'semilla' ? '<input type="text" disabled value="Tratamiento de semilla">' : `<select onchange="setIns(${i}, 'etapa', this.value)">${opts(I.ETAPAS || [], it.etapa, '—')}</select>`}</div>
         <div><div class="lab">Fecha</div><input type="date" value="${esc(it.fecha || '')}" oninput="setIns(${i}, 'fecha', this.value)"></div>
-        <div class="no-print"><button class="btn danger" type="button" style="padding:7px 10px;" onclick="quitarIns(${i})">×</button></div>
+        <div class="no-print ins-x"><button class="btn danger" type="button" style="padding:7px 10px;" title="Quitar este producto" onclick="quitarIns(${i})">×</button></div>
       </div>`;
     }
     function pintarInsumos() { $('insumosLista').innerHTML = insumos.length ? insumos.map(filaInsumo).join('') : '<div class="muted" style="font-size:13px;">Sin productos cargados.</div>'; }
@@ -332,7 +335,7 @@
         cultivoAnterior: $('fAnterior').value, cobertura: $('fCobertura').value, coberturaManejo: $('fCoberturaManejo').value, sistemaSiembra: $('fSistemaSiembra').value, consorcio: $('fConsorcio').value, encaladoTnHa: $('fEncalado').value, fertilizacion: $('fFertilizacion').value,
         labores: [...$('fLabores').querySelectorAll('input:checked')].map(i => i.value), observaciones: $('fObs').value,
         sistemaPastoreo: $('fSistemaPastoreo').value, piquetes: $('fPiquetes').value, diasOcupacion: $('fOcupacion').value, diasDescanso: $('fDescanso').value,
-        insumos: insumos.filter(i => i.producto || i.categoria), manejoCompleto: $('fManejoCompleto').checked,
+        insumos: insumos.filter(i => i.producto || i.categoria), reemplazarInsumos: !!fichaCargada, manejoCompleto: $('fManejoCompleto').checked,
         cosecha: { fecha: $('fCosechaFecha').value, produccionKg: $('fCosechaKg').value, superficie: $('fCosechaSup').value, humedad: $('fCosechaHumedad').value, destino: $('fCosechaDestino').value, riegoMM: $('fRiegoMM').value, lluviaMM: $('fLluviaMM').value, observaciones: $('fObs').value }
       };
     }
