@@ -424,5 +424,51 @@
     return html;
   }
 
-  window.SafiaMeta = { PRECIOS_DEFAULT: PRECIOS_DEFAULT, precios: precios, guardarPrecios: guardarPrecios, benchmark: benchmark, plan: plan, informeHTML: informeHTML, proyeccion: proyeccion, proyeccionHTML: proyeccionHTML, claveCultivo: claveCultivo };
+  /* ---------- Caso y plan para UNA campaña (lo usa la Ficha de campaña; el Banco arma lo mismo en su pestaña Meta) ---------- */
+  var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['nivelacionUSDha', 'Nivelación / sistematización US$/ha'], ['aplicacionVoleoUSDha', 'Aplicación al voleo US$/ha (pasada)'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
+  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso'];
+  function leerLS(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
+  function numL(v) { if (v == null || v === '') return null; var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  function analisisDelCampo(campoId) { var l = leerLS('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoId); }); var rep = l.filter(function (a) { return !a.enPromedio; }); return rep.length ? rep : l; }
+  function promediar(items) { var out = {}; CLAVES_PROMEDIO.forEach(function (k) { var vs = items.map(function (a) { return numL(a[k]); }).filter(function (v) { return v !== null; }); out[k] = vs.length ? Math.round(vs.reduce(function (s, v) { return s + v; }, 0) / vs.length * 100) / 100 : null; }); return out; }
+  // Devuelve { caso, casos, prof } o { error }
+  function casoParaCampana(campo, campanaId, cultivoIdx) {
+    if (!window.SafiaCasos || !campo) return { error: 'Falta el módulo de casos.' };
+    var casos = SafiaCasos.armarCasos(), prof = analisisDelCampo(campo.id);
+    var camp = leerLS('campanas').find(function (c) { return String(c.id) === String(campanaId); });
+    var cu = camp && camp.cultivos ? camp.cultivos[cultivoIdx || 0] : null;
+    if (!camp || !cu) return { error: 'No encontré la campaña.' };
+    var mios = casos.filter(function (c) { return String(c.campoId) === String(campo.id) && c.rindeKgHa; }).sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
+    var caso = null;
+    if (numL(cu.rendimientoReal) > 0) caso = casos.find(function (c) { return String(c.id) === String(camp.id) + '-' + (cultivoIdx || 0); }) || null;
+    if (!caso) {
+      var mismos = mios.filter(function (x) { return String(x.equipoId) === String(camp.equipoId) && claveCultivo(x.cultivo) === claveCultivo(cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
+      var base = mismos[0] || mios.filter(function (x) { return String(x.equipoId) === String(camp.equipoId); })[0] || mios[0];
+      if (!base) return { error: 'Este campo todavía no tiene ninguna campaña cosechada con rinde: la meta se arma a partir de un rinde real. Cargá primero una cosecha (o usá la Referencia para comparar).' };
+      caso = Object.assign({}, base, { id: 'nueva_' + camp.id + '_' + (cultivoIdx || 0), campanaId: camp.id, campana: camp.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: null, clima: null });
+    }
+    // el plan mira hacia adelante: último análisis del lote (o del campo); si hay varias muestras de la misma fecha, su promedio
+    var recientes = prof.filter(function (a) { return String(a.equipoId || '') === String(caso.equipoId || ''); });
+    if (!recientes.length) recientes = prof.filter(function (a) { return !a.equipoId; });
+    recientes.sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+    var ultimo = recientes.slice(-1)[0];
+    if (ultimo && !ultimo.esPromedio) { var iguales = recientes.filter(function (a) { return String(a.fecha) === String(ultimo.fecha); }); if (iguales.length > 1) ultimo = Object.assign({}, ultimo, promediar(iguales), { esPromedio: true }); }
+    if (ultimo && (!caso.suelo || String(ultimo.fecha) >= String(caso.suelo.fecha || ''))) caso = Object.assign({}, caso, { suelo: ultimo });
+    return { caso: caso, casos: casos, prof: prof };
+  }
+  // Arma el plan (y la proyección a 5 años) para esa campaña con las opciones y precios dados
+  function planParaCampana(campo, campanaId, cultivoIdx, meta, opciones, pr) {
+    var r = casoParaCampana(campo, campanaId, cultivoIdx); if (r.error) return r;
+    var c = r.caso; pr = pr || precios(); opciones = opciones || {};
+    if (!meta || meta <= c.rindeKgHa) return { error: 'La meta tiene que ser mayor al rinde de partida (' + Math.round(c.rindeKgHa) + ' kg/ha).', caso: c };
+    if (window.SafiaFoliar && !opciones.foliar) opciones.foliar = SafiaFoliar.ultimoDelLote(c.equipoId);
+    var pl = plan(c, meta, pr, r.casos, r.prof, opciones);
+    var otros = {};
+    r.casos.filter(function (x) { return String(x.campoId) === String(campo.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && claveCultivo(x.cultivo) !== claveCultivo(c.cultivo); })
+      .forEach(function (x) { var k = claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
+    var py = proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5);
+    return { caso: c, pl: pl, py: py, casos: r.casos, prof: r.prof };
+  }
+
+  window.SafiaMeta = { CAMPOS_PRECIO: CAMPOS_PRECIO, casoParaCampana: casoParaCampana, planParaCampana: planParaCampana, PRECIOS_DEFAULT: PRECIOS_DEFAULT, precios: precios, guardarPrecios: guardarPrecios, benchmark: benchmark, plan: plan, informeHTML: informeHTML, proyeccion: proyeccion, proyeccionHTML: proyeccionHTML, claveCultivo: claveCultivo };
 })();

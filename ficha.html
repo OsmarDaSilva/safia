@@ -53,6 +53,11 @@
 <script src="safia-balance.js"></script>
 <script src="safia-pasturas.js"></script>
 <script src="safia-ficha.js"></script>
+<script src="safia-casos.js"></script>
+<script src="safia-agronomia.js"></script>
+<script src="safia-agua.js"></script>
+<script src="safia-meta.js"></script>
+<script src="safia-seguimiento.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 </head>
 <body>
@@ -199,6 +204,33 @@
         <div id="rindeCalc" class="muted" style="font-size:13px;margin-top:6px;"></div>
       </div>
 
+      <!-- 6 · Meta de rinde -->
+      <div class="formcard" id="bloqueMeta">
+        <div class="paso"><div class="n">6</div><h3>Meta de rinde</h3></div>
+        <div class="formsub">Con la meta del paso 2, SAFIA arma el recetario a partir del suelo, el agua y el manejo del lote, y lo deja guardado en la campaña para seguirlo. Es el mismo motor de Banco → Meta de rinde.</div>
+        <div id="metaSinBase" class="note warn" style="display:none;"></div>
+        <details class="no-print" style="margin-bottom:10px;"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--head);">Opciones del plan (qué incluir aunque el análisis no lo exija)</summary>
+          <div style="display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:10px;font-size:13px;">
+            <label style="display:flex;align-items:center;gap:6px;">Calcáreo, dosis fija: <input type="number" id="mCalcareo" step="0.1" min="0" placeholder="t/ha" style="width:90px;padding:6px 8px;"> <span class="muted">(vacío: la calculada por V%)</span></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="mPrep"> <b>Preparación completa del lote</b></label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="mYeso"> Yeso en el perfil</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="mSubsolado"> Subsolado / descompactación</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="mNivelacion"> Nivelación / sistematización</label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="mPK"> Construir reserva de fósforo y potasio</label>
+            <label style="display:flex;align-items:center;gap:6px;">Otros trabajos: <input type="number" id="mOtrosUSD" placeholder="US$/ha" style="width:90px;padding:6px 8px;"> <input type="text" id="mOtrosDetalle" placeholder="qué (ej. drenaje, alambrado)" style="width:200px;padding:6px 8px;"></label>
+          </div>
+        </details>
+        <details class="no-print" style="margin-bottom:10px;"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--head);">Precios y costos usados (editables, se guardan en este dispositivo)</summary>
+          <div class="form-grid" id="metaPreciosFicha" style="margin-top:10px;"></div>
+        </details>
+        <div class="no-print" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn green" type="button" id="btnMetaArmar">Armar y guardar el plan</button>
+          <span class="muted" id="metaEstado"></span>
+        </div>
+        <div id="metaResultadoFicha" style="margin-top:12px;"></div>
+        <div id="metaSeguimientoFicha"></div>
+      </div>
+
       <div class="formcard resumen-ok no-print">
         <div class="form-actions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           <button class="btn green lg" id="btnGuardar" type="button">Guardar y cargar</button>
@@ -269,6 +301,7 @@
       fichaCargada = SafiaFicha.desdeCampana(camp, parseInt(idx, 10));
       pintarFicha(fichaCargada);
       $('estadoGuardado').textContent = 'Ficha cargada: ' + (camp.nombre || '') + '. Completá lo que falte y guardá.';
+      pintarMetaFicha();
     }
 
     /* ---------- siembra ---------- */
@@ -295,6 +328,7 @@
       $('labelSiembra').textContent = past ? 'Fecha de implantación (o desde cuándo la sigue SAFIA)' : 'Fecha de siembra';
       $('labelMeta').innerHTML = past ? 'Meta de forraje (kg MS/ha por año) <span class="hint">opcional</span>' : 'Meta de rinde (kg/ha) <span class="hint">opcional</span>';
       $('tituloSiembra').textContent = past ? 'Implantación y manejo' : 'Siembra';
+      if ($('bloqueMeta')) $('bloqueMeta').classList.toggle('oculto', past);
       sugerirNombre();
     }
     function sugerirNombre() { if (!$('fNombre').value.trim() || $('fNombre').dataset.auto === '1') { $('fNombre').value = SafiaFicha.nombreZafra($('fFechaSiembra').value, $('fCultivo').value); $('fNombre').dataset.auto = '1'; } }
@@ -351,6 +385,7 @@
       $('fLabores').querySelectorAll('input').forEach(i => { i.checked = false; i.parentNode.classList.remove('on'); });
       insumos = []; pintarInsumos(); $('rindeCalc').textContent = ''; $('fManejoCompleto').checked = false;
       if (todo) { $('fCultivo').value = ''; alCambiarCultivo(); $('fExistente').value = ''; $('estadoGuardado').textContent = ''; }
+      if ($('metaSeguimientoFicha')) { $('metaSeguimientoFicha').innerHTML = ''; $('metaResultadoFicha').innerHTML = ''; $('metaEstado').textContent = ''; $('metaSinBase').style.display = 'none'; }
     }
     function calcRinde() { const kg = parseFloat($('fCosechaKg').value), sup = parseFloat($('fCosechaSup').value) || parseFloat($('fSuperficie').value); $('rindeCalc').textContent = kg > 0 && sup > 0 ? 'Rinde: ' + Math.round(kg / sup).toLocaleString('es-PY') + ' kg/ha' : ''; }
 
@@ -363,10 +398,11 @@
       const r = SafiaFicha.guardar(f);
       if (!r.ok) { toast(r.errores[0], true); return; }
       const lote = $('fLote').selectedOptions[0].textContent, cli = $('fCliente').selectedOptions[0].textContent;
-      $('estadoGuardado').innerHTML = 'Campaña <b>' + esc(r.nombre) + '</b> ' + (r.accion === 'creada' ? 'creada' : 'actualizada') + ' en ' + esc(cli) + ' · ' + esc(lote) + (r.cerrada ? ' · cerrada con cosecha' : ' · en curso') + '. <a href="banco.html" onclick="return abrirBanco(' + r.campoId + ')">Ver en el Banco</a> · <a href="mis-campanas.html">Campañas</a>' + (r.tieneMeta ? ' · <a href="banco.html" onclick="return abrirBanco(' + r.campoId + ', ' + r.campanaId + ', ' + r.cultivoIdx + ')"><b>Armar el plan de la meta en el Banco</b></a>' : '') + (r.avisos.length ? '<br><span style="color:#8a5713;">' + esc(r.avisos.join(' ')) + '</span>' : '');
+      $('estadoGuardado').innerHTML = 'Campaña <b>' + esc(r.nombre) + '</b> ' + (r.accion === 'creada' ? 'creada' : 'actualizada') + ' en ' + esc(cli) + ' · ' + esc(lote) + (r.cerrada ? ' · cerrada con cosecha' : ' · en curso') + '. <a href="banco.html" onclick="return abrirBanco(' + r.campoId + ')">Ver en el Banco</a> · <a href="mis-campanas.html">Campañas</a>' + (r.tieneMeta ? ' · <a href="#bloqueMeta"><b>Armar el plan de la meta (paso 6)</b></a>' : '') + (r.avisos.length ? '<br><span style="color:#8a5713;">' + esc(r.avisos.join(' ')) + '</span>' : '');
       toast('Guardado: campaña ' + r.accion);
       fichaCargada = SafiaFicha.desdeCampana(leer('campanas').find(c => c.id === r.campanaId), r.cultivoIdx);
       llenarExistentes(); $('fExistente').value = r.campanaId + '_' + r.cultivoIdx;
+      pintarMetaFicha();
     });
     // Abre el Banco en este campo (y, si se pide, en la pestaña Meta con la campaña recién guardada)
     function abrirBanco(campoId, campanaId, cultivoIdx) {
@@ -407,6 +443,55 @@
       $('previewPlanilla').innerHTML = `<div class="note ok"><b>Listo.</b> ${creadas} campaña${creadas === 1 ? '' : 's'} creada${creadas === 1 ? '' : 's'} y ${actualizadas} actualizada${actualizadas === 1 ? '' : 's'} en ${esc($('fCliente').selectedOptions[0].textContent)}. Ya están en Campañas y en el Banco.</div>` + (errores.length ? '<div class="note danger">' + errores.map(esc).join('<br>') + '</div>' : '');
       $('btnGuardarPlanilla').style.display = 'none'; llenarExistentes();
     });
+
+    /* ---------- paso 6: meta de rinde (mismo motor que Banco → Meta) ---------- */
+    // Módulos del Banco que necesitan un "campo actual": acá es el campo del lote elegido
+    window.SafiaBanco = { campoActual: () => leer('campos').find(c => String(c.id) === $('fCampo').value) || null, leer, guardar: (k, v) => localStorage.setItem(k, JSON.stringify(v)), toast: (m, e) => toast(m, e), refrescar: () => {}, refrescarAgua: () => {} };
+    function pintarPreciosFicha() {
+      const pr = SafiaMeta.precios(), cont = $('metaPreciosFicha'); if (!cont || cont.children.length) return;
+      cont.innerHTML = Object.keys(pr.granoUSDt).map(k => `<div class="field"><label>Grano ${esc(k)} US$/t</label><input type="number" step="1" data-grano="${esc(k)}" value="${pr.granoUSDt[k]}"></div>`).join('') +
+        (SafiaMeta.CAMPOS_PRECIO || []).map(c => `<div class="field"><label>${esc(c[1])}</label><input type="number" step="0.01" data-precio="${esc(c[0])}" value="${pr[c[0]] != null ? pr[c[0]] : ''}"></div>`).join('');
+    }
+    function leerPreciosFicha() {
+      const pr = SafiaMeta.precios();
+      document.querySelectorAll('#metaPreciosFicha input[data-grano]').forEach(i => { const v = parseFloat(i.value); if (!isNaN(v)) pr.granoUSDt[i.dataset.grano] = v; });
+      document.querySelectorAll('#metaPreciosFicha input[data-precio]').forEach(i => { const v = parseFloat(i.value); if (!isNaN(v)) pr[i.dataset.precio] = v; });
+      SafiaMeta.guardarPrecios(pr); return pr;
+    }
+    function opcionesMeta() {
+      return { calcareoTnHa: parseFloat($('mCalcareo').value) || 0, preparacionCompleta: $('mPrep').checked, yeso: $('mYeso').checked, subsolado: $('mSubsolado').checked, nivelacion: $('mNivelacion').checked, construirPK: $('mPK').checked, otrosUSD: parseFloat($('mOtrosUSD').value) || 0, otrosDetalle: $('mOtrosDetalle').value.trim() };
+    }
+    // Muestra el seguimiento si la campaña cargada ya tiene meta guardada
+    function pintarMetaFicha() {
+      const cont = $('metaSeguimientoFicha'), res = $('metaResultadoFicha'), aviso = $('metaSinBase');
+      cont.innerHTML = ''; res.innerHTML = ''; aviso.style.display = 'none';
+      const past = SafiaFicha.esPastura($('fCultivo').value);
+      $('bloqueMeta').classList.toggle('oculto', past);
+      if (past || !fichaCargada || !window.SafiaMeta) return;
+      const campo = SafiaBanco.campoActual(); if (!campo) return;
+      const r = SafiaMeta.casoParaCampana(campo, fichaCargada.campanaId, fichaCargada.cultivoIdx || 0);
+      if (r.error) { aviso.textContent = r.error; aviso.style.display = ''; return; }
+      if (window.SafiaSeguimiento && SafiaSeguimiento.planDe(r.caso)) SafiaSeguimiento.html(r.caso, cont);
+      else $('metaEstado').textContent = fichaCargada.rendimientoObj ? 'Meta ' + Number(fichaCargada.rendimientoObj).toLocaleString('es-PY') + ' kg/ha cargada: todavía sin plan. Tocá "Armar y guardar el plan".' : 'Poné la meta en el paso 2 y armá el plan.';
+    }
+    $('btnMetaArmar').addEventListener('click', () => {
+      if (SafiaFicha.esPastura($('fCultivo').value)) { toast('La meta de rinde para pasturas viene en la próxima etapa.', true); return; }
+      const meta = parseFloat($('fMeta').value);
+      if (!(meta > 0)) { toast('Poné la meta en kg/ha (paso 2).', true); return; }
+      // la campaña tiene que estar guardada: si es nueva, se guarda primero con lo cargado
+      if (!fichaCargada) { $('btnGuardar').click(); if (!fichaCargada) return; }
+      else { const f = leerFicha(); const rs = SafiaFicha.guardar(f); if (rs.ok) fichaCargada = SafiaFicha.desdeCampana(leer('campanas').find(c => c.id === rs.campanaId), rs.cultivoIdx); }
+      const campo = SafiaBanco.campoActual();
+      const r = SafiaMeta.planParaCampana(campo, fichaCargada.campanaId, fichaCargada.cultivoIdx || 0, meta, opcionesMeta(), leerPreciosFicha());
+      if (r.error) { $('metaSinBase').textContent = r.error; $('metaSinBase').style.display = ''; toast(r.error, true); return; }
+      const c = r.caso, cli = $('fCliente').selectedOptions[0].textContent;
+      $('metaResultadoFicha').innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + ' de ' + Math.round(c.rindeKgHa).toLocaleString('es-PY') + (c.esNueva ? ' (base ' + esc(c.baseCampana) + ')' : '') + ' a ' + Math.round(meta).toLocaleString('es-PY') + ' kg/ha</h3><span class="muted">' + esc(cli) + ' · ' + esc(campo.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(r.pl) + '</div>' + SafiaMeta.proyeccionHTML(r.py, r.pl);
+      if (window.SafiaSeguimiento && SafiaSeguimiento.ubicar(c) && !c.rindeKgHaReal && (c.esNueva || !c.cosecha)) {
+        if (SafiaSeguimiento.guardarMeta(c, meta, r.pl)) { toast('Plan armado y meta guardada: ' + Math.round(meta).toLocaleString('es-PY') + ' kg/ha'); $('metaEstado').textContent = 'Meta guardada en la campaña. Abajo, el seguimiento: tildá lo que ya se hizo.'; SafiaSeguimiento.html(c, $('metaSeguimientoFicha')); }
+      } else $('metaEstado').textContent = 'Plan armado (la campaña ya está cosechada: no se guarda seguimiento).';
+      $('metaResultadoFicha').scrollIntoView({ behavior: 'smooth' });
+    });
+    pintarPreciosFicha();
 
     /* ---------- arranque ---------- */
     llenarCatalogos(); llenarClientes(); pintarInsumos();
