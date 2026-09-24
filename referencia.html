@@ -78,7 +78,7 @@
       <div class="ptop">
         <div>
           <h2>Base de Referencia</h2>
-          <div class="sub">Rindes de referencia del Paraguay — cuánto rinde cada cultivo con y sin riego, por zona</div>
+          <div class="sub">Rindes de referencia del Paraguay — cuánto rinde cada cultivo con y sin riego, por zona. Abajo, las pasturas: cuánta materia seca produce cada mes con y sin riego.</div>
         </div>
       </div>
 
@@ -116,6 +116,36 @@
         <div class="eico">🔎</div>
         <div class="etxt">No hay registros de referencia para esa combinación.<br>Probá con otro cultivo, finalidad o zona.</div>
       </div>
+
+      <!-- ===== Pasturas y forraje ===== -->
+      <div class="section-title" style="margin-top:28px;">Pasturas y forraje para el ganado</div>
+      <div class="note info">Producción de <b>materia seca</b> (kg MS/ha) mes a mes, con riego y sin riego, por tipo de pastura y región. La pastura regada produce todo el año; en secano cae fuerte en invierno. Base de forraje de Irrigar (SIGA), Paraguay 2024.</div>
+
+      <div class="toolbar">
+        <div class="filter"><span class="fl">Pastura</span><select id="pPastura"></select></div>
+        <div class="filter"><span class="fl">Región</span><select id="pRegion"></select></div>
+      </div>
+      <div class="origen" id="pOrigen">Cargando base de forraje…</div>
+
+      <div class="cmp" id="pTarjetas" style="display:none;">
+        <div class="card"><div class="kpi-l">Materia seca por año · SECANO</div><div class="kpi-v big amber" id="pSecano">—</div><div class="kpi-sub" id="pSecanoSub"></div></div>
+        <div class="card"><div class="kpi-l">Materia seca por año · CON RIEGO</div><div class="kpi-v big green" id="pRiego">—</div><div class="kpi-sub" id="pRiegoSub"></div></div>
+        <div class="card"><div class="kpi-l">Lo que suma el riego</div><div class="kpi-v big" id="pDelta">—</div><div class="kpi-sub" id="pDeltaPct"></div></div>
+      </div>
+
+      <div class="tablewrap" id="pWrap" style="display:none;">
+        <div class="tablescroll">
+          <table class="tbl">
+            <thead><tr>
+              <th>Mes</th><th class="r">Temp. media</th><th class="r">Horas de luz</th>
+              <th class="r">Secano kg MS/ha</th><th class="r">Con riego kg MS/ha</th><th class="r">Gana con riego</th>
+            </tr></thead>
+            <tbody id="pCuerpo"></tbody>
+          </table>
+        </div>
+        <div class="tfoot"><span id="pPie"></span></div>
+      </div>
+      <div class="empty" id="pVacio" style="display:none;"><div class="etxt">No hay datos de forraje para esa pastura en esa región.</div></div>
     </main>
   </div>
 
@@ -264,6 +294,72 @@
       });
   }
   cargar();
+
+  /* ===== Pasturas y forraje (safia_ref_forraje_mensual + safia_ref_forraje_balance) ===== */
+  var MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var NOMBRE_MES = { ene:'Enero', feb:'Febrero', mar:'Marzo', abr:'Abril', may:'Mayo', jun:'Junio', jul:'Julio', ago:'Agosto', sep:'Septiembre', oct:'Octubre', nov:'Noviembre', dic:'Diciembre' };
+  var forraje = [], balance = [];
+  // Los valores mensuales están guardados sin coma (309045 = 3.090,45 kg MS/ha)
+  function kg(v){ return v==null ? null : Number(v)/100; }
+  function distintosF(campo, filtro){ var s={}; forraje.forEach(function(r){ if(filtro && !filtro(r)) return; if(r[campo]) s[r[campo]]=1; }); return Object.keys(s).sort(); }
+  function armarFiltrosForraje(){
+    var sp=document.getElementById('pPastura'), sr=document.getElementById('pRegion');
+    opciones(sp, distintosF('tipo_pastura'), false);
+    var pref = distintosF('tipo_pastura').filter(function(p){ return !/varias/i.test(p); })[0] || distintosF('tipo_pastura')[0];
+    sp.value = pref;
+    refrescarRegiones();
+  }
+  function refrescarRegiones(){
+    var p=document.getElementById('pPastura').value, sr=document.getElementById('pRegion');
+    opciones(sr, distintosF('region', function(r){ return r.tipo_pastura===p; }), false);
+    renderForraje();
+  }
+  function renderForraje(){
+    var p=document.getElementById('pPastura').value, reg=document.getElementById('pRegion').value;
+    var sec = forraje.filter(function(r){ return r.tipo_pastura===p && r.region===reg && /normal|secano/i.test(r.forma_producida||''); })[0];
+    var rie = forraje.filter(function(r){ return r.tipo_pastura===p && r.region===reg && /rega|riego/i.test(r.forma_producida||''); })[0];
+    var vacio=document.getElementById('pVacio'), wrap=document.getElementById('pWrap'), tarj=document.getElementById('pTarjetas');
+    if(!sec && !rie){ vacio.style.display=''; wrap.style.display='none'; tarj.style.display='none'; return; }
+    vacio.style.display='none'; wrap.style.display=''; tarj.style.display='';
+    var tSec = sec ? MESES.reduce(function(a,m){ return a+(kg(sec[m])||0); },0) : null;
+    var tRie = rie ? MESES.reduce(function(a,m){ return a+(kg(rie[m])||0); },0) : null;
+    document.getElementById('pSecano').textContent = tSec==null?'—':fmt(tSec,0)+' kg';
+    document.getElementById('pSecanoSub').textContent = tSec==null?'sin datos':'kg MS/ha/año · '+fmt(tSec/1000,1)+' t';
+    document.getElementById('pRiego').textContent = tRie==null?'—':fmt(tRie,0)+' kg';
+    document.getElementById('pRiegoSub').textContent = tRie==null?'sin datos':'kg MS/ha/año · '+fmt(tRie/1000,1)+' t';
+    var kD=document.getElementById('pDelta'), kP=document.getElementById('pDeltaPct');
+    if(tSec!=null && tRie!=null){ var d=tRie-tSec; kD.textContent=(d>=0?'+':'')+fmt(d,0)+' kg/ha'; kD.className='kpi-v big '+(d>=0?'delta-pos':'delta-neg'); kP.textContent=(tSec>0?((d>=0?'+':'')+fmt(d/tSec*100,0)+'% vs secano · '):'')+'y produce todo el año'; }
+    else { kD.textContent='—'; kD.className='kpi-v big'; kP.textContent='faltan datos de una de las dos formas'; }
+    // clima del mes (balance): temperatura y horas de luz de la región (misma pastura, cualquier forma)
+    var climaMes = {};
+    balance.forEach(function(b){ if(b.tipo_pastura!==p || b.region!==reg) return; var k=String(b.meses||'').toLowerCase().slice(0,3); if(!climaMes[k]) climaMes[k]={ temp:b.temperatura, luz:b.n_horas_dia }; });
+    var maxV = Math.max.apply(null, MESES.map(function(m){ return Math.max(sec?kg(sec[m])||0:0, rie?kg(rie[m])||0:0); }).concat([1]));
+    function celda(v,clase){ if(v==null) return '<td class="r muted">—</td>'; var w=Math.round(v/maxV*100); return '<td class="r"><div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;"><span class="num">'+fmt(v,0)+'</span><span class="barwrap" style="flex:0 0 70px;"><span class="bar '+clase+'" style="width:'+w+'%"></span></span></div></td>'; }
+    document.getElementById('pCuerpo').innerHTML = MESES.map(function(m){
+      var vs = sec?kg(sec[m]):null, vr = rie?kg(rie[m]):null, c = climaMes[m]||{};
+      var gana = (vs!=null&&vr!=null) ? vr-vs : null;
+      var ganaTxt = gana==null ? '<span class="muted">—</span>' : '<span class="badge '+(gana>=0?'green':'red')+'">'+(gana>=0?'+':'')+fmt(gana,0)+'</span>';
+      return '<tr><td><span class="fecha">'+NOMBRE_MES[m]+'</span></td><td class="r">'+(c.temp!=null?fmt(c.temp,1)+' °C':'—')+'</td><td class="r">'+(c.luz!=null?fmt(c.luz,1)+' h':'—')+'</td>'+celda(vs,'secano')+celda(vr,'riego')+'<td class="r">'+ganaTxt+'</td></tr>';
+    }).join('');
+    var minSec = sec ? Math.min.apply(null, MESES.map(function(m){ return kg(sec[m])||0; })) : null, minRie = rie ? Math.min.apply(null, MESES.map(function(m){ return kg(rie[m])||0; })) : null;
+    document.getElementById('pPie').textContent = 'Mes más flojo: secano '+(minSec==null?'—':fmt(minSec,0))+' kg MS/ha · con riego '+(minRie==null?'—':fmt(minRie,0))+' kg MS/ha. Para planificar la carga animal conviene mirar el peor mes, no el promedio.';
+  }
+  document.getElementById('pPastura').addEventListener('change', refrescarRegiones);
+  document.getElementById('pRegion').addEventListener('change', renderForraje);
+  function cargarForraje(){
+    if (!window.safiaSupabase){ document.getElementById('pOrigen').textContent='Sin conexión a internet.'; return; }
+    Promise.all([
+      window.safiaSupabase.from('safia_ref_forraje_mensual').select('region,tipo_pastura,forma_producida,anio,ene,feb,mar,abr,may,jun,jul,ago,sep,oct,nov,dic'),
+      window.safiaSupabase.from('safia_ref_forraje_balance').select('region,tipo_pastura,forma_producida,meses,temperatura,n_horas_dia,kg_ms_dia_ha_media')
+    ]).then(function(rs){
+      if (rs[0].error){ document.getElementById('pOrigen').textContent='No se pudo cargar la base de forraje.'; return; }
+      forraje = rs[0].data || []; balance = (rs[1] && rs[1].data) || [];
+      var anios={}; forraje.forEach(function(x){ if(x.anio) anios[x.anio]=1; });
+      document.getElementById('pOrigen').textContent = forraje.length+' perfiles de pastura ('+Object.keys(anios).join('/')+') · '+distintosF('tipo_pastura').length+' pasturas · '+distintosF('region').length+' regiones · base de forraje de Irrigar (SIGA)';
+      if (forraje.length) armarFiltrosForraje(); else document.getElementById('pVacio').style.display='';
+    });
+  }
+  cargarForraje();
 })();
 </script>
 </body>
