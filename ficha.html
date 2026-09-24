@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Ficha de campaña</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0F3D14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SAFIA">
+  <link rel="apple-touch-icon" href="icons/safia-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    .paso{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+    .paso .n{width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none;}
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+    .chips label{display:inline-flex;align-items:center;gap:7px;margin:0;padding:7px 12px;border:1px solid var(--bd);border-radius:8px;background:#fff;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--head);cursor:pointer;}
+    .chips label.on{border-color:var(--green);background:var(--green-t);color:var(--green-d);}
+    .chips input{margin:0;width:15px;height:15px;accent-color:var(--green);}
+    .ins-fila{display:grid;grid-template-columns:1.1fr 1.6fr 1.4fr .6fr .9fr 1.2fr 1fr .9fr auto;gap:8px;align-items:end;padding:8px 0;border-bottom:1px solid var(--bd2);}
+    .ins-fila select,.ins-fila input{margin:0;padding:8px 9px;font-size:13px;}
+    .ins-fila .lab{font-size:10px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;}
+    @media (max-width:900px){.ins-fila{grid-template-columns:1fr 1fr;}}
+    .resumen-ok{border-left:4px solid var(--green);}
+    .fila-prev{display:grid;grid-template-columns:2fr 1.4fr 1fr 1fr 1.2fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd2);font-size:13px;align-items:center;}
+    .fila-prev .m{font-size:11px;color:var(--label);}
+    .file-label{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:10px;border:1px dashed var(--bd);background:var(--bg);color:var(--label);font-size:14px;cursor:pointer;font-weight:600;}
+    .file-label:hover{border-color:var(--green);background:#fff;}
+    .file-label input{display:none;}
+    .oculto{display:none !important;}
+    @media print{
+      .side,.side-overlay,.menu-toggle,#safiaSyncBarra,#safiaCuentaMenu,.no-print,.toast{display:none !important;}
+      .main{padding:0 !important;margin:0 !important;}
+      .formcard{break-inside:avoid;border:1px solid #999;box-shadow:none;}
+      .field input,.field select,.field textarea{border:1px solid #999 !important;background:#fff !important;min-height:30px;}
+      body{background:#fff;}
+      .print-cab{display:block !important;}
+    }
+    .print-cab{display:none;font-size:12px;color:#444;margin-bottom:10px;}
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+<script src="safia-cuenta.js"></script>
+<script src="safia-pwa.js"></script>
+<script src="safia-iconos.js"></script>
+<script src="safia-cultivos-fao.js"></script>
+<script src="safia-insumos.js"></script>
+<script src="safia-catalogo.js"></script>
+<script src="safia-balance.js"></script>
+<script src="safia-pasturas.js"></script>
+<script src="safia-ficha.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
+  <div class="app">
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos y lotes</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="ficha.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>Ficha de campaña</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Referencia agrícola</a>
+        <a href="referencia-forraje.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg>Referencia forrajera</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+        <a href="evaluar.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Evaluar proyecto</a>
+        <a href="rankings.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>Rankings</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="usuarios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.5 0 4.5 2 4.5 4.5"/></svg>Usuarios</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Datos · <b>Ficha de campaña</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Ficha de campaña</h2>
+          <div class="sub">Todo lo de una campaña en un solo formulario: dónde, siembra, insumos, riego y cosecha. Un botón y queda cargado en el cliente y en el lote.</div>
+        </div>
+        <div class="actions no-print" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn" id="btnImprimir" type="button">Imprimir ficha</button>
+          <button class="btn" id="btnPlantilla" type="button">Bajar planilla Excel</button>
+          <button class="btn" id="btnSubir" type="button">Subir planilla</button>
+        </div>
+      </div>
+      <div class="print-cab">SAFIA · Ficha de campaña · <span id="printQuien"></span> · Completar con letra clara y entregar a Irrigar.</div>
+
+      <!-- 1 · Dónde -->
+      <div class="formcard">
+        <div class="paso"><div class="n">1</div><h3>Dónde</h3></div>
+        <div class="formsub">Los lotes se cargan una sola vez en Equipos y lotes. Acá solo se eligen.</div>
+        <div class="form-grid">
+          <div class="field"><label>Cliente</label><select id="fCliente"></select></div>
+          <div class="field"><label>Campo</label><select id="fCampo"></select></div>
+          <div class="field"><label>Lote</label><select id="fLote"></select></div>
+          <div class="field"><label>Ficha existente <span class="hint">(para completar o corregir)</span></label><select id="fExistente"><option value="">— Nueva campaña —</option></select></div>
+        </div>
+      </div>
+
+      <!-- 2 · Siembra -->
+      <div class="formcard">
+        <div class="paso"><div class="n">2</div><h3 id="tituloSiembra">Siembra</h3></div>
+        <div class="formsub">Con cultivo y fecha de siembra ya se puede guardar. Lo demás se completa cuando se tenga.</div>
+        <div class="form-grid">
+          <div class="field"><label>Cultivo</label><select id="fCultivo"></select></div>
+          <div class="field"><label>Variedad / híbrido</label><input type="text" id="fVariedad" list="listaVariedades" autocomplete="off" placeholder="Elegí o escribí"><datalist id="listaVariedades"></datalist></div>
+          <div class="field" id="campoFinalidad"><label>Finalidad</label><select id="fFinalidad"></select></div>
+          <div class="field"><label id="labelSiembra">Fecha de siembra</label><input type="date" id="fFechaSiembra"></div>
+          <div class="field"><label>Superficie (ha)</label><input type="number" id="fSuperficie" step="0.1" min="0" placeholder="Si queda vacío, la del lote"></div>
+          <div class="field" id="campoDensidad"><label>Densidad (plantas/ha) <span class="hint">opcional</span></label><input type="number" id="fDensidad" min="0" placeholder="Ej: 75000"></div>
+          <div class="field"><label id="labelMeta">Meta de rinde (kg/ha) <span class="hint">opcional</span></label><input type="number" id="fMeta" min="0" step="100"></div>
+          <div class="field"><label>Nombre de la campaña <span class="hint">se sugiere solo</span></label><input type="text" id="fNombre" placeholder="Ej: Zafra 2026/27"></div>
+        </div>
+
+        <div id="bloquePastura" class="oculto" style="margin-top:14px;padding:12px 14px;background:#F2F7F3;border:1px dashed #9fd3a9;border-radius:10px;">
+          <div style="font-weight:700;color:var(--head);margin-bottom:8px;">Manejo de la pastura</div>
+          <div class="form-grid">
+            <div class="field"><label>Sistema</label><select id="fSistemaPastoreo"></select></div>
+            <div class="field"><label>Cantidad de piquetes</label><input type="number" id="fPiquetes" min="1" placeholder="Ej: 8"></div>
+            <div class="field"><label>Días de ocupación por piquete</label><input type="number" id="fOcupacion" min="1" placeholder="Ej: 3"></div>
+            <div class="field"><label>Días de descanso</label><input type="number" id="fDescanso" min="1" placeholder="Ej: 28"></div>
+          </div>
+        </div>
+
+        <div id="bloqueAntes" style="margin-top:14px;">
+          <div class="section-title" style="margin:6px 0 10px;">Antes de sembrar</div>
+          <div class="form-grid">
+            <div class="field"><label>Cultivo anterior</label><input type="text" id="fAnterior" list="listaAnteriores" autocomplete="off" placeholder="Ej: Maíz"><datalist id="listaAnteriores"></datalist></div>
+            <div class="field"><label>Cobertura previa</label><select id="fCobertura"></select></div>
+            <div class="field"><label>Manejo de la cobertura</label><select id="fCoberturaManejo"></select></div>
+            <div class="field"><label>Sistema de siembra</label><select id="fSistemaSiembra"></select></div>
+            <div class="field"><label>Consorcio</label><select id="fConsorcio"></select></div>
+            <div class="field"><label>Encalado (t/ha) <span class="hint">opcional</span></label><input type="number" id="fEncalado" step="0.1" min="0"></div>
+            <div class="field full"><label>Fertilización base <span class="hint">fórmula y dosis</span></label><input type="text" id="fFertilizacion" placeholder="Ej: 250 kg/ha 04-30-10"></div>
+            <div class="field full"><label>Labores entre la cosecha anterior y esta siembra</label><div class="chips" id="fLabores"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 · Insumos -->
+      <div class="formcard">
+        <div class="paso"><div class="n">3</div><h3>Insumos y aplicaciones</h3></div>
+        <div class="formsub">Tratamiento de semilla, fertilización y aplicaciones durante el ciclo. Una fila por producto. Se puede dejar para después.</div>
+        <div id="insumosLista"></div>
+        <div class="no-print" style="margin-top:10px;"><button class="btn" type="button" id="btnInsumo">+ Agregar producto</button></div>
+      </div>
+
+      <!-- 4 · Riego -->
+      <div class="formcard">
+        <div class="paso"><div class="n">4</div><h3>Riego y lluvia</h3></div>
+        <div class="formsub">Los riegos y lluvias del día a día se cargan en el Operador (o los trae la estación). Acá solo va el total del ciclo si no se cargaron uno por uno.</div>
+        <div class="form-grid">
+          <div class="field"><label>Riego total del ciclo (mm) <span class="hint">opcional</span></label><input type="number" id="fRiegoMM" min="0"></div>
+          <div class="field"><label>Lluvia total del ciclo (mm) <span class="hint">opcional</span></label><input type="number" id="fLluviaMM" min="0"></div>
+        </div>
+      </div>
+
+      <!-- 5 · Cosecha -->
+      <div class="formcard" id="bloqueCosecha">
+        <div class="paso"><div class="n">5</div><h3>Cosecha</h3></div>
+        <div class="formsub">Solo cuando ya se cosechó. Si queda vacío, la campaña sigue abierta y se completa después con la misma ficha.</div>
+        <div class="form-grid">
+          <div class="field"><label>Fecha de cosecha</label><input type="date" id="fCosechaFecha"></div>
+          <div class="field"><label>Producción total (kg)</label><input type="number" id="fCosechaKg" min="0"></div>
+          <div class="field"><label>Superficie cosechada (ha)</label><input type="number" id="fCosechaSup" step="0.1" min="0" placeholder="Si es distinta"></div>
+          <div class="field"><label>Humedad (%)</label><input type="number" id="fCosechaHumedad" step="0.1" min="0" placeholder="14"></div>
+          <div class="field"><label>Destino</label><select id="fCosechaDestino"></select></div>
+          <div class="field full"><label>Observaciones</label><textarea id="fObs" placeholder="Lo que valga la pena recordar de esta campaña"></textarea></div>
+        </div>
+        <div id="rindeCalc" class="muted" style="font-size:13px;margin-top:6px;"></div>
+      </div>
+
+      <div class="formcard resumen-ok no-print">
+        <div class="form-actions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn green lg" id="btnGuardar" type="button">Guardar y cargar</button>
+          <button class="btn" id="btnLimpiar" type="button">Nueva ficha</button>
+          <span class="muted" id="estadoGuardado"></span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Subir planilla -->
+  <div class="modal-overlay" id="modalPlanilla">
+    <div class="modal" style="max-width:820px;">
+      <div class="modal-titulo">Subir planilla Excel</div>
+      <div class="note info">Usá la planilla que genera SAFIA para este cliente (botón "Bajar planilla Excel"). SAFIA muestra qué va a crear o actualizar antes de guardar; nada se pisa sin que lo veas.</div>
+      <label class="file-label"><input type="file" id="archivoPlanilla" accept=".xlsx"><span id="archivoNombre">Elegir archivo .xlsx…</span></label>
+      <div id="previewPlanilla" style="margin-top:12px;"></div>
+      <div class="modal-actions"><button class="btn green" id="btnGuardarPlanilla" style="display:none;">Guardar</button><button class="btn" id="btnCerrarPlanilla">Cerrar</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const leer = (k) => { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } };
+    function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast visible' + (err ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 4000); }
+    const I = window.SafiaInsumos;
+    const opts = (lista, sel, conVacio) => (conVacio ? '<option value="">' + conVacio + '</option>' : '') + lista.map(o => `<option value="${esc(o.k != null ? o.k : o)}"${String(o.k != null ? o.k : o) === String(sel || '') ? ' selected' : ''}>${esc(o.n != null ? o.n : o)}</option>`).join('');
+    let insumos = [];
+    let fichaCargada = null;
+
+    /* ---------- dónde ---------- */
+    function llenarClientes() {
+      const clientes = leer('clientes').slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+      let vc = null; try { vc = JSON.parse(localStorage.getItem('safia_ver_como') || 'null'); } catch (e) {}
+      let u = null; try { u = JSON.parse(localStorage.getItem('safia_usuario') || 'null'); } catch (e) {}
+      const fijo = (u && u.clienteId && u.rol !== 'admin' && u.rol !== 'propietario') ? String(u.clienteId) : (vc ? String(vc.id) : '');
+      $('fCliente').innerHTML = opts(clientes.map(c => ({ k: c.id, n: c.nombre })), fijo, fijo ? '' : '— Elegir cliente —');
+      if (fijo) $('fCliente').value = fijo;
+      llenarCampos();
+    }
+    function llenarCampos() {
+      const cid = $('fCliente').value;
+      const campos = leer('campos').filter(c => String(c.clienteId) === cid);
+      $('fCampo').innerHTML = opts(campos.map(c => ({ k: c.id, n: c.nombre })), campos[0] ? campos[0].id : '', campos.length ? '' : '— Sin campos —');
+      llenarLotes();
+    }
+    function llenarLotes() {
+      const caid = $('fCampo').value;
+      const lotes = leer('equipos').filter(e => String(e.campoId) === caid);
+      $('fLote').innerHTML = opts(lotes.map(e => ({ k: e.id, n: e.nombre + (e.tipo === 'secano' ? ' (secano)' : '') })), lotes[0] ? lotes[0].id : '', lotes.length ? '' : '— Sin lotes —');
+      llenarExistentes();
+    }
+    function llenarExistentes() {
+      const eid = $('fLote').value, sel = $('fExistente');
+      const lista = [];
+      leer('campanas').forEach(c => { if (String(c.equipoId) !== eid) return; (c.cultivos || []).forEach((cu, i) => lista.push({ k: c.id + '_' + i, n: (cu.cultivo || '?') + (cu.variedad ? ' ' + cu.variedad : '') + ' · siembra ' + (cu.fechaSiembra || '?') + ' · ' + (c.nombre || '') + (cu.rendimientoReal ? ' · cosechada' : ' · en curso') })); });
+      sel.innerHTML = '<option value="">— Nueva campaña —</option>' + opts(lista, '');
+      $('printQuien').textContent = [$('fCliente').selectedOptions[0] && $('fCliente').selectedOptions[0].textContent, $('fCampo').selectedOptions[0] && $('fCampo').selectedOptions[0].textContent, $('fLote').selectedOptions[0] && $('fLote').selectedOptions[0].textContent].filter(Boolean).join(' · ');
+      if (!fichaCargada || String(fichaCargada.equipoId) !== eid) { fichaCargada = null; limpiarCampos(false); }
+    }
+    function cargarExistente() {
+      const v = $('fExistente').value; if (!v) { fichaCargada = null; limpiarCampos(false); return; }
+      const [id, idx] = v.split('_');
+      const camp = leer('campanas').find(c => String(c.id) === id); if (!camp) return;
+      fichaCargada = SafiaFicha.desdeCampana(camp, parseInt(idx, 10));
+      pintarFicha(fichaCargada);
+      $('estadoGuardado').textContent = 'Ficha cargada: ' + (camp.nombre || '') + '. Completá lo que falte y guardá.';
+    }
+
+    /* ---------- siembra ---------- */
+    function llenarCatalogos() {
+      $('fCultivo').innerHTML = opts(SafiaFicha.cultivosCatalogo(), '', '— Elegir cultivo —');
+      $('fFinalidad').innerHTML = opts(SafiaFicha.FINALIDADES, 'Granos Comercial');
+      $('fCobertura').innerHTML = opts(I.COBERTURAS, '');
+      $('fCoberturaManejo').innerHTML = opts(I.MANEJO_COBERTURA, '');
+      $('fSistemaSiembra').innerHTML = opts(I.SISTEMAS_SIEMBRA, '');
+      $('fConsorcio').innerHTML = opts(I.CONSORCIOS, '');
+      $('fCosechaDestino').innerHTML = opts(SafiaFicha.DESTINOS, 'cooperativa');
+      $('fSistemaPastoreo').innerHTML = opts(window.SafiaPasturas ? SafiaPasturas.SISTEMAS : [], '', 'Seleccionar...');
+      $('fLabores').innerHTML = I.LABORES_ENTRE.map(l => `<label><input type="checkbox" value="${l.k}" onchange="this.parentNode.classList.toggle('on', this.checked)"> ${esc(l.n)}</label>`).join('');
+      const ant = {}; leer('campanas').forEach(c => (c.cultivos || []).forEach(cu => { if (cu.cultivo) ant[cu.cultivo] = 1; })); (I.ANTECESORES_EXTRA || []).forEach(a => { ant[a] = 1; });
+      $('listaAnteriores').innerHTML = Object.keys(ant).sort().map(a => '<option value="' + esc(a) + '">').join('');
+    }
+    function alCambiarCultivo() {
+      const c = $('fCultivo').value, past = SafiaFicha.esPastura(c);
+      $('listaVariedades').innerHTML = (window.SafiaCatalogo ? SafiaCatalogo.variedadesDe(c) : []).map(v => '<option value="' + esc(v) + '">').join('');
+      $('bloquePastura').classList.toggle('oculto', !past);
+      $('bloqueCosecha').classList.toggle('oculto', past);
+      $('campoDensidad').classList.toggle('oculto', past);
+      $('campoFinalidad').classList.toggle('oculto', past);
+      $('labelSiembra').textContent = past ? 'Fecha de implantación (o desde cuándo la sigue SAFIA)' : 'Fecha de siembra';
+      $('labelMeta').innerHTML = past ? 'Meta de forraje (kg MS/ha por año) <span class="hint">opcional</span>' : 'Meta de rinde (kg/ha) <span class="hint">opcional</span>';
+      $('tituloSiembra').textContent = past ? 'Implantación y manejo' : 'Siembra';
+      sugerirNombre();
+    }
+    function sugerirNombre() { if (!$('fNombre').value.trim() || $('fNombre').dataset.auto === '1') { $('fNombre').value = SafiaFicha.nombreZafra($('fFechaSiembra').value, $('fCultivo').value); $('fNombre').dataset.auto = '1'; } }
+
+    /* ---------- insumos ---------- */
+    function filaInsumo(it, i) {
+      const cats = I.CATEGORIAS.filter(c => c.seccion === it.seccion);
+      const unidades = I.UNIDADES[it.seccion] || [];
+      const metodos = it.seccion === 'fertilizacion' ? I.METODOS : (it.seccion === 'semilla' ? (I.FORMAS_SEMILLA || [{ k: 'semilla', n: 'Mezclado con la semilla' }, { k: 'surco', n: 'Líquido en el surco' }, { k: 'industrial', n: 'Semilla tratada de fábrica' }]) : []);
+      return `<div class="ins-fila" data-i="${i}">
+        <div><div class="lab">Sección</div><select onchange="setIns(${i}, 'seccion', this.value)">${opts(I.SECCIONES, it.seccion)}</select></div>
+        <div><div class="lab">Categoría</div><select onchange="setIns(${i}, 'categoria', this.value)">${opts(cats, it.categoria)}</select></div>
+        <div><div class="lab">Producto / fórmula</div><input type="text" value="${esc(it.producto || '')}" list="listaProd${i}" placeholder="Ej: Urea, 04-30-10" oninput="setIns(${i}, 'producto', this.value)"><datalist id="listaProd${i}">${(window.SafiaCatalogo ? SafiaCatalogo.insumosDe(it.categoria) : []).map(p => '<option value="' + esc(p) + '">').join('')}</datalist></div>
+        <div><div class="lab">Dosis</div><input type="number" step="0.01" value="${esc(it.dosis != null ? it.dosis : '')}" oninput="setIns(${i}, 'dosis', this.value)"></div>
+        <div><div class="lab">Unidad</div><select onchange="setIns(${i}, 'unidad', this.value)">${opts(unidades, it.unidad || unidades[0])}</select></div>
+        <div><div class="lab">${it.seccion === 'semilla' ? 'Cómo' : 'Método'}</div>${metodos.length ? `<select onchange="setIns(${i}, '${it.seccion === 'semilla' ? 'forma' : 'metodo'}', this.value)">${opts(metodos, it.seccion === 'semilla' ? it.forma : it.metodo, '—')}</select>` : '<input type="text" disabled value="—">'}</div>
+        <div><div class="lab">Etapa</div>${it.seccion === 'semilla' ? '<input type="text" disabled value="Tratamiento de semilla">' : `<select onchange="setIns(${i}, 'etapa', this.value)">${opts(I.ETAPAS || [], it.etapa, '—')}</select>`}</div>
+        <div><div class="lab">Fecha</div><input type="date" value="${esc(it.fecha || '')}" oninput="setIns(${i}, 'fecha', this.value)"></div>
+        <div class="no-print"><button class="btn danger" type="button" style="padding:7px 10px;" onclick="quitarIns(${i})">×</button></div>
+      </div>`;
+    }
+    function pintarInsumos() { $('insumosLista').innerHTML = insumos.length ? insumos.map(filaInsumo).join('') : '<div class="muted" style="font-size:13px;">Sin productos cargados.</div>'; }
+    function setIns(i, k, v) { const it = insumos[i]; if (!it) return; it[k] = v; if (k === 'seccion') { it.categoria = (I.CATEGORIAS.find(c => c.seccion === v) || {}).k; it.unidad = (I.UNIDADES[v] || [])[0]; pintarInsumos(); } if (k === 'categoria') pintarInsumos(); }
+    function quitarIns(i) { insumos.splice(i, 1); pintarInsumos(); }
+    $('btnInsumo').addEventListener('click', () => { insumos.push({ seccion: 'fertilizacion', categoria: 'fert_base', producto: '', dosis: '', unidad: 'kg/ha', metodo: 'sembradora', etapa: 'Siembra', fecha: '' }); pintarInsumos(); });
+
+    /* ---------- leer / pintar / limpiar ---------- */
+    function leerFicha() {
+      return {
+        equipoId: $('fLote').value, nombre: $('fNombre').value.trim(), cultivo: $('fCultivo').value, variedad: $('fVariedad').value, finalidad: $('fFinalidad').value, fechaSiembra: $('fFechaSiembra').value, superficie: $('fSuperficie').value, densidad: $('fDensidad').value, rendimientoObj: $('fMeta').value,
+        cultivoAnterior: $('fAnterior').value, cobertura: $('fCobertura').value, coberturaManejo: $('fCoberturaManejo').value, sistemaSiembra: $('fSistemaSiembra').value, consorcio: $('fConsorcio').value, encaladoTnHa: $('fEncalado').value, fertilizacion: $('fFertilizacion').value,
+        labores: [...$('fLabores').querySelectorAll('input:checked')].map(i => i.value), observaciones: $('fObs').value,
+        sistemaPastoreo: $('fSistemaPastoreo').value, piquetes: $('fPiquetes').value, diasOcupacion: $('fOcupacion').value, diasDescanso: $('fDescanso').value,
+        insumos: insumos.filter(i => i.producto || i.categoria),
+        cosecha: { fecha: $('fCosechaFecha').value, produccionKg: $('fCosechaKg').value, superficie: $('fCosechaSup').value, humedad: $('fCosechaHumedad').value, destino: $('fCosechaDestino').value, riegoMM: $('fRiegoMM').value, lluviaMM: $('fLluviaMM').value, observaciones: $('fObs').value }
+      };
+    }
+    function pintarFicha(f) {
+      $('fCultivo').value = f.cultivo || ''; alCambiarCultivo();
+      $('fVariedad').value = f.variedad || ''; $('fFinalidad').value = f.finalidad || 'Granos Comercial'; $('fFechaSiembra').value = f.fechaSiembra || ''; $('fSuperficie').value = f.superficie || ''; $('fDensidad').value = f.densidad || ''; $('fMeta').value = f.rendimientoObj || '';
+      $('fNombre').value = f.nombre || ''; $('fNombre').dataset.auto = f.nombre ? '0' : '1';
+      $('fAnterior').value = f.cultivoAnterior || ''; $('fCobertura').value = f.cobertura || ''; $('fCoberturaManejo').value = f.coberturaManejo || ''; $('fSistemaSiembra').value = f.sistemaSiembra || ''; $('fConsorcio').value = f.consorcio || ''; $('fEncalado').value = f.encaladoTnHa || ''; $('fFertilizacion').value = f.fertilizacion || '';
+      $('fLabores').querySelectorAll('input').forEach(i => { i.checked = (f.labores || []).indexOf(i.value) !== -1; i.parentNode.classList.toggle('on', i.checked); });
+      $('fSistemaPastoreo').value = f.sistemaPastoreo || ''; $('fPiquetes').value = f.piquetes || ''; $('fOcupacion').value = f.diasOcupacion || ''; $('fDescanso').value = f.diasDescanso || '';
+      insumos = (f.insumos || []).map(i => Object.assign({}, i)); pintarInsumos();
+      const co = f.cosecha || {};
+      $('fCosechaFecha').value = co.fecha || ''; $('fCosechaKg').value = co.produccionKg || ''; $('fCosechaSup').value = co.superficie || ''; $('fCosechaHumedad').value = co.humedad || ''; $('fCosechaDestino').value = co.destino || 'cooperativa'; $('fRiegoMM').value = co.riegoMM != null ? co.riegoMM : ''; $('fLluviaMM').value = co.lluviaMM != null ? co.lluviaMM : ''; $('fObs').value = f.observaciones || co.observaciones || '';
+      calcRinde();
+    }
+    function limpiarCampos(todo) {
+      ['fVariedad', 'fFechaSiembra', 'fSuperficie', 'fDensidad', 'fMeta', 'fNombre', 'fAnterior', 'fEncalado', 'fFertilizacion', 'fPiquetes', 'fOcupacion', 'fDescanso', 'fCosechaFecha', 'fCosechaKg', 'fCosechaSup', 'fCosechaHumedad', 'fRiegoMM', 'fLluviaMM', 'fObs'].forEach(id => { $(id).value = ''; });
+      ['fCobertura', 'fCoberturaManejo', 'fSistemaSiembra', 'fConsorcio', 'fSistemaPastoreo'].forEach(id => { $(id).value = ''; });
+      $('fFinalidad').value = 'Granos Comercial'; $('fCosechaDestino').value = 'cooperativa'; $('fNombre').dataset.auto = '1';
+      $('fLabores').querySelectorAll('input').forEach(i => { i.checked = false; i.parentNode.classList.remove('on'); });
+      insumos = []; pintarInsumos(); $('rindeCalc').textContent = '';
+      if (todo) { $('fCultivo').value = ''; alCambiarCultivo(); $('fExistente').value = ''; $('estadoGuardado').textContent = ''; }
+    }
+    function calcRinde() { const kg = parseFloat($('fCosechaKg').value), sup = parseFloat($('fCosechaSup').value) || parseFloat($('fSuperficie').value); $('rindeCalc').textContent = kg > 0 && sup > 0 ? 'Rinde: ' + Math.round(kg / sup).toLocaleString('es-PY') + ' kg/ha' : ''; }
+
+    /* ---------- guardar ---------- */
+    $('btnGuardar').addEventListener('click', () => {
+      const f = leerFicha();
+      if (!f.equipoId) { toast('Elegí el lote.', true); return; }
+      const v = SafiaFicha.validar(f);
+      if (!v.ok) { toast(v.errores[0], true); return; }
+      const r = SafiaFicha.guardar(f);
+      if (!r.ok) { toast(r.errores[0], true); return; }
+      const lote = $('fLote').selectedOptions[0].textContent, cli = $('fCliente').selectedOptions[0].textContent;
+      $('estadoGuardado').innerHTML = 'Campaña <b>' + esc(r.nombre) + '</b> ' + (r.accion === 'creada' ? 'creada' : 'actualizada') + ' en ' + esc(cli) + ' · ' + esc(lote) + (r.cerrada ? ' · cerrada con cosecha' : ' · en curso') + '. <a href="banco.html">Ver en el Banco</a> · <a href="mis-campanas.html">Campañas</a>' + (r.avisos.length ? '<br><span style="color:#8a5713;">' + esc(r.avisos.join(' ')) + '</span>' : '');
+      toast('Guardado: campaña ' + r.accion);
+      fichaCargada = SafiaFicha.desdeCampana(leer('campanas').find(c => c.id === r.campanaId), r.cultivoIdx);
+      llenarExistentes(); $('fExistente').value = r.campanaId + '_' + r.cultivoIdx;
+    });
+    $('btnLimpiar').addEventListener('click', () => { fichaCargada = null; limpiarCampos(true); });
+    $('btnImprimir').addEventListener('click', () => window.print());
+
+    /* ---------- planilla Excel ---------- */
+    $('btnPlantilla').addEventListener('click', () => {
+      const cid = $('fCliente').value; if (!cid) { toast('Elegí el cliente.', true); return; }
+      const b = $('btnPlantilla'); b.disabled = true; b.textContent = 'Generando…';
+      SafiaFicha.plantilla(cid).then(nombre => { toast('Planilla bajada: ' + nombre); }).catch(e => toast(e.message, true)).finally(() => { b.disabled = false; b.textContent = 'Bajar planilla Excel'; });
+    });
+    let lectura = null;
+    $('btnSubir').addEventListener('click', () => { if (!$('fCliente').value) { toast('Elegí el cliente al que pertenece la planilla.', true); return; } $('previewPlanilla').innerHTML = ''; $('btnGuardarPlanilla').style.display = 'none'; $('archivoNombre').textContent = 'Elegir archivo .xlsx…'; $('archivoPlanilla').value = ''; $('modalPlanilla').classList.add('visible'); });
+    $('btnCerrarPlanilla').addEventListener('click', () => $('modalPlanilla').classList.remove('visible'));
+    $('archivoPlanilla').addEventListener('change', (ev) => {
+      const file = ev.target.files[0]; if (!file) return;
+      $('archivoNombre').textContent = file.name; $('previewPlanilla').innerHTML = '<div class="muted">Leyendo…</div>';
+      SafiaFicha.leerPlanilla(file, $('fCliente').value).then(res => {
+        lectura = res;
+        const filas = res.fichas.map(x => {
+          const ok = x.validacion.ok, est = !ok ? 'Error' : (x.existente ? 'Actualiza' : 'Crea');
+          return `<div class="fila-prev"><div><b>${esc(x.lote.etiqueta)}</b><div class="m">fila ${x.fila}${x.ficha.insumos.length ? ' · ' + x.ficha.insumos.length + ' insumos' : ''}</div></div><div>${esc(x.ficha.cultivo || '—')}<div class="m">${esc(x.ficha.variedad || '')}</div></div><div>${esc(x.ficha.fechaSiembra || '—')}</div><div>${x.ficha.cosecha && x.ficha.cosecha.fecha ? 'cosecha ' + esc(x.ficha.cosecha.fecha) : 'sin cosecha'}</div><div><span class="badge ${!ok ? 'red' : (x.existente ? 'amber' : 'green')}">${est}</span>${!ok ? '<div class="m" style="color:#C0392B;">' + esc(x.validacion.errores.join(' ')) + '</div>' : ''}</div></div>`;
+        }).join('');
+        const validas = res.fichas.filter(x => x.validacion.ok).length;
+        $('previewPlanilla').innerHTML = `<div style="font-size:13px;margin-bottom:8px;"><b>${res.totalFilas}</b> campañas en la planilla · <b>${validas}</b> listas para guardar · ${res.fichas.length - validas} con error · ${res.totalInsumos} filas de insumos</div>` +
+          (res.errores.length ? '<div class="note danger">' + res.errores.map(esc).join('<br>') + '</div>' : '') + filas;
+        $('btnGuardarPlanilla').style.display = validas ? '' : 'none'; $('btnGuardarPlanilla').textContent = 'Guardar ' + validas + ' campaña' + (validas === 1 ? '' : 's');
+      }).catch(e => { $('previewPlanilla').innerHTML = '<div class="note danger">' + esc(e.message) + '</div>'; });
+    });
+    $('btnGuardarPlanilla').addEventListener('click', () => {
+      if (!lectura) return;
+      let creadas = 0, actualizadas = 0, errores = [];
+      lectura.fichas.filter(x => x.validacion.ok).forEach(x => { const r = SafiaFicha.guardar(x.ficha); if (!r.ok) errores.push('fila ' + x.fila + ': ' + r.errores.join(' ')); else if (r.accion === 'creada') creadas++; else actualizadas++; });
+      $('previewPlanilla').innerHTML = `<div class="note ok"><b>Listo.</b> ${creadas} campaña${creadas === 1 ? '' : 's'} creada${creadas === 1 ? '' : 's'} y ${actualizadas} actualizada${actualizadas === 1 ? '' : 's'} en ${esc($('fCliente').selectedOptions[0].textContent)}. Ya están en Campañas y en el Banco.</div>` + (errores.length ? '<div class="note danger">' + errores.map(esc).join('<br>') + '</div>' : '');
+      $('btnGuardarPlanilla').style.display = 'none'; llenarExistentes();
+    });
+
+    /* ---------- arranque ---------- */
+    llenarCatalogos(); llenarClientes(); pintarInsumos();
+    $('fCliente').addEventListener('change', llenarCampos); $('fCampo').addEventListener('change', llenarLotes); $('fLote').addEventListener('change', llenarExistentes); $('fExistente').addEventListener('change', cargarExistente);
+    $('fCultivo').addEventListener('change', alCambiarCultivo); $('fFechaSiembra').addEventListener('change', sugerirNombre); $('fNombre').addEventListener('input', () => { $('fNombre').dataset.auto = '0'; });
+    ['fCosechaKg', 'fCosechaSup', 'fSuperficie'].forEach(id => $(id).addEventListener('input', calcRinde));
+    window.addEventListener('safia:usuario', llenarClientes);
+    alCambiarCultivo();
+  </script>
+  <script>
+    /* SAFIA · control del menú móvil (theme) */
+    (function () {
+      var btn = document.getElementById('menuToggle');
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
+      if (ov) ov.addEventListener('click', cerrar);
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
+    })();
+  </script>
+</body>
+</html>
