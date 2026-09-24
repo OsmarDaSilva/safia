@@ -277,7 +277,7 @@
   function publicarUsuario(u) {
     usuarioActual = u; setOriginal('safia_usuario', JSON.stringify(u));
     if (window.SafiaCuenta) { var montarCuenta = function () { SafiaCuenta.montar(u); if (estadoOk !== null) marcarEstado(estadoOk); }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montarCuenta); else montarCuenta(); }
-    var span = document.getElementById('safiaSyncNombre'); if (span) span.textContent = (u.nombre || '') + (u.email ? ' · ' + correoAUsuario(u.email) : '');
+    var span = document.getElementById('safiaSyncNombre'); if (span && !window.SafiaCuenta) span.textContent = (u.nombre || '') + (u.email ? ' · ' + correoAUsuario(u.email) : '');
     try { window.dispatchEvent(new CustomEvent('safia:usuario', { detail: u })); } catch (e) {}
   }
   // Pantalla de espera: la cuenta existe pero Irrigar todavía no la aprobó (o la dio de baja)
