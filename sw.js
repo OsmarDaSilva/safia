@@ -8,10 +8,10 @@
    - Nunca cachea llamadas a Supabase, Open-Meteo ni a la IA: esas
      necesitan internet y el sync ya trabaja en modo local sin ella.
    Cambiar VERSION al publicar cambios grandes para limpiar cachés viejas. */
-var VERSION = 'safia-v1';
+var VERSION = 'safia-v2';
 var SHELL = [
   './', './index.html', './login.html', './mis-clientes.html', './mis-campos.html', './mis-equipos.html', './mis-cultivos.html',
-  './mis-campanas.html', './banco.html', './referencia.html', './clima.html', './prediccion.html', './evaluar.html', './rankings.html',
+  './mis-campanas.html', './usuarios.html', './banco.html', './referencia.html', './clima.html', './prediccion.html', './evaluar.html', './rankings.html',
   './operador.html', './eventos.html', './encargado.html', './propietario.html', './analisis.html', './voz.html', './backup.html', './informe.html',
   './safia-theme.css', './safia-sync.js', './safia-pwa.js', './safia-iconos.js', './safia-cultivos-fao.js', './safia-casos.js',
   './safia-insumos.js', './safia-catalogo.js', './safia-agronomia.js', './safia-mapas.js', './safia-lotes.js', './safia-ndvi.js', './safia-rotacion.js', './safia-meta.js', './safia-informe.js', './safia-foliar.js', './safia-sensores.js', './safia-humedad.js', './safia-agua.js', './safia-seguimiento.js',
