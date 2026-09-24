@@ -276,6 +276,7 @@
   function nombreDesdeCorreo(email) { var n = correoAUsuario(email).split('@')[0].replace(/[._-]+/g, ' ').trim(); return n ? n.charAt(0).toUpperCase() + n.slice(1) : ''; }
   function publicarUsuario(u) {
     usuarioActual = u; setOriginal('safia_usuario', JSON.stringify(u));
+    if (window.SafiaCuenta) { var montarCuenta = function () { SafiaCuenta.montar(u); if (estadoOk !== null) marcarEstado(estadoOk); }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montarCuenta); else montarCuenta(); }
     var span = document.getElementById('safiaSyncNombre'); if (span) span.textContent = (u.nombre || '') + (u.email ? ' · ' + correoAUsuario(u.email) : '');
     try { window.dispatchEvent(new CustomEvent('safia:usuario', { detail: u })); } catch (e) {}
   }
@@ -326,7 +327,9 @@
   }
   window.SafiaSync = Object.assign(window.SafiaSync || {}, {
     usuario: function () { return usuarioActual; },
-    esAdmin: function () { return !!usuarioActual && usuarioActual.rol === 'admin' && (usuarioActual.estado || 'activo') === 'activo'; },
+    esAdmin: function () { return !!usuarioActual && (usuarioActual.rol === 'admin' || usuarioActual.rol === 'propietario') && (usuarioActual.estado || 'activo') === 'activo'; },
+    esPropietario: function () { return !!usuarioActual && usuarioActual.rol === 'propietario' && (usuarioActual.estado || 'activo') === 'activo'; },
+    estadoSync: function () { return estadoOk; },
     sb: function () { return sb; },
     // administración (solo admin): lista completa y acciones vía la función safia-usuarios
     listarUsuarios: function () { return sb.from('safia_usuarios').select('*').order('estado').order('nombre').then(function (r) { if (r.error) throw new Error(r.error.message); return r.data || []; }); },

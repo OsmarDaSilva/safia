@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-usuarios (v1)
+// SAFIA · Edge Function: safia-usuarios (v2: rol propietario)
 // Lo que un administrador de SAFIA puede hacer con las cuentas SIN entrar al panel de Supabase.
 // Usa la clave de servicio del proyecto (la inyecta Supabase en el servidor; el navegador nunca la ve).
 // El que llama tiene que estar logueado y ser admin activo en public.safia_usuarios.
@@ -16,7 +16,8 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
-const ROLES = ['admin', 'cliente', 'operador'];
+const ROLES = ['propietario', 'admin', 'cliente', 'operador'];
+const ALTOS = ['propietario', 'admin'];   // solo un propietario puede otorgar estos roles o tocar a un propietario/admin
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -33,7 +34,14 @@ Deno.serve(async (req) => {
     if (eU || !u?.user) return json({ error: 'Sesión inválida' }, 401);
     const admin = createClient(url, service, { auth: { persistSession: false } });
     const { data: fila } = await admin.from('safia_usuarios').select('rol,estado').eq('id', u.user.id).maybeSingle();
-    if (!fila || fila.rol !== 'admin' || fila.estado !== 'activo') return json({ error: 'Solo un administrador de SAFIA puede hacer esto' }, 403);
+    if (!fila || !ALTOS.includes(fila.rol) || fila.estado !== 'activo') return json({ error: 'Solo un administrador de SAFIA puede hacer esto' }, 403);
+    const soyPropietario = fila.rol === 'propietario';
+    const puedeDarRol = (rol: string) => soyPropietario || !ALTOS.includes(rol);
+    async function puedeTocar(id: string) {
+      if (soyPropietario) return true;
+      const { data: f } = await admin.from('safia_usuarios').select('rol').eq('id', id).maybeSingle();
+      return !f || !ALTOS.includes(f.rol);
+    }
 
     const c = await req.json().catch(() => ({}));
     const accion = String(c.accion || '');
@@ -44,6 +52,7 @@ Deno.serve(async (req) => {
       const password = String(c.password || '');
       const nombre = String(c.nombre || '').trim() || email.split('@')[0];
       const rol = ROLES.includes(c.rol) ? c.rol : 'cliente';
+      if (!puedeDarRol(rol)) return json({ error: 'Solo el propietario puede crear administradores o propietarios' }, 403);
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'Correo inválido' }, 400);
       if (password.length < 6) return json({ error: 'La contraseña tiene que tener al menos 6 caracteres' }, 400);
       let id: string | null = null, existia = false;
@@ -74,9 +83,11 @@ Deno.serve(async (req) => {
     const id = String(c.id || '');
     if (!id) return json({ error: 'Falta el usuario' }, 400);
     if (id === u.user.id && (accion === 'baja' || accion === 'quitar')) return json({ error: 'No podés darte de baja a vos mismo' }, 400);
+    if (!(await puedeTocar(id))) return json({ error: 'Solo el propietario puede modificar a un administrador o propietario' }, 403);
 
     if (accion === 'aprobar') {
       const rol = ROLES.includes(c.rol) ? c.rol : 'cliente';
+      if (!puedeDarRol(rol)) return json({ error: 'Solo el propietario puede otorgar ese rol' }, 403);
       const cambios: Record<string, unknown> = { estado: 'activo', rol, cliente_id: c.clienteId ? String(c.clienteId) : null, aprobado_en: ahora, actualizado_en: ahora };
       if (c.nombre) cambios.nombre = String(c.nombre).trim();
       const { error } = await admin.from('safia_usuarios').update(cambios).eq('id', id);

@@ -14,7 +14,7 @@
   function generarClave() { var s = 'abcdefghjkmnpqrstuvwxyz23456789', p = ''; for (var i = 0; i < 4; i++) p += s.charAt(Math.floor(Math.random() * s.length)); return 'safia-' + p + Math.floor(10 + Math.random() * 89); }
   function opcionesClientes(sel) { return '<option value="">— Ninguno (Irrigar) —</option>' + leer('clientes').slice().sort(function (a, b) { return String(a.nombre).localeCompare(String(b.nombre)); }).map(function (c) { return '<option value="' + esc(c.id) + '"' + (String(sel || '') === String(c.id) ? ' selected' : '') + '>' + esc(c.nombre) + '</option>'; }).join(''); }
   function nombreCliente(id) { var c = leer('clientes').find(function (x) { return String(x.id) === String(id); }); return c ? c.nombre : ''; }
-  var ROL = { admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
 
   function aviso(texto, err) {
     var a = $('accAviso'); if (!a) return;
@@ -75,6 +75,8 @@
     var intro = $('accIntro'); if (opts.intro) { intro.textContent = opts.intro; intro.style.display = ''; } else intro.style.display = 'none';
     $('accNombre').value = pre.nombre || ''; $('accEmail').value = pre.email || ''; $('accTelefono').value = pre.telefono || '';
     ayudaUsuario();
+    var selRol = $('accRol'), soyProp = window.SafiaSync && SafiaSync.esPropietario && SafiaSync.esPropietario();
+    selRol.innerHTML = '<option value="cliente">Cliente (productor)</option><option value="operador">Operador (encargado de campo)</option>' + (soyProp ? '<option value="admin">Administrador (Irrigar, soporte)</option><option value="propietario">Propietario (sin límites)</option>' : '');
     $('accRol').value = pre.rol || 'cliente'; $('accCliente').innerHTML = opcionesClientes(pre.clienteId || ''); $('accPass').value = generarClave();
     if (!window.SafiaSync || !SafiaSync.esAdmin || !SafiaSync.esAdmin()) aviso('Solo un administrador de SAFIA puede crear accesos.', true);
     $('modalAcceso').classList.add('visible');

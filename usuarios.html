@@ -29,6 +29,7 @@
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
+<script src="safia-cuenta.js"></script>
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
@@ -115,7 +116,11 @@
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmtF = (f) => { if (!f) return '—'; const d = new Date(f); return isNaN(d) ? '—' : d.toLocaleDateString('es-PY'); };
     function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast visible' + (err ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 3600); }
-    const ROL = { admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+    const ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+    const soyProp = () => SafiaSync.esPropietario && SafiaSync.esPropietario();
+    // opciones de rol: admin/propietario solo las puede dar el propietario; un admin no puede tocar filas de admin/propietario
+    const opcionesRol = (sel) => ['cliente', 'operador'].concat(soyProp() ? ['admin', 'propietario'] : []).map(r => `<option value="${r}"${sel === r ? ' selected' : ''}>${ROL[r]}</option>`).join('') + (!soyProp() && (sel === 'admin' || sel === 'propietario') ? `<option value="${sel}" selected>${ROL[sel]}</option>` : '');
+    const bloqueada = (u) => !soyProp() && (u.rol === 'admin' || u.rol === 'propietario');
     const clientes = (() => { try { return JSON.parse(localStorage.getItem('clientes') || '[]'); } catch (e) { return []; } })();
     let usuarios = [];
     let confirmarCb = null;
@@ -138,7 +143,7 @@
           pend.map(u => `<div class="fila-usr pend" data-id="${esc(u.id)}">
             <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''} · pidió el ${fmtF(u.creado_en)}</div>${u.solicitud ? '<div style="font-size:12px;margin-top:4px;">“' + esc(u.solicitud) + '”</div>' : ''}</div>
             <div></div>
-            <div><select class="f-rol"><option value="cliente">Cliente</option><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+            <div><select class="f-rol">${opcionesRol('cliente')}</select></div>
             <div><select class="f-cliente">${opcionesClientes('')}</select></div>
             <div class="acc"><button class="btn green" data-acc="aprobar">Aprobar</button><button class="btn danger" data-acc="rechazar">Rechazar</button></div>
           </div>`).join('') + '</div>';
@@ -149,12 +154,12 @@
           return `<div class="fila-usr" data-id="${esc(u.id)}">
             <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''}${esYo ? ' · <b>vos</b>' : ''}</div></div>
             <div><span class="badge ${u.estado === 'activo' ? 'green' : 'red'}">${u.estado === 'activo' ? 'Activo' : 'De baja'}</span>${u.aprobado_en ? '<div class="correo">desde ' + fmtF(u.aprobado_en) + '</div>' : ''}</div>
-            <div><select class="f-rol" ${esYo ? 'disabled' : ''}><option value="cliente"${u.rol === 'cliente' ? ' selected' : ''}>Cliente</option><option value="operador"${u.rol === 'operador' ? ' selected' : ''}>Operador</option><option value="admin"${u.rol === 'admin' ? ' selected' : ''}>Administrador</option></select></div>
+            <div><select class="f-rol" ${esYo || bloqueada(u) ? 'disabled' : ''}>${opcionesRol(u.rol)}</select></div>
             <div><select class="f-cliente">${opcionesClientes(u.cliente_id)}</select></div>
-            <div class="acc"><button class="btn" data-acc="guardar">Guardar</button><button class="btn" data-acc="clave">Contraseña</button>${esYo ? '' : (u.estado === 'activo' ? '<button class="btn danger" data-acc="baja">Dar de baja</button>' : '<button class="btn green" data-acc="reactivar">Reactivar</button><button class="btn danger" data-acc="quitar">Quitar</button>')}</div>
+            <div class="acc">${bloqueada(u) ? '<span class="muted" style="font-size:11px;">solo el propietario</span>' : `<button class="btn" data-acc="guardar">Guardar</button><button class="btn" data-acc="clave">Contraseña</button>${esYo ? '' : (u.estado === 'activo' ? '<button class="btn danger" data-acc="baja">Dar de baja</button>' : '<button class="btn green" data-acc="reactivar">Reactivar</button><button class="btn danger" data-acc="quitar">Quitar</button>')}`}</div>
           </div>`;
         }).join('') : '<div class="muted" style="padding:12px 0;">Todavía no hay usuarios aprobados.</div>') +
-        `<div class="muted" style="font-size:11px;margin-top:10px;">Cliente = productor que ve solo lo suyo · Operador = encargado que carga eventos de los lotes de su cliente · Administrador = Irrigar, ve y edita todo. Por ahora los roles ordenan quién es quién; el filtro de "cada cliente ve solo lo suyo" es el próximo paso. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
+        `<div class="muted" style="font-size:11px;margin-top:10px;">Propietario = dueño de SAFIA, sin límites · Administrador = funcionarios de Irrigar (soporte): manejan usuarios y clientes, pero no tocan al propietario ni nombran administradores · Cliente = productor que ve solo lo suyo · Operador = encargado que carga eventos de los lotes de su cliente. Por ahora los roles ordenan quién es quién; el filtro de "cada cliente ve solo lo suyo" es el próximo paso. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
       cont.innerHTML = h;
     }
 
