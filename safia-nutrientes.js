@@ -107,10 +107,50 @@
     return { p2o5: an ? 0 : Math.max(0, -bal.saldo.p2o5), k2o: an ? 0 : Math.max(0, -bal.saldo.k2o), cultivo: bal.cultivo, rinde: bal.rinde, campana: bal.campana, sinCarga: !bal.aplicado.items, analisisPosterior: an ? String(an.fecha).slice(0, 10) : null };
   }
 
+  /* ---------- Micronutrientes y azufre: no van por balance (el grano se lleva gramos) sino por el análisis de suelo del lote.
+     Umbrales iguales a los del motor agronómico (safia-agronomia.js): Embrapa Cerrados / CESB. ---------- */
+  var MICROS = [
+    { k: 'boro', n: 'Boro (B)', bajo: 0.3, medio: 0.5, accionBajo: '1–2 kg B/ha al suelo (bórax o ulexita, dura 4–5 años) o foliar en floración', accionMedio: '0,5 kg B/ha al suelo o foliar en floración (para rindes altos)' },
+    { k: 'zinc', n: 'Zinc (Zn)', bajo: 1.0, medio: 1.5, accionBajo: '6 kg Zn/ha al suelo (sulfato de zinc ~30 kg/ha, dura 4–5 años) o Zn en semilla + foliar', accionMedio: '1,5 kg Zn/ha al suelo o Zn en semilla + foliar (para rindes altos)' },
+    { k: 'cobre', n: 'Cobre (Cu)', bajo: 0.5, medio: 0.8, accionBajo: '1–2 kg Cu/ha al suelo (sulfato de cobre) o foliar', accionMedio: '1 kg Cu/ha o foliar (para rindes altos)' },
+    { k: 'manganeso', n: 'Manganeso (Mn)', bajo: 2.0, medio: 2.0, accionBajo: 'foliar de Mn en V4–R1 (frecuente con pH alto o encalado en exceso)', accionMedio: '' },
+    { k: 'azufre', n: 'Azufre (S) en el suelo', bajo: 5, medio: 10, accionBajo: 'yeso agrícola 150–200 kg/ha o sulfato de amonio', accionMedio: '≈ 5 kg S por tonelada de meta (yeso o fórmula con S)' }
+  ];
+  // último análisis de suelo del lote (o del campo entero), el promedio si lo hay
+  function analisisDelLote(equipoId) {
+    var eq = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }), campoId = eq ? eq.campoId : null;
+    var lista = leer('analisis_suelo').filter(function (a) { return a.fecha && !(a.enPromedio) && (String(a.equipoId || '') === String(equipoId) || (!a.equipoId && campoId != null && String(a.campoId) === String(campoId))); });
+    lista.sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)) || ((b.esPromedio ? 1 : 0) - (a.esPromedio ? 1 : 0)) || ((String(b.equipoId || '') === String(equipoId) ? 1 : 0) - (String(a.equipoId || '') === String(equipoId) ? 1 : 0)); });
+    if (!lista.length) return null;
+    // varias muestras de la misma fecha sin promedio guardado: se promedian acá (como en Análisis de suelo)
+    var f = String(lista[0].fecha), grupo = lista.filter(function (a) { return String(a.fecha) === f && !!a.equipoId === !!lista[0].equipoId; });
+    if (grupo.length === 1 || grupo.some(function (a) { return a.esPromedio; })) return grupo.find(function (a) { return a.esPromedio; }) || grupo[0];
+    var prom = { fecha: f, equipoId: lista[0].equipoId || null, campoId: lista[0].campoId, esPromedio: true, nMuestras: grupo.length };
+    ['boro', 'zinc', 'cobre', 'manganeso', 'azufre'].forEach(function (k) { var vs = grupo.map(function (a) { return num(a[k]); }).filter(function (v) { return v != null; }); if (vs.length) prom[k] = vs.reduce(function (x, y) { return x + y; }, 0) / vs.length; });
+    return prom;
+  }
+  function htmlMicros(bal) {
+    var an = analisisDelLote(bal.equipoId);
+    var camp = leer('campanas').find(function (c) { return String(c.id) === String(bal.campanaId); }) || {};
+    var aplic = (camp.insumos || []).filter(function (i) { return (i.categoria === 'ts_micro' || i.categoria === 'foliar_micro') && (i.cultivoIdx == null || i.cultivoIdx === (bal.cultivoIdx || 0)); }).map(function (i) { return (i.producto || '') + (i.dosis ? ' ' + fmt(i.dosis, 1) + ' ' + (i.unidad || '') : ''); });
+    var h = '<div style="margin-top:12px;font-size:12px;font-weight:700;color:#5B6167;text-transform:uppercase;letter-spacing:.3px;">Micronutrientes y azufre del suelo' + (an ? ' · análisis del ' + fechaLarga(an.fecha) + (an.equipoId ? '' : ' (todo el campo)') + (an.nMuestras > 1 ? ', promedio de ' + an.nMuestras + ' muestras' : '') : '') + '</div>';
+    if (!an) return h + '<div class="note warn" style="margin-top:6px;">Sin análisis de suelo de este lote: SAFIA no puede saber si faltan boro, zinc, cobre, manganeso o azufre. Cargalo en Banco → Análisis de suelo.</div>';
+    var filas = MICROS.map(function (m) {
+      var v = num(an[m.k]);
+      if (v == null) return '<tr><td>' + m.n + '</td><td class="r muted">no informado</td><td></td><td class="muted" style="font-size:11px;white-space:normal;">El laboratorio no lo midió: pedirlo en el próximo análisis</td></tr>';
+      var est = v < m.bajo ? 'bajo' : (v < m.medio ? 'medio' : 'adecuado'), color = est === 'bajo' ? '#B3261E' : (est === 'medio' ? '#B8731A' : '#178029');
+      var accion = est === 'bajo' ? m.accionBajo : (est === 'medio' ? m.accionMedio : '');
+      return '<tr><td>' + m.n + '</td><td class="r">' + fmt(v, m.k === 'azufre' ? 1 : 2) + ' mg/dm³</td><td style="font-weight:700;color:' + color + ';">' + est + '</td><td style="font-size:11px;white-space:normal;min-width:220px;">' + (accion ? accion + ' <span class="muted">(el plan de la meta lo trae como ítem)</span>' : '<span class="muted">sin acción</span>') + '</td></tr>';
+    }).join('');
+    h += '<div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Elemento</th><th class="r">En el suelo</th><th>Estado</th><th>Qué hacer</th></tr></thead><tbody>' + filas + '</tbody></table></div></div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:4px;">' + (aplic.length ? 'Micronutrientes aplicados en esta campaña: ' + esc(aplic.join(' · ')) + '.' : 'Sin micronutrientes cargados en esta campaña (semilla o foliar).') + ' El grano se lleva estos elementos en gramos por hectárea: lo que manda es el análisis de suelo y el foliar, no el balance.</div>';
+    return h;
+  }
+
   /* ---------- HTML (un solo lugar: Banco → Sucesión de cultivos) ---------- */
   function fila(nombre, ex, ap, saldo, nota) {
     var neg = saldo != null && saldo < -1;
-    return '<tr><td>' + nombre + '</td><td class="r">' + fmt(ex, 0) + '</td><td class="r">' + (ap == null ? '—' : fmt(ap, 0)) + '</td><td class="r" style="font-weight:700;color:' + (saldo == null ? '#8C9196' : (neg ? '#B3261E' : '#178029')) + ';">' + (saldo == null ? '—' : (saldo > 0 ? '+' : '') + fmt(saldo, 0)) + '</td><td class="muted" style="font-size:11px;">' + (nota || '') + '</td></tr>';
+    return '<tr><td>' + nombre + '</td><td class="r">' + fmt(ex, 0) + '</td><td class="r">' + (ap == null ? '—' : fmt(ap, 0)) + '</td><td class="r" style="font-weight:700;color:' + (saldo == null ? '#8C9196' : (neg ? '#B3261E' : '#178029')) + ';">' + (saldo == null ? '—' : (saldo > 0 ? '+' : '') + fmt(saldo, 0)) + '</td><td class="muted" style="font-size:11px;white-space:normal;min-width:200px;">' + (nota || '') + '</td></tr>';
   }
   function htmlBalance(bal, titulo) {
     if (!bal) return '';
@@ -119,14 +159,15 @@
     var estado = vivo ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E8F1FB;color:#1A5FA8;font-size:11px;font-weight:700;">EN VIVO</span>'
       : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E6F4EA;color:#178029;font-size:11px;font-weight:700;">FIRME' + (bal.fechaFirme ? ' · cerrado el ' + fechaLarga(bal.fechaFirme) : '') + '</span>';
     var h = '<div class="card" style="margin-top:10px;"><div class="card-h"><h3>' + esc(titulo || '') + esc(bal.cultivo) + (bal.variedad ? ' ' + esc(bal.variedad) : '') + ' · ' + esc(bal.campana) + ' ' + estado + '</h3><span class="muted">' + (vivo ? 'meta ' : 'rinde ') + fmt(bal.rinde) + ' kg/ha</span></div>';
-    var colEx = vivo ? 'Se llevará la meta (kg/ha)' : 'Se llevó el grano (kg/ha)', colAp = vivo ? 'Aplicado hasta hoy (kg/ha)' : 'Aplicado (kg/ha)';
-    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Nutriente</th><th class="r">' + colEx + '</th><th class="r">' + colAp + '</th><th class="r">Saldo</th><th></th></tr></thead><tbody>' +
+    var colEx = vivo ? 'Se llevará la meta' : 'Se llevó el grano', colAp = vivo ? 'Aplicado hasta hoy' : 'Aplicado';
+    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Nutriente (kg/ha)</th><th class="r">' + colEx + '</th><th class="r">' + colAp + '</th><th class="r">Saldo</th><th></th></tr></thead><tbody>' +
       fila(NOMBRE.n, ex.n, ap.n, bal.fija ? null : s.n, bal.fija ? 'La soja lo fija del aire (Embrapa): no se repone con fertilizante' : (falta(s.n, ex.n) ? (vivo ? 'Falta N para la meta' : 'Faltó N: el rendimiento pudo quedar limitado') : '')) +
       fila(NOMBRE.p2o5, ex.p2o5, ap.p2o5, s.p2o5, falta(s.p2o5, ex.p2o5) ? (vivo ? 'Falta para la meta' : 'Se llevó más de lo aplicado: el suelo perdió reserva') : (s.p2o5 > 10 ? 'Sobra: construye reserva' : '')) +
       fila(NOMBRE.k2o, ex.k2o, ap.k2o, s.k2o, falta(s.k2o, ex.k2o) ? (vivo ? 'Falta para la meta' : 'Se llevó más de lo aplicado: el suelo perdió reserva') : (s.k2o > 10 ? 'Sobra: construye reserva' : '')) +
       fila(NOMBRE.s, ex.s, ap.s, ap.s || ex.s > 2 ? s.s : null, 'Solo el S declarado en la fórmula (ej. "+ 10 S")') +
       fila(NOMBRE.ca, ex.ca, null, null, 'Lo repone el encalado') + fila(NOMBRE.mg, ex.mg, null, null, 'Lo repone el calcáreo dolomítico') +
       '</tbody></table></div></div>';
+    h += htmlMicros(bal);
     if (sinCarga) h += '<div class="note warn" style="margin-top:8px;">Sin fertilizantes cargados en esta campaña (ficha, paso 3, o aplicaciones del Operador): el saldo asume cero aplicado.</div>';
     else h += '<div class="muted" style="font-size:11px;margin-top:6px;">Aplicado: ' + esc(ap.detalle.slice(0, 6).join(' · ')) + (ap.detalle.length > 6 ? ' …' : '') + '.</div>';
     if (!vivo) {
@@ -154,5 +195,5 @@
     if (!el) return; el.innerHTML = c ? htmlCampo(c, 3) : '';
   }
 
-  window.SafiaNutrientes = { EXPORT: EXPORT, ABSORCION: ABSORCION, exportado: exportado, aplicado: aplicado, cerrar: cerrar, balanceCampana: balanceCampana, ultimoBalanceDelLote: ultimoBalanceDelLote, analisisPosterior: analisisPosterior, reposicionPendiente: reposicionPendiente, htmlBalance: htmlBalance, htmlCampo: htmlCampo, alCambiarCampo: alCambiarCampo, clave: clave };
+  window.SafiaNutrientes = { EXPORT: EXPORT, ABSORCION: ABSORCION, exportado: exportado, aplicado: aplicado, cerrar: cerrar, balanceCampana: balanceCampana, ultimoBalanceDelLote: ultimoBalanceDelLote, analisisPosterior: analisisPosterior, reposicionPendiente: reposicionPendiente, htmlBalance: htmlBalance, htmlCampo: htmlCampo, htmlMicros: htmlMicros, analisisDelLote: analisisDelLote, alCambiarCampo: alCambiarCampo, clave: clave };
 })();
