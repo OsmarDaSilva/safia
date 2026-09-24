@@ -118,7 +118,7 @@
     var falta = function (saldo, exp) { return saldo < -Math.max(5, exp * 0.1); };
     var estado = vivo ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E8F1FB;color:#1A5FA8;font-size:11px;font-weight:700;">EN VIVO</span>'
       : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E6F4EA;color:#178029;font-size:11px;font-weight:700;">FIRME' + (bal.fechaFirme ? ' · cerrado el ' + fechaLarga(bal.fechaFirme) : '') + '</span>';
-    var h = '<div class="card" style="margin-top:10px;"><div class="card-h"><h3>' + esc(titulo || '') + esc(bal.cultivo) + (bal.variedad ? ' ' + esc(bal.variedad) : '') + ' · ' + esc(bal.campana) + ' ' + estado + '</h3><span class="muted">' + (vivo ? 'meta ' : '') + fmt(bal.rinde) + ' kg/ha · ' + fmt(bal.tSeco, 2) + ' t/ha de grano seco</span></div>';
+    var h = '<div class="card" style="margin-top:10px;"><div class="card-h"><h3>' + esc(titulo || '') + esc(bal.cultivo) + (bal.variedad ? ' ' + esc(bal.variedad) : '') + ' · ' + esc(bal.campana) + ' ' + estado + '</h3><span class="muted">' + (vivo ? 'meta ' : 'rinde ') + fmt(bal.rinde) + ' kg/ha</span></div>';
     var colEx = vivo ? 'Se llevará la meta (kg/ha)' : 'Se llevó el grano (kg/ha)', colAp = vivo ? 'Aplicado hasta hoy (kg/ha)' : 'Aplicado (kg/ha)';
     h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Nutriente</th><th class="r">' + colEx + '</th><th class="r">' + colAp + '</th><th class="r">Saldo</th><th></th></tr></thead><tbody>' +
       fila(NOMBRE.n, ex.n, ap.n, bal.fija ? null : s.n, bal.fija ? 'La soja lo fija del aire (Embrapa): no se repone con fertilizante' : (falta(s.n, ex.n) ? (vivo ? 'Falta N para la meta' : 'Faltó N: el rendimiento pudo quedar limitado') : '')) +
@@ -134,7 +134,7 @@
       if (an) h += '<div class="note info" style="margin-top:8px;">Hay un análisis de suelo del ' + fechaLarga(an.fecha) + ', posterior a esta cosecha: el plan de la próxima campaña parte de ese análisis y no suma este saldo.</div>';
       else if (s.p2o5 < -5 || s.k2o < -5) h += '<div class="note info" style="margin-top:8px;">Este saldo entra al plan de la próxima campaña del lote como "Reposición de la cosecha anterior". Un análisis de suelo nuevo lo reemplaza.</div>';
     }
-    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Exportación por tonelada de grano seco: IPNI/Fertilizar (INTA); P y K como P₂O₅ y K₂O. Entradas por fertilizante contra salidas por grano; no cuenta rastrojo ni pérdidas.</div></div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Exportación por tonelada de grano según IPNI/Fertilizar (INTA), que se expresa a 0 % de humedad: SAFIA descuenta la humedad de cosecha (14 % si no se cargó) antes de calcular; el rinde que ves es el tuyo, en silo. P y K como P₂O₅ y K₂O. Entradas por fertilizante contra salidas por grano; no cuenta rastrojo ni pérdidas.</div></div>';
     return h;
   }
   // Banco → Sucesión: en vivo (campañas en curso con meta) + últimas cosechas firmes del campo
