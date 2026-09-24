@@ -739,13 +739,22 @@
       return `<div class="card" style="border-left:4px solid #C0392B;margin-bottom:14px;"><div class="card-header"><div class="card-titulo" style="color:#C0392B;">${ICONO.alerta.replace('COLOR', '#C0392B').replace('ic-estado', 'ic-inline')} Alertas climáticas</div><a href="prediccion.html" class="card-link">Ver predicción →</a></div>${items}</div>`;
     }
 
+    // Saluda al usuario que entró (safia-sync.js publica 'safia_usuario' y el evento safia:usuario)
+    function saludarUsuario() {
+      let u = null; try { u = JSON.parse(localStorage.getItem('safia_usuario') || 'null'); } catch (e) {}
+      const nombre = (u && u.nombre) || '';
+      const primero = nombre.split(' ')[0] || '';
+      document.getElementById('topbarTitulo').innerHTML = primero ? `Hola, <strong>${esc(primero)}</strong>` : 'Hola';
+      document.getElementById('topbarAvatar').textContent = (primero.charAt(0) || 'S').toUpperCase();
+      const av = document.getElementById('topbarAvatar'); av.title = nombre + (u && u.rol ? ' · ' + ({ admin: 'administrador', cliente: 'cliente', operador: 'operador' }[u.rol] || u.rol) : '');
+    }
+    window.addEventListener('safia:usuario', saludarUsuario);
     function renderTopbar() {
       document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
       const clientes = leer('clientes'), campos = leer('campos');
       if (clientes.length || campos.length) {
         document.getElementById('topbarSaludo').textContent = `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} · ${campos.length} campo${campos.length !== 1 ? 's' : ''}`;
-        document.getElementById('topbarTitulo').innerHTML = `Hola, <strong>Osmar</strong>`;
-        document.getElementById('topbarAvatar').textContent = 'O';
+        saludarUsuario();
       } else {
         document.getElementById('topbarSaludo').textContent = 'Bienvenido a SAFIA';
         document.getElementById('topbarTitulo').innerHTML = `Empezá tu configuración`;
