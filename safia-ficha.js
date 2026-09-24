@@ -166,7 +166,7 @@
     { k: 'consorcio', t: 'Consorcio', ayuda: 'Elegí de la lista', w: 34, lista: 'consorcios' },
     { k: 'labores', t: 'Labores antes de sembrar', ayuda: 'Separadas por coma: subsolado, encalado, yeso, rastroneada, nivelación, desecación, abono orgánico, escarificado', w: 34 },
     { k: 'encaladoTnHa', t: 'Encalado (t/ha)', ayuda: 'Número (opcional)', w: 14 },
-    { k: 'fertilizacion', t: 'Fertilización base', ayuda: 'Ej: 250 kg/ha 04-30-10', w: 26 },
+    { k: 'fertilizacion', t: 'Nota de fertilización', ayuda: 'Solo texto (no suma N-P-K): la fórmula y la dosis van en la hoja Insumos', w: 30 },
     { k: 'rendimientoObj', t: 'Meta de rinde (kg/ha)', ayuda: 'Número (opcional)', w: 18 },
     { k: 'cosechaFecha', t: 'Fecha de cosecha', ayuda: 'dd/mm/aaaa (solo si ya cosechó)', w: 16, fecha: true },
     { k: 'cosechaKg', t: 'Producción total (kg)', ayuda: 'Kilos totales del lote', w: 18 },
