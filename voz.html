@@ -611,13 +611,20 @@
       </select>
     </div>
 
-    <div class="config-row">
+    <div class="config-row" id="filaCampo">
       <label>Campo:</label>
       <select id="selectorCampo" onchange="cambiarCampo(this.value)" style="max-width:100%;">
         <option value="">— Todos (decí el cliente o el campo en la frase) —</option>
       </select>
     </div>
-    <div class="ayuda-tip" style="margin:-4px 0 10px;font-size:12px;">Con varios clientes hay varios "pivote 1": elegí el campo acá, o decilo en la frase ("riego de 20 mm en pivote 1 de Anderson"). Si queda la duda, SAFIA te pregunta cuál.</div>
+    <div class="ayuda-tip" id="tipCampo" style="margin:-4px 0 10px;font-size:12px;">Con varios clientes hay varios "pivote 1": elegí el campo acá, o decilo en la frase ("riego de 20 mm en pivote 1 de Anderson"). Si queda la duda, SAFIA te pregunta cuál.</div>
+    <div class="config-row" id="filaPivot">
+      <label>Pivot / lote:</label>
+      <select id="selectorPivot" onchange="cambiarPivot(this.value)" style="max-width:100%;">
+        <option value="">— Decilo en la frase —</option>
+      </select>
+    </div>
+    <div class="ayuda-tip" id="tipPivot" style="margin:-4px 0 10px;font-size:12px;">Elegí el pivot acá y después decí solo "riego de 20 mm": SAFIA lo carga a ese pivot. Es el mismo pivot que queda elegido en el Operador. Si en la frase nombrás otro, vale la frase.</div>
 
     <div class="alerta" id="alertaSinSoporte">
       ⚠️ Tu navegador no soporta voz. Probá con Chrome.
@@ -761,8 +768,28 @@
       sel.innerHTML = '<option value="">— Todos (decí el cliente o el campo en la frase) —</option>' + filas.map(f => '<option value="' + f.id + '">' + f.txt + '</option>').join('');
       if (filas.length === 1) campoActivo = filas[0].id;
       if (campoActivo && filas.some(f => f.id === campoActivo)) sel.value = campoActivo; else campoActivo = '';
+      // Un solo campo (cliente u operador): no hay nada que elegir ni que aclarar
+      const fila = document.getElementById('filaCampo'), tip = document.getElementById('tipCampo');
+      if (fila) fila.style.display = filas.length > 1 ? '' : 'none';
+      if (tip) tip.style.display = filas.length > 1 ? '' : 'none';
+      llenarSelectorPivot();
     }
-    function cambiarCampo(id) { campoActivo = id || ''; try { localStorage.setItem('voz_campo', campoActivo); } catch (e) {} log('Campo activo: ' + (id || 'todos'), 'info'); }
+    function cambiarCampo(id) { campoActivo = id || ''; try { localStorage.setItem('voz_campo', campoActivo); } catch (e) {} log('Campo activo: ' + (id || 'todos'), 'info'); llenarSelectorPivot(); }
+    // Pivot / lote elegido a mano: misma clave que el Operador, así el regante lo elige una vez y sirve en las dos pantallas
+    let pivotActivo = '';
+    try { pivotActivo = localStorage.getItem('operador_equipo') || ''; } catch (e) {}
+    function llenarSelectorPivot() {
+      const sel = document.getElementById('selectorPivot'); if (!sel) return;
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]').filter(eq => !eq.zona);
+      const lista = (campoActivo ? equipos.filter(eq => String(eq.campoId) === String(campoActivo)) : equipos).slice().sort((a, b) => etiquetaEquipo(a).localeCompare(etiquetaEquipo(b)));
+      sel.innerHTML = '<option value="">— Decilo en la frase —</option>' + lista.map(eq => '<option value="' + eq.id + '">' + (campoActivo ? eq.nombre : etiquetaEquipo(eq)) + '</option>').join('');
+      if (lista.length === 1) pivotActivo = String(lista[0].id);   // un solo lote: queda elegido solo
+      if (pivotActivo && lista.some(eq => String(eq.id) === String(pivotActivo))) sel.value = String(pivotActivo); else pivotActivo = '';
+      const fila = document.getElementById('filaPivot'), tip = document.getElementById('tipPivot');
+      if (fila) fila.style.display = lista.length ? '' : 'none';
+      if (tip) tip.style.display = lista.length > 1 ? '' : 'none';
+    }
+    function cambiarPivot(id) { pivotActivo = id || ''; try { if (pivotActivo) localStorage.setItem('operador_equipo', pivotActivo); } catch (e) {} const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(x => String(x.id) === String(pivotActivo)); log('Pivot activo: ' + (eq ? etiquetaEquipo(eq) : 'ninguno (se dice en la frase)'), 'info'); }
     // Busca en la frase el nombre del cliente o del campo (palabras de 4+ letras, sin acentos)
     function campoEnFrase(t) {
       const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
@@ -950,6 +977,8 @@
           if (soloPivot.length && soloPivot.length < candidatos.length) candidatos = soloPivot;
         }
       }
+      // Sin lote en la frase: el pivot elegido en el selector (mismo que el Operador)
+      if (!candidatos.length && pivotActivo) { const eqSel = equipos.find(eq => String(eq.id) === String(pivotActivo)); if (eqSel) { candidatos = [eqSel]; log('📍 Pivot elegido en el selector: ' + etiquetaEquipo(eqSel), 'info'); } }
       if (!candidatos.length && ambito.length && ambito.length !== equipos.length) candidatos = ambito.slice();
       if (candidatos.length === 1) equipoMatch = candidatos[0];
 
