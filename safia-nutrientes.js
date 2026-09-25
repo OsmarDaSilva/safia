@@ -175,7 +175,7 @@
       if (an) h += '<div class="note info" style="margin-top:8px;">Hay un análisis de suelo del ' + fechaLarga(an.fecha) + ', posterior a esta cosecha: el plan de la próxima campaña parte de ese análisis y no suma este saldo.</div>';
       else if (s.p2o5 < -5 || s.k2o < -5) h += '<div class="note info" style="margin-top:8px;">Este saldo entra al plan de la próxima campaña del lote como "Reposición de la cosecha anterior". Un análisis de suelo nuevo lo reemplaza.</div>';
     }
-    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Exportación por tonelada de grano según IPNI/Fertilizar (INTA), que se expresa a 0 % de humedad: SAFIA descuenta la humedad de cosecha (14 % si no se cargó) antes de calcular; el rinde que ves es el tuyo, en silo. P y K como P₂O₅ y K₂O. Entradas por fertilizante contra salidas por grano; no cuenta rastrojo ni pérdidas.</div></div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Exportación por tonelada de grano según IPNI/Fertilizar (INTA); el rinde es el de silo. P y K como P₂O₅ y K₂O. Entradas por fertilizante contra salidas por grano; no cuenta rastrojo ni pérdidas.</div></div>';
     return h;
   }
   // Banco → Sucesión: en vivo (campañas en curso con meta) + últimas cosechas firmes del campo

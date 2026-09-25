@@ -499,7 +499,7 @@
       var lado = [];
       if (pr && pr.n > 1) lado.push('tu promedio en ' + esc(d.cultivo).toLowerCase() + ': ' + fmt(pr.promedio, 0) + ' kg/ha en ' + pr.n + ' campañas (mejor ' + fmt(pr.mejor, 0) + ')');
       if (zn && (zn.promedio || zn.mejor)) lado.push('zona ' + esc(zn.ambito || '') + ': ' + (zn.promedio ? 'promedio ' + fmt(zn.promedio, 0) : '') + (zn.promedio && zn.mejor ? ' · ' : '') + (zn.mejor ? 'mejor lote ' + fmt(zn.mejor, 0) : '') + ' kg/ha');
-      html += '<div style="font-weight:700;margin-top:14px;">' + titulo + '</div>' + (lado.length ? '<div class="muted" style="font-size:12px;margin:2px 0 6px;">' + lado.join(' · ') + ' · peso comercial (≈ 14 % de humedad)</div>' : '') + listaRecomendaciones(recs);
+      html += '<div style="font-weight:700;margin-top:14px;">' + titulo + '</div>' + (lado.length ? '<div class="muted" style="font-size:12px;margin:2px 0 6px;">' + lado.join(' · ') + ' · kilos en silo</div>' : '') + listaRecomendaciones(recs);
     } else {
       html += '<div class="note">Este lote no tiene análisis de suelo cargado: sin eso SAFIA no puede decir qué le falta al suelo. Cargalo en la pestaña <b>Análisis de suelo</b> (foto o PDF, lo lee la IA).</div>';
     }
