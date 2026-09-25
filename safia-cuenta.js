@@ -183,9 +183,35 @@
     d.addEventListener('click', function (ev) { if (ev.target === d) d.remove(); });
   }
 
+  /* Bloque del usuario al pie del menú lateral (los dos estilos de página): inicial, nombre, rol y el botón
+     "Cerrar sesión" a la vista, como en el SIGA. El menú de la cuenta (abajo a la derecha) sigue para lo demás. */
+  function bloqueUsuario(u) {
+    if (!u) return;
+    var poner = function () {
+      var pie = document.querySelector('.sidebar-footer, .side-foot'); if (!pie) return;
+      var b = $('safiaUsuarioSidebar');
+      if (!b) { b = document.createElement('div'); b.id = 'safiaUsuarioSidebar'; pie.parentNode.insertBefore(b, pie); }
+      // mismo color que los enlaces del menú (así queda bien en el menú claro y en el oscuro, y aunque el tema se aplique después)
+      var lado = pie.closest('aside') || pie.parentNode, enlace = lado.querySelector('a[href]'), col = enlace ? getComputedStyle(enlace).color : '#2E3236', fondo = (getComputedStyle(lado).backgroundColor.match(/d+/g) || [255, 255, 255]).map(Number), oscuro = (0.299 * fondo[0] + 0.587 * fondo[1] + 0.114 * fondo[2]) < 140, sub = oscuro ? '#9AA0A6' : '#8C9196', linea = oscuro ? 'rgba(255,255,255,.12)' : 'rgba(212,162,76,.25)';
+      b.style.cssText = 'margin:18px 10px 4px;padding:12px 0 0;border-top:1px solid ' + linea + ';';
+      b.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+        '<div style="width:34px;height:34px;border-radius:50%;background:#22A93A;color:#fff;display:flex;align-items:center;justify-content:center;font:800 14px system-ui,sans-serif;flex:none;">' + esc(String(u.nombre || u.email || '?').trim().charAt(0).toUpperCase()) + '</div>' +
+        '<div style="min-width:0;"><div style="font:700 13px/1.2 system-ui,sans-serif;color:' + col + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(u.nombre || '') + '</div>' +
+        '<div style="font:500 11px/1.3 system-ui,sans-serif;color:' + sub + ';">' + (ROL[u.rol] || u.rol || '') + '</div></div></div>' +
+        '<button type="button" id="safiaCerrarSesion" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:9px 10px;border:1px solid ' + (oscuro ? 'rgba(255,255,255,.18)' : '#E1E4E7') + ';border-radius:9px;background:transparent;color:' + col + ';font:700 12.5px system-ui,sans-serif;cursor:pointer;">' +
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Cerrar sesión</button>';
+      $('safiaCerrarSesion').addEventListener('click', function (ev) { ev.preventDefault(); var btn = ev.currentTarget; btn.disabled = true; btn.textContent = 'Cerrando…'; salir(); });
+    };
+    // se dibuja de nuevo al cargar y un momento después: algunas pantallas aplican el tema del menú tarde
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', poner); else poner();
+    window.addEventListener('load', poner); setTimeout(poner, 900);
+  }
+  try { bloqueUsuario(JSON.parse(localStorage.getItem('safia_usuario') || 'null')); } catch (e) {}
+
   function montar(u) {
     usuario = u || usuario; if (!usuario) return;
     aplicarRol(usuario, true);
+    bloqueUsuario(usuario);
     var pill = $('safiaSyncBarra');
     if (!pill) {
       pill = document.createElement('div'); pill.id = 'safiaSyncBarra';
