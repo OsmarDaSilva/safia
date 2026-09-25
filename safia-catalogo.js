@@ -35,7 +35,7 @@
     ],
     'Maíz': [
       // Pioneer
-      'P1972 VYHR', 'P2530 VYH', 'P3010 VYH', 'P3016 VYH', 'P3282 VYHR', 'P3340 VYHR', 'P3862 VYHR', 'P4285 YHR', '30F35 VYH', '30A37 PW',
+      'P1972 VYHR', 'P2530 VYH', 'P3010 VYH', 'P3322 VYHR', 'P3016 VYH', 'P3282 VYHR', 'P3340 VYHR', 'P3862 VYHR', 'P4285 YHR', '30F35 VYH', '30A37 PW',
       // Dekalb (Bayer)
       'DKB 177 PRO3', 'DKB 230 PRO3', 'DKB 255 PRO3', 'DKB 265 PRO3', 'DKB 290 PRO3', 'DKB 310 PRO3', 'DKB 360 PRO3', 'DKB 390 PRO3',
       // Agroceres / Agroeste
