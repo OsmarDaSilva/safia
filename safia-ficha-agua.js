@@ -151,9 +151,10 @@
     var U = umbrales(r), pct = Math.max(0, Math.min(100, num(r.porcentajeHoy) || 0)), banda = bandaDe(pct, U);
     var hoy = (r.dias || []).filter(function (d) { return d.esHoy; })[0] || (r.dias || [])[0] || {}, ayer = (r.pasado || [])[(r.pasado || []).length - 1] || null;
     var bandas = [['estres', 0, U.URGENTE], ['regar', U.URGENTE, U.CRITICO], ['atencion', U.CRITICO, U.ATENCION], ['optimo', U.ATENCION, 95], ['lleno', 95, 100]];
-    return '<div class="fa-mini"><div class="fa-mini-barra">' + bandas.map(function (b) { return '<i style="width:' + Math.max(0, b[2] - b[1]) + '%;background:' + COL[b[0]] + '"></i>'; }).join('') +
-      '<b class="fa-mini-aguja" style="left:' + pct.toFixed(1) + '%"></b></div>' +
-      '<div class="fa-mini-txt"><span style="color:' + COL[banda] + ';font-weight:800;">' + fmt(pct, 0) + ' %</span> agua útil' + (hoy.etcDia != null ? ' · ETc hoy ' + fmt(hoy.etcDia, 1) + ' mm' : '') + (ayer ? ' · lluvia ayer ' + fmt(ayer.lluviaBruta, 0) + ' mm' : '') + '</div></div>';
+    return '<div class="fa-mini">' +
+      '<div class="fa-mini-txt"><span style="color:' + COL[banda] + ';font-weight:800;">' + fmt(pct, 0) + ' %</span> agua útil' + (hoy.etcDia != null ? ' · ETc hoy ' + fmt(hoy.etcDia, 1) + ' mm' : '') + (ayer ? ' · lluvia ayer ' + fmt(ayer.lluviaBruta, 0) + ' mm' : '') + '</div>' +
+      '<div class="fa-mini-barra">' + bandas.map(function (b) { return '<i style="width:' + Math.max(0, b[2] - b[1]) + '%;background:' + COL[b[0]] + '"></i>'; }).join('') +
+      '<b class="fa-mini-aguja" style="left:' + pct.toFixed(1) + '%"></b></div></div>';
   }
 
   /* ---------- armado ---------- */
@@ -163,7 +164,7 @@
     '.fa-medidor-texto{font-size:12px;color:#5B6167;line-height:1.45}' +
     '.fa-titular{border-left:4px solid #178029;background:#F7F8F9;border-radius:10px;padding:10px 14px;margin:10px 0}.fa-titular-txt{font-size:17px;font-weight:800;line-height:1.2}.fa-titular-det{font-size:12.5px;color:#5B6167;margin-top:3px;line-height:1.45}' +
     '.fa-svg{width:100%;height:210px;display:block;margin-top:6px}.fa-leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:#5B6167;margin-top:4px}.fa-leyenda i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}' +
-    '.fa-mini{display:flex;align-items:center;gap:8px;margin-top:4px}.fa-mini-barra{position:relative;flex:1;height:8px;border-radius:4px;overflow:visible;display:flex;min-width:90px;max-width:220px}.fa-mini-barra i{display:block;height:100%}.fa-mini-barra i:first-child{border-radius:4px 0 0 4px}.fa-mini-barra i:last-child{border-radius:0 4px 4px 0}.fa-mini-aguja{position:absolute;top:-5px;width:0;height:0;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #2E3236}.fa-mini-txt{font-size:11px;color:#5B6167;line-height:1.3}' +
+    '.fa-mini{display:block;margin-top:4px}.fa-mini-barra{position:relative;width:100%;height:9px;border-radius:5px;overflow:visible;display:flex;margin-top:9px}.fa-mini-barra i{display:block;height:100%}.fa-mini-barra i:first-child{border-radius:4px 0 0 4px}.fa-mini-barra i:last-child{border-radius:0 4px 4px 0}.fa-mini-aguja{position:absolute;top:-8px;width:0;height:0;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #2E3236}.fa-mini-txt{font-size:11px;color:#5B6167;line-height:1.3}' +
     '.fa-resumen{font-size:12px;color:#5B6167;margin-top:6px;line-height:1.5}@media(max-width:600px){.fa-svg{height:170px}.fa-titular-txt{font-size:15px}.fa-mini-txt{white-space:normal}}.fa-vacio{font-size:12px;color:#8C9196;padding:8px 0}.fa-titulo{font-size:11.5px;font-weight:700;color:#178029;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}';
   function estilos() { if (document.getElementById('safiaFichaAguaCss')) return; var st = document.createElement('style'); st.id = 'safiaFichaAguaCss'; st.textContent = CSS; document.head.appendChild(st); }
   function html(r, opciones) {
