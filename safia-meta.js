@@ -104,6 +104,20 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function prom(a) { var v = a.filter(function (x) { return x != null && !isNaN(x); }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+  /* Ventana de cada ítem del plan (hasta cuándo se puede hacer). La comparten el plan (campaña en curso) y la meta viva del seguimiento. */
+  var VENTANA = { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], siembra: ['fosforo', 'potasio', 'azufre', 'inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], veg: ['nitrogeno', 'k_cobertura', 'p_cobertura'], repro: ['fungicidas', 'foliar', 'foliar_micro', 'agua'] };
+  var NOMBRE_VENTANA = { pre: 'antes de sembrar', siembra: 'a la siembra', veg: 'en vegetativo', repro: 'en floración y llenado' };
+  function ventanaDe(k) { for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
+  function hoyLocal() { return window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
+  function diasDesde(f) { if (!f) return null; return Math.round((new Date(hoyLocal() + 'T12:00:00') - new Date(String(f).slice(0, 10) + 'T12:00:00')) / 86400000); }
+  function etapaHoy(dds) { if (dds == null || dds < 0) return 'pre'; return dds <= 45 ? 'veg' : (dds <= 75 ? 'flor' : (dds <= 110 ? 'llen' : 'mad')); }
+  function estadoVentana(v, etapa, dds) {
+    var orden = { pre: 0, veg: 1, flor: 2, llen: 3, mad: 4 }[etapa] || 0;
+    if (v === 'pre') return orden > 0 ? 'pasada' : 'ahora';
+    if (v === 'siembra') return orden === 0 ? 'futura' : (dds != null && dds > 10 ? 'pasada' : 'ahora');
+    if (v === 'veg') return orden === 0 ? 'futura' : (orden === 1 ? 'ahora' : 'pasada');
+    return orden < 2 ? 'futura' : (orden === 4 ? 'pasada' : 'ahora');
+  }
   // Precios VIGENTES (Datos → Precios, con historial y sincronizados). El viejo 'safia_precios' del navegador ya no se usa.
   function precios(fecha) {
     if (window.SafiaPrecios) return fecha ? SafiaPrecios.en(fecha) : SafiaPrecios.vigentes().precios;
@@ -295,6 +309,25 @@
     /* 9. Genética (informativo) */
     if (bm && bm.variedades.length) { var vs = {}; bm.variedades.forEach(function (x) { vs[x] = (vs[x] || 0) + 1; }); var topV = Object.keys(vs).sort(function (a, b) { return vs[b] - vs[a]; }).slice(0, 3); item({ k: 'variedad', tipo: 'manejo', nombre: 'Material genético', hoy: caso.variedad || 'sin dato', objetivo: 'los que rinden ≥ meta usan: ' + topV.join(', '), accion: 'Comparar en el ranking de variedades y probar en una franja', costo: 0, fuente: 'banco de casos SAFIA' }); }
 
+    /* Campaña ya sembrada: solo entra lo que todavía se puede hacer; lo que va antes de sembrar o a la siembra queda para la próxima campaña */
+    var ddsHoy = caso.esNueva && caso.siembra ? diasDesde(caso.siembra) : null, enCurso = null, tarde = [];
+    if (ddsHoy != null && ddsHoy >= 0 && !opciones.ignorarVentanas) {
+      var etapaAhora = etapaHoy(ddsHoy); enCurso = { dds: ddsHoy, etapa: etapaAhora };
+      items.forEach(function (i) { i.ventana = ventanaDe(i.k); if (estadoVentana(i.ventana, etapaAhora, ddsHoy) === 'pasada') tarde.push(i); });
+      items = items.filter(function (i) { return tarde.indexOf(i) < 0; });
+      // Palancas que sí quedan en una campaña sembrada: K (y algo de P) en cobertura por fertirriego o al voleo, micronutrientes foliares
+      var man2 = caso.manejo || {}, bal = null;
+      try { var campObj = JSON.parse(localStorage.getItem('campanas') || '[]').find(function (c) { return String(c.id) === String(caso.campanaId); }); if (campObj && window.SafiaNutrientes) { var cuIdx = parseInt(String(caso.id).split('_').pop(), 10) || 0; bal = SafiaNutrientes.balanceCampana(Object.assign({}, campObj, { cultivos: campObj.cultivos.map(function (x, j) { return j === cuIdx ? Object.assign({}, x, { rendimientoObj: meta }) : x; }) }), cuIdx); } } catch (e) { bal = null; }
+      if (bal && bal.enVivo && etapaAhora === 'veg') {
+        var faltaK = Math.round(bal.exportado.k2o - bal.aplicado.k2o), faltaP = Math.round(bal.exportado.p2o5 - bal.aplicado.p2o5), sinCarga = !bal.aplicado.items;
+        var hoyK = sinCarga ? 'sin fertilizantes cargados en la campaña (ficha, paso 3): se asume 0 aplicado' : 'aplicado ' + fmt(bal.aplicado.k2o, 0) + ' kg/ha de K₂O';
+        if (faltaK > 10) item({ k: 'k_cobertura', opcional: sinCarga, tipo: 'suelo', nombre: 'Potasio en cobertura', hoy: hoyK + '; la meta de ' + fmt(meta, 0) + ' se lleva ' + fmt(bal.exportado.k2o, 0), objetivo: 'cubrir lo que se llevará el grano', accion: fmt(faltaK, 0) + ' kg/ha de K₂O (KCl ' + fmt(faltaK / 0.6, 0) + ' kg/ha) al voleo o por fertirriego antes de floración; el K en cobertura sí llega a la raíz', recurrente: faltaK * pr.k2oUSDkg, aporteMin: 0.02, aporteMax: 0.06, fuente: '[2]' });
+        if (faltaP > 15) item({ k: 'p_cobertura', tipo: 'suelo', nombre: 'Fósforo faltante', hoy: (sinCarga ? 'sin fertilizantes cargados: se asume 0 aplicado' : 'aplicado ' + fmt(bal.aplicado.p2o5, 0) + ' kg/ha de P₂O₅') + '; la meta se lleva ' + fmt(bal.exportado.p2o5, 0), objetivo: 'cubrir lo exportado', accion: 'Faltan ' + fmt(faltaP, 0) + ' kg/ha de P₂O₅. El P al voleo en cobertura casi no llega a la raíz en el ciclo: si hay fertirriego, MAP o ácido fosfórico en fertirriego; si no, anotar para reponer a la siembra siguiente', recurrente: faltaP * pr.p2o5USDkg, aporteMin: 0.01, aporteMax: 0.03, fuente: '[2]', opcional: true });
+      }
+      // lo que dijo la hoja (análisis foliar) sí se corrige este ciclo con foliares: se le pone costo y aporte para que cuente en el potencial
+      items.forEach(function (i) { if (i.k === 'foliar' && !i.aporteMax && (etapaAhora === 'veg' || etapaAhora === 'flor')) { i.recurrente = (pr.foliarUSDapl || 15) * 2; i.aporteMin = 0.02; i.aporteMax = 0.05; i.costo = i.inversion + i.recurrente; i.costoCampana = i.inversion / i.vidaUtil + i.recurrente; i.accion += '. En esta campaña: 1–2 aplicaciones foliares entre V6 y R1 con lo que está bajo'; } });
+      if (!(man2.cargado && man2.foliares) && !items.some(function (i) { return i.k === 'foliar'; }) && (etapaAhora === 'veg' || etapaAhora === 'flor')) item({ k: 'foliar_micro', tipo: 'manejo', nombre: 'Micronutrientes foliares', hoy: man2.cargado ? 'sin foliares cargados' : 'sin dato', objetivo: 'B, Mn, Zn y CoMo por hoja en V6–R1', accion: 'Una o dos aplicaciones foliares de B + Mn + Zn (y CoMo en soja) entre V6 y R1; con análisis foliar en R1 se ajusta la fórmula', recurrente: pr.foliarUSDapl ? pr.foliarUSDapl * 2 : 30, aporteMin: 0.02, aporteMax: 0.05, fuente: '[16]', opcional: true });
+    }
     /* Solo lo que hace falta para ESTA meta: lo que limita hoy entra siempre; lo opcional (construir reserva, alto rinde, prácticas nuevas)
        entra en orden de mejor aporte por dólar hasta cubrir la diferencia con un margen del 30 %. El resto queda en pl.omitidos. */
     var gapKg = Math.max(0, meta - actual), omitidos = [];
@@ -316,6 +349,8 @@
     potMin = Math.min(potMin, Math.round(potMax * 0.92));                                       // el piso siempre queda por debajo del techo
     var techoAgua = agua != null ? Math.round(Math.max(0, (agua - wp.noProductiva) * wp.kgMm)) : null;
     if (potMin > potMax) potMin = potMax;
+    if (potMax < actual) potMax = actual;
+    if (potMin < actual) potMin = Math.min(Math.round(actual * (1 + Math.min(sumMin, 0.4))), potMax);   // plan chico (campaña en curso): el piso es el aporte mínimo, no el 92 % del techo
     var costoTotal = items.reduce(function (a, i) { return a + i.costo; }, 0), costoCampana = items.reduce(function (a, i) { return a + i.costoCampana; }, 0);
     var inversionTotal = items.reduce(function (a, i) { return a + i.inversion; }, 0), recurrenteCultivo = items.reduce(function (a, i) { return a + (i.alcance === 'cultivo' ? i.recurrente : 0); }, 0), recurrenteLote = items.reduce(function (a, i) { return a + (i.alcance === 'lote' ? i.recurrente : 0); }, 0);
     var precio = pr.granoUSDt[cu] || pr.granoUSDt.otro;
@@ -325,7 +360,7 @@
     var haEquivalentes = actual > 0 ? kgExtra / actual : null; // cuánta tierra más haría falta para producir lo mismo sin mejorar
     var valorTierraEquiv = haEquivalentes != null ? haEquivalentes * pr.tierraUSDha : null;
     var veredicto = meta <= potMin ? 'alcanzable' : (meta <= potMax ? 'posible' : 'ambiciosa');
-    return { cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, kgExtra: kgExtra, suelo: s, opciones: opciones, gapPct: actual ? kgExtra / actual * 100 : null, items: items, omitidos: omitidos, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo, techoReferencia: techoRef, techoAgua: techoAgua, mmNecesarios: necesita, mmMeta: necesitaMeta }, veredicto: veredicto,
+    return { cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, kgExtra: kgExtra, suelo: s, opciones: opciones, gapPct: actual ? kgExtra / actual * 100 : null, items: items, omitidos: omitidos, enCurso: enCurso, tarde: tarde, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo, techoReferencia: techoRef, techoAgua: techoAgua, mmNecesarios: necesita, mmMeta: necesitaMeta }, veredicto: veredicto,
       economia: { precio: precio, costoTotal: costoTotal, costoCampana: costoCampana, inversionTotal: inversionTotal, recurrenteCultivo: recurrenteCultivo, recurrenteLote: recurrenteLote, ingresoExtra: ingresoExtra, margen: margen, costoPorKg: costoPorKg, pctTierra: pctTierra, haEquivalentes: haEquivalentes, valorTierraEquiv: valorTierraEquiv, tierra: pr.tierraUSDha, retornoSobreTierra: pr.tierraUSDha ? margen / pr.tierraUSDha * 100 : null } };
   }
 
@@ -411,6 +446,11 @@
       '<div class="stat"><div class="sl">Gasto adicional por campaña</div><div class="sv">US$ ' + fmt(e.recurrenteCultivo + e.recurrenteLote, 0) + '/ha</div></div>' +
       '<div class="stat"><div class="sl">Ingreso extra</div><div class="sv green">US$ ' + fmt(e.ingresoExtra, 0) + '/ha</div></div>' +
       '<div class="stat"><div class="sl">Margen por campaña</div><div class="sv ' + (e.margen >= 0 ? 'green' : 'red') + '">US$ ' + fmt(e.margen, 0) + '/ha</div></div></div>';
+    if (pl.enCurso) {
+      var NE = { pre: 'antes de sembrar', veg: 'vegetativa', flor: 'floración', llen: 'llenado', mad: 'maduración' };
+      html += '<div class="note ' + (pl.meta <= pl.potencial.max ? 'info' : 'warn') + '"><b>Campaña en curso</b> (día ' + pl.enCurso.dds + ', ' + (NE[pl.enCurso.etapa] || pl.enCurso.etapa) + '): el plan muestra solo lo que <b>todavía se puede hacer</b>. ' + (pl.potencial.max > pl.actual ? 'Con eso el potencial es <b>' + fmt(pl.potencial.min, 0) + ' – ' + fmt(pl.potencial.max, 0) + ' kg/ha</b>' : 'Con eso <b>no hay una mejora medible</b> sobre los ' + fmt(pl.actual, 0) + ' kg/ha de partida') + (pl.meta > pl.potencial.max ? ': la meta de ' + fmt(pl.meta, 0) + ' <b>no se alcanza esta campaña</b>; queda como meta para la próxima, con el plan completo.' : ': la meta de ' + fmt(pl.meta, 0) + ' todavía es posible.') +
+        (pl.tarde.length ? ' Quedan para la próxima campaña (ya pasó su momento): ' + pl.tarde.map(function (i) { return esc(i.nombre) + ' (' + NOMBRE_VENTANA[i.ventana] + ((i.inversion || 0) + (i.recurrente || 0) >= 0.5 ? ', US$ ' + fmt((i.inversion || 0) + (i.recurrente || 0), 0) + '/ha' : '') + ')'; }).join(' · ') + '.' : '') + '</div>';
+    }
     var ver = { alcanzable: ['ok', 'La meta parece <b>alcanzable</b>: incluso con el aporte mínimo estimado de cada ítem se llega.'], posible: ['ok', 'La meta es <b>posible</b>: entra en el rango estimado, pero depende de que varios ítems respondan.'], ambiciosa: ['warn', 'La meta es <b>ambiciosa</b> para este lote con lo que hoy se puede corregir: el rango estimado llega a ' + fmt(pl.potencial.max, 0) + ' kg/ha. Conviene ir por etapas.'] }[pl.veredicto];
     html += '<div class="note ' + ver[0] + '">' + ver[1] + (pl.benchmark ? ' Referencia: ' + pl.benchmark.n + ' caso(s) en ' + esc(pl.benchmark.ambito) + ' que ' + esc(pl.benchmark.criterio) + ' (promedio ' + fmt(pl.benchmark.rindeProm, 0) + ', máximo ' + fmt(pl.benchmark.rindeMax, 0) + ' kg/ha' + (pl.benchmark.agua ? ', ' + fmt(pl.benchmark.agua, 0) + ' mm de agua' : '') + ').' : ' Todavía no hay otros casos de ' + esc(pl.cultivo) + ' en el banco para usar de referencia.') + '</div>';
     if (pl.omitidos && pl.omitidos.length) html += '<div class="note" style="margin-top:8px;">Para esta meta (+' + fmt(pl.kgExtra, 0) + ' kg/ha) <b>no hace falta</b>: ' + pl.omitidos.map(function (i) { return esc(i.nombre); }).join(' · ') + '. Entrarían con una meta más alta o marcando "Preparación completa del lote" en las opciones.</div>';
@@ -519,5 +559,5 @@
     return { caso: c, pl: pl, py: py, casos: r.casos, prof: r.prof };
   }
 
-  window.SafiaMeta = { CAMPOS_PRECIO: CAMPOS_PRECIO, casoParaCampana: casoParaCampana, planParaCampana: planParaCampana, PRECIOS_DEFAULT: PRECIOS_DEFAULT, precios: precios, guardarPrecios: guardarPrecios, benchmark: benchmark, plan: plan, informeHTML: informeHTML, proyeccion: proyeccion, proyeccionHTML: proyeccionHTML, claveCultivo: claveCultivo };
+  window.SafiaMeta = { VENTANA: VENTANA, ventanaDe: ventanaDe, estadoVentana: estadoVentana, etapaHoy: etapaHoy, CAMPOS_PRECIO: CAMPOS_PRECIO, casoParaCampana: casoParaCampana, planParaCampana: planParaCampana, PRECIOS_DEFAULT: PRECIOS_DEFAULT, precios: precios, guardarPrecios: guardarPrecios, benchmark: benchmark, plan: plan, informeHTML: informeHTML, proyeccion: proyeccion, proyeccionHTML: proyeccionHTML, claveCultivo: claveCultivo };
 })();
