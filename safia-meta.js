@@ -132,7 +132,7 @@
     return { ambito: elegido.ambito, criterio: elegido.criterio, n: cs.length, rindeProm: prom(cs.map(function (c) { return c.rindeKgHa; })), rindeMax: Math.max.apply(null, cs.map(function (c) { return c.rindeKgHa; })),
       agua: prom(cs.map(function (c) { return c.aguaTotalMM; })), riego: prom(cs.map(function (c) { return c.riegoMM; })), suelo: suelo, practicas: prac,
       cobertura: rot.length ? rot.filter(function (c) { return c.rotacion.conCobertura; }).length / rot.length : null,
-      variedades: cs.map(function (c) { return c.variedad; }).filter(Boolean), clientes: cs.map(function (c) { return c.cliente + ' ' + fmt(c.rindeKgHa, 0); }) };
+      variedades: cs.map(function (c) { return c.variedad; }).filter(Boolean), casos: cs.map(function (c) { return (c.localidad || 'zona') + ' ' + fmt(c.rindeKgHa, 0); }) };   // sin nombres de otros productores
   }
 
   /* ---------- el plan ---------- */

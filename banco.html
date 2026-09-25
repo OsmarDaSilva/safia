@@ -1868,7 +1868,7 @@
           td(c.aguaTotalMM == null ? '—' : fmt(c.aguaTotalMM, 0) + '<div class="sub">🌧 ' + fmt(c.lluviaMM || 0, 0) + ' · 💧 ' + fmt(c.riegoMM || 0, 0) + '</div>', 1) + '</tr>';
       });
       html += '<div style="margin:6px 0 4px;font-weight:700;color:var(--head);">' + esc(cu) + ' <span class="muted" style="font-weight:500;">· ' + lista.length + ' campaña(s) · promedio ' + fmt(promedio, 0) + ' kg/ha' +
-        (mejorLocal ? ' · mejor de ' + esc(campoActual.localidad) + ': ' + fmt(mejorLocal.rindeKgHa, 0) + ' (' + esc(mejorLocal.cliente) + ')' : '') + '</span></div>';
+        (mejorLocal ? ' · mejor lote de ' + esc(campoActual.localidad) + ': ' + fmt(mejorLocal.rindeKgHa, 0) : '') + '</span></div>';
       html += tabla([{ t: 'Campaña' }, { t: 'Rinde kg/ha', r: 1 }, { t: 'vs anterior', r: 1 }, { t: 'vs tu promedio', r: 1 }, { t: 'Agua mm', r: 1 }], filasR);
     });
 
@@ -2065,7 +2065,7 @@
       var difR = mioMejor.rindeKgHa - top.rindeKgHa;
       // Si este lote es el que más rinde, el de la columna pasa a ser "el siguiente" de la zona.
       var otro = difR >= 0 ? 'el siguiente' : 'el mejor';
-      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + esc(top.cliente) + (difR >= 0 ? ' · el siguiente de la zona' : ' · el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">🏆 Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
+      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + (difR >= 0 ? 'el siguiente de la zona' : 'el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">🏆 Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
       filasB.push('<tr>' + td('') + td('Agua total mm') + td(fmt(mioMejor.aguaTotalMM, 0), 1) + td(fmt(top.aguaTotalMM, 0), 1) + td(flecha(mioMejor.aguaTotalMM != null && top.aguaTotalMM != null ? mioMejor.aguaTotalMM - top.aguaTotalMM : null, 0), 1) + td('') + '</tr>');
       filasB.push('<tr>' + td('') + td('Variedad · época') + td(esc(mioMejor.variedad || '—') + ' · ' + esc(mioMejor.epoca || '—')) + td(esc(top.variedad || '—') + ' · ' + esc(top.epoca || '—')) + td('') + td('') + '</tr>');
       if (mioMejor.suelo && top.suelo) {
@@ -2086,7 +2086,7 @@
     html += h3evo('🧠 Diagnóstico agronómico', 'por qué rendís más o menos que el mejor, qué es lo más determinante y qué hacer');
     if (window.SafiaAgro) {
       diagnosticos.forEach(function (dg) {
-        html += '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>🌱 ' + esc(dg.cu) + '</h3><span class="muted">' + esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs ' + esc(dg.ref.cliente) + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha' : '') + '</span></div>' +
+        html += '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>🌱 ' + esc(dg.cu) + '</h3><span class="muted">' + esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs el mejor lote de ' + esc(dg.ref.localidad || dg.ref.departamento || 'la zona') + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha' : '') + '</span></div>' +
           SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu) + '</div>';
       });
     } else {

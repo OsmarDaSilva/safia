@@ -455,7 +455,7 @@
     var html = '';
     // 1) Veredicto
     if (ref && d.dif != null) {
-      var quien = ref.cliente ? esc(ref.cliente) : 'el otro lote';
+      var quien = 'el mejor lote de ' + esc(ref.localidad || ref.departamento || 'la zona');   // nunca el nombre de otro productor
       if (d.empate) html += '<div class="note ok">Diferencia de <b>' + (d.dif >= 0 ? '+' : '') + fmt(d.dif, 0) + ' kg/ha (' + (d.pct >= 0 ? '+' : '') + fmt(d.pct, 1) + ' %)</b> frente a ' + quien + ': es un <b>empate técnico</b> (menos de 5 %), dentro de la variación normal de una campaña. Aun así, abajo está lo que puede darte los próximos kilos.</div>';
       else if (d.dif < 0) html += '<div class="note warn">Rendiste <b>' + fmt(-d.dif, 0) + ' kg/ha menos (' + fmt(d.pct, 1) + ' %)</b> que ' + quien + '. Factores que más explican la diferencia, en orden de peso:</div>';
       else html += '<div class="note ok">Rendiste <b>' + fmt(d.dif, 0) + ' kg/ha más (+' + fmt(d.pct, 1) + ' %)</b> que ' + quien + '. Lo que igual conviene mirar para sostenerlo:</div>';
@@ -479,7 +479,7 @@
       var objetivo = opciones.objetivoKgHa || (supera ? ref.rindeKgHa : null) || (mio && mio.rindeKgHa) || null;
       var recs = recomendaciones(mio.suelo, d.cultivo, objetivo);
       var pr = opciones.propio || null, zn = opciones.zona || null;
-      var titulo = opciones.objetivoKgHa ? 'Qué hacer para llegar a la meta de ' + fmt(objetivo, 0) + ' kg/ha' : (supera ? 'Qué hacer para igualar a ' + esc(ref.cliente || 'la referencia') + ' (' + fmt(objetivo, 0) + ' kg/ha)' : 'Qué hacer para mantener o superar tus ' + fmt(objetivo, 0) + ' kg/ha');
+      var titulo = opciones.objetivoKgHa ? 'Qué hacer para llegar a la meta de ' + fmt(objetivo, 0) + ' kg/ha' : (supera ? 'Qué hacer para igualar al mejor lote de ' + esc(ref.localidad || ref.departamento || 'la zona') + ' (' + fmt(objetivo, 0) + ' kg/ha)' : 'Qué hacer para mantener o superar tus ' + fmt(objetivo, 0) + ' kg/ha');
       var lado = [];
       if (pr && pr.n > 1) lado.push('tu promedio en ' + esc(d.cultivo).toLowerCase() + ': ' + fmt(pr.promedio, 0) + ' kg/ha en ' + pr.n + ' campañas (mejor ' + fmt(pr.mejor, 0) + ')');
       if (zn && (zn.promedio || zn.mejor)) lado.push('zona ' + esc(zn.ambito || '') + ': ' + (zn.promedio ? 'promedio ' + fmt(zn.promedio, 0) : '') + (zn.promedio && zn.mejor ? ' · ' : '') + (zn.mejor ? 'mejor lote ' + fmt(zn.mejor, 0) : '') + ' kg/ha');
