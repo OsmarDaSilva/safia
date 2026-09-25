@@ -206,6 +206,27 @@
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+
+  <style id="safia-cabeceras-sobrias">
+    /* Cabeceras sobrias (pedido de Osmar 25-sep-2026): nada de franjas de color anchas */
+    .header-operador, .header-encargado, .header-voz, .header-prop {
+      background: #fff !important; color: #2E3236 !important; border: 1px solid #E1E4E7 !important; border-left: 4px solid #178029 !important;
+      border-radius: 10px !important; padding: 12px 16px !important; margin-bottom: 14px !important; box-shadow: 0 1px 3px rgba(30,40,50,.06) !important; gap: 12px !important;
+    }
+    .header-operador .header-icono, .header-encargado .header-icono, .header-voz .header-icono, .header-prop .header-icono {
+      width: 40px !important; height: 40px !important; border-radius: 10px !important; background: #E7F6EA !important; font-size: 0 !important;
+    }
+    .header-operador .header-icono svg, .header-encargado .header-icono svg, .header-voz .header-icono svg, .header-prop .header-icono svg { width: 20px !important; height: 20px !important; stroke: #178029 !important; }
+    .header-operador h1, .header-encargado h1, .header-voz h1, .header-prop h1 { font-size: 13px !important; font-weight: 800 !important; letter-spacing: .06em !important; color: #178029 !important; }
+    .header-operador p, .header-encargado p, .header-voz p, .header-prop p { font-size: 13px !important; color: #5B6167 !important; opacity: 1 !important; margin-top: 2px !important; }
+    .header-prop select, .header-prop a, .header-prop button { color: #2E3236 !important; background: #fff !important; border-color: #E1E4E7 !important; }
+    .campana-card { background: #fff !important; color: #2E3236 !important; border: 1px solid #E1E4E7 !important; border-left: 4px solid #178029 !important; border-radius: 10px !important; padding: 12px 16px !important; box-shadow: 0 1px 3px rgba(30,40,50,.06) !important; }
+    .campana-card svg { stroke: #178029 !important; }
+    .campana-titulo { color: #178029 !important; font-weight: 800 !important; font-size: 11px !important; letter-spacing: .06em !important; text-transform: uppercase !important; opacity: 1 !important; }
+    .campana-cultivo { color: #2E3236 !important; font-size: 18px !important; margin-bottom: 4px !important; }
+    .campana-meta, .campana-meta * { color: #5B6167 !important; opacity: 1 !important; }
+    .campana-meta svg { stroke: #5B6167 !important; }
+  </style>
 </head>
 <body>
 <div class="layout">
