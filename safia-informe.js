@@ -17,7 +17,7 @@
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
   function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
   function flecha(d, dec) { if (d == null || isNaN(d)) return '<span class="muted">—</span>'; var s = d > 0 ? '+' : ''; return '<span class="' + (d > 0 ? 'evo-mejor' : (d < 0 ? 'evo-peor' : 'muted')) + '">' + s + fmt(d, dec) + '</span>'; }
-  function tabla(enc, filas) { return '<table class="tbl"><thead><tr>' + enc.map(function (e) { return '<th' + (e.r ? ' class="r"' : '') + '>' + e.t + '</th>'; }).join('') + '</tr></thead><tbody>' + (filas.length ? filas.join('') : '<tr><td colspan="' + enc.length + '" class="muted">Sin datos</td></tr>') + '</tbody></table>'; }
+  function tabla(enc, filas) { var fijo = enc.some(function (e) { return e.w; }); return '<table class="tbl' + (fijo ? ' tbl-fijo' : '') + '"><thead><tr>' + enc.map(function (e) { return '<th' + (e.r ? ' class="r"' : '') + (e.w ? ' style="width:' + e.w + '%"' : '') + '>' + e.t + '</th>'; }).join('') + '</tr></thead><tbody>' + (filas.length ? filas.join('') : '<tr><td colspan="' + enc.length + '" class="muted">Sin datos</td></tr>') + '</tbody></table>'; }
   function td(v, r) { return '<td' + (r ? ' class="r"' : '') + '>' + v + '</td>'; }
   function toast(m, err) { var e = $('estado'); e.textContent = m; e.style.color = err ? '#C0392B' : '#8C9196'; }
 
@@ -110,7 +110,7 @@
       var camps = leer('campanas').filter(function (c) { return String(c.equipoId) === String(l.id); }).length;
       return '<tr>' + td('<b>' + esc(l.nombre) + '</b>') + td(esc(SafiaLotes.NOMBRE_TIPO[l.tipo] || l.tipo || '') + (l.marca ? '<div class="sub">' + esc(l.marca) + (l.modelo ? ' ' + esc(String(l.modelo).length > 38 ? String(l.modelo).slice(0, 38) + '…' : l.modelo) : '') + '</div>' : '')) + td(l.superficie ? fmt(l.superficie, 1) : '—', 1) + td(l.poligono ? fmt(l.poligono.ha, 1) : '—', 1) + td(camps, 1) + td(l.gps ? esc(l.gps) : (l.poligono && l.poligono.centro ? l.poligono.centro.lat + ', ' + l.poligono.centro.lon : '—')) + '</tr>';
     });
-    var html = '<h2>Lotes</h2>' + tabla([{ t: 'Lote' }, { t: 'Tipo / equipo' }, { t: 'Ha declaradas', r: 1 }, { t: 'Ha según polígono', r: 1 }, { t: 'Campañas', r: 1 }, { t: 'Ubicación' }], filas);
+    var html = '<h2>Lotes</h2>' + tabla([{ t: 'Lote', w: 16 }, { t: 'Tipo / equipo', w: 38 }, { t: 'Ha declaradas', r: 1, w: 10 }, { t: 'Ha según polígono', r: 1, w: 12 }, { t: 'Campañas', r: 1, w: 10 }, { t: 'Ubicación', w: 14 }], filas);
     html += '<div id="imagenesLotes" class="dos" style="margin-top:10px;"></div>';
     return html;
   }
@@ -146,7 +146,7 @@
         td('<span class="num">' + fmt(c.rindeKgHa, 0) + '</span>' + (c.objetivoKgHa ? '<div class="sub">objetivo ' + fmt(c.objetivoKgHa, 0) + '</div>' : ''), 1) +
         td(refZ ? flecha(c.rindeKgHa - refZ, 0) + '<div class="sub">prom. ' + esc(refAmbito) + ' ' + fmt(refZ, 0) + '</div>' : (mejor ? flecha(c.rindeKgHa - mejor.rindeKgHa, 0) + '<div class="sub">mejor local ' + fmt(mejor.rindeKgHa, 0) + '</div>' : '<span class="muted">—</span>'), 1) + '</tr>';
     });
-    return '<h2>Campañas y rinde</h2>' + tabla([{ t: 'Campaña' }, { t: 'Cultivo' }, { t: 'Siembra' }, { t: 'Cosecha' }, { t: 'Agua mm', r: 1 }, { t: 'Rinde kg/ha', r: 1 }, { t: 'vs zona', r: 1 }], filas) +
+    return '<h2>Campañas y rinde</h2>' + tabla([{ t: 'Campaña', w: 24 }, { t: 'Cultivo', w: 11 }, { t: 'Siembra', w: 12 }, { t: 'Cosecha', w: 12 }, { t: 'Agua mm', r: 1, w: 14 }, { t: 'Rinde kg/ha', r: 1, w: 13 }, { t: 'vs zona', r: 1, w: 14 }], filas) +
       (refZona ? '<div class="sub" style="margin-top:4px;">Referencia de zona: promedio de ' + esc(refAmbito) + ' (base de referencia SAFIA, misma condición de riego cuando hay dato).</div>' : '');
   }
 
@@ -161,7 +161,7 @@
     });
     var sonda = window.SafiaHumedad ? SafiaHumedad.htmlResumen(campoActual.id) : '';
     var balances = window.SafiaAgua ? lotesDelCampo().map(function (l) { var camps = SafiaAgua.campanasDelLote(l.id); var c = camps.find(function (x) { return x.abierta; }) || camps[0]; return c ? '<div class="seccion" id="bal_' + esc(l.id) + '" data-camp="' + esc(c.id) + '"><h3>' + esc(l.nombre) + ' · balance hídrico por etapa · ' + esc(c.cultivo) + ' ' + esc(c.nombre) + '</h3><div class="muted">calculando…</div></div>' : ''; }).join('') : '';
-    return '<h2>Agua: lluvia, riego y rinde</h2>' + sonda + balances + tabla([{ t: 'Cultivo' }, { t: 'Campaña' }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Total mm', r: 1 }, { t: 'ET0 mm', r: 1 }, { t: 'Rinde', r: 1 }, { t: 'kg por mm', r: 1 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
+    return '<h2>Agua: lluvia, riego y rinde</h2>' + sonda + balances + tabla([{ t: 'Cultivo', w: 10 }, { t: 'Campaña', w: 22 }, { t: 'Lluvia', r: 1, w: 10 }, { t: 'Riego', r: 1, w: 10 }, { t: 'Total mm', r: 1, w: 12 }, { t: 'ET0 mm', r: 1, w: 12 }, { t: 'Rinde', r: 1, w: 12 }, { t: 'kg por mm', r: 1, w: 12 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
   }
 
   function secSuelo(cx) {
@@ -227,7 +227,7 @@
       html += '<div class="seccion"><h3>' + esc(l.nombre) + '</h3>';
       if (hist.length) html += '<div class="sub" style="margin-bottom:4px;">Historial: ' + hist.slice(-8).map(function (h) { return '<b>' + esc(SafiaRotacion.etiqueta(h.temporada)) + '</b> ' + esc(h.cultivo) + (h.rinde ? ' (' + fmt(h.rinde, 0) + ')' : ''); }).join(' → ') + '</div>';
       if (plan && plan.temporadas && plan.temporadas.length) {
-        html += tabla([{ t: 'Temporada' }, { t: 'Cultivo / cobertura' }, { t: 'Variedad' }, { t: 'Objetivo kg/ha', r: 1 }, { t: 'Nota' }], plan.temporadas.map(function (t) { return '<tr>' + td('<b>' + esc(SafiaRotacion.etiqueta(t)) + '</b>') + td(esc(t.cultivo || '—')) + td(esc(t.variedad || '—')) + td(t.objetivoKgHa ? fmt(t.objetivoKgHa, 0) : '—', 1) + td(esc(t.nota || '')) + '</tr>'; }));
+        html += tabla([{ t: 'Temporada', w: 16 }, { t: 'Cultivo / cobertura', w: 22 }, { t: 'Variedad', w: 16 }, { t: 'Objetivo kg/ha', r: 1, w: 14 }, { t: 'Nota', w: 32 }], plan.temporadas.map(function (t) { return '<tr>' + td('<b>' + esc(SafiaRotacion.etiqueta(t)) + '</b>') + td(esc(t.cultivo || '—')) + td(esc(t.variedad || '—')) + td(t.objetivoKgHa ? fmt(t.objetivoKgHa, 0) : '—', 1) + td(esc(t.nota || '')) + '</tr>'; }));
         var sec = hist.map(function (h) { return { temporada: h.temporada, cultivo: h.cultivo, plan: false }; }).concat(plan.temporadas.map(function (t) { return { temporada: t, cultivo: t.cultivo, plan: true }; }));
         var av = SafiaRotacion.avisos(sec), idx = SafiaRotacion.indiceRotacion(sec);
         if (idx) html += '<div class="sub" style="margin-top:4px;">Diversidad del plan: ' + idx.diversidad + ' %' + (idx.cobertura != null ? ' · inviernos cubiertos: ' + idx.cobertura + ' %' : '') + '</div>';

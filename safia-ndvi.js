@@ -300,7 +300,7 @@
     }
     html += svgCampanas(curvas);
     // leyenda + tabla
-    html += '<div class="tablewrap" style="margin-top:8px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Campaña</th><th class="r">NDVI máx.</th><th class="r">Día (°C·día) del máx.</th><th class="r">Días con canopia plena</th><th class="r">NDVI acumulado</th><th class="r">Rinde (kg/ha)</th></tr></thead><tbody>';
+    html += '<div class="tablewrap" style="margin-top:8px;"><div class="tablescroll"><table class="tbl tbl-fijo"><thead><tr><th style="width:30%">Campaña</th><th class="r" style="width:12%">NDVI máx.</th><th class="r" style="width:16%">Día (°C·día) del máx.</th><th class="r" style="width:16%">Días con canopia plena</th><th class="r" style="width:13%">NDVI acumulado</th><th class="r" style="width:13%">Rinde (kg/ha)</th></tr></thead><tbody>';
     curvas.forEach(function (c) {
       html += '<tr><td><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + c.color + ';margin-right:6px;"></span>' + esc(c.etiqueta) + '</td><td class="r">' + n2(c.max) + '</td><td class="r">' + (c.diaMax != null ? c.diaMax : '—') + (c.gddMax != null ? ' <span class="muted">(' + c.gddMax + ')</span>' : '') + '</td><td class="r">' + c.diasPlenos + '</td><td class="r">' + c.integral + '</td><td class="r">' + (c.campana.rinde ? Math.round(c.campana.rinde).toLocaleString('es-PY') : '—') + '</td></tr>';
     });

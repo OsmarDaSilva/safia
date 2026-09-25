@@ -435,7 +435,7 @@
   }
   function tablaInterpretacion(lista) {
     if (!lista.length) return '<div class="muted">Sin análisis de suelo cargado.</div>';
-    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>Objetivo 6–7 t/ha</th><th>Lectura</th></tr></thead><tbody>' +
+    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl tbl-interp"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>Objetivo 6–7 t/ha</th><th>Lectura</th></tr></thead><tbody>' +
       lista.map(function (i) {
         var dec = i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 'arcilla' || i.k === 's' || i.k === 'al' || i.k.indexOf('rel') === 0 ? 1 : 2;
         var obj = i.objetivo && i.objetivo !== '—' ? '<div style="font-size:12px;">' + esc(i.objetivo) + '</div>' + (i.alcanzaAlto === true ? '<div class="sub" style="color:#178029;font-weight:700;">alcanzado</div>' : (i.alcanzaAlto === false ? '<div class="sub" style="color:#B3261E;font-weight:700;">falta</div>' : '')) : '<span class="muted">—</span>';
