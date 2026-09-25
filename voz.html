@@ -658,6 +658,16 @@
       </div>
     </div>
 
+    <div class="card" id="cajaTexto" style="margin-top:12px;">
+      <div style="font-size:12px;font-weight:700;color:#178029;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Escribir o dictar con el teclado</div>
+      <div id="avisoIphone" style="display:none;font-size:12.5px;color:#8a5713;background:#FDF3E4;border-radius:8px;padding:8px 10px;margin-bottom:8px;line-height:1.45;">En iPhone el micrófono de la pantalla no funciona dentro de la app instalada (es una limitación de Apple). Tocá la caja de abajo y usá el <b>micrófono del teclado</b> para dictar: funciona igual.</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="textoManual" placeholder='Ej.: "riego de 20 mm"' autocomplete="off" style="flex:1;padding:12px;border:1.5px solid #E1E4E7;border-radius:10px;font:inherit;font-size:15px;" onkeydown="if(event.key==='Enter'){cargarTextoManual();}">
+        <button type="button" onclick="cargarTextoManual()" style="padding:12px 16px;border:0;border-radius:10px;background:#22A93A;color:#fff;font-weight:700;font-size:14px;cursor:pointer;">Cargar</button>
+      </div>
+      <div style="font-size:11.5px;color:#8C9196;margin-top:6px;">Lo que escribas o dictes pasa por la misma interpretación que la voz: tipo de evento, cantidad y pivot.</div>
+    </div>
+
     <div class="debug-panel" id="debugPanel">
       <div class="debug-line info">[DEBUG] SAFIA Voz inicializado</div>
     </div>
@@ -830,8 +840,21 @@
       }
       inicializarRecognition();
       mostrarEventosVoz();
+      if (ES_IOS && ES_APP_INSTALADA) { const a = document.getElementById('avisoIphone'); if (a) a.style.display = 'block'; }
     };
 
+    // iPhone / iPad: el reconocimiento de voz de WebKit no entrega resultados en la app instalada (ni en Chrome de iOS)
+    const ES_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const ES_APP_INSTALADA = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    let vigilante = null;
+    function cargarTextoManual() {
+      const el = document.getElementById('textoManual'), texto = (el.value || '').trim();
+      if (!texto) { mostrarToast('Escribí o dictá la frase primero'); return; }
+      log('⌨️ Texto: "' + texto + '"', 'info');
+      procesarTranscripcion(texto);
+      el.value = '';
+    }
+    function mostrarAvisoIphone() { const a = document.getElementById('avisoIphone'); if (a) a.style.display = 'block'; const c = document.getElementById('cajaTexto'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     function inicializarRecognition() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SR();
@@ -844,6 +867,7 @@
       recognition.onspeechstart = () => log('🗣️ Voz detectada', 'success');
 
       recognition.onresult = (event) => {
+        clearTimeout(vigilante);
         const texto = event.results[0][0].transcript;
         log(`✅ "${texto}"`, 'success');
         intentosRestantes = 2;
@@ -851,8 +875,10 @@
       };
 
       recognition.onerror = (event) => {
+        clearTimeout(vigilante);
         log(`❌ ${event.error}`, 'error');
         detenerEscucha();
+        if (ES_IOS) { mostrarAvisoIphone(); mostrarToast('El micrófono de la pantalla no responde en iPhone: dictá con el teclado'); return; }
         if (event.error === 'network' && intentosRestantes > 0) {
           intentosRestantes--;
           mostrarToast('🔄 Reintentando...');
@@ -868,7 +894,7 @@
         mostrarToast(msgs[event.error] || `❌ ${event.error}`);
       };
 
-      recognition.onend = () => detenerEscucha();
+      recognition.onend = () => { clearTimeout(vigilante); detenerEscucha(); };
     }
 
     function toggleEscucha() {
@@ -877,6 +903,15 @@
         detenerEscucha();
       } else {
         iniciarEscucha();
+        clearTimeout(vigilante);
+        vigilante = setTimeout(() => {
+          if (!escuchando) return;
+          try { recognition.stop(); } catch (e) {}
+          detenerEscucha();
+          log('⏱️ 10 s sin respuesta del micrófono', 'warning');
+          if (ES_IOS) mostrarAvisoIphone();
+          mostrarToast(ES_IOS ? 'Sin respuesta del micrófono: en iPhone dictá con el teclado' : 'No llegó nada del micrófono. Probá de nuevo o escribilo abajo.');
+        }, 10000);
       }
     }
 
