@@ -637,13 +637,15 @@
     <div class="ayuda">
       💡 <strong>Tocá el micrófono y hablá natural.</strong>
       <div class="ayuda-ejemplos">
+        <div id="ejemplosVoz">
         <div>"Riego de 20 mm en pivote 1"</div>
         <div>"Riego de 20 mm en pivote 1 de Anderson"</div>
         <div>"Llovieron 25 mm en pivote 2"</div>
         <div>"Apliqué glifosato 2.5 litros por hectárea en pivote 1"</div>
+        </div>
       </div>
       <div class="ayuda-tip">
-        💪 <strong>Tip:</strong> Hablá claro y usá la palabra "riego" (no "regué"), funciona mejor.
+        <strong>Tip:</strong> Hablá claro y con la cantidad en milímetros. Sirven "riego", "regué", "llovió", "lluvia", "apliqué".
       </div>
     </div>
 
@@ -798,8 +800,16 @@
       const fila = document.getElementById('filaPivot'), tip = document.getElementById('tipPivot');
       if (fila) fila.style.display = lista.length ? '' : 'none';
       if (tip) tip.style.display = lista.length > 1 ? '' : 'none';
+      pintarEjemplos();
     }
-    function cambiarPivot(id) { pivotActivo = id || ''; try { if (pivotActivo) localStorage.setItem('operador_equipo', pivotActivo); } catch (e) {} const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(x => String(x.id) === String(pivotActivo)); log('Pivot activo: ' + (eq ? etiquetaEquipo(eq) : 'ninguno (se dice en la frase)'), 'info'); }
+    function pintarEjemplos() {
+      const el = document.getElementById('ejemplosVoz'); if (!el) return;
+      const eq = pivotActivo ? JSON.parse(localStorage.getItem('equipos') || '[]').find(x => String(x.id) === String(pivotActivo)) : null;
+      el.innerHTML = eq
+        ? '<div style="font-size:12px;color:#178029;font-weight:700;margin-bottom:4px;">Pivot elegido: ' + eq.nombre + '. Alcanza con decir:</div><div>"Riego 10 mm"</div><div>"Regué 10 milímetros"</div><div>"Llovió 50 mm"</div><div>"Lluvia 50 mm"</div><div>"Apliqué glifosato 2,5 litros por hectárea"</div>'
+        : '<div>"Riego de 20 mm en pivote 1"</div><div>"Riego de 20 mm en pivote 1 de Anderson"</div><div>"Llovieron 25 mm en pivote 2"</div><div>"Apliqué glifosato 2,5 litros por hectárea en pivote 1"</div>';
+    }
+    function cambiarPivot(id) { pivotActivo = id || ''; try { if (pivotActivo) localStorage.setItem('operador_equipo', pivotActivo); } catch (e) {} const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(x => String(x.id) === String(pivotActivo)); log('Pivot activo: ' + (eq ? etiquetaEquipo(eq) : 'ninguno (se dice en la frase)'), 'info'); pintarEjemplos(); }
     // Busca en la frase el nombre del cliente o del campo (palabras de 4+ letras, sin acentos)
     function campoEnFrase(t) {
       const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
@@ -958,21 +968,22 @@
       let producto = null, dosis = null, unidad = 'mm', confianza = 0;
 
       log(`🔍 Interpretando: "${t}"`, 'info');
+      const tn = ' ' + norm(t) + ' ';   // sin tildes: "regué" → "regue", "llovió" → "llovio" (las tildes rompen el \b de las regex)
 
       // ===== TIPO con MUCHAS MÁS variantes =====
       // APLICACIÓN
-      if (/\b(apliqu|fumig|pulveriz|tir(é|e|amos)|echamos|aplicamos|aplicaci[oó]n|aplicado|tirar)\b/i.test(t) ||
-          /\b(glifosato|atrazina|urea|herbicida|insecticida|fungicida|fertilizante|abono|veneno|producto)\b/i.test(t)) {
+      if (/\b(apliqu[e]?|fumig[a-z]*|pulveriz[a-z]*|tir(e|amos)|echamos|aplicamos|aplicacion|aplicado|tirar)\b/i.test(tn) ||
+          /\b(glifosato|atrazina|urea|herbicida|insecticida|fungicida|fertilizante|abono|veneno|producto)\b/i.test(tn)) {
         tipo = 'aplicacion'; confianza += 30;
         log(`✓ Tipo: aplicación`, 'success');
       }
       // LLUVIA
-      else if (/\b(lluvia|lluvi(a|ó|o)|llov(i[óo]|i[oó])|llover|cay[oó]\s+agua|agua\s+ca[íi]da|precipit|llovi[oó]|llovieron)\b/i.test(t)) {
+      else if (/\b(lluvia|lluvio|llovio|llover|llovieron|llovisna|cayo\s+agua|cayeron|agua\s+caida|precipit[a-z]*)\b/i.test(tn)) {
         tipo = 'lluvia'; confianza += 30;
         log(`✓ Tipo: lluvia`, 'success');
       }
       // RIEGO - MUCHAS VARIANTES (incluyendo errores de transcripción)
-      else if (/\b(riego|reg(ué|amos|aron|ué|ar|a|amos)|reg[oóó]|riegu(é|e)|riegue|irrigaci[oó]n|irrigamos|regar|regue|regó|rego|regue|regué|reggae|raggae)\b/i.test(t)) {
+      else if (/\b(riego|regue|regamos|regaron|regar|rego|riegue|riegues|regando|regado|irrigacion|irrigamos|irrigue|reggae|raggae)\b/i.test(tn)) {
         tipo = 'riego'; confianza += 30;
         log(`✓ Tipo: riego`, 'success');
       }
@@ -1039,6 +1050,7 @@
         'veintisiete':'27','veintiocho':'28','veintinueve':'29','treinta':'30','cuarenta':'40','cincuenta':'50',
         'sesenta':'60','setenta':'70','ochenta':'80','noventa':'90','cien':'100'
       };
+      textoNum = textoNum.replace(/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(uno|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/gi, (x, a, b) => String(Number(numerosEscritos[a.toLowerCase()]) + Number(numerosEscritos[b.toLowerCase() === 'un' ? 'uno' : b.toLowerCase()])));
       Object.keys(numerosEscritos).forEach(p => {
         textoNum = textoNum.replace(new RegExp('\\b' + p + '\\b', 'gi'), numerosEscritos[p]);
       });
@@ -1053,10 +1065,18 @@
         log(`🔢 Quité número del equipo: "${textoSinEquipo}"`, 'info');
       }
 
-      // Ahora buscar el primer número que queda (que es la cantidad real)
-      const matchNum = textoSinEquipo.match(/\b(\d+(?:\.\d+)?)\b/);
+      // Ahora buscar el primer número que queda (que es la cantidad real): "12", "12.5", "12,5" o en palabras ("diez", "veinticinco")
+      const PALABRAS_NUM = { 'un': 1, 'uno': 1, 'una': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10, 'once': 11, 'doce': 12, 'trece': 13, 'catorce': 14, 'quince': 15,
+        'dieciseis': 16, 'dieciséis': 16, 'diecisiete': 17, 'dieciocho': 18, 'diecinueve': 19, 'veinte': 20, 'veintiuno': 21, 'veintidos': 22, 'veintidós': 22, 'veintitres': 23, 'veintitrés': 23, 'veinticuatro': 24, 'veinticinco': 25,
+        'veintiseis': 26, 'veintiséis': 26, 'veintisiete': 27, 'veintiocho': 28, 'veintinueve': 29, 'treinta': 30, 'cuarenta': 40, 'cincuenta': 50, 'sesenta': 60, 'setenta': 70, 'ochenta': 80, 'noventa': 90, 'cien': 100 };
+      let matchNum = textoSinEquipo.match(/\b(\d+(?:[.,]\d+)?)\b/);
+      if (!matchNum) {
+        const mp = textoSinEquipo.match(/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/i);
+        if (mp) matchNum = [mp[0], String(PALABRAS_NUM[mp[1].toLowerCase()] + PALABRAS_NUM[mp[2].toLowerCase()])];
+        else { const ms = textoSinEquipo.match(/\b(dieciseis|dieciséis|diecisiete|dieciocho|diecinueve|veintiuno|veintidos|veintidós|veintitres|veintitrés|veinticuatro|veinticinco|veintiseis|veintiséis|veintisiete|veintiocho|veintinueve|cien|noventa|ochenta|setenta|sesenta|cincuenta|cuarenta|treinta|veinte|quince|catorce|trece|doce|once|diez|nueve|ocho|siete|seis|cinco|cuatro|tres|dos|uno|un|una)\b/i); if (ms) matchNum = [ms[0], String(PALABRAS_NUM[ms[1].toLowerCase()])]; }
+      }
       if (matchNum) {
-        cantidad = parseFloat(matchNum[1]);
+        cantidad = parseFloat(String(matchNum[1]).replace(',', '.'));
         confianza += 25;
         log(`✓ Cantidad: ${cantidad}`, 'success');
       } else {
