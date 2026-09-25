@@ -603,6 +603,7 @@
       <label>🌎 Idioma:</label>
       <select id="selectorIdioma" onchange="cambiarIdioma(this.value)">
         <option value="es-MX">Español (México) ⭐</option>
+        <option value="pt-BR">Português (Brasil)</option>
         <option value="es-AR">Español (Argentina)</option>
         <option value="es-419">Español Latinoamérica</option>
         <option value="es-PY">Español (Paraguay)</option>
@@ -705,6 +706,7 @@
     let escuchando = false;
     let interpretacionActual = null;
     let idiomaActual = 'es-MX';
+    try { idiomaActual = localStorage.getItem('voz_idioma') || idiomaActual; } catch (e) {}
     let intentosRestantes = 2;
 
     function log(mensaje, tipo = 'info') {
@@ -805,7 +807,11 @@
     function pintarEjemplos() {
       const el = document.getElementById('ejemplosVoz'); if (!el) return;
       const eq = pivotActivo ? JSON.parse(localStorage.getItem('equipos') || '[]').find(x => String(x.id) === String(pivotActivo)) : null;
-      el.innerHTML = eq
+      const pt = /^pt/i.test(idiomaActual);
+      if (pt) el.innerHTML = eq
+        ? '<div style="font-size:12px;color:#178029;font-weight:700;margin-bottom:4px;">Pivô escolhido: ' + eq.nombre + '. Basta dizer:</div><div>"Irriguei 10 mm"</div><div>"Rega de 10 milímetros"</div><div>"Choveu 50 mm"</div><div>"Chuva 50 mm"</div><div>"Apliquei glifosato 2,5 litros por hectare"</div>'
+        : '<div>"Irriguei 20 mm no pivô 1"</div><div>"Irriguei 20 mm no pivô 1 do Anderson"</div><div>"Choveu 25 mm no pivô 2"</div><div>"Apliquei glifosato 2,5 litros por hectare no pivô 1"</div>';
+      else el.innerHTML = eq
         ? '<div style="font-size:12px;color:#178029;font-weight:700;margin-bottom:4px;">Pivot elegido: ' + eq.nombre + '. Alcanza con decir:</div><div>"Riego 10 mm"</div><div>"Regué 10 milímetros"</div><div>"Llovió 50 mm"</div><div>"Lluvia 50 mm"</div><div>"Apliqué glifosato 2,5 litros por hectárea"</div>'
         : '<div>"Riego de 20 mm en pivote 1"</div><div>"Riego de 20 mm en pivote 1 de Anderson"</div><div>"Llovieron 25 mm en pivote 2"</div><div>"Apliqué glifosato 2,5 litros por hectárea en pivote 1"</div>';
     }
@@ -827,7 +833,9 @@
 
     function cambiarIdioma(lang) {
       idiomaActual = lang;
+      try { localStorage.setItem('voz_idioma', lang); } catch (e) {}
       if (recognition) recognition.lang = lang;
+      pintarEjemplos();
       log(`🌎 Idioma: ${lang}`, 'info');
     }
 
@@ -848,6 +856,7 @@
         document.getElementById('microBoton').disabled = true;
         return;
       }
+      const selIdioma = document.getElementById('selectorIdioma'); if (selIdioma) { selIdioma.value = idiomaActual; if (selIdioma.value !== idiomaActual) { idiomaActual = 'es-MX'; selIdioma.value = idiomaActual; } }
       inicializarRecognition();
       mostrarEventosVoz();
       if (ES_IOS && ES_APP_INSTALADA) { const a = document.getElementById('avisoIphone'); if (a) a.style.display = 'block'; }
@@ -972,18 +981,18 @@
 
       // ===== TIPO con MUCHAS MÁS variantes =====
       // APLICACIÓN
-      if (/\b(apliqu[e]?|fumig[a-z]*|pulveriz[a-z]*|tir(e|amos)|echamos|aplicamos|aplicacion|aplicado|tirar)\b/i.test(tn) ||
-          /\b(glifosato|atrazina|urea|herbicida|insecticida|fungicida|fertilizante|abono|veneno|producto)\b/i.test(tn)) {
+      if (/\b(apliqu[a-z]*|fumig[a-z]*|pulveriz[a-z]*|tir(e|amos)|echamos|aplicamos|aplicacion|aplicado|tirar|aplicacao|passei|passamos|passou)\b/i.test(tn) ||
+          /\b(glifosato|atrazina|urea|ureia|herbicida|insecticida|inseticida|fungicida|fertilizante|abono|adubo|veneno|producto|produto)\b/i.test(tn)) {
         tipo = 'aplicacion'; confianza += 30;
         log(`✓ Tipo: aplicación`, 'success');
       }
       // LLUVIA
-      else if (/\b(lluvia|lluvio|llovio|llover|llovieron|llovisna|cayo\s+agua|cayeron|agua\s+caida|precipit[a-z]*)\b/i.test(tn)) {
+      else if (/\b(lluvia|lluvio|llovio|llover|llovieron|llovisna|cayo\s+agua|cayeron|agua\s+caida|precipit[a-z]*|chuva|choveu|chove|chover|choveram|chuvisco|caiu\s+agua|cairam)\b/i.test(tn)) {
         tipo = 'lluvia'; confianza += 30;
         log(`✓ Tipo: lluvia`, 'success');
       }
       // RIEGO - MUCHAS VARIANTES (incluyendo errores de transcripción)
-      else if (/\b(riego|regue|regamos|regaron|regar|rego|riegue|riegues|regando|regado|irrigacion|irrigamos|irrigue|reggae|raggae)\b/i.test(tn)) {
+      else if (/\b(riego|regue|regamos|regaron|regar|rego|riegue|riegues|regando|regado|irrigacion|irrigamos|irrigue|reggae|raggae|irriguei|irrigou|irrigamos|irrigacao|irrigando|reguei|regou|rega|regada|regamos|molhei|molhamos)\b/i.test(tn)) {
         tipo = 'riego'; confianza += 30;
         log(`✓ Tipo: riego`, 'success');
       }
@@ -1004,11 +1013,12 @@
       if (!equipoMatch) {
         const numerosTexto = {
           'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 'cinco': 5,
-          'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10
+          'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10,
+          'um': 1, 'dois': 2, 'três': 3, 'quatro': 4, 'sete': 7, 'oito': 8, 'nove': 9, 'dez': 10
         };
 
         // Regex mejorada para "pivote", "pivot", "pívot", "pibote", "pivó", "piboté"
-        const matchPivot = t.match(/\b(p[íi]?v[oó]?t?[eé]?)\s+(\d+|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\b/i);
+        const matchPivot = t.match(/\b(p[íi]?v[oóô]?t?[eéê]?)\s+(\d+|uno|um|dos|dois|tres|três|cuatro|quatro|cinco|seis|siete|sete|ocho|oito|nueve|nove|diez|dez)\b/i);
         if (matchPivot) {
           let numero = matchPivot[2];
           if (numerosTexto[numero.toLowerCase()]) numero = numerosTexto[numero.toLowerCase()];
@@ -1024,6 +1034,7 @@
         }
       }
       // Sin lote en la frase: el pivot elegido en el selector (mismo que el Operador)
+      if (!candidatos.length && camposFrase.length && ambito.length && ambito.length !== equipos.length) candidatos = ambito.slice();   // dijo el campo o el cliente: sus lotes
       if (!candidatos.length && pivotActivo) { const eqSel = equipos.find(eq => String(eq.id) === String(pivotActivo)); if (eqSel) { candidatos = [eqSel]; log('📍 Pivot elegido en el selector: ' + etiquetaEquipo(eqSel), 'info'); } }
       if (!candidatos.length && ambito.length && ambito.length !== equipos.length) candidatos = ambito.slice();
       if (candidatos.length === 1) equipoMatch = candidatos[0];
@@ -1048,18 +1059,23 @@
         'diecisiete':'17','dieciocho':'18','diecinueve':'19','veinte':'20','veintiuno':'21','veintidós':'22','veintidos':'22',
         'veintitrés':'23','veintitres':'23','veinticuatro':'24','veinticinco':'25','veintiséis':'26','veintiseis':'26',
         'veintisiete':'27','veintiocho':'28','veintinueve':'29','treinta':'30','cuarenta':'40','cincuenta':'50',
-        'sesenta':'60','setenta':'70','ochenta':'80','noventa':'90','cien':'100'
+        'sesenta':'60','setenta':'70','ochenta':'80','noventa':'90','cien':'100',
+        // portugués
+        'um':'1','uma':'1','dois':'2','duas':'2','quatro':'4','seis':'6','sete':'7','oito':'8','nove':'9','dez':'10','onze':'11','doze':'12','treze':'13','quatorze':'14','catorze':'14','quinze':'15',
+        'dezesseis':'16','dezessete':'17','dezoito':'18','dezenove':'19','vinte':'20','trinta':'30','quarenta':'40','cinquenta':'50','sessenta':'60','oitenta':'80','cem':'100'
       };
+      // "vinte e cinco" / "trinta e cinco" (portugués) → 25 / 35
+      textoNum = textoNum.replace(/\b(vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa)\s+e\s+(um|uma|dois|duas|tres|três|quatro|cinco|seis|sete|oito|nove)\b/gi, (x, a, b) => { const B = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, 'três': 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9 }; return String(Number(numerosEscritos[a.toLowerCase()]) + B[b.toLowerCase()]); });
       textoNum = textoNum.replace(/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(uno|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/gi, (x, a, b) => String(Number(numerosEscritos[a.toLowerCase()]) + Number(numerosEscritos[b.toLowerCase() === 'un' ? 'uno' : b.toLowerCase()])));
       Object.keys(numerosEscritos).forEach(p => {
         textoNum = textoNum.replace(new RegExp('\\b' + p + '\\b', 'gi'), numerosEscritos[p]);
       });
-      textoNum = textoNum.replace(/(\d+)\s+coma\s+(\d+)/gi, '$1.$2').replace(/(\d+),(\d+)/g, '$1.$2');
+      textoNum = textoNum.replace(/(\d+)\s+(coma|v[ií]rgula)\s+(\d+)/gi, '$1.$3').replace(/(\d+),(\d+)/g, '$1.$2');
 
       // SACAR el número del equipo del texto antes de buscar la cantidad
       // Ej: "riego de 20 mm en pivote 1" → "riego de 20 mm en pivote"
       let textoSinEquipo = textoNum;
-      const matchPivotConNum = textoSinEquipo.match(/\b(p[íi]?v[oó]?t?[eé]?)\s+(\d+)\b/i);
+      const matchPivotConNum = textoSinEquipo.match(/\b(p[íi]?v[oóô]?t?[eéê]?)\s+(\d+)\b/i);
       if (matchPivotConNum) {
         textoSinEquipo = textoSinEquipo.replace(matchPivotConNum[0], matchPivotConNum[1]);
         log(`🔢 Quité número del equipo: "${textoSinEquipo}"`, 'info');
@@ -1088,8 +1104,8 @@
         const productos = ['glifosato','atrazina','urea','herbicida','insecticida','fungicida','fertilizante','abono'];
         productos.forEach(p => { if (t.includes(p)) producto = p.charAt(0).toUpperCase() + p.slice(1); });
 
-        if (/litros?\s+por\s+hect[aá]rea|l\/ha/i.test(t)) unidad = 'L/ha';
-        else if (/kilos?\s+por\s+hect[aá]rea|kg\/ha/i.test(t)) unidad = 'kg/ha';
+        if (/litros?\s+por\s+hect[aá]re|l\/ha/i.test(t)) unidad = 'L/ha';
+        else if (/(kilos?|quilos?)\s+por\s+hect[aá]re|kg\/ha/i.test(t)) unidad = 'kg/ha';
         else unidad = 'L/ha';
 
         if (cantidad !== null) { dosis = cantidad; cantidad = null; }
