@@ -95,7 +95,7 @@
         <div class="filter"><span class="fl">Cultivo</span><select id="fCultivo"></select></div>
         <div class="filter"><span class="fl">Finalidad</span><select id="fFinalidad"></select></div>
         <div class="filter"><span class="fl">Riego</span><select id="fRiego"><option value="riego">Con riego</option><option value="secano">Secano</option><option value="ambos">Ambos</option></select></div>
-        <div class="filter"><span class="fl">Fuente</span><select id="fFuente"><option value="ambas">Referencia + casos reales</option><option value="referencia">Solo base de referencia</option><option value="caso">Solo casos reales (clientes)</option></select></div>
+        <div class="filter"><span class="fl">Fuente</span><select id="fFuente"><option value="ambas">Base histórica + cargados en SAFIA</option><option value="referencia">Solo base histórica</option><option value="caso">Solo cargados en SAFIA</option></select></div>
       </div>
       <div class="note info" id="notaFuentes"></div>
 
@@ -206,7 +206,7 @@
   function barra(v,max,cls){ var w=max?Math.round(v/max*100):0; return '<span class="barwrap"><span class="bar '+(cls||'')+'" style="width:'+w+'%"></span></span>'; }
   function tabla(enc, filasHTML){ return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr>'+enc.map(function(e){return '<th'+(e.r?' class="r"':'')+'>'+e.t+'</th>';}).join('')+'</tr></thead><tbody>'+(filasHTML.length?filasHTML.join(''):'<tr><td colspan="'+enc.length+'" class="muted">Sin datos para estos filtros.</td></tr>')+'</tbody></table></div></div>'; }
   function td(v,r){ return '<td'+(r?' class="r"':'')+'>'+v+'</td>'; }
-  function fuenteBadge(st){ return st.nCasos ? '<span class="fuente caso">'+st.nCasos+' real'+(st.nCasos>1?'es':'')+'</span> ' : ''; }
+  function fuenteBadge(st){ return st.nCasos ? '<span class="fuente caso">'+st.nCasos+' en SAFIA</span> ' : ''; }
 
   function rankingPor(lista, clave, etiqueta, extra){
     var g=agrupar(lista, clave);
@@ -249,7 +249,7 @@
     var l=filtradas(), out=document.getElementById('salida');
     var pais=document.getElementById('fPais').value||'todos los países', cul=document.getElementById('fCultivo').value;
     var nRef=l.filter(function(f){return f.fuente==='referencia';}).length, nCaso=l.filter(function(f){return f.fuente==='caso';}).length;
-    document.getElementById('notaFuentes').innerHTML='<b>'+l.length+' registros</b> en '+esc(pais)+(cul?' · '+esc(cul):'')+': '+nRef+' de la base de referencia (promedios regionales) y <b>'+nCaso+' casos reales</b> de clientes (marcados en verde). Rinde en <b>kg/ha</b>.';
+    document.getElementById('notaFuentes').innerHTML='<b>'+l.length+' registros</b> en '+esc(pais)+(cul?' · '+esc(cul):'')+': todos son datos reales de clientes. '+nRef+' de la <b>base histórica</b> de Irrigar y <b>'+nCaso+' cargados en SAFIA</b> por los clientes que usan la app (marcados en verde). Rinde en <b>kg/ha</b>.';
 
     if(tabActual==='cultivos'){
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Ranking nacional por cultivo — cuál rinde más en '+esc(pais)+'.</div>'+
@@ -262,7 +262,7 @@
         porCultivo(l, cul, function(sub){ return rankingPor(sub, function(f){return f.localidad;}, 'Localidad', {enc:[{t:'Departamento'}], celdas:function(m){return td(esc(m.departamento));}}); });
     } else if(tabActual==='variedades'){
       var conVar=l.filter(function(f){return f.variedad;});
-      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué variedad / material rinde más. <b>Solo casos reales</b>: la base de referencia no registra variedades.</div>'+
+      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué variedad / material rinde más. <b>Solo campañas cargadas en SAFIA</b>: la base histórica no registra variedades.</div>'+
         porCultivo(conVar, cul, function(sub){ return rankingPor(sub, function(f){return f.variedad;}, 'Variedad / material', {enc:[{t:'Dónde'}], celdas:function(m){return td(esc(m.localidad||m.departamento||''));}}); })+
         (conVar.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay campañas cosechadas con variedad cargada. Cada campaña que cierres con su variedad entra acá.</div>');
     } else if(tabActual==='epocas'){
@@ -270,13 +270,13 @@
         porCultivo(l.filter(function(f){return f.epoca;}), cul, function(sub){ return rankingPor(sub, function(f){return f.epoca;}, 'Época de siembra'); });
     } else if(tabActual==='productores'){
       var casos=l.filter(function(f){return f.fuente==='caso';});
-      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué productor rinde más (casos reales)'+(cul?' en '+esc(cul):', cultivo por cultivo')+'. Ordenado por su <b>mejor</b> campaña; el promedio es de ese cultivo.</div>'+
+      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué productor rinde más (campañas cargadas en SAFIA)'+(cul?' en '+esc(cul):', cultivo por cultivo')+'. Ordenado por su <b>mejor</b> campaña; el promedio es de ese cultivo.</div>'+
         porCultivo(casos, cul, function(sub){ return tablaProductores(sub); })+
-        (casos.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay casos reales con estos filtros. Se llena con cada campaña cosechada de tus clientes.</div>');
+        (casos.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay campañas cargadas en SAFIA con estos filtros. Se llena con cada campaña que un cliente cierra con su rinde.</div>');
     } else if(tabActual==='top'){
       var top=l.slice().sort(function(a,b){return b.rindeKgHa-a.rindeKgHa;}).slice(0,25);
       var max=top.length?top[0].rindeKgHa:0;
-      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Los 25 registros de mayor rinde con estos filtros (referencia y casos reales).</div>'+
+      out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Los 25 registros de mayor rinde con estos filtros (base histórica y cargados en SAFIA).</div>'+
         tabla([{t:'#'},{t:'Cultivo'},{t:'Dónde'},{t:'Época'},{t:'Riego'},{t:'Fuente'},{t:'Rinde kg/ha',r:1}],
           top.map(function(f,i){ return '<tr>'+td(pos(i))+td(esc(nombreCultivo(f.cultivo))+(f.variedad?'<div class="sub">'+esc(f.variedad)+'</div>':''))+td(esc(f.localidad||'')+(f.departamento?'<div class="sub">'+esc(f.departamento)+(f.pais&&f.pais!=='Paraguay'?' · '+esc(f.pais):'')+'</div>':''))+td(esc(f.epoca||'—'))+td(f.riego?'<span class="badge green">riego</span>':'<span class="badge amber">secano</span>')+td(f.fuente==='caso'?'<span class="fuente caso">real · '+esc(f.cliente)+'</span>':'<span class="fuente ref">referencia'+(f.anio?' '+f.anio:'')+'</span>')+td('<span class="num">'+fmt(f.rindeKgHa)+'</span>'+barra(f.rindeKgHa,max,f.riego?'':'secano'),1)+'</tr>'; }));
     }
