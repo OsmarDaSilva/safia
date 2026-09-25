@@ -478,7 +478,12 @@
       var supera = ref && mio && ref.rindeKgHa > mio.rindeKgHa;
       var objetivo = opciones.objetivoKgHa || (supera ? ref.rindeKgHa : null) || (mio && mio.rindeKgHa) || null;
       var recs = recomendaciones(mio.suelo, d.cultivo, objetivo);
-      html += '<div style="font-weight:700;margin-top:14px;">Qué hacer para ' + (ref && d.dif < 0 ? 'igualar a ' + esc(ref.cliente || 'la referencia') : 'sostener y subir el rinde') + (objetivo ? ' <span class="muted" style="font-weight:500;">(' + (opciones.objetivoKgHa ? 'meta ' + fmt(objetivo, 0) : (supera ? 'objetivo ' + fmt(objetivo, 0) : 'sostener los ' + fmt(objetivo, 0) + ' logrados; la meta futura se fija en Meta de rinde')) + ' kg/ha, peso comercial)</span>' : '') + '</div>' + listaRecomendaciones(recs);
+      var pr = opciones.propio || null, zn = opciones.zona || null;
+      var titulo = opciones.objetivoKgHa ? 'Qué hacer para llegar a la meta de ' + fmt(objetivo, 0) + ' kg/ha' : (supera ? 'Qué hacer para igualar a ' + esc(ref.cliente || 'la referencia') + ' (' + fmt(objetivo, 0) + ' kg/ha)' : 'Qué hacer para mantener o superar tus ' + fmt(objetivo, 0) + ' kg/ha');
+      var lado = [];
+      if (pr && pr.n > 1) lado.push('tu promedio en ' + esc(d.cultivo).toLowerCase() + ': ' + fmt(pr.promedio, 0) + ' kg/ha en ' + pr.n + ' campañas (mejor ' + fmt(pr.mejor, 0) + ')');
+      if (zn && (zn.promedio || zn.mejor)) lado.push('zona ' + esc(zn.ambito || '') + ': ' + (zn.promedio ? 'promedio ' + fmt(zn.promedio, 0) : '') + (zn.promedio && zn.mejor ? ' · ' : '') + (zn.mejor ? 'mejor lote ' + fmt(zn.mejor, 0) : '') + ' kg/ha');
+      html += '<div style="font-weight:700;margin-top:14px;">' + titulo + '</div>' + (lado.length ? '<div class="muted" style="font-size:12px;margin:2px 0 6px;">' + lado.join(' · ') + ' · peso comercial (≈ 14 % de humedad)</div>' : '') + listaRecomendaciones(recs);
     } else {
       html += '<div class="note">Este lote no tiene análisis de suelo cargado: sin eso SAFIA no puede decir qué le falta al suelo. Cargalo en la pestaña <b>Análisis de suelo</b> (foto o PDF, lo lee la IA).</div>';
     }
