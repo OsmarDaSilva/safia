@@ -247,11 +247,9 @@
     if (!cultivos.length) return html + '<div class="note">Sin campañas cerradas todavía: el diagnóstico compara la mejor campaña de cada cultivo con la mejor de la zona.</div>';
     cultivos.forEach(function (cu) {
       var mio = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
-      var cand = cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu); });
-      var local = cand.filter(function (c) { return campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
-      var pool = local.length ? local : cand.filter(function (c) { return campoActual.departamento && norm(c.departamento) === norm(campoActual.departamento); });
-      var ref = pool.length ? pool.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; }) : null;
-      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(cu) + ' · ' + esc(mio.campana) + ' · ' + fmt(mio.rindeKgHa, 0) + ' kg/ha' + (ref ? ' · comparado con el mejor lote de ' + esc(ref.localidad || ref.departamento || 'la zona') + ' (' + fmt(ref.rindeKgHa, 0) + ' kg/ha)' : ' · sin otro lote de la zona para comparar') + '</h3></div>' + SafiaAgro.informeHTML(mio, ref, cu, { propio: { mejor: mio.rindeKgHa, promedio: porCultivo[cu].reduce(function (t, c) { return t + c.rindeKgHa; }, 0) / porCultivo[cu].length, n: porCultivo[cu].length }, zona: { promedio: refZonaPara(cu, mio.riego), mejor: ref ? ref.rindeKgHa : null, ambito: local.length ? campoActual.localidad : campoActual.departamento } }) + '</div>';
+      var rp = SafiaAgro.referenciaPara(mio, cx.todos, campoActual), ref = rp.ref;
+      var local = cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
+      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(cu) + ' · ' + esc(mio.campana) + ' · ' + fmt(mio.rindeKgHa, 0) + ' kg/ha' + (ref ? ' · comparado con el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (' + fmt(ref.rindeKgHa, 0) + ' kg/ha)' : (rp.esMejor ? ' · el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (siguiente: ' + fmt(rp.siguiente.rindeKgHa, 0) + ' kg/ha)' : ' · sin otro lote de la zona para comparar')) + '</h3></div>' + SafiaAgro.informeHTML(mio, ref, cu, { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito, propio: { mejor: mio.rindeKgHa, promedio: porCultivo[cu].reduce(function (t, c) { return t + c.rindeKgHa; }, 0) / porCultivo[cu].length, n: porCultivo[cu].length }, zona: { promedio: refZonaPara(cu, mio.riego), mejor: ref ? ref.rindeKgHa : null, ambito: local.length ? campoActual.localidad : campoActual.departamento } }) + '</div>';
     });
     return html;
   }

@@ -2051,17 +2051,15 @@
     var filasB = [], diagnosticos = [];
     Object.keys(porCultivo).forEach(function (cu) {
       var mioMejor = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
-      var candidatos = todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu); });
-      var local = candidatos.filter(function (c) { return campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
-      var pool = local.length ? local : candidatos.filter(function (c) { return campoActual.departamento && norm(c.departamento) === norm(campoActual.departamento); });
-      var ambito = local.length ? campoActual.localidad : (pool.length ? campoActual.departamento : null);
-      if (!pool.length) {
-        filasB.push('<tr>' + td(esc(cu)) + '<td colspan="5" class="muted">Todavía no hay otros clientes con ' + esc(cu) + ' en tu zona: sos la referencia. A medida que se carguen, acá vas a ver contra quién compararte.</td></tr>');
-        diagnosticos.push({ cu: cu, mio: mioMejor, ref: null });
+      var rp = SafiaAgro.referenciaPara(mioMejor, todos, campoActual), ambito = rp.ambito;
+      if (!rp.hayOtros) {
+        filasB.push('<tr>' + td(esc(cu)) + '<td colspan="5" class="muted">Todavía no hay otros clientes con ' + esc(cu) + ' en la base: sos la referencia. A medida que se carguen, acá vas a ver contra quién compararte.</td></tr>');
+        diagnosticos.push({ cu: cu, mio: mioMejor, ref: null, opciones: {} });
         return;
       }
-      var top = pool.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
-      diagnosticos.push({ cu: cu, mio: mioMejor, ref: top });
+      // referencia: el mejor que rinde más (localidad → departamento → base); si este lote es el mejor, la columna muestra "el siguiente"
+      var top = rp.ref || rp.siguiente;
+      diagnosticos.push({ cu: cu, mio: mioMejor, ref: rp.ref, opciones: { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito } });
       var difR = mioMejor.rindeKgHa - top.rindeKgHa;
       // Si este lote es el que más rinde, el de la columna pasa a ser "el siguiente" de la zona.
       var otro = difR >= 0 ? 'el siguiente' : 'el mejor';
@@ -2086,8 +2084,8 @@
     html += h3evo('🧠 Diagnóstico agronómico', 'por qué rendís más o menos que el mejor, qué es lo más determinante y qué hacer');
     if (window.SafiaAgro) {
       diagnosticos.forEach(function (dg) {
-        html += '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>🌱 ' + esc(dg.cu) + '</h3><span class="muted">' + esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs el mejor lote de ' + esc(dg.ref.localidad || dg.ref.departamento || 'la zona') + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha' : '') + '</span></div>' +
-          SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu) + '</div>';
+        html += '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>🌱 ' + esc(dg.cu) + '</h3><span class="muted">' + esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs el mejor lote de ' + esc(dg.opciones.ambito || 'la zona') + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha' : (dg.opciones && dg.opciones.esMejor ? ' · el mejor lote de ' + esc(dg.opciones.ambito || 'la zona') : '')) + '</span></div>' +
+          SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu, dg.opciones || {}) + '</div>';
       });
     } else {
       html += '<div class="note">Falta el motor agronómico (safia-agronomia.js).</div>';

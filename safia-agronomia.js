@@ -449,10 +449,26 @@
       return '<div style="border:1px solid #E1E4E7;border-left:4px solid #22A93A;border-radius:8px;padding:10px 12px;background:#fff;"><div style="font-weight:700;">' + esc(r.titulo) + '</div><div style="font-size:12px;color:#555;margin-top:3px;">' + esc(r.detalle) + ' <span class="muted">' + esc(r.fuente) + '</span></div></div>';
     }).join('') + '</div>';
   }
+  /* Con quién se compara un lote: el mejor de la localidad que rinda MÁS; si el lote ya es el mejor ahí, se sube al departamento
+     y después a toda la base SAFIA. Si nadie rinde más, el lote es la referencia (esMejor) y se informa el "siguiente" sin nombres. */
+  function referenciaPara(mio, candidatos, campo) {
+    var ajenos = (candidatos || []).filter(function (c) { return String(c.campoId) !== String(campo.id) && norm(c.cultivo) === norm(mio.cultivo) && c.rindeKgHa; });
+    var mejorDe = function (l) { return l.length ? l.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; }) : null; };
+    var local = ajenos.filter(function (c) { return campo.localidad && norm(c.localidad) === norm(campo.localidad); });
+    var depto = ajenos.filter(function (c) { return campo.departamento && norm(c.departamento) === norm(campo.departamento); });
+    var niveles = [[local, campo.localidad], [depto, campo.departamento], [ajenos, 'toda la base SAFIA']];
+    for (var i = 0; i < niveles.length; i++) { var m = mejorDe(niveles[i][0]); if (m && m.rindeKgHa > mio.rindeKgHa) return { ref: m, ambito: niveles[i][1], esMejor: false, siguiente: null, hayOtros: ajenos.length > 0 }; }
+    var sig = mejorDe(local) || mejorDe(depto) || mejorDe(ajenos);
+    return { ref: null, ambito: local.length ? campo.localidad : (depto.length ? campo.departamento : 'toda la base SAFIA'), esMejor: !!sig, siguiente: sig, hayOtros: ajenos.length > 0 };
+  }
   function informeHTML(mio, ref, cultivo, opciones) {
     opciones = opciones || {};
     var d = diagnosticarDiferencia(mio, ref, cultivo);
     var html = '';
+    // 0) Este lote es el que más rinde: no hay diferencia que explicar; se mira el suelo de los lotes de 6.000–7.000
+    if (!ref && opciones.esMejor && opciones.siguiente) {
+      html += '<div class="note ok"><b>Este lote es el mejor registrado en SAFIA para ' + esc(cultivo).toLowerCase() + ' en ' + esc(opciones.ambito || 'la zona') + '</b>: rindió ' + fmt(mio.rindeKgHa - opciones.siguiente.rindeKgHa, 0) + ' kg/ha más que el siguiente (' + fmt(opciones.siguiente.rindeKgHa, 0) + ' kg/ha). No hay otro lote con quien explicar una diferencia; la comparación que sigue es contra el suelo de los lotes de 6.000–7.000 kg/ha (columna "Objetivo 6–7 t/ha") y el plan es para sostener y superar lo logrado.</div>';
+    }
     // 1) Veredicto
     if (ref && d.dif != null) {
       var quien = 'el mejor lote de ' + esc(ref.localidad || ref.departamento || 'la zona');   // nunca el nombre de otro productor
@@ -498,6 +514,7 @@
     diagnosticarDiferencia: diagnosticarDiferencia,
     informeHTML: informeHTML,
     tablaInterpretacion: tablaInterpretacion,
+    referenciaPara: referenciaPara,
     listaRecomendaciones: listaRecomendaciones,
     perfilCultivo: perfilCultivo,
     TABLAS: { CULTIVOS: CULTIVOS, KG_P2O5_POR_MG: KG_P2O5_POR_MG }
