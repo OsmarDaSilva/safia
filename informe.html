@@ -100,6 +100,7 @@
     <div class="field"><label>Lote</label><select id="selLote"><option value="">Todos los lotes</option></select></div>
     <div class="field"><label>Campaña</label><select id="selCampana"><option value="">Todo el historial</option></select></div>
     <div class="field"><label>Preparado por</label><input type="text" id="autor" placeholder="Ing. Agr. …" style="min-width:180px;"></div>
+    <div class="field"><label>Meta del informe (kg/ha)</label><input type="number" id="metaInforme" step="100" min="0" placeholder="vacío = la de la campaña o 6.000" style="width:150px;" title="Si la campaña en curso ya tiene meta guardada, manda esa. Si no, esta. Si no, la referencia de alto rinde (6.000)."></div>
     <div class="chk" id="secciones">
       <label><input type="checkbox" data-s="resumen" checked> Resumen</label>
       <label><input type="checkbox" data-s="lotes" checked> Lotes e imagen satelital</label>
@@ -110,7 +111,7 @@
       <label><input type="checkbox" data-s="ndvi" checked> Vigor satelital</label>
       <label><input type="checkbox" data-s="rotacion" checked> Rotación</label>
       <label><input type="checkbox" data-s="diagnostico" checked> Diagnóstico y recomendaciones</label>
-      <label><input type="checkbox" data-s="meta" checked> Camino a 6.000 kg/ha</label>
+      <label><input type="checkbox" data-s="meta" checked> Camino a la meta</label>
     </div>
     <button class="btn" id="btnActualizar" type="button">Actualizar</button>
     <button class="btn green" id="btnPdf" type="button">Guardar como PDF / Imprimir</button>
@@ -163,5 +164,9 @@
 <script src="safia-ndvi.js"></script>
 <script src="safia-rotacion.js"></script>
 <script src="safia-informe.js"></script>
+<script>
+(function () { var el = document.getElementById("metaInforme"); if (!el) return; try { el.value = localStorage.getItem("informe_meta") || ""; } catch (e) {}
+  el.addEventListener("change", function () { try { localStorage.setItem("informe_meta", el.value); } catch (e) {} var b = document.getElementById("btnActualizar"); if (b) b.click(); }); })();
+</script>
 </body>
 </html>

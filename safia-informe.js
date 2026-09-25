@@ -256,7 +256,14 @@
 
   function secMeta(cx) {
     if (!window.SafiaMeta || !window.SafiaAgro) return '';
-    var html = '<h2>Camino a 6.000 kg/ha: qué le falta al suelo, qué corregir y cuánto cuesta</h2>';
+    // La meta la decide el productor: 1) la meta guardada en la campaña en curso del lote (Banco → Meta o ficha), 2) la meta escrita en la barra del informe, 3) referencia 6.000 (CESB)
+    var metaBarra = (function () { var el = document.getElementById('metaInforme'); var v = el ? parseFloat(el.value) : NaN; return v > 0 ? v : null; })();
+    function metaGuardadaDelLote(equipoId, cu) {
+      var mejor = null;
+      leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(equipoId)) return; (c.cultivos || []).forEach(function (x) { if (!x || SafiaMeta.claveCultivo(x.cultivo) !== cu || x.rendimientoReal) return; var m = (x.planMeta && x.planMeta.kgHa) || parseFloat(x.rendimientoObj); if (m > 0 && (!mejor || String(x.fechaSiembra || '') > String(mejor.siembra || ''))) mejor = { meta: m, campana: c.nombre, siembra: x.fechaSiembra }; }); });
+      return mejor;
+    }
+    var html = '<h2>Camino a la meta: qué le falta al suelo, qué corregir y cuánto cuesta</h2>';
     var porLote = {}; cx.mios.forEach(function (c) { if (c.rindeKgHa) (porLote[c.equipoId || ''] = porLote[c.equipoId || ''] || []).push(c); });
     var ids = Object.keys(porLote);
     if (!ids.length) return html + '<div class="note">Sin campañas cosechadas todavía: el plan parte del rinde real del lote.</div>';
@@ -267,7 +274,11 @@
       var soja = casos.filter(function (c) { return SafiaMeta.claveCultivo(c.cultivo) === 'soja'; });
       var c = (soja.length ? soja : casos).reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
       var cu = SafiaMeta.claveCultivo(c.cultivo);
-      var meta = cu === 'soja' ? (c.rindeKgHa >= 6000 ? 7000 : 6000) : (cu === 'maiz' ? Math.max(12000, Math.round(c.rindeKgHa * 1.2 / 500) * 500) : Math.round(c.rindeKgHa * 1.2 / 100) * 100);
+      var metaRef = cu === 'soja' ? (c.rindeKgHa >= 6000 ? 7000 : 6000) : (cu === 'maiz' ? Math.max(12000, Math.round(c.rindeKgHa * 1.2 / 500) * 500) : Math.round(c.rindeKgHa * 1.2 / 100) * 100);
+      var mg = metaGuardadaDelLote(id, cu), meta, origenMeta;
+      if (mg && mg.meta > c.rindeKgHa) { meta = mg.meta; origenMeta = 'meta fijada por el productor para ' + esc(mg.campana); }
+      else if (metaBarra && metaBarra > c.rindeKgHa) { meta = metaBarra; origenMeta = 'meta elegida para este informe'; }
+      else { meta = metaRef; origenMeta = 'objetivo de referencia de los lotes de alto rinde (CESB); podés fijar otra meta en la campaña o en la barra del informe'; }
       var l = leer('equipos').find(function (e) { return String(e.id) === String(id); });
       // El plan mira hacia adelante: usa el análisis más reciente del lote (o del campo), no el que había al cosechar
       var ultimo = sueloActual(analisisDelLote(id));
@@ -275,7 +286,7 @@
       var opc = {}; if (window.SafiaFoliar) opc.foliar = SafiaFoliar.ultimoDelLote(id);
       var pl; try { pl = SafiaMeta.plan(c, meta, pr, cx.todos, prof, opc); } catch (e) { return; }
       var faltan = c.suelo ? SafiaAgro.interpretarSuelo(c.suelo, c.cultivo).filter(function (i) { return i.alcanzaAlto === false; }) : [];
-      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(l ? l.nombre : 'Campo') + ' · ' + esc(c.cultivo) + ' ' + esc(c.campana) + ' · hoy ' + fmt(c.rindeKgHa, 0) + ' kg/ha → meta ' + fmt(meta, 0) + '</h3></div>' +
+      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(l ? l.nombre : 'Campo') + ' · ' + esc(c.cultivo) + ' ' + esc(c.campana) + ' · hoy ' + fmt(c.rindeKgHa, 0) + ' kg/ha → meta ' + fmt(meta, 0) + '</h3><span class="muted">' + origenMeta + '</span></div>' +
         (c.suelo ? '<div class="note info" style="margin:6px 0 8px;"><b>Suelo hoy contra el de los lotes de 6–7 t/ha</b> (CESB, Embrapa, UNL): ' + (faltan.length ? 'faltan <b>' + faltan.map(function (i) { return esc(i.n.replace(/\s*\([^)]*\)$/, '')) + ' (' + fmt(i.valor, i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 's' || i.k.indexOf('rel') === 0 ? 1 : 2) + ' → ' + esc(i.objetivo) + ')'; }).join(', ') + '</b>. El resto ya está en el rango de alto rinde.' : 'todos los parámetros analizados ya están en el rango de alto rinde.') + '</div>' : '<div class="note warn">Sin análisis de suelo para este lote: el plan solo puede usar agua y manejo.</div>') +
         SafiaMeta.informeHTML(pl) + '</div>';
     });
