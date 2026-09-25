@@ -29,7 +29,9 @@
       // Credenz (BASF)
       'CZ 15B21', 'CZ 26B42 IPRO', 'CZ 37B43 IPRO', 'CZ 48B32 IPRO',
       // Pioneer (Corteva)
-      'P95R51', 'P95R96', 'P96R29', 'P97R21', 'P95Y72'
+      'P95R51', 'P95R96', 'P96R29', 'P97R21', 'P95Y72',
+      // HO Genética / Neogen (GDM) — usadas por clientes brasileños en Canindeyú
+      'HO Pirapó IPRO', 'HO Maracaí IPRO', 'NEO 610 I2X', 'NEO 590 IPRO', 'NEO 760 CE'
     ],
     'Maíz': [
       // Pioneer
@@ -37,9 +39,9 @@
       // Dekalb (Bayer)
       'DKB 177 PRO3', 'DKB 230 PRO3', 'DKB 255 PRO3', 'DKB 265 PRO3', 'DKB 290 PRO3', 'DKB 310 PRO3', 'DKB 360 PRO3', 'DKB 390 PRO3',
       // Agroceres / Agroeste
-      'AG 7098 PRO2', 'AG 8088 PRO3', 'AG 8780 PRO3', 'AG 9010 PRO3', 'AS 1666 PRO3', 'AS 1730 PRO3', 'AS 1757 PRO3', 'AS 1868 PRO3',
+      'AG 7098 PRO2', 'AG 8088 PRO3', 'AG 8780 PRO3', 'AG 9010 PRO3', 'AG 9035', 'AS 1666 PRO3', 'AS 1730 PRO3', 'AS 1757 PRO3', 'AS 1868 PRO3',
       // Syngenta
-      'Status VIP3', 'Feroz VIP3', 'Supremo VIP3', 'Fórmula VIP3', 'Impacto VIP3', 'Defender VIP3', 'SYN 505 VIP3', 'SYN 522 VIP3',
+      'NK 501 VIP3', 'NK 505 VIP3', 'Status VIP3', 'Feroz VIP3', 'Supremo VIP3', 'Fórmula VIP3', 'Impacto VIP3', 'Defender VIP3', 'SYN 505 VIP3', 'SYN 522 VIP3',
       // Brevant (Corteva)
       'B2401 PWU', 'B2620 PWU', 'B2702 PWU', 'B2718 PWU', 'B2801 PWU',
       // KWS / LG / Morgan
