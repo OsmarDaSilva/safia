@@ -284,6 +284,46 @@
       .topbar { flex-direction: column; align-items: flex-start; gap: 8px; }
     }
   </style>
+  <style id="safia-una-pantalla">
+    /* ===== Dashboard de UNA pantalla (pedido de Osmar): en escritorio todo entra sin scroll de página;
+       cada tarjeta tiene su propio scroll si le sobra contenido. En celular sigue el flujo normal. ===== */
+    @media (min-width: 1000px) {
+      .main { height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; padding: 12px 22px 12px; overflow: hidden; }
+      .main > .crumb { display: none; }
+      .topbar { margin-bottom: 8px; padding-bottom: 8px; }
+      .topbar-titulo { font-size: 20px; }
+      .topbar-avatar { width: 32px; height: 32px; font-size: 13px; }
+      #dashboardContenido { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      #bancoResumen { display: none; }
+      #cardPendientes .card { padding: 8px 14px !important; margin-bottom: 8px !important; }
+      .estado-riego { padding: 10px 16px; margin-bottom: 8px; border-radius: 10px; flex: none; }
+      .estado-info-label { margin-bottom: 2px; }
+      .estado-titulo { font-size: 16px; margin-bottom: 1px; }
+      .estado-detalle { font-size: 12px; line-height: 1.35; }
+      .estado-icono svg { width: 30px; height: 30px; }
+      .estado-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+      .kpis { margin-bottom: 8px; gap: 8px; flex: none; }
+      .kpi { padding: 8px 12px; }
+      .kpi-valor { font-size: 19px; margin-bottom: 2px; }
+      .kpi-label { font-size: 10px; }
+      .kpi-sub { font-size: 10.5px; margin-top: 2px; }
+      .dash-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.3fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; }
+      .dash-grid > .card { min-height: 0; overflow: auto; padding: 10px 14px; margin: 0; border-radius: 10px; }
+      .dash-grid > .card.dash-lotes { grid-row: 1 / 3; }
+      .dash-grid .card-header { margin-bottom: 6px; position: sticky; top: 0; background: #fff; z-index: 1; padding-bottom: 2px; }
+      .dash-grid .card-titulo { font-size: 11.5px; }
+      .pred-barras { height: 64px; margin-bottom: 6px; }
+      .pred-barra { font-size: 9px; padding-top: 2px; min-height: 14px; max-height: calc(100% - 16px); box-sizing: border-box; }
+      .pred-resumen { padding-top: 6px; font-size: 10.5px; gap: 6px; }
+      .clima-principal { margin-bottom: 8px; gap: 10px; }
+      .clima-icono { font-size: 34px; } .clima-icono svg { width: 34px; height: 34px; }
+      .clima-temp { font-size: 26px; }
+      .clima-detalles { gap: 6px; font-size: 11px; }
+      .evento-vacio { padding: 10px; font-size: 12px; }
+      .dash-grid a[href^="operador.html"] { padding: 6px 0 !important; }
+    }
+    .estado-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; text-decoration: none; }
+  </style>
   <style id="safia-reskin">
     /* ===== SAFIA · reskin del dashboard al theme profesional ===== */
     :root{
@@ -535,18 +575,9 @@
     }
     const ORDEN = { urgente: 0, regar: 1, atencion: 2, lluvia: 3, ok: 4, secano: 5, sin: 6 };
 
-    function renderEstadoRiego(lotes, sinClima) {
-      const conRiego = lotes.filter(l => l.ev && l.ev.tipo !== 'secano');
-      const n = (t) => conRiego.filter(l => l.ev.tipo === t).length;
-      const peor = conRiego.slice().sort((a, b) => ORDEN[a.ev.tipo] - ORDEN[b.ev.tipo])[0];
-      let tipo = 'ok', titulo = 'Todos los lotes bien', detalle = `${conRiego.length} lote${conRiego.length !== 1 ? 's' : ''} con riego en ciclo, ninguno necesita regar.`;
-      if (!lotes.length) { tipo = 'sin'; titulo = 'Sin campañas en ciclo'; detalle = 'Cargá una campaña activa con cultivo y fecha de siembra para ver el estado del riego.'; }
-      else if (n('urgente')) { tipo = 'urgente'; titulo = `${n('urgente')} lote${n('urgente') > 1 ? 's' : ''} con riego urgente`; detalle = conRiego.filter(l => l.ev.tipo === 'urgente').map(l => `<strong>${esc(l.ctx.equipo.nombre)}</strong> (${esc(l.ctx.cliente ? l.ctx.cliente.nombre : l.ctx.campo.nombre)}) ${l.ev.pct.toFixed(0)} %`).join(' · '); }
-      else if (n('regar')) { tipo = 'regar'; titulo = `${n('regar')} lote${n('regar') > 1 ? 's' : ''} para programar riego`; detalle = conRiego.filter(l => l.ev.tipo === 'regar').map(l => `<strong>${esc(l.ctx.equipo.nombre)}</strong> ${l.ev.pct.toFixed(0)} %`).join(' · '); }
-      else if (n('atencion')) { tipo = 'atencion'; titulo = 'Monitorear esta semana'; detalle = conRiego.filter(l => l.ev.tipo === 'atencion').map(l => `<strong>${esc(l.ctx.equipo.nombre)}</strong> ${l.ev.pct.toFixed(0)} %`).join(' · '); }
-      else if (!conRiego.length) { tipo = 'secano'; titulo = 'Solo lotes de secano en ciclo'; detalle = 'Ningún lote con riego tiene campaña en ciclo.'; }
-      if (sinClima.length) detalle += ` <span style="color:#8C9196;">Sin clima para: ${sinClima.map(esc).join(', ')}.</span>`;
-      const filas = lotes.slice().sort((a, b) => ORDEN[(a.ev || { tipo: 'sin' }).tipo] - ORDEN[(b.ev || { tipo: 'sin' }).tipo]).map(l => {
+    // Filas de los lotes en ciclo (una por lote, ordenadas por urgencia)
+    function filasLotes(lotes) {
+      return lotes.slice().sort((a, b) => ORDEN[(a.ev || { tipo: 'sin' }).tipo] - ORDEN[(b.ev || { tipo: 'sin' }).tipo]).map(l => {
         const ev = l.ev || { tipo: 'sin', titulo: 'Sin clima', detalle: 'No se pudo calcular (falta GPS o clima).', fuente: '' }, c = l.ctx;
         const etapa = c.kc ? `día ${c.dds} · ${String(c.kc.etapa).toLowerCase()}` : '';
         return `<a href="operador.html?equipo=${encodeURIComponent(c.equipo.id)}" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-decoration:none;color:inherit;">
@@ -558,16 +589,36 @@
           <div style="text-align:right;flex:none;"><div style="font-size:12px;font-weight:700;color:${COLOR[ev.tipo]};">${ev.titulo}</div><div style="font-size:11px;color:var(--gris-texto);">${ev.detalle}</div></div>
         </a>`;
       }).join('');
+    }
+    // Tarjeta "Lotes en ciclo" (ocupa toda la columna izquierda) + lotes cosechados sin la próxima campaña
+    function renderLotesCard(lotes, ctxs) {
+      const terminadas = ctxs.filter(c => c.terminada);
+      const filas = lotes.length ? filasLotes(lotes) : '<div class="evento-vacio">Sin campañas en ciclo. Cargá una campaña activa con cultivo y fecha de siembra.</div>';
+      const term = terminadas.length ? '<div style="font-size:11px;color:#8a5713;margin-top:8px;">' + terminadas.length + ' campaña' + (terminadas.length > 1 ? 's' : '') + ' ya pasó el fin del ciclo: <a href="mis-campanas.html" style="color:#8a5713;font-weight:700;">cargar la cosecha y el rinde →</a></div>' : '';
+      return '<div class="card dash-lotes"><div class="card-header"><div class="card-titulo">' + ICONO.gota + ' Lotes en ciclo (' + lotes.length + ')</div><a href="encargado.html" class="card-link">Ver Encargado →</a></div>' + filas + term + renderParaPlanificar() +
+        '<div style="font-size:10.5px;color:var(--gris-texto);margin-top:8px;">Mismo motor FAO-56 que el Operador, el Encargado y el Banco. "sonda" = humedad medida hoy; "estación" = lluvia y ET0 medidas; "modelo" = clima estimado. Tocá un lote para abrirlo en el Operador.</div></div>';
+    }
+    function renderEstadoRiego(lotes, sinClima, chips) {
+      const conRiego = lotes.filter(l => l.ev && l.ev.tipo !== 'secano');
+      const n = (t) => conRiego.filter(l => l.ev.tipo === t).length;
+      const peor = conRiego.slice().sort((a, b) => ORDEN[a.ev.tipo] - ORDEN[b.ev.tipo])[0];
+      let tipo = 'ok', titulo = 'Todos los lotes bien', detalle = `${conRiego.length} lote${conRiego.length !== 1 ? 's' : ''} con riego en ciclo, ninguno necesita regar.`;
+      if (!lotes.length) { tipo = 'sin'; titulo = 'Sin campañas en ciclo'; detalle = 'Cargá una campaña activa con cultivo y fecha de siembra para ver el estado del riego.'; }
+      else if (n('urgente')) { tipo = 'urgente'; titulo = `${n('urgente')} lote${n('urgente') > 1 ? 's' : ''} con riego urgente`; detalle = conRiego.filter(l => l.ev.tipo === 'urgente').map(l => `<strong>${esc(l.ctx.equipo.nombre)}</strong> (${esc(l.ctx.cliente ? l.ctx.cliente.nombre : l.ctx.campo.nombre)}) ${l.ev.pct.toFixed(0)} %`).join(' · '); }
+      else if (n('regar')) { tipo = 'regar'; titulo = `${n('regar')} lote${n('regar') > 1 ? 's' : ''} para programar riego`; detalle = conRiego.filter(l => l.ev.tipo === 'regar').map(l => `<strong>${esc(l.ctx.equipo.nombre)}</strong> ${l.ev.pct.toFixed(0)} %`).join(' · '); }
+      else if (n('atencion')) { tipo = 'atencion'; titulo = 'Monitorear esta semana'; detalle = conRiego.filter(l => l.ev.tipo === 'atencion').map(l => `<strong>${esc(l.ctx.equipo.nombre)}</strong> ${l.ev.pct.toFixed(0)} %`).join(' · '); }
+      else if (!conRiego.length) { tipo = 'secano'; titulo = 'Solo lotes de secano en ciclo'; detalle = 'Ningún lote con riego tiene campaña en ciclo.'; }
+      if (sinClima.length) detalle += ` <span style="color:#8C9196;">Sin clima para: ${sinClima.map(esc).join(', ')}.</span>`;
       return `
         <div class="estado-riego ${tipo === 'ok' ? '' : (tipo === 'regar' ? 'atencion' : tipo)}">
           <div style="flex: 1;">
             <div class="estado-info-label">Estado del riego — toda la operación</div>
             <div class="estado-titulo ${tipo === 'ok' ? '' : (tipo === 'regar' ? 'atencion' : tipo)}">${titulo}</div>
             <div class="estado-detalle">${detalle}</div>
+            ${chips && chips.length ? '<div class="estado-chips">' + chips.join('') + '</div>' : ''}
           </div>
           <div class="estado-icono">${svgEstado(tipo === 'regar' ? 'atencion' : (tipo === 'sin' || tipo === 'secano' ? 'atencion' : tipo)).replace('#B8731A', COLOR[tipo] || '#8C9196')}</div>
         </div>
-        ${lotes.length ? `<div class="card" style="margin-bottom:14px;"><div class="card-header"><div class="card-titulo">${ICONO.gota} Lotes en ciclo (${lotes.length})</div><a href="encargado.html" class="card-link">Ver Encargado →</a></div>${filas}<div style="font-size:11px;color:var(--gris-texto);margin-top:8px;">Mismo motor FAO-56 que el Operador, el Encargado y el Banco. "sonda" = humedad medida hoy; "estación" = lluvia y ET0 medidas; "modelo" = clima estimado. Tocá un lote para abrirlo en el Operador.</div></div>` : ''}
       `;
     }
 
@@ -700,7 +751,7 @@
         lista.push({ eq, campo, cli, c: ult.c, cu: ult.cu, i: ult.i });
       });
       if (!lista.length) return '';
-      return `<div class="card" style="border-left:4px solid #178029;margin-bottom:14px;"><div class="card-header"><div class="card-titulo" style="color:#178029;">${ICONO.meta} ${lista.length} lote${lista.length > 1 ? 's' : ''} cosechado${lista.length > 1 ? 's' : ''} sin la próxima campaña planificada</div><a href="ficha.html" class="card-link">Ficha de campaña →</a></div>` +
+      return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.06);"><div class="card-header" style="position:static;margin-bottom:4px;"><div class="card-titulo" style="color:#178029;">${ICONO.meta} ${lista.length} lote${lista.length > 1 ? 's' : ''} cosechado${lista.length > 1 ? 's' : ''} sin la próxima campaña</div><a href="ficha.html" class="card-link">Ficha de campaña →</a></div>` +
         lista.map(l => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:13px;"><div style="flex:1;"><strong>${esc(l.eq.nombre)}</strong> <span style="color:var(--gris-texto);">· ${esc(l.cli ? l.cli.nombre : '')} · ${esc(l.cu.cultivo)} ${esc(l.c.nombre || '')} · ${Number(l.cu.rendimientoReal).toLocaleString('es-PY')} kg/ha</span></div><a href="ficha.html?proxima=${l.c.id}_${l.i}" onclick="try{sessionStorage.setItem('ficha_proxima','${l.c.id}_${l.i}')}catch(e){}" style="font-size:12px;font-weight:700;color:#178029;">Planificar la próxima →</a></div>`).join('') +
         '<div style="font-size:11px;color:var(--gris-texto);margin-top:8px;">Con el rinde real en la mano se fija la meta de la campaña que viene y el plan dice qué hacer con anticipación (calcáreo, yeso, subsolado).</div></div>';
     }
@@ -836,16 +887,21 @@
       const lotes = enCiclo.map(ctx => { const c = clima[ctx.campo.id]; let ev = null; if (c) { try { ev = evaluarLote(ctx, c.datos); } catch (e) { console.error('[SAFIA] dashboard: no se pudo evaluar', ctx.equipo.nombre, e); } } return { ctx, ev }; });
       const conRiego = lotes.filter(l => l.ev && !l.ctx.secano).sort((a, b) => ORDEN[a.ev.tipo] - ORDEN[b.ev.tipo] || a.ev.pct - b.ev.pct);
       const principal = conRiego[0] || lotes.find(l => l.ev) || null;
+      const chips = [];
+      if (alertas.length) chips.push('<a class="estado-chip" href="prediccion.html" style="background:rgba(192,57,43,.12);color:#C0392B;" title="' + esc(alertas.map(a => a.texto.replace(/<[^>]+>/g, '')).join(' · ')) + '">' + alertas.length + ' alerta' + (alertas.length > 1 ? 's' : '') + ' climática' + (alertas.length > 1 ? 's' : '') + ' →</a>');
+      const mant = renderAlertasMantenimiento(), nMant = (mant.match(/— (\d+) tarea/) || [])[1];
+      if (nMant) chips.push('<a class="estado-chip" href="mis-equipos.html" style="background:rgba(184,115,26,.14);color:#8a5713;">Mantenimiento: ' + nMant + ' tarea' + (nMant > 1 ? 's' : '') + ' →</a>');
 
       cont.innerHTML = `
-        ${renderAlertasClima(alertas)}
-        ${renderAlertasMantenimiento()}
-        ${renderEstadoRiego(lotes, sinClima)}
+        ${renderEstadoRiego(lotes, sinClima, chips)}
         ${renderKPIs(ctxs, lotes)}
-        ${principal ? `<div class="grid-2col">${renderPrediccion7Dias(principal)}${renderClimaAhora(clima[principal.ctx.campo.id].datos, principal)}</div>` : ''}
-        <div class="grid-2col-igual">${renderSensores()}${renderMetas(ctxs)}</div>
-        ${renderParaPlanificar()}
-        <div class="grid-2col-igual">${renderUltimosEventos()}${renderCampanas(ctxs)}</div>
+        <div class="dash-grid">
+          ${renderLotesCard(lotes, ctxs)}
+          ${principal ? renderPrediccion7Dias(principal) : renderCampanas(ctxs)}
+          ${principal ? renderClimaAhora(clima[principal.ctx.campo.id].datos, principal) : renderUltimosEventos()}
+          ${renderMetas(ctxs)}
+          ${renderSensores()}
+        </div>
       `;
     }
 
