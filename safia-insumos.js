@@ -193,7 +193,16 @@
     var t = String(texto || '').trim();
     var m = t.match(/(\d{1,2}(?:[.,]\d)?)\s*-\s*(\d{1,2}(?:[.,]\d)?)\s*-\s*(\d{1,2}(?:[.,]\d)?)/);
     if (m) return { n: parseFloat(m[1].replace(',', '.')), p: parseFloat(m[2].replace(',', '.')), k: parseFloat(m[3].replace(',', '.')), s: (t.match(/\+\s*(\d+)\s*S/i) ? parseFloat(RegExp.$1) : 0), origen: 'fórmula' };
-    for (var i = 0; i < FERTILIZANTES.length; i++) if (FERTILIZANTES[i].re.test(t)) return { n: FERTILIZANTES[i].n, p: FERTILIZANTES[i].p, k: FERTILIZANTES[i].k, s: FERTILIZANTES[i].s, origen: 'producto' };
+    for (var i = 0; i < FERTILIZANTES.length; i++) if (FERTILIZANTES[i].re.test(t)) return { n: FERTILIZANTES[i].n, p: FERTILIZANTES[i].p, k: FERTILIZANTES[i].k, s: FERTILIZANTES[i].s, b: FERTILIZANTES[i].b || 0, zn: FERTILIZANTES[i].zn || 0, origen: 'producto' };
+    // Fuentes sin N-P-K: azufre elemental, boro y zinc. El % se lee del texto ("Azufre elemental 90 %", "Ulexita 10 % B"); si no está, el típico del producto.
+    var pct = t.match(/(d{1,2}(?:[.,]d)?)s*%/), pv = pct ? parseFloat(pct[1].replace(',', '.')) : null;
+    if (/(azufre|enxofre|sulfur|Ss*elemental)/i.test(t) && !/sulfato/i.test(t)) return { n: 0, p: 0, k: 0, s: pv != null ? pv : 90, b: 0, zn: 0, origen: 'producto' };
+    if (/ulexita/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 10, zn: 0, origen: 'producto' };
+    if (/b[oó]rax/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 11, zn: 0, origen: 'producto' };
+    if (/[aá]cido b[oó]rico/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 17, zn: 0, origen: 'producto' };
+    if (/boro|Bs*d|ds*%s*B/i.test(t) && pv != null) return { n: 0, p: 0, k: 0, s: 0, b: pv, zn: 0, origen: 'producto' };
+    if (/sulfato de zinc/i.test(t)) return { n: 0, p: 0, k: 0, s: pv != null ? 0 : 11, b: 0, zn: pv != null ? pv : 20, origen: 'producto' };
+    if (/[oó]xido de zinc/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: 0, zn: pv != null ? pv : 50, origen: 'producto' };
     return null;
   }
   /* kg/ha de N, P2O5, K2O que aporta un insumo de fertilización */
@@ -202,11 +211,11 @@
     var g = gradoDe(insumo.formula || insumo.producto); if (!g) return null;
     var dosis = parseFloat(insumo.dosis); if (isNaN(dosis)) return null;
     var kg = insumo.unidad === 't/ha' ? dosis * 1000 : dosis;   // L/ha se toma como kg/ha (densidad ~1)
-    return { n: kg * g.n / 100, p2o5: kg * g.p / 100, k2o: kg * g.k / 100, s: kg * (g.s || 0) / 100, grado: g };
+    return { n: kg * g.n / 100, p2o5: kg * g.p / 100, k2o: kg * g.k / 100, s: kg * (g.s || 0) / 100, b: kg * (g.b || 0) / 100, zn: kg * (g.zn || 0) / 100, grado: g };
   }
   function totalesNPK(insumos) {
-    var t = { n: 0, p2o5: 0, k2o: 0, s: 0, items: 0 };
-    (insumos || []).forEach(function (i) { var x = npkDe(i); if (!x) return; t.n += x.n; t.p2o5 += x.p2o5; t.k2o += x.k2o; t.s += x.s; t.items++; });
+    var t = { n: 0, p2o5: 0, k2o: 0, s: 0, b: 0, zn: 0, items: 0 };
+    (insumos || []).forEach(function (i) { var x = npkDe(i); if (!x) return; t.n += x.n; t.p2o5 += x.p2o5; t.k2o += x.k2o; t.s += x.s; t.b += x.b || 0; t.zn += x.zn || 0; t.items++; });
     return t;
   }
 

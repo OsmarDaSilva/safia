@@ -47,10 +47,10 @@
   }
   // Kg/ha aplicados hasta hoy: insumos de fertilización de la ficha + aplicaciones del Operador con % N-P-K dentro del ciclo
   function aplicado(camp, cultivoIdx) {
-    var t = { n: 0, p2o5: 0, k2o: 0, s: 0, items: 0, detalle: [] };
+    var t = { n: 0, p2o5: 0, k2o: 0, s: 0, b: 0, zn: 0, items: 0, detalle: [] };
     if (!camp) return t;
     var ins = (camp.insumos || []).filter(function (i) { return i.cultivoIdx == null || i.cultivoIdx === (cultivoIdx || 0); });
-    if (window.SafiaInsumos) ins.forEach(function (i) { var x = SafiaInsumos.npkDe(i); if (!x) return; t.n += x.n; t.p2o5 += x.p2o5; t.k2o += x.k2o; t.s += x.s || 0; t.items++; t.detalle.push((i.producto || i.formula || '') + ' ' + fmt(i.dosis, 0) + ' ' + (i.unidad || '')); });
+    if (window.SafiaInsumos) ins.forEach(function (i) { var x = SafiaInsumos.npkDe(i); if (!x) return; t.n += x.n; t.p2o5 += x.p2o5; t.k2o += x.k2o; t.s += x.s || 0; t.b += x.b || 0; t.zn += x.zn || 0; t.items++; t.detalle.push((i.producto || i.formula || '') + ' ' + fmt(i.dosis, 0) + ' ' + (i.unidad || '')); });
     var cu = camp.cultivos && camp.cultivos[cultivoIdx || 0], desde = cu && cu.fechaSiembra ? String(cu.fechaSiembra).slice(0, 10) : null, hasta = cu && cu.fechaCosecha ? String(cu.fechaCosecha).slice(0, 10) : null;
     leer('eventos').forEach(function (ev) {
       if (ev.tipo !== 'aplicacion' || String(ev.equipoId) !== String(camp.equipoId)) return;
@@ -132,7 +132,8 @@
   function htmlMicros(bal) {
     var an = analisisDelLote(bal.equipoId);
     var camp = leer('campanas').find(function (c) { return String(c.id) === String(bal.campanaId); }) || {};
-    var aplic = (camp.insumos || []).filter(function (i) { return (i.categoria === 'ts_micro' || i.categoria === 'foliar_micro') && (i.cultivoIdx == null || i.cultivoIdx === (bal.cultivoIdx || 0)); }).map(function (i) { return (i.producto || '') + (i.dosis ? ' ' + fmt(i.dosis, 1) + ' ' + (i.unidad || '') : ''); });
+    var aplic = (camp.insumos || []).filter(function (i) { if (i.cultivoIdx != null && i.cultivoIdx !== (bal.cultivoIdx || 0)) return false; if (i.categoria === 'ts_micro' || i.categoria === 'foliar_micro') return true; var g = window.SafiaInsumos ? SafiaInsumos.npkDe(i) : null; return !!(g && (g.b > 0 || g.zn > 0)); })
+      .map(function (i) { var g = window.SafiaInsumos ? SafiaInsumos.npkDe(i) : null; return (i.producto || '') + (i.dosis ? ' ' + fmt(i.dosis, 1) + ' ' + (i.unidad || '') : '') + (g && g.b > 0 ? ' = ' + fmt(g.b, 1) + ' kg B/ha' : '') + (g && g.zn > 0 ? ' = ' + fmt(g.zn, 1) + ' kg Zn/ha' : ''); });
     var h = '<div style="margin-top:12px;font-size:12px;font-weight:700;color:#5B6167;text-transform:uppercase;letter-spacing:.3px;">Micronutrientes y azufre del suelo' + (an ? ' · análisis del ' + fechaLarga(an.fecha) + (an.equipoId ? '' : ' (todo el campo)') + (an.nMuestras > 1 ? ', promedio de ' + an.nMuestras + ' muestras' : '') : '') + '</div>';
     if (!an) return h + '<div class="note warn" style="margin-top:6px;">Sin análisis de suelo de este lote: SAFIA no puede saber si faltan boro, zinc, cobre, manganeso o azufre. Cargalo en Banco → Análisis de suelo.</div>';
     var filas = MICROS.map(function (m) {
