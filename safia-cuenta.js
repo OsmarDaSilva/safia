@@ -136,8 +136,10 @@
   }
   function salir() {
     try { ['safia_usuario', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo'].forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('banco_campo'); } catch (e) {}
+    if (window.SafiaSync && SafiaSync.cerrarSesion) { SafiaSync.cerrarSesion(); return; }
     var sb = window.safiaSupabase;
-    if (sb && sb.auth) sb.auth.signOut().finally(function () { location.replace('login.html'); }); else location.replace('login.html');
+    try { Object.keys(localStorage).forEach(function (k) { if (/^sb-.*-auth-token/.test(k)) localStorage.removeItem(k); }); } catch (e) {}
+    if (sb && sb.auth) sb.auth.signOut().catch(function () {}).finally(function () { location.replace('login.html?salir=1'); }); else location.replace('login.html?salir=1');
   }
 
   function modalClave() {

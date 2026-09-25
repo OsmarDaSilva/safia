@@ -93,6 +93,21 @@
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   window.safiaSupabase = sb; // disponible para otras páginas (login, futuro)
 
+  /* Cerrar sesión de verdad: primero se borra la sesión de ESTE navegador (no depende del servidor) y
+     se avisa al servidor sin esperarlo. Antes, si el aviso al servidor fallaba (red, token vencido),
+     supabase-js no borraba la sesión local y "Salir" volvía al Dashboard. */
+  function borrarSesionLocal() {
+    try { Object.keys(window.localStorage).forEach(function (k) { if (/^sb-.*-auth-token/.test(k)) window.localStorage.removeItem(k); }); } catch (e) {}
+    try { ['safia_usuario', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo'].forEach(function (k) { window.localStorage.removeItem(k); }); sessionStorage.removeItem('banco_campo'); } catch (e) {}
+  }
+  function cerrarSesion() {
+    var listo = function () { borrarSesionLocal(); location.replace('login.html?salir=1'); };
+    var t = setTimeout(listo, 1500);   // el servidor no contesta: igual salimos
+    try { sb.auth.signOut({ scope: 'global' }).catch(function () {}).finally(function () { clearTimeout(t); try { sb.auth.signOut({ scope: 'local' }); } catch (e) {} listo(); }); }
+    catch (e) { clearTimeout(t); listo(); }
+  }
+  window.SafiaSync = Object.assign(window.SafiaSync || {}, { cerrarSesion: cerrarSesion, borrarSesionLocal: borrarSesionLocal });
+
   /* ---------- utilidades ---------- */
 
   // stringify con claves ordenadas, para comparar sin falsos cambios
@@ -151,11 +166,7 @@
         '<span id="safiaSyncNombre">' + (email || '') + '</span>' +
         '<a href="#" id="safiaSalirLink" style="color:#7fd48f;text-decoration:none;font-weight:700;margin-left:4px;">Salir</a>';
       document.body.appendChild(d);
-      document.getElementById('safiaSalirLink').addEventListener('click', function (ev) {
-        ev.preventDefault();
-        try { window.localStorage.removeItem('safia_usuario'); } catch (e) {}
-        sb.auth.signOut().finally(function () { location.replace('login.html'); });
-      });
+      document.getElementById('safiaSalirLink').addEventListener('click', function (ev) { ev.preventDefault(); cerrarSesion(); });
       if (estadoOk !== null) marcarEstado(estadoOk);
     }
     if (document.readyState === 'loading') {
@@ -368,7 +379,7 @@
       '<div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;"><a href="#" id="safiaEsperaVolver" style="padding:11px 16px;border-radius:10px;background:#22A93A;color:#fff;font-weight:700;text-decoration:none;font-size:14px;">Volver a comprobar</a>' +
       '<a href="#" id="safiaEsperaSalir" style="padding:11px 16px;border-radius:10px;border:1.5px solid #E1E4E7;color:#41464B;font-weight:700;text-decoration:none;font-size:14px;">Salir</a></div>' +
       '<div style="margin-top:14px;font-size:12px;color:#8C9196;">Irrigar · WhatsApp +595 981 000 000 · ' + String(u.email || '').replace(/</g, '&lt;') + '</div></div>';
-    function poner() { document.body.appendChild(d); document.getElementById('safiaEsperaVolver').addEventListener('click', function (ev) { ev.preventDefault(); location.reload(); }); document.getElementById('safiaEsperaSalir').addEventListener('click', function (ev) { ev.preventDefault(); try { window.localStorage.removeItem('safia_usuario'); } catch (e) {} sb.auth.signOut().finally(function () { location.replace('login.html'); }); }); }
+    function poner() { document.body.appendChild(d); document.getElementById('safiaEsperaVolver').addEventListener('click', function (ev) { ev.preventDefault(); location.reload(); }); document.getElementById('safiaEsperaSalir').addEventListener('click', function (ev) { ev.preventDefault(); cerrarSesion(); }); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', poner); else poner();
   }
   function filaAUsuario(f, base) {
@@ -422,6 +433,7 @@
   sb.auth.getSession().then(function (r) {
     var sesion = r && r.data && r.data.session;
     if (ES_LOGIN) {
+      if (/salir=1/.test(location.search)) { borrarSesionLocal(); try { sb.auth.signOut({ scope: 'local' }); } catch (e) {} return; }   // vino de "Salir": no rebotar al Dashboard
       if (sesion && !/type=recovery/.test(location.hash) && !/reset=1/.test(location.search)) location.replace('index.html');
       return;
     }
