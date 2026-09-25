@@ -474,9 +474,11 @@
     if (mio && mio.suelo) {
       html += '<div style="font-weight:700;margin-top:14px;">Lectura del análisis de suelo de este lote' + (mio.suelo.fecha ? ' <span class="muted" style="font-weight:500;">(' + esc(String(mio.suelo.fecha).slice(0, 10)) + ')</span>' : '') + '</div>';
       html += tablaInterpretacion(d.interpretacionMio);
-      var objetivo = opciones.objetivoKgHa || (ref && ref.rindeKgHa) || (mio && mio.rindeKgHa) || null;
+      // objetivo: la meta pedida; si no, la referencia solo cuando rinde MÁS que este lote; si no, sostener el rinde propio (nunca un objetivo menor al logrado)
+      var supera = ref && mio && ref.rindeKgHa > mio.rindeKgHa;
+      var objetivo = opciones.objetivoKgHa || (supera ? ref.rindeKgHa : null) || (mio && mio.rindeKgHa) || null;
       var recs = recomendaciones(mio.suelo, d.cultivo, objetivo);
-      html += '<div style="font-weight:700;margin-top:14px;">Qué hacer para ' + (ref && d.dif < 0 ? 'igualar a ' + esc(ref.cliente || 'la referencia') : 'sostener y subir el rinde') + (objetivo ? ' <span class="muted" style="font-weight:500;">(objetivo ' + fmt(objetivo, 0) + ' kg/ha)</span>' : '') + '</div>' + listaRecomendaciones(recs);
+      html += '<div style="font-weight:700;margin-top:14px;">Qué hacer para ' + (ref && d.dif < 0 ? 'igualar a ' + esc(ref.cliente || 'la referencia') : 'sostener y subir el rinde') + (objetivo ? ' <span class="muted" style="font-weight:500;">(' + (opciones.objetivoKgHa ? 'meta ' + fmt(objetivo, 0) : (supera ? 'objetivo ' + fmt(objetivo, 0) : 'sostener los ' + fmt(objetivo, 0) + ' logrados; la meta futura se fija en Meta de rinde')) + ' kg/ha, peso comercial)</span>' : '') + '</div>' + listaRecomendaciones(recs);
     } else {
       html += '<div class="note">Este lote no tiene análisis de suelo cargado: sin eso SAFIA no puede decir qué le falta al suelo. Cargalo en la pestaña <b>Análisis de suelo</b> (foto o PDF, lo lee la IA).</div>';
     }

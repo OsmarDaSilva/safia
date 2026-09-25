@@ -309,7 +309,7 @@
     if (s.meta) html += '<div class="salto"></div>' + secMeta(cx);
     var autor = $('autor').value.trim() || config.agronomo || '';
     if (autor || config.firma) html += '<div class="firma"><div class="bloque">' + (config.firma ? '<img src="' + config.firma + '" alt="firma">' : '<div style="height:40px;"></div>') + '<b>' + esc(autor) + '</b>' + (config.matricula ? '<div class="sub">' + esc(config.matricula) + '</div>' : '') + '<div class="sub">' + esc([config.empresa, config.telefono, config.correo].filter(Boolean).join(' · ')) + '</div><div class="sub">' + fmtF(hoy.toISOString().slice(0, 10)) + '</div></div></div>';
-    html += '<div class="pie"><span>SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
+    html += '<div class="pie"><span>Todos los rindes son peso comercial entregado (≈ 14 % de humedad), el que se vende. SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
     $('hoja').innerHTML = html;
     if (s.lotes) cargarImagenes();
     // balance hídrico por etapa de cada lote (se calcula en segundo plano)
