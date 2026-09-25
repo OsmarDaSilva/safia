@@ -385,8 +385,10 @@
       if (mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad)) factores.push({ tipo: 'manejo', k: 'variedad', nombre: 'Material', peso: 0.25, texto: 'Variedades distintas (' + mio.variedad + ' vs ' + ref.variedad + '): parte de la diferencia puede ser genética. Comparar en el ranking de variedades.' });
       if (mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca)) factores.push({ tipo: 'manejo', k: 'epoca', nombre: 'Época de siembra', peso: 0.3, texto: 'Épocas distintas (' + mio.epoca + ' vs ' + ref.epoca + '): la fecha cambia la radiación y el calor que recibe el cultivo en floración.' });
       if (mio.siembra && ref.siembra) {
-        var dd = Math.round((new Date(mio.siembra) - new Date(ref.siembra)) / 86400000);
-        if (Math.abs(dd) >= 15 && !(mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca))) factores.push({ tipo: 'manejo', k: 'fecha', nombre: 'Fecha de siembra', peso: clamp(Math.abs(dd) / 60, 0.1, 0.4), texto: 'Sembraste ' + Math.abs(dd) + ' días ' + (dd > 0 ? 'después' : 'antes') + ' que el otro lote.' });
+        // diferencia de fecha dentro del calendario de la zafra (sin el año): dos campañas de años distintos se comparan por día del año
+        var doy = function (f) { var d = new Date(String(f).slice(0, 10) + 'T12:00:00'); return Math.round((d - new Date(d.getFullYear(), 0, 1)) / 86400000); };
+        var dd = doy(mio.siembra) - doy(ref.siembra); if (dd > 182) dd -= 365; if (dd < -182) dd += 365;
+        if (Math.abs(dd) >= 15 && !(mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca))) factores.push({ tipo: 'manejo', k: 'fecha', nombre: 'Fecha de siembra', peso: clamp(Math.abs(dd) / 60, 0.1, 0.4), texto: 'Sembraste ' + Math.abs(dd) + ' días ' + (dd > 0 ? 'más tarde' : 'más temprano') + ' que el otro lote dentro del calendario de la zafra (' + String(mio.siembra).slice(5, 10).split('-').reverse().join('/') + ' vs ' + String(ref.siembra).slice(5, 10).split('-').reverse().join('/') + ').' });
       }
       var encM = num(mio.encaladoTnHa), encR = num(ref.encaladoTnHa);
       if (encR != null && encR > 0 && (encM == null || encM === 0)) factores.push({ tipo: 'manejo', k: 'encalado', nombre: 'Encalado', peso: 0.35, texto: 'El otro lote encaló ' + fmt(encR, 1) + ' t/ha en esa campaña y este no.' });
