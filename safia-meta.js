@@ -105,8 +105,8 @@
   function prom(a) { var v = a.filter(function (x) { return x != null && !isNaN(x); }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
   /* Ventana de cada ítem del plan (hasta cuándo se puede hacer). La comparten el plan (campaña en curso) y la meta viva del seguimiento. */
-  var VENTANA = { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], siembra: ['fosforo', 'potasio', 'azufre', 'inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], veg: ['nitrogeno', 'k_cobertura', 'p_cobertura'], repro: ['fungicidas', 'foliar', 'foliar_micro', 'agua'] };
-  var NOMBRE_VENTANA = { pre: 'antes de sembrar', siembra: 'a la siembra', veg: 'en vegetativo', repro: 'en floración y llenado' };
+  var VENTANA = { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], semilla: ['inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], siembra: ['fosforo', 'potasio', 'azufre'], veg: ['nitrogeno', 'k_cobertura', 'p_cobertura'], repro: ['fungicidas', 'foliar', 'foliar_micro', 'agua'] };
+  var NOMBRE_VENTANA = { pre: 'antes de sembrar', semilla: 'con la semilla', siembra: 'a la siembra', veg: 'en vegetativo', repro: 'en floración y llenado' };
   function ventanaDe(k) { for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
   function hoyLocal() { return window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
   function diasDesde(f) { if (!f) return null; return Math.round((new Date(hoyLocal() + 'T12:00:00') - new Date(String(f).slice(0, 10) + 'T12:00:00')) / 86400000); }
@@ -114,6 +114,7 @@
   function estadoVentana(v, etapa, dds) {
     var orden = { pre: 0, veg: 1, flor: 2, llen: 3, mad: 4 }[etapa] || 0;
     if (v === 'pre') return orden > 0 ? 'pasada' : 'ahora';
+    if (v === 'semilla') return orden > 0 ? 'pasada' : 'ahora';   // va con la semilla: una vez sembrado, ya pasó
     if (v === 'siembra') return orden === 0 ? 'futura' : (dds != null && dds > 10 ? 'pasada' : 'ahora');
     if (v === 'veg') return orden === 0 ? 'futura' : (orden === 1 ? 'ahora' : 'pasada');
     return orden < 2 ? 'futura' : (orden === 4 ? 'pasada' : 'ahora');
@@ -532,7 +533,9 @@
       var mismos = mios.filter(function (x) { return String(x.equipoId) === String(camp.equipoId) && claveCultivo(x.cultivo) === claveCultivo(cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
       var base = mismos[0] || mios.filter(function (x) { return String(x.equipoId) === String(camp.equipoId); })[0] || mios[0];
       if (!base) return { error: 'Este campo todavía no tiene ninguna campaña cosechada con rinde: la meta se arma a partir de un rinde real. Cargá primero una cosecha (o usá la Referencia para comparar).' };
-      caso = Object.assign({}, base, { id: 'nueva_' + camp.id + '_' + (cultivoIdx || 0), campanaId: camp.id, campana: camp.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: null, clima: null });
+      caso = Object.assign({}, base, { id: 'nueva_' + camp.id + '_' + (cultivoIdx || 0), campanaId: camp.id, campana: camp.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, clima: null,
+        // el manejo del caso nuevo es lo que YA se cargó en esta campaña (ficha, paso 3), no el de la campaña base
+        manejo: window.SafiaInsumos ? SafiaInsumos.resumen((camp.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === (cultivoIdx || 0); }), [], !!camp.manejoCompleto) : null });
     }
     // el plan mira hacia adelante: último análisis del lote (o del campo); si hay varias muestras de la misma fecha, su promedio
     var recientes = prof.filter(function (a) { return String(a.equipoId || '') === String(caso.equipoId || ''); });

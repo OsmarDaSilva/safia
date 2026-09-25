@@ -96,8 +96,8 @@
      Cada ítem del plan tiene una ventana (hasta cuándo se puede hacer). Si la ventana pasó y no
      se hizo (tildado o detectado en los insumos cargados), su aporte se descuenta del potencial.
      La falta de agua descuenta lo que ya calculó el motor FAO-33 por etapa. */
-  var VENTANA = (window.SafiaMeta && SafiaMeta.VENTANA) || { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], siembra: ['fosforo', 'potasio', 'azufre', 'inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], veg: ['nitrogeno'], repro: ['fungicidas', 'foliar', 'agua'] };
-  var NOMBRE_VENTANA = { pre: 'antes de sembrar', siembra: 'a la siembra (hasta 10 días)', veg: 'en vegetativo', repro: 'en floración y llenado' };
+  var VENTANA = (window.SafiaMeta && SafiaMeta.VENTANA) || { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], semilla: ['inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], siembra: ['fosforo', 'potasio', 'azufre'], veg: ['nitrogeno'], repro: ['fungicidas', 'foliar', 'agua'] };
+  var NOMBRE_VENTANA = { pre: 'antes de sembrar', semilla: 'con la semilla', siembra: 'a la siembra (hasta 10 días)', veg: 'en vegetativo', repro: 'en floración y llenado' };
   var APORTE_DEF = { encalado: [0.05, 0.12], yeso: [0.03, 0.10], fosforo: [0.05, 0.15], potasio: [0.05, 0.15], reposicion: [0.02, 0.06], nitrogeno: [0.05, 0.15], azufre: [0.02, 0.06], boro: [0.03, 0.08], zinc_suelo: [0.02, 0.06], cobre: [0.01, 0.04], como: [0.02, 0.05], zinc: [0.02, 0.06], inoculacion: [0.05, 0.15], coinoculacion: [0.05, 0.10], tratamiento: [0.03, 0.08], cobertura: [0.05, 0.15], subsolado: [0.02, 0.08], nivelacion: [0.01, 0.05], otros: [0, 0.03], directa: [0.03, 0.08], fungicidas: [0.05, 0.15] };
   function ventanaDe(k) { for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
   function aporteDe(it) { if (it.aporteMax) return [it.aporteMin || 0, it.aporteMax]; return APORTE_DEF[it.k] || [0, 0]; }
@@ -108,6 +108,7 @@
   function estadoVentana(v, etapa, dds) {
     var orden = { pre: 0, veg: 1, flor: 2, llen: 3, mad: 4 }[etapa] || 0;
     if (v === 'pre') return orden > 0 ? 'pasada' : 'ahora';
+    if (v === 'semilla') return orden > 0 ? 'pasada' : 'ahora';   // va con la semilla: una vez sembrado, ya pasó
     if (v === 'siembra') return orden === 0 ? 'futura' : (dds != null && dds > 10 ? 'pasada' : 'ahora');
     if (v === 'veg') return orden === 0 ? 'futura' : (orden === 1 ? 'ahora' : 'pasada');
     return orden < 2 ? 'futura' : (orden === 4 ? 'pasada' : 'ahora');   // repro
