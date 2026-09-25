@@ -128,7 +128,7 @@
       var paso = SB().pasoDia(dr, prm, r.lluvia + r.riego * ef), ks = paso.ks, eta = paso.eta, drFin = paso.dr, dp = paso.dp;
       var d = { fecha: r.fecha, dds: i, etapa: ke.etapa, kc: ke.kc, et0: et0, etc: Math.round(etc * 100) / 100, eta: Math.round(eta * 100) / 100, ks: Math.round(ks * 100) / 100, dr: Math.round(drFin * 10) / 10, taw: Math.round(taw), raw: Math.round(raw), disponible: Math.round((taw - drFin) * 10) / 10, lluvia: r.lluvia, riego: r.riego, riegoNeto: Math.round(r.riego * ef * 10) / 10, riegoRepartido: !!r.riegoRepartido, dp: Math.round(dp * 10) / 10, pronostico: !!r.pronostico };
       dias.push(d);
-      var s = etap[ke.etapa]; s.dias++; s.etc += etc; s.eta += eta; s.lluvia += r.lluvia; s.riego += r.riego; if (ks < 1) s.diasEstres++;
+      if (!r.pronostico) { var s = etap[ke.etapa]; s.dias++; s.etc += etc; s.eta += eta; s.lluvia += r.lluvia; s.riego += r.riego; if (ks < 1) s.diasEstres++; }   // por etapa solo cuenta lo transcurrido; el pronóstico va aparte en el consultor
       if (ks < 1 && !r.pronostico) { if (!epi) { epi = { desde: r.fecha, hasta: r.fecha, dias: 1, etapa: ke.etapa, faltaMM: Math.round(dr - raw), ksMin: ks }; episodios.push(epi); } else { epi.hasta = r.fecha; epi.dias++; epi.ksMin = Math.min(epi.ksMin, ks); } }
       else epi = null;
       dr = drFin;
