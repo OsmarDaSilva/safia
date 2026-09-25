@@ -500,6 +500,7 @@
   <script src="safia-balance.js"></script>
   <script src="safia-pasturas.js"></script>
   <script src="safia-clima.js"></script>
+  <script src="safia-ficha-agua.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
     let filtroActivo = 'todos';
@@ -742,6 +743,7 @@
       const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 
       return {
+        r: r,                                 // resultado completo del motor (para la ficha de agua)
         pct: r.porcentajeHoy,                 // % de agua útil HOY (driver de la recomendación)
         humedadMM: r.humedadHoyMM,
         deficitCC: r.deficitHastaCC,
@@ -908,6 +910,7 @@
             </div>
 
             ${recoHTML}
+            ${d.balance && d.balance.r && window.SafiaFichaAgua ? '<div style="margin-top:10px;">' + SafiaFichaAgua.html(d.balance.r, { equipo: d.equipo, compacta: true, titulo: false }) + '</div>' : ''}
             ${eventosMiniHTML}
           </div>
         `;

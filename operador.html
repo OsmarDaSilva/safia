@@ -779,6 +779,7 @@
           </div>
           <div class="reco-detalle" id="recoDetalle">—</div>
         </div>
+        <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div></div>
 
         <div class="botones-carga" id="botonesCarga" style="display:none;">
           <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
@@ -944,6 +945,7 @@
   <script src="safia-balance.js"></script>
   <script src="safia-pasturas.js"></script>
   <script src="safia-clima.js"></script>
+  <script src="safia-ficha-agua.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -1151,6 +1153,7 @@
                              : 'No se pudo calcular';
           detalle.textContent = SafiaClima.mensajeError(rClima.error);
           card.className = 'reco-card visible';
+          const fac = document.getElementById('fichaAguaCard'); if (fac) fac.style.display = 'none';
           return;
         }
         const datos = rClima.datos;
@@ -1222,6 +1225,8 @@
         detalle.innerHTML += `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, regar al ${U.CRITICO} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco.</div>`;
         if (r.pastura) detalle.innerHTML += SafiaPasturas.htmlTemperatura(r.pastura);
         detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
+        // Ficha de agua: medidor con aguja, próximo riego y el gráfico día por día (mismo motor)
+        try { const fa = document.getElementById('fichaAgua'); if (fa && window.SafiaFichaAgua) { fa.innerHTML = SafiaFichaAgua.html(r, { equipo }); document.getElementById('fichaAguaCard').style.display = fa.innerHTML ? 'block' : 'none'; } } catch (e) { console.warn('[SAFIA] ficha de agua:', e); }
 
       } catch (error) {
         // La red ya la maneja SafiaClima (sin internet / 502 / caché). Acá solo
