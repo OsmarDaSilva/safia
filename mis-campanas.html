@@ -1787,6 +1787,9 @@
       setTimeout(function () { recalcularLluviasDesactualizadas(); }, 1500);
       setTimeout(completarClimaFaltante, 3000);
       agregarCultivo();
+      // Llegó desde el Dashboard ("Cargar cosecha →"): abrir la ventana de cosecha de esa campaña
+      const idCosecha = new URLSearchParams(location.search).get('cosecha');
+      if (idCosecha) setTimeout(function () { const campanas = JSON.parse(localStorage.getItem('campanas') || '[]'); const c = campanas.find(x => String(x.id) === String(idCosecha)); if (c) abrirModalCosecha(c.id); }, 400);
     };
 
     function verificarEquipos() {
