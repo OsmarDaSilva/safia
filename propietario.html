@@ -402,6 +402,7 @@
 <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
 <script src="safia-balance.js"></script>
 <script src="safia-clima.js"></script>
+<script src="safia-ficha-agua.js"></script>
 <script>
   document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -764,7 +765,9 @@
       // Actualizar celda en tabla
       const notaSuelo = SafiaBalance.notaFallbackSuelo(r.suelo, { compact: true });
       const celdas = document.querySelectorAll('.estado-riego-' + campId);
-      celdas.forEach(c => c.innerHTML = badge + notaSuelo);
+      // Estado + barra con la aguja del agua útil (misma ficha que Operador, Encargado y Dashboard)
+      const mini = window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : '';
+      celdas.forEach(c => c.innerHTML = badge + notaSuelo + (mini ? '<div style="min-width:170px;">' + mini + '</div>' : ''));
 
       if (tipo) {
         alertas.push({ tipo, titulo: `${tipo==="urgente"?"🔴":"🟡"} ${eq?.nombre||"?"} — ${tipo==="urgente"?"Riego urgente":"Programar riego"}`, detalle: `Humedad ${pct.toFixed(0)}% del agua útil · ${campo.nombre}` });
