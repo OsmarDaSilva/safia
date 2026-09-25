@@ -29,7 +29,7 @@
     .hoja table.tbl thead th{background:#F2F3F5 !important;color:#41464B !important;font-size:10px !important;}
     .hoja table.tbl{font-size:11.5px !important;}
     .hoja .stat{min-width:auto !important;}
-    .hoja .badge{white-space:normal;}
+    .hoja .badge,.hoja .tbl span[style*="border-radius"]{white-space:nowrap;}
     .hoja .kpis{grid-template-columns:repeat(4,minmax(0,1fr));}
     .hoja .dos{grid-template-columns:repeat(2,minmax(0,1fr));}
     .hoja *{max-width:100%;}
@@ -74,7 +74,18 @@
     @media print{ .cfgcard{display:none !important;} }
     .hoja .statbar{display:flex;gap:8px;flex-wrap:wrap;border:0;padding:0;margin:8px 0;} .hoja .statbar .stat{flex:1 1 120px;} .hoja .sv.green{color:#178029;} .hoja .sv.red{color:#B3261E;}
     .hoja .tbl th:first-child,.hoja .tbl td:first-child{width:auto;}
-    .hoja .interp .tbl th:first-child,.hoja .interp .tbl td:first-child{width:16%;}
+    .hoja .interp .tbl{table-layout:fixed;}
+    .hoja .interp-suelo .tbl th:nth-child(1),.hoja .interp-suelo .tbl td:nth-child(1){width:13%;}
+    .hoja .interp-suelo .tbl th:nth-child(2),.hoja .interp-suelo .tbl td:nth-child(2){width:10%;}
+    .hoja .interp-suelo .tbl th:nth-child(3),.hoja .interp-suelo .tbl td:nth-child(3){width:13%;}
+    .hoja .interp-suelo .tbl th:nth-child(4),.hoja .interp-suelo .tbl td:nth-child(4){width:21%;}
+    .hoja .interp-suelo .tbl th:nth-child(5),.hoja .interp-suelo .tbl td:nth-child(5){width:43%;}
+    .hoja .interp-foliar .tbl th:nth-child(1),.hoja .interp-foliar .tbl td:nth-child(1){width:13%;}
+    .hoja .interp-foliar .tbl th:nth-child(2),.hoja .interp-foliar .tbl td:nth-child(2){width:9%;}
+    .hoja .interp-foliar .tbl th:nth-child(3),.hoja .interp-foliar .tbl td:nth-child(3){width:14%;}
+    .hoja .interp-foliar .tbl th:nth-child(4),.hoja .interp-foliar .tbl td:nth-child(4){width:15%;}
+    .hoja .interp-foliar .tbl th:nth-child(5),.hoja .interp-foliar .tbl td:nth-child(5){width:15%;}
+    .hoja .interp-foliar .tbl th:nth-child(6),.hoja .interp-foliar .tbl td:nth-child(6){width:34%;}
     @media print{
       @page{size:A4;margin:12mm 12mm 14mm;}
       body{background:#fff;} .barra{display:none !important;} .hoja{box-shadow:none;margin:0;padding:0;max-width:none;}

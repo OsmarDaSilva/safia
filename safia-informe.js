@@ -174,7 +174,7 @@
       html += '<div class="stats" style="margin-bottom:6px;">' + [['pH', a.ph, 1], ['MO %', a.mo, 2], ['P mg/dm³', a.p, 1], ['K cmolc', a.k, 2], ['Ca cmolc', a.ca, 2], ['Mg cmolc', a.mg, 2], ['CIC', a.cic, 2], ['V %', a.satBases, 1]].map(function (x) { return '<div class="stat"><div class="sl">' + x[0] + '</div><div class="sv">' + fmt(x[1], x[2]) + '</div></div>'; }).join('') + '</div>';
       if (window.SafiaAgro) {
         var interp = SafiaAgro.interpretarSuelo(a, cultivo);
-        html += '<div class="interp">' + SafiaAgro.tablaInterpretacion(interp) + '</div>';
+        html += '<div class="interp interp-suelo">' + SafiaAgro.tablaInterpretacion(interp) + '</div>';
         if (lista.length >= 2) {
           var ant = lista[lista.length - 2], cambios = [];
           [['ph', 'pH', 1], ['mo', 'MO', 2], ['p', 'P', 1], ['k', 'K', 2], ['ca', 'Ca', 2], ['mg', 'Mg', 2], ['satBases', 'V%', 1]].forEach(function (p) { if (a[p[0]] != null && ant[p[0]] != null && Math.abs(a[p[0]] - ant[p[0]]) > 0.001) cambios.push(p[1] + ' ' + flecha(a[p[0]] - ant[p[0]], p[2])); });
@@ -195,7 +195,7 @@
       alguno = true;
       var suelo = sueloActual(analisisDelLote(l.id));
       var est = SafiaFoliar.estadiosDe(a.cultivo).find(function (e) { return e.k === a.estadio; });
-      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · ' + esc(a.cultivo || '') + ' · muestreo del ' + fmtF(a.fecha) + (est ? ' · ' + esc(est.n) : '') + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</h3><div class="interp">' + SafiaFoliar.htmlLectura(a, suelo) + '</div></div>';
+      html += '<div class="seccion"><h3>' + esc(l.nombre) + ' · ' + esc(a.cultivo || '') + ' · muestreo del ' + fmtF(a.fecha) + (est ? ' · ' + esc(est.n) : '') + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</h3><div class="interp interp-foliar">' + SafiaFoliar.htmlLectura(a, suelo) + '</div></div>';
     });
     if (!alguno) html += '<div class="note">No hay análisis foliares cargados' + (equipoSel ? ' para este lote' : '') + '. Muestreando la hoja índice en floración, SAFIA compara con los rangos de Embrapa/Fertilizar y cruza con el suelo.</div>';
     return html;
