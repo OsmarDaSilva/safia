@@ -58,7 +58,11 @@
     .hoja img.sat{width:100%;max-width:340px;border-radius:8px;border:1px solid var(--bd);display:block;}
     .hoja .dos{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
     .hoja ol,.hoja ul{margin:6px 0 6px 18px;}
-    .hoja .seccion{break-inside:avoid;}
+    /* Un bloque grande (diagnóstico de un cultivo, plan de la meta) puede ocupar más de una hoja: si se le prohíbe cortarse, el navegador
+       lo manda entero a la hoja siguiente y deja una hoja EN BLANCO. Se deja cortar; lo que no se corta son los bloques chicos. */
+    .hoja .seccion{break-inside:auto;}
+    .hoja .seccion>h3,.hoja .card-h,.hoja h3{break-after:avoid;}
+    .hoja .note,.hoja .kpis,.hoja .kpi,.hoja .statbar,.hoja .stat{break-inside:avoid;}
     .hoja .salto{break-before:page;}
     .hoja .stats{display:flex;gap:8px;flex-wrap:wrap;} .hoja .stat{border:1px solid var(--bd);border-radius:8px;padding:6px 10px;min-width:120px;}
     .hoja .stat .sl{font-size:10px;color:#8C9196;text-transform:uppercase;} .hoja .stat .sv{font-size:15px;font-weight:800;color:#0F3D14;} .hoja .stat .ss{font-size:10px;color:#8C9196;}
