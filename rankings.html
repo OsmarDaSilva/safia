@@ -237,7 +237,7 @@
   }
 
   function tablaProductores(casos){
-    var g=agrupar(casos, function(f){return f.cliente+' · '+f.campo;});
+    var g=agrupar(casos, function(f){return (f.cliente?f.cliente+' · ':'')+f.campo;});
     var items=Object.keys(g).map(function(k){ var st=stats(g[k]); var mejor=g[k].reduce(function(a,b){return b.rindeKgHa>a.rindeKgHa?b:a;}); return {k:k, st:st, mejor:mejor}; }).sort(function(a,b){return b.mejor.rindeKgHa-a.mejor.rindeKgHa;});
     var max=items.length?items[0].mejor.rindeKgHa:0;
     var ambos=document.getElementById('fRiego').value==='ambos';

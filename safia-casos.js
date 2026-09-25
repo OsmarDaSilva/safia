@@ -17,8 +17,11 @@
 (function () {
   'use strict';
 
+  // Datos anónimos de la zona (clientes y operadores): campañas cosechadas de los demás productores, sin nombres,
+  // que la nube entrega ya filtradas (safia_datos_zona). Se suman a lo propio SOLO para armar casos de comparación.
+  function zona() { try { return JSON.parse(localStorage.getItem('zona') || 'null') || {}; } catch (e) { return {}; } }
   function leer(clave) {
-    try { var l = JSON.parse(localStorage.getItem(clave) || '[]'); return Array.isArray(l) ? l : []; }
+    try { var l = JSON.parse(localStorage.getItem(clave) || '[]'); l = Array.isArray(l) ? l : []; var z = zona()[clave]; return Array.isArray(z) && z.length ? l.concat(z) : l; }
     catch (e) { return []; }
   }
   function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? null : n; }

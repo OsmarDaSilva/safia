@@ -6,7 +6,14 @@
      Si Supabase está vacío y el navegador tiene datos, los sube
      (migración inicial automática).
    - Cada vez que la app guarda (localStorage.setItem) una de las
-     colecciones, sube los cambios a Supabase (altas, cambios y bajas).
+     colecciones, sube SOLO los registros que cambiaron (altas, cambios
+     y bajas, uno por uno): dos navegadores abiertos a la vez no se pisan.
+   - Al bajar, mezcla: lo que cambió en la nube entra, lo que este
+     navegador todavía no subió se conserva y se sube.
+   - Si entra otro usuario en el mismo navegador, se limpian los datos
+     del anterior antes de bajar los suyos.
+   - Clientes y operadores reciben además los "datos de la zona": las
+     campañas cosechadas de los demás, sin nombres (safia_datos_zona).
    - Si no hay internet o falla la CDN, la app sigue funcionando
      en modo local como siempre.
    Incluir en el <head> DESPUÉS de supabase-js:
@@ -105,10 +112,13 @@
     } catch (e) { return []; }
   }
 
-  // snapshot: ids que sabemos que existen en Supabase (para detectar bajas)
+  // huella corta de un registro (para saber si cambió sin guardar el registro entero)
+  function huella(x) { var s = textoEstable(x), h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + s.length.toString(36); }
+  // snapshot: { id: huella } de lo que sabemos que está en Supabase (para detectar cambios y bajas registro por registro)
   function claveSnap(clave) { return 'safia_snap_' + clave; }
-  function leerSnap(clave) { return leerLista(setGet(claveSnap(clave))); }
-  function guardarSnap(clave, ids) { setOriginal(claveSnap(clave), JSON.stringify(ids)); }
+  function leerSnap(clave) { try { var s = JSON.parse(setGet(claveSnap(clave)) || 'null'); if (Array.isArray(s)) { var o = {}; s.forEach(function (id) { o[String(id)] = ''; }); return o; } return s && typeof s === 'object' ? s : {}; } catch (e) { return {}; } }
+  function guardarSnap(clave, snap) { setOriginal(claveSnap(clave), JSON.stringify(snap)); }
+  function mapaPorId(lista) { var o = {}; (lista || []).forEach(function (x) { if (x && x.id !== undefined && x.id !== null) o[String(x.id)] = x; }); return o; }
 
   var _setItem = Storage.prototype.setItem;
   var _getItem = Storage.prototype.getItem;
@@ -155,50 +165,41 @@
 
   /* ---------- subir cambios a Supabase ---------- */
 
-  var subidasPendientes = {}; // anti-carrera: última subida por colección
+  var subiendo = {};   // por colección: promesa en curso (las subidas de la misma colección van en fila)
 
+  /* Sube SOLO lo que cambió respecto del snapshot: registros nuevos o modificados (upsert uno por uno
+     en un solo pedido) y bajas (ids que estaban en la nube y ya no están acá). Lo que no cambió no se toca,
+     así otro navegador que editó otro registro no se pisa. Si dos navegadores editan el MISMO registro,
+     queda el último que guardó. */
   function subirColeccion(clave, lista) {
     var tabla = TABLAS[clave];
-    var conId = lista.filter(function (x) { return x && x.id !== undefined && x.id !== null; });
-
-    // Red de seguridad: si dos elementos tienen el MISMO id, Postgres
-    // rechaza el upsert entero ("cannot affect row a second time") y se
-    // perdería todo lo que el usuario acaba de cargar. Nos quedamos con
-    // el último de cada id y avisamos por consola.
-    var porId = {};
-    conId.forEach(function (x) { porId[String(x.id)] = x; });
-    var unicos = Object.keys(porId).map(function (k) { return porId[k]; });
-    if (unicos.length !== conId.length) {
-      console.warn('SAFIA sync (' + clave + '): ' + (conId.length - unicos.length) +
-        ' elemento(s) con id repetido; se subió el último de cada uno.');
-    }
-
-    var ids = unicos.map(function (x) { return String(x.id); });
-    var filas = unicos.map(function (x) {
-      return { id: String(x.id), datos: x, actualizado_en: new Date().toISOString() };
-    });
-    var idsAnteriores = leerSnap(clave);
-    var borrar = idsAnteriores.filter(function (id) { return ids.indexOf(id) === -1; });
-
-    var marca = Date.now();
-    subidasPendientes[clave] = marca;
-
-    var p = filas.length
-      ? sb.from(tabla).upsert(filas)
-      : Promise.resolve({ error: null });
-
-    p.then(function (r) {
-      if (r.error) throw r.error;
-      if (borrar.length) return sb.from(tabla).delete().in('id', borrar);
-      return { error: null };
-    }).then(function (r) {
-      if (r && r.error) throw r.error;
-      if (subidasPendientes[clave] === marca) guardarSnap(clave, ids);
-      marcarEstado(true);
-    }).catch(function (e) {
-      console.error('SAFIA sync (' + clave + '):', e);
-      marcarEstado(false, e && e.message);
-    });
+    var porId = mapaPorId(lista);
+    var conId = (lista || []).filter(function (x) { return x && x.id !== undefined && x.id !== null; });
+    if (Object.keys(porId).length !== conId.length) console.warn('SAFIA sync (' + clave + '): hay ids repetidos; se sube el último de cada uno.');
+    var ejecutar = function () {
+      var snap = leerSnap(clave), ids = Object.keys(porId), ahora = new Date().toISOString();
+      var cambiados = ids.filter(function (id) { return snap[id] === undefined || snap[id] !== huella(porId[id]); });
+      var borrar = Object.keys(snap).filter(function (id) { return porId[id] === undefined; });
+      if (!cambiados.length && !borrar.length) return Promise.resolve();
+      var filas = cambiados.map(function (id) { return { id: id, datos: porId[id], actualizado_en: ahora }; });
+      var p = filas.length ? sb.from(tabla).upsert(filas) : Promise.resolve({ error: null });
+      return p.then(function (r) {
+        if (r.error) throw r.error;
+        cambiados.forEach(function (id) { snap[id] = huella(porId[id]); });
+        guardarSnap(clave, snap);
+        if (borrar.length) return sb.from(tabla).delete().in('id', borrar);
+        return { error: null };
+      }).then(function (r) {
+        if (r && r.error) throw r.error;
+        if (borrar.length) { var s2 = leerSnap(clave); borrar.forEach(function (id) { delete s2[id]; }); guardarSnap(clave, s2); }
+        marcarEstado(true);
+      }).catch(function (e) {
+        console.error('SAFIA sync (' + clave + '):', e);
+        marcarEstado(false, e && e.message);
+      });
+    };
+    subiendo[clave] = (subiendo[clave] || Promise.resolve()).then(ejecutar, ejecutar);
+    return subiendo[clave];
   }
 
   // interceptar los guardados de la app (también los que usan variables como clave)
@@ -211,7 +212,31 @@
 
   /* ---------- bajar datos de Supabase ---------- */
 
-  function sincronizarTodo() {
+  /* Mezcla lo local con lo que vino de la nube, registro por registro:
+       - registro que está en la nube y acá no cambió desde el snapshot → entra el de la nube
+       - registro que acá cambió y todavía no se subió → se conserva (y se sube después)
+       - registro que estaba en la nube (snapshot) y ya no está → alguien lo borró: se saca de acá
+       - registro nuevo de acá que la nube no tiene → se conserva (y se sube)
+     Devuelve { lista, snap, cambio } (cambio = lo local quedó distinto). Pura, para poder probarla. */
+  function fusionar(local, remoto, snap) {
+    var L = mapaPorId(local), Rm = mapaPorId(remoto), nuevoSnap = {}, salida = [], cambio = false, pendiente = false;
+    remoto.forEach(function (r) {
+      var id = String(r.id), l = L[id], hr = huella(r);
+      if (l !== undefined && snap[id] !== undefined && snap[id] !== huella(l)) { salida.push(l); nuevoSnap[id] = snap[id]; pendiente = true; }   // cambio local sin subir: gana lo local
+      else { salida.push(r); nuevoSnap[id] = hr; if (l === undefined || huella(l) !== hr) cambio = true; }
+    });
+    (local || []).forEach(function (l) {
+      if (!l || l.id === undefined || l.id === null) return;
+      var id = String(l.id); if (Rm[id] !== undefined) return;
+      if (snap[id] !== undefined) { cambio = true; return; }   // estaba en la nube y ya no: borrado por otro
+      salida.push(l); pendiente = true;                        // nuevo acá, todavía no subido
+    });
+    return { lista: salida, snap: nuevoSnap, cambio: cambio, pendiente: pendiente };
+  }
+
+  var sincronizando = null;
+  function sincronizarTodo(esArranque) {
+    if (sincronizando) return sincronizando;
     var claves = Object.keys(TABLAS);
     var huboCambios = false;
     var cadena = Promise.resolve();
@@ -224,26 +249,44 @@
             if (/does not exist|schema cache|PGRST205|relation/i.test(String(r.error.message || ''))) { console.warn('SAFIA sync: falta la tabla ' + TABLAS[clave] + ' en Supabase (correr su SQL). Se sigue con las demás.'); return; }
             throw r.error;
           }
-          var remoto = (r.data || []).map(function (f) { return f.datos; });
+          var remoto = (r.data || []).map(function (f) { return f.datos; }).filter(function (x) { return x && x.id !== undefined && x.id !== null; });
           remoto.sort(function (a, b) { return (parseFloat(a && a.id) || 0) - (parseFloat(b && b.id) || 0); });
-          var local = leerLista(setGet(clave));
+          var local = leerLista(setGet(clave)), snap = leerSnap(clave);
 
-          if (remoto.length === 0 && local.length > 0) {
-            // Supabase vacío y acá hay datos: primera migración, subimos
+          if (remoto.length === 0 && local.length > 0 && !Object.keys(snap).length) {
+            // Nube vacía, acá hay datos y nunca sincronizamos: primera migración, subimos todo
             subirColeccion(clave, local);
             return;
           }
-          guardarSnap(clave, remoto.map(function (x) { return String(x.id); }));
-          if (textoEstable(remoto) !== textoEstable(local)) {
-            setOriginal(clave, JSON.stringify(remoto));
-            huboCambios = true;
-          }
+          var f = fusionar(local, remoto, snap);
+          guardarSnap(clave, f.snap);
+          if (f.cambio) { setOriginal(clave, JSON.stringify(f.lista)); huboCambios = true; }
+          if (f.pendiente) subirColeccion(clave, f.lista);
         });
       });
     });
 
-    return cadena.then(function () {
+    // Datos anónimos de la zona (clientes y operadores): campañas cosechadas de los demás, sin nombres
+    cadena = cadena.then(function () {
+      if (!usuarioActual || usuarioActual.rol === 'admin' || usuarioActual.rol === 'propietario') { if (setGet('zona')) { setOriginal('zona', ''); window.localStorage.removeItem('zona'); } return; }
+      return sb.rpc('safia_datos_zona').then(function (r) {
+        if (r.error) { console.warn('SAFIA sync: datos de la zona no disponibles (' + r.error.message + ')'); return; }
+        var nuevo = r.data || {}; delete nuevo.generado;
+        var viejo = setGet('zona') || '';
+        var txt = JSON.stringify(nuevo);
+        if (txt !== viejo) { setOriginal('zona', txt); huboCambios = true; }
+      });
+    });
+
+    sincronizando = cadena.then(function () {
+      sincronizando = null;
       marcarEstado(true);
+      if (huboCambios && !esArranque) {
+        // Refresco periódico: no recargamos la pantalla (puede haber un formulario a medias); avisamos
+        try { window.dispatchEvent(new CustomEvent('safia:datos')); } catch (e) {}
+        avisarDatosNuevos();
+        return;
+      }
       if (huboCambios) {
         // Recargar UNA vez para que la página muestre los datos nuevos.
         // Protección contra bucle: si una diferencia es permanente (ej. un
@@ -264,9 +307,41 @@
         sessionStorage.setItem('safia_recargas_seguidas', '0');
       }
     }).catch(function (e) {
+      sincronizando = null;
       console.error('SAFIA sync (bajada):', e);
       marcarEstado(false, e && e.message);
     });
+    return sincronizando;
+  }
+
+  // Aviso discreto en la pastilla de la cuenta: hay datos nuevos de otro navegador o usuario
+  function avisarDatosNuevos() {
+    var n = document.getElementById('safiaSyncNombre'); if (!n || document.getElementById('safiaDatosNuevos')) return;
+    var a = document.createElement('a'); a.id = 'safiaDatosNuevos'; a.href = '#'; a.textContent = 'Hay datos nuevos · actualizar';
+    a.style.cssText = 'color:#ffd36b;font-weight:700;margin-left:6px;text-decoration:underline;';
+    a.addEventListener('click', function (ev) { ev.preventDefault(); ev.stopPropagation(); location.reload(); });
+    n.parentNode.insertBefore(a, n.nextSibling);
+  }
+
+  // Refresco periódico y al volver a la pestaña: así dos navegadores se ven los cambios sin recargar a mano
+  var INTERVALO_REFRESCO = 90000;
+  function programarRefresco() {
+    setInterval(function () { if (document.visibilityState === 'visible' && navigator.onLine !== false) sincronizarTodo(false); }, INTERVALO_REFRESCO);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') sincronizarTodo(false); });
+  }
+
+  // Cambio de usuario en el mismo navegador: los datos del anterior no pueden quedar (ni mezclarse)
+  function limpiarSiCambioUsuario(uid) {
+    var previo = setGet('safia_sync_uid') || '';
+    if (previo && previo === uid) return false;
+    if (previo) {
+      Object.keys(TABLAS).forEach(function (k) { window.localStorage.removeItem(k); window.localStorage.removeItem(claveSnap(k)); });
+      ['zona', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo', 'informe_meta'].forEach(function (k) { window.localStorage.removeItem(k); });
+      try { sessionStorage.removeItem('banco_campo'); } catch (e) {}
+      console.warn('SAFIA sync: cambió el usuario; se limpiaron los datos del anterior.');
+    }
+    setOriginal('safia_sync_uid', uid);
+    return !!previo;
   }
 
   /* ---------- usuario: nombre y rol (tabla safia_usuarios) ---------- */
@@ -331,6 +406,9 @@
     esAdmin: function () { return !!usuarioActual && (usuarioActual.rol === 'admin' || usuarioActual.rol === 'propietario') && (usuarioActual.estado || 'activo') === 'activo'; },
     esPropietario: function () { return !!usuarioActual && usuarioActual.rol === 'propietario' && (usuarioActual.estado || 'activo') === 'activo'; },
     estadoSync: function () { return estadoOk; },
+    fusionar: fusionar, huella: huella,
+    refrescar: function () { return sincronizarTodo(false); },
+    zona: function () { try { return JSON.parse(setGet('zona') || 'null') || null; } catch (e) { return null; } },
     sb: function () { return sb; },
     // administración (solo admin): lista completa y acciones vía la función safia-usuarios
     listarUsuarios: function () { return sb.from('safia_usuarios').select('*').order('estado').order('nombre').then(function (r) { if (r.error) throw new Error(r.error.message); return r.data || []; }); },
@@ -349,9 +427,10 @@
     }
     if (!sesion) { location.replace('login.html'); return; }
     insertarBarra(sesion.user && sesion.user.email);
+    limpiarSiCambioUsuario(String(sesion.user && sesion.user.id || ''));
     cargarUsuario(sesion.user).then(function (u) {
       if (u && u.estado && u.estado !== 'activo') { pantallaEspera(u); marcarEstado(false, 'acceso ' + u.estado); return; }
-      sincronizarTodo();
+      sincronizarTodo(true).then(programarRefresco);
     });
   }).catch(function (e) {
     console.error('SAFIA sync (sesión):', e);

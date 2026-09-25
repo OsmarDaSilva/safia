@@ -7,7 +7,13 @@
    Lo monta safia-sync.js cuando conoce al usuario (SafiaCuenta.montar).
    "Ver como" no cambia permisos: solo preselecciona el cliente / su
    primer campo y lote en Propietario, Encargado, Operador, Voz, Banco e
-   Informe (las claves que esas pantallas ya recuerdan). */
+   Informe (las claves que esas pantallas ya recuerdan).
+   Menú y permisos por rol (aplicarRol): propietario y admin ven todo;
+   el cliente no ve las pantallas de Irrigar (Clientes, Usuarios, Evaluar,
+   Precios, Copia de seguridad) y su cliente queda fijo en los selectores;
+   el operador solo ve Operador, Eventos, Encargado, Cargar por voz, Clima
+   y Predicción. El candado de verdad está en la base (RLS por cliente);
+   esto es solo para que cada uno vea su menú. */
 (function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
@@ -21,6 +27,56 @@
   var LEMA = 'Smart Agro Intelligence';
   window.SafiaMarca = { significado: SIGNIFICADO, traduccion: TRADUCCION, lema: LEMA, frase: function () { return SIGNIFICADO.join(' '); } };
   var usuario = null, abierto = false;
+
+  /* ---------- menú y permisos por rol ---------- */
+  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'backup.html', 'precios.html'];
+  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html'];
+  function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
+  function fueraDeRol(rol, pag) {
+    if (rol === 'operador') return PAGINAS_OPERADOR.indexOf(pag) < 0;
+    if (rol === 'cliente') return PAGINAS_IRRIGAR.indexOf(pag) >= 0;
+    return false;
+  }
+  function aplicarRol(u, confirmado) {
+    if (!u || esAlto(u)) return;
+    var rol = u.rol, pag = paginaActual();
+    // Redirigir solo con el usuario confirmado por la nube (el guardado en el navegador puede estar viejo)
+    if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : 'index.html'); return; }
+    var aplicar = function () {
+      document.querySelectorAll('aside a[href], nav a[href], .sidebar a[href]').forEach(function (a) {
+        var h = (a.getAttribute('href') || '').split(/[?#]/)[0].toLowerCase();
+        if (!/\.html$/.test(h)) return;
+        if (fueraDeRol(rol, h)) a.style.display = 'none';
+      });
+      // grupos del menú que quedaron sin enlaces visibles
+      document.querySelectorAll('.sidebar-grupo, .nav-title, .grupo').forEach(function (g) {
+        var n = g.nextElementSibling, alguno = false;
+        while (n && !n.classList.contains('sidebar-grupo') && !n.classList.contains('nav-title') && !n.classList.contains('grupo') && !n.classList.contains('sidebar-footer')) {
+          if (n.tagName === 'A' ? n.style.display !== 'none' : !!n.querySelector('a[href]:not([style*="display: none"])')) alguno = true;
+          n = n.nextElementSibling;
+        }
+        if (!alguno) g.style.display = 'none';
+      });
+      document.querySelectorAll('nav.nav').forEach(function (nv) { if (!nv.querySelector('a[href]:not([style*="display: none"])')) nv.style.display = 'none'; });
+      // cliente: su propio cliente queda elegido en los selectores de cliente
+      // (las pantallas llenan los selectores un rato después de cargar: se reintenta unas veces)
+      if (rol === 'cliente' && u.clienteId) {
+        var fijar = function () {
+          var falta = false;
+          ['cliente', 'filtroCliente', 'selCliente', 'propietarioCliente', 'fCliente', 'cliente_id'].forEach(function (id) {
+            var s = document.getElementById(id); if (!s || s.tagName !== 'SELECT' || s.value) return;
+            s.value = String(u.clienteId);
+            if (s.value) { try { s.dispatchEvent(new Event('change')); } catch (e) {} } else falta = true;
+          });
+          return falta;
+        };
+        [0, 300, 1000, 2500].forEach(function (ms) { setTimeout(fijar, ms); });
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicar); else aplicar();
+  }
+  // Lo antes posible, con el usuario que quedó guardado en el navegador (solo esconde el menú; no redirige)
+  try { aplicarRol(JSON.parse(localStorage.getItem('safia_usuario') || 'null'), false); } catch (e) {}
 
   function verComoActual() { try { return JSON.parse(localStorage.getItem('safia_ver_como') || 'null'); } catch (e) { return null; } }
   function esAlto(u) { return !!u && (u.rol === 'propietario' || u.rol === 'admin') && (u.estado || 'activo') === 'activo'; }
@@ -127,6 +183,7 @@
 
   function montar(u) {
     usuario = u || usuario; if (!usuario) return;
+    aplicarRol(usuario, true);
     var pill = $('safiaSyncBarra');
     if (!pill) {
       pill = document.createElement('div'); pill.id = 'safiaSyncBarra';
@@ -148,5 +205,5 @@
     franja();
   }
 
-  window.SafiaCuenta = { acerca: modalAcerca, montar: montar, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
+  window.SafiaCuenta = { acerca: modalAcerca, montar: montar, aplicarRol: aplicarRol, fueraDeRol: fueraDeRol, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
 })();
