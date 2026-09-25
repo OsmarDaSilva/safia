@@ -662,6 +662,7 @@
 <script src="safia-catalogo.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-sensores.js"></script>
+<script src="safia-fieldnet.js"></script>
 </head>
 <body>
 
@@ -771,7 +772,7 @@
           <h2>Campañas</h2>
           <div class="sub">Cargá los cultivos sembrados en cada equipo. Una campaña puede tener 1 o 2 cultivos (mixto).</div>
         </div>
-        <div class="actions"><span class="muted" id="topbarFecha">—</span></div>
+        <div class="actions"><button type="button" onclick="SafiaFieldnet.abrir()" style="padding:8px 13px;border:1px solid #E1E4E7;border-radius:9px;background:#fff;color:#2E3236;font-weight:700;font-size:12.5px;cursor:pointer;margin-right:10px;">Importar riego de FieldNET</button><span class="muted" id="topbarFecha">—</span></div>
       </div>
 
       <div class="contenedor">
@@ -1779,6 +1780,7 @@
       setTimeout(() => t.classList.remove('visible'), 3000);
     }
 
+    window.addEventListener('safia:fieldnet', function () { try { mostrarCampanas(); } catch (e) {} });
     window.onload = function() {
       verificarEquipos();
       cargarSelectorEquipos();
