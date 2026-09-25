@@ -161,6 +161,7 @@
           insumos: (c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }),
           manejo: window.SafiaInsumos ? SafiaInsumos.resumen((c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }), aplicacionesDeEventos(c.equipoId, siembra, cosecha), c.manejoCompleto) : null,
           rindeKgHa: rinde,
+          precioUSDt: (function () { var co = (c.cosechas && c.cosechas[i]) || (i === 0 ? c.cosecha : null); return co && co.precioUSDt != null ? num(co.precioUSDt) : null; })(),   // precio de venta congelado con la cosecha
           objetivoKgHa: num(cu.rendimientoObj),
           lluviaMM: lluvia, riegoMM: riego,
           aguaTotalMM: (lluvia != null || riego != null) ? (lluvia || 0) + (riego || 0) : null,

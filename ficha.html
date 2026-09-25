@@ -57,6 +57,8 @@
 <script src="safia-pasturas.js"></script>
 <script src="safia-ficha.js"></script>
 <script src="safia-nutrientes.js"></script>
+<script src="safia-meta.js"></script>
+<script src="safia-precios.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 </head>
 <body>
@@ -77,6 +79,7 @@
         <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
         <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
         <a href="ficha.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>Ficha de campaña</a>
+        <a href="precios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Precios</a>
         <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
         <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Referencia agrícola</a>
         <a href="referencia-forraje.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg>Referencia forrajera</a>
@@ -198,6 +201,7 @@
           <div class="field"><label>Producción total (kg)</label><input type="number" id="fCosechaKg" min="0"></div>
           <div class="field"><label>Superficie cosechada (ha)</label><input type="number" id="fCosechaSup" step="0.1" min="0" placeholder="Si es distinta"></div>
           <div class="field"><label>Humedad (%)</label><input type="number" id="fCosechaHumedad" step="0.1" min="0" placeholder="14"></div>
+          <div class="field"><label>Precio de venta (US$/t) <span class="hint">queda congelado con la cosecha</span></label><input type="number" id="fCosechaPrecio" step="1" min="0" placeholder="vigente"></div>
           <div class="field"><label>Destino</label><select id="fCosechaDestino"></select></div>
           <div class="field full"><label>Observaciones</label><textarea id="fObs" placeholder="Lo que valga la pena recordar de esta campaña"></textarea></div>
         </div>
@@ -336,7 +340,7 @@
         labores: [...$('fLabores').querySelectorAll('input:checked')].map(i => i.value), observaciones: $('fObs').value,
         sistemaPastoreo: $('fSistemaPastoreo').value, piquetes: $('fPiquetes').value, diasOcupacion: $('fOcupacion').value, diasDescanso: $('fDescanso').value,
         insumos: insumos.filter(i => i.producto || i.categoria), reemplazarInsumos: !!fichaCargada, manejoCompleto: $('fManejoCompleto').checked,
-        cosecha: { fecha: $('fCosechaFecha').value, produccionKg: $('fCosechaKg').value, superficie: $('fCosechaSup').value, humedad: $('fCosechaHumedad').value, destino: $('fCosechaDestino').value, riegoMM: $('fRiegoMM').value, lluviaMM: $('fLluviaMM').value, observaciones: $('fObs').value }
+        cosecha: { fecha: $('fCosechaFecha').value, produccionKg: $('fCosechaKg').value, superficie: $('fCosechaSup').value, humedad: $('fCosechaHumedad').value, precioUSDt: $('fCosechaPrecio').value, destino: $('fCosechaDestino').value, riegoMM: $('fRiegoMM').value, lluviaMM: $('fLluviaMM').value, observaciones: $('fObs').value }
       };
     }
     function pintarFicha(f) {
@@ -348,7 +352,7 @@
       $('fSistemaPastoreo').value = f.sistemaPastoreo || ''; $('fPiquetes').value = f.piquetes || ''; $('fOcupacion').value = f.diasOcupacion || ''; $('fDescanso').value = f.diasDescanso || '';
       insumos = (f.insumos || []).map(i => Object.assign({}, i)); pintarInsumos(); $('fManejoCompleto').checked = !!f.manejoCompleto;
       const co = f.cosecha || {};
-      $('fCosechaFecha').value = co.fecha || ''; $('fCosechaKg').value = co.produccionKg || ''; $('fCosechaSup').value = co.superficie || ''; $('fCosechaHumedad').value = co.humedad || ''; $('fCosechaDestino').value = co.destino || 'cooperativa'; $('fRiegoMM').value = co.riegoMM != null ? co.riegoMM : ''; $('fLluviaMM').value = co.lluviaMM != null ? co.lluviaMM : ''; $('fObs').value = f.observaciones || co.observaciones || '';
+      $('fCosechaFecha').value = co.fecha || ''; $('fCosechaKg').value = co.produccionKg || ''; $('fCosechaSup').value = co.superficie || ''; $('fCosechaHumedad').value = co.humedad || ''; $('fCosechaPrecio').value = co.precioUSDt != null ? co.precioUSDt : ''; $('fCosechaDestino').value = co.destino || 'cooperativa'; $('fRiegoMM').value = co.riegoMM != null ? co.riegoMM : ''; $('fLluviaMM').value = co.lluviaMM != null ? co.lluviaMM : ''; $('fObs').value = f.observaciones || co.observaciones || '';
       calcRinde();
     }
     function limpiarCampos(todo) {
@@ -446,7 +450,7 @@
       if (!fichaCargada) return;
       const cambio = SafiaFicha.fechaISO($('fFechaSiembra').value) !== SafiaFicha.fechaISO(fichaCargada.fechaSiembra) || $('fCultivo').value !== fichaCargada.cultivo;
       if (!cambio) return;
-      ['fCosechaFecha', 'fCosechaKg', 'fCosechaSup', 'fCosechaHumedad', 'fRiegoMM', 'fLluviaMM', 'fObs'].forEach(id => { $(id).value = ''; });
+      ['fCosechaFecha', 'fCosechaKg', 'fCosechaSup', 'fCosechaHumedad', 'fCosechaPrecio', 'fRiegoMM', 'fLluviaMM', 'fObs'].forEach(id => { $(id).value = ''; });
       insumos.forEach(i => { i.fecha = ''; }); pintarInsumos(); calcRinde();
       $('fNombre').dataset.auto = '1'; sugerirNombre();
       $('estadoGuardado').innerHTML = '<span style="color:#8a5713;">Cambiaste el cultivo o la fecha de siembra: al guardar se crea una <b>campaña nueva</b> usando la anterior como modelo. La vieja no se toca. Se limpiaron la cosecha y los totales de riego; revisá insumos y labores.</span>';

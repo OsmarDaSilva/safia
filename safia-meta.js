@@ -104,12 +104,12 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function prom(a) { var v = a.filter(function (x) { return x != null && !isNaN(x); }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
-  function precios() {
-    var p = JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
-    try { var g = JSON.parse(localStorage.getItem('safia_precios') || '{}'); Object.keys(g).forEach(function (k) { if (k === 'granoUSDt') Object.assign(p.granoUSDt, g.granoUSDt || {}); else if (g[k] != null && g[k] !== '') p[k] = parseFloat(g[k]); }); } catch (e) {}
-    return p;
+  // Precios VIGENTES (Datos → Precios, con historial y sincronizados). El viejo 'safia_precios' del navegador ya no se usa.
+  function precios(fecha) {
+    if (window.SafiaPrecios) return fecha ? SafiaPrecios.en(fecha) : SafiaPrecios.vigentes().precios;
+    return JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
   }
-  function guardarPrecios(p) { try { localStorage.setItem('safia_precios', JSON.stringify(p)); } catch (e) {} }
+  function guardarPrecios(p) { if (window.SafiaPrecios) SafiaPrecios.actualizar(p); }
 
   /* ---------- los que ya cosechan la meta (o los mejores) en la zona ---------- */
   function benchmark(caso, meta, casos) {
@@ -319,20 +319,26 @@
   /* ---------- proyección a varios años, con los otros cultivos del lote ---------- */
   // otros: casos cosechados del mismo lote con otro cultivo (el mejor de cada uno). Las mejoras del suelo
   // (alcance 'lote') también los benefician; las de manejo solo al cultivo del plan.
-  function proyeccion(pl, otros, pr, anios) {
-    anios = anios || 5; pr = pr || precios();
+  function proyeccion(pl, otros, pr, anios, metaOtro) {
+    anios = anios || 5; pr = pr || precios(); metaOtro = num(metaOtro);
     var e = pl.economia, actual = pl.actual;
     var suelo = pl.items.filter(function (i) { return i.alcance === 'lote' && !i.condicional; }), manejo = pl.items.filter(function (i) { return i.alcance === 'cultivo' && !i.condicional; });
     var mid = function (l) { return l.reduce(function (a, i) { return a + (i.aporteMin + i.aporteMax) / 2; }, 0); };
     var apSuelo = Math.min(mid(suelo), 0.35), apManejo = Math.min(mid(manejo), 0.30);
     var extraPleno = Math.min(pl.meta - actual, Math.round(actual * (apSuelo + apManejo)));   // kg/ha del cultivo del plan en régimen
     var partSuelo = (apSuelo + apManejo) > 0 ? apSuelo / (apSuelo + apManejo) : 0;
+    // Los otros cultivos del lote (ej. el maíz en un lote de soja) también rinden más con el suelo mejorado.
+    // Sin meta propia: extra = rinde actual × aporte del suelo (máx. 25 %). Con meta propia (metaOtro): extra = meta − actual,
+    // y el gasto adicional es la manutención por tonelada extra del manual RS/SC (Tabela 6.1.2) más el N por tonelada.
     var cultivosOtros = (otros || []).map(function (c) {
       var cu = claveCultivo(c.cultivo), precio = pr.granoUSDt[cu] || pr.granoUSDt.otro;
-      var extra = Math.round(c.rindeKgHa * Math.min(apSuelo, 0.25));                          // solo mejoras del suelo
+      var conMeta = metaOtro && metaOtro > c.rindeKgHa;
+      var extra = conMeta ? Math.round(metaOtro - c.rindeKgHa) : Math.round(c.rindeKgHa * Math.min(apSuelo, 0.25));
+      var man = window.SafiaFertilidad ? SafiaFertilidad.manutencion(c.cultivo, 99).base : null;   // addP/addK por t extra
       var perfil = window.SafiaAgro ? SafiaAgro.perfilCultivo(c.cultivo) : { expP: 10, expK: 10 };
-      var reposicion = extra / 1000 * (perfil.expP * pr.p2o5USDkg + perfil.expK * pr.k2oUSDkg + (N_POR_T[cu] || 0) * pr.nUSDkg); // reponer lo que se lleva el extra
-      return { cultivo: c.cultivo, actual: c.rindeKgHa, extraPleno: extra, precio: precio, reposicion: reposicion };
+      var pT = man ? man.addP : perfil.expP, kT = man ? man.addK : perfil.expK;
+      var reposicion = extra / 1000 * (pT * pr.p2o5USDkg + kT * pr.k2oUSDkg + (cu === 'soja' ? 0 : 15) * pr.nUSDkg);   // manutención adicional + N (15 kg/t, RS/SC maíz)
+      return { cultivo: c.cultivo, actual: c.rindeKgHa, meta: conMeta ? metaOtro : null, extraPleno: extra, precio: precio, reposicion: reposicion, pctExtra: c.rindeKgHa ? extra / c.rindeKgHa * 100 : null };
     });
     var filas = [], acumulado = 0, payback = null;
     for (var y = 1; y <= anios; y++) {
@@ -365,6 +371,8 @@
     html += '<div style="font-size:13px;line-height:1.6;margin-bottom:8px;">' +
       '<div><b>Inversión inicial</b> = preparar el suelo una sola vez (calcáreo, yeso, subsolado, corrección de P y K); dura 3–5 años y mejora el suelo para <b>todos</b> los cultivos del lote; cuando vence se repone (aparece de nuevo en la tabla). <b>Gasto adicional por año</b> = lo que se agrega cada campaña <b>sobre lo que ya gastás hoy</b> para sostener el rinde más alto: reponer el fósforo y potasio que se llevan los kilos extra (de los dos cultivos) y las prácticas nuevas. Si no se sostiene, el suelo vuelve atrás en 2–3 campañas.</div>' +
       '<div>El primer año los correctivos rinden a la mitad (el calcáreo tarda 6–12 meses); desde el segundo, pleno. En ' + esc(pl.cultivo).toLowerCase() + ' se estima <b>+' + fmt(py.extraPleno, 0) + ' kg/ha</b> en régimen' + (otros.length ? '; en ' + otros.map(function (o) { return esc(o.cultivo).toLowerCase() + ' <b>+' + fmt(o.extraPleno, 0) + ' kg/ha</b> (solo por la mejora del suelo)'; }).join(' y ') : '') + '.</div></div>';
+    // el otro cultivo del lote (maíz en un lote de soja): qué gana y qué cuesta sostenerlo
+    if (otros.length) html += '<div class="note ok" style="margin:0 0 10px;">' + otros.map(function (o) { return '<div>El <b>' + esc(o.cultivo).toLowerCase() + '</b> del mismo lote pasa de <b>' + fmt(o.actual, 0) + '</b> a <b>' + fmt(o.actual + o.extraPleno, 0) + ' kg/ha</b> (' + (o.meta ? 'la meta que fijaste' : 'solo por el suelo mejorado, +' + fmt(o.pctExtra, 0) + ' %; poné su meta en Opciones del plan si querés otra') + ') = <b>US$ ' + fmt(o.extraPleno / 1000 * o.precio, 0) + '/ha más por campaña</b>, con US$ ' + fmt(o.reposicion, 0) + '/ha más de fertilizante para sostenerlo (grano a US$ ' + fmt(o.precio, 0) + '/t).</div>'; }).join('') + '<div>Los ' + (otros.length + 1) + ' cultivos juntos, en régimen: <b>US$ ' + fmt(py.ingresoRegimen, 0) + '/ha de ingreso extra por año</b> contra US$ ' + fmt(py.recurrenteRegimen, 0) + ' de gasto adicional' + (py.payback ? '; la inversión se paga en ' + py.payback + ' año(s)' : '') + '.</div></div>';
     html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Año</th><th class="r">Inversión inicial</th><th class="r">Gasto adicional</th><th class="r">Extra ' + esc(pl.cultivo) + '</th>' + otros.map(function (o) { return '<th class="r">Extra ' + esc(o.cultivo) + '</th>'; }).join('') + '<th class="r">Ingreso extra</th><th class="r">Resultado del año</th><th class="r">Acumulado</th></tr></thead><tbody>' +
       py.filas.map(function (f) {
         return '<tr><td><b>Año ' + f.anio + '</b></td><td class="r">' + (f.inversion ? 'US$ ' + fmt(f.inversion, 0) : '<span class="muted">—</span>') + '</td><td class="r">US$ ' + fmt(f.recurrente, 0) + '</td><td class="r">' + fmt(f.extraPlan, 0) + ' kg<div class="sub">US$ ' + fmt(f.usdPlan, 0) + '</div></td>' +
@@ -493,7 +501,7 @@
     var otros = {};
     r.casos.filter(function (x) { return String(x.campoId) === String(campo.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && claveCultivo(x.cultivo) !== claveCultivo(c.cultivo); })
       .forEach(function (x) { var k = claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
-    var py = proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5);
+    var py = proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5, opciones.metaOtro);
     return { caso: c, pl: pl, py: py, casos: r.casos, prof: r.prof };
   }
 

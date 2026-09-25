@@ -126,7 +126,7 @@
     var co = f.cosecha;
     if (!pastura && co && fechaISO(co.fecha) && num(co.produccionKg) > 0) {
       var sup = num(co.superficie) || num(camp.cultivos[cIdx].superficie) || (eq && num(eq.superficie)) || 0, prod = num(co.produccionKg);
-      var cosecha = { fecha: fechaISO(co.fecha), superficie: sup, produccionKg: prod, humedad: num(co.humedad) || 14, rendimientoNeto: sup > 0 ? Math.round(prod / sup) : 0, destino: porNombreOClave(DESTINOS, co.destino) || 'cooperativa', observaciones: String(co.observaciones || '').trim(),
+      var cosecha = { fecha: fechaISO(co.fecha), superficie: sup, produccionKg: prod, humedad: num(co.humedad) || 14, precioUSDt: num(co.precioUSDt) != null ? num(co.precioUSDt) : (window.SafiaPrecios ? SafiaPrecios.precioGrano(cultivo, fechaISO(co.fecha)) : null), rendimientoNeto: sup > 0 ? Math.round(prod / sup) : 0, destino: porNombreOClave(DESTINOS, co.destino) || 'cooperativa', observaciones: String(co.observaciones || '').trim(),
         riegoMM: num(co.riegoMM), lluviaMM: num(co.lluviaMM), lluviaAuto: false, fechaRegistro: ahora };
       camp.cosechas = camp.cosechas || {}; camp.cosechas[cIdx] = cosecha;
       if (cIdx === 0 || !camp.cosecha) camp.cosecha = cosecha;
@@ -149,7 +149,7 @@
     return { campanaId: camp.id, campoId: (leer('equipos').find(function (e) { return String(e.id) === String(camp.equipoId); }) || {}).campoId, manejoCompleto: !!camp.manejoCompleto, equipoId: camp.equipoId, nombre: camp.nombre || '', cultivo: cu.cultivo || '', variedad: cu.variedad || '', finalidad: cu.finalidad || 'Granos Comercial', fechaSiembra: cu.fechaSiembra || '', fechaCosechaEstimada: cu.fechaCosecha && !cu.rendimientoReal ? cu.fechaCosecha : '', superficie: cu.superficie || '', densidad: cu.densidad || '', cultivoAnterior: cu.cultivoAnterior || '', cobertura: cu.cobertura || '', coberturaManejo: cu.coberturaManejo || '', sistemaSiembra: cu.sistemaSiembra || '', consorcio: cu.consorcio || '', labores: cu.labores || [], encaladoTnHa: cu.encaladoTnHa || '', fertilizacion: cu.fertilizacion || '', rendimientoObj: cu.rendimientoObj || '', observaciones: camp.observaciones || '',
       sistemaPastoreo: cu.sistemaPastoreo || '', piquetes: cu.piquetes || '', diasOcupacion: cu.diasOcupacion || '', diasDescanso: cu.diasDescanso || '',
       insumos: (camp.insumos || []).filter(function (i) { return i.cultivoIdx == null || i.cultivoIdx === (cultivoIdx || 0); }),
-      cosecha: co && co.fecha ? { fecha: co.fecha, produccionKg: co.produccionKg, superficie: co.superficie, humedad: co.humedad, destino: co.destino, riegoMM: co.riegoMM, lluviaMM: co.lluviaMM, observaciones: co.observaciones } : {} };
+      cosecha: co && co.fecha ? { fecha: co.fecha, produccionKg: co.produccionKg, superficie: co.superficie, humedad: co.humedad, precioUSDt: co.precioUSDt, destino: co.destino, riegoMM: co.riegoMM, lluviaMM: co.lluviaMM, observaciones: co.observaciones } : {} };
   }
 
   /* ---------- planilla Excel por cliente ---------- */

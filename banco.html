@@ -68,6 +68,7 @@
 <script src="safia-ndvi.js"></script>
 <script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
+<script src="safia-precios.js"></script>
 <script src="safia-foliar.js"></script>
 <script src="safia-sensores.js"></script>
 <script src="safia-balance.js"></script>
@@ -457,6 +458,7 @@
               <div class="muted" style="font-size:12px;margin-top:6px;">El <b>calcáreo</b> se calcula siempre solo con el análisis (V% actual → V% objetivo × CIC): si el lote lo necesita aparece con su dosis en el bloque 1. Acá podés fijar otra dosis, y sumar lo que el análisis de 0–20 cm no puede justificar por sí solo.</div>
               <div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;margin-top:8px;">
                 <label style="display:flex;align-items:center;gap:6px;">Calcáreo, dosis fija: <input type="number" id="opCalcareo" step="0.1" min="0" placeholder="t/ha" style="width:80px;"> <span class="muted">(vacío = la calculada por V%)</span></label>
+                <label style="display:flex;align-items:center;gap:6px;">Meta del otro cultivo del lote (ej. maíz): <input type="number" id="opMetaOtro" step="100" min="0" placeholder="kg/ha" style="width:100px;"> <span class="muted">(vacío = solo lo que gana por el suelo mejorado)</span></label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opPrep" onchange="document.querySelectorAll('#opYeso,#opSubsolado,#opNivelacion,#opPK').forEach(function(x){x.checked=this.checked}.bind(this))"> <b>Preparación completa del lote</b> (marca todo lo de abajo)</label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opYeso"> Yeso en el perfil (50 × % arcilla) aunque falte el análisis de 20–60 cm</label>
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="opSubsolado"> Subsolado / descompactación</label>
@@ -467,7 +469,7 @@
             </details>
             <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;">Precios y costos usados (editables, se guardan en este navegador)</summary>
               <div class="form-grid" id="metaPrecios" style="margin-top:8px;"></div>
-              <div class="form-actions"><span class="spacer" style="flex:1"></span><button class="btn" id="btnMetaPreciosDefault">Volver a los valores por defecto</button><button class="btn green" id="btnMetaPreciosGuardar">Guardar precios</button></div>
+              <div class="form-actions"><span class="spacer" style="flex:1"></span><button class="btn" id="btnMetaPreciosDefault">Volver a los precios vigentes</button><a class="btn green" id="btnMetaPreciosGuardar" href="precios.html" style="text-decoration:none;">Actualizar precios vigentes (Datos → Precios)</a></div>
             </details>
           </div>
           <div id="metaSeguimiento"></div>
@@ -827,15 +829,14 @@
   }
   window.metaAtajo = function (pct) { var c = casoMeta(); if (c) document.getElementById('metaKg').value = Math.round(c.rindeKgHa * (1 + pct / 100) / 100) * 100; return false; };
   document.getElementById('metaCaso').addEventListener('change', function () { document.getElementById('metaKg').value = ''; document.getElementById('metaResultado').innerHTML = ''; alCambiarCasoMeta(); });
-  document.getElementById('btnMetaPreciosGuardar').addEventListener('click', function () { SafiaMeta.guardarPrecios(leerPreciosMeta()); toast('Precios guardados'); });
-  document.getElementById('btnMetaPreciosDefault').addEventListener('click', function () { localStorage.removeItem('safia_precios'); pintarPreciosMeta(); toast('Precios por defecto'); });
+  document.getElementById('btnMetaPreciosDefault').addEventListener('click', function () { pintarPreciosMeta(); toast('Precios vigentes cargados'); });
   document.getElementById('btnMetaCalcular').addEventListener('click', function () {
     var c = casoMeta(), meta = num(document.getElementById('metaKg').value), out = document.getElementById('metaResultado');
     if (!c) { toast('Este lote no tiene campañas cosechadas todavía', true); return; }
     if (!meta || meta <= c.rindeKgHa) { toast('La meta tiene que ser mayor al rinde actual (' + fmt(c.rindeKgHa, 0) + ')', true); return; }
     var prof = analisisRepresentativos(leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campoActual.id); }));
     var pr = leerPreciosMeta();
-    var opciones = { calcareoTnHa: num(document.getElementById('opCalcareo').value) || 0, preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
+    var opciones = { metaOtro: num(document.getElementById('opMetaOtro').value) || 0, calcareoTnHa: num(document.getElementById('opCalcareo').value) || 0, preparacionCompleta: document.getElementById('opPrep').checked, yeso: document.getElementById('opYeso').checked, subsolado: document.getElementById('opSubsolado').checked, nivelacion: document.getElementById('opNivelacion').checked, construirPK: document.getElementById('opPK').checked, otrosUSD: num(document.getElementById('opOtrosUSD').value) || 0, otrosDetalle: document.getElementById('opOtrosDetalle').value.trim() };
     // El plan mira hacia adelante: usa el análisis más reciente del lote (o del campo), no el que había al cosechar
     var recientes = prof.filter(function (a) { return String(a.equipoId || '') === String(c.equipoId || ''); });
     if (!recientes.length) recientes = prof.filter(function (a) { return !a.equipoId; });
@@ -849,7 +850,7 @@
     var otros = {};
     metaCasos.filter(function (x) { return String(x.campoId) === String(campoActual.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && SafiaMeta.claveCultivo(x.cultivo) !== SafiaMeta.claveCultivo(c.cultivo); })
       .forEach(function (x) { var k = SafiaMeta.claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
-    var py = SafiaMeta.proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5);
+    var py = SafiaMeta.proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5, opciones.metaOtro);
     out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + (c.esNueva ? ' ' + esc(c.campana) : '') + ' de ' + fmt(c.rindeKgHa, 0) + (c.esNueva ? ' (base ' + esc(c.baseCampana) + ')' : '') + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn" onclick="window.print()">Imprimir plan</button>' + (window.SafiaSeguimiento && SafiaSeguimiento.ubicar(c) && !c.rindeKgHaReal && (c.esNueva || !c.cosecha) ? '<button class="btn green" id="btnMetaGuardar">Guardar esta meta para la campaña y seguirla</button>' : '') + '</div>';
     var bg = document.getElementById('btnMetaGuardar');

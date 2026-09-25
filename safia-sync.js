@@ -44,7 +44,8 @@
     analisis_suelo:  'safia_analisis',
     planes_rotacion: 'safia_planes',
     analisis_foliar: 'safia_foliar',
-    clima_estacion:  'safia_clima_estacion'
+    clima_estacion:  'safia_clima_estacion',
+    precios:         'safia_precios'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);
