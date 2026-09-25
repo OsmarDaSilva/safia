@@ -144,14 +144,27 @@
     return s + leyenda + resumen;
   }
 
+  /* ---------- 0. mini: barra con aguja para listas (Dashboard) ---------- */
+  function mini(r) {
+    if (!r || r.porcentajeHoy == null) return '';
+    estilos();
+    var U = umbrales(r), pct = Math.max(0, Math.min(100, num(r.porcentajeHoy) || 0)), banda = bandaDe(pct, U);
+    var hoy = (r.dias || []).filter(function (d) { return d.esHoy; })[0] || (r.dias || [])[0] || {}, ayer = (r.pasado || [])[(r.pasado || []).length - 1] || null;
+    var bandas = [['estres', 0, U.URGENTE], ['regar', U.URGENTE, U.CRITICO], ['atencion', U.CRITICO, U.ATENCION], ['optimo', U.ATENCION, 95], ['lleno', 95, 100]];
+    return '<div class="fa-mini"><div class="fa-mini-barra">' + bandas.map(function (b) { return '<i style="width:' + Math.max(0, b[2] - b[1]) + '%;background:' + COL[b[0]] + '"></i>'; }).join('') +
+      '<b class="fa-mini-aguja" style="left:' + pct.toFixed(1) + '%"></b></div>' +
+      '<div class="fa-mini-txt"><span style="color:' + COL[banda] + ';font-weight:800;">' + fmt(pct, 0) + ' %</span> agua útil' + (hoy.etcDia != null ? ' · ETc hoy ' + fmt(hoy.etcDia, 1) + ' mm' : '') + (ayer ? ' · lluvia ayer ' + fmt(ayer.lluviaBruta, 0) + ' mm' : '') + '</div></div>';
+  }
+
   /* ---------- armado ---------- */
   var CSS = '.fa{font-family:inherit;color:#2E3236}.fa-medidor{position:relative;padding:26px 0 16px}.fa-bandas{display:flex;height:14px;border-radius:7px;overflow:hidden}.fa-banda{height:100%}' +
     '.fa-aguja{position:absolute;top:0;transform:translateX(-50%);text-align:center;pointer-events:none}.fa-aguja-valor{font-size:12px;font-weight:800;background:#2E3236;color:#fff;padding:2px 7px;border-radius:6px;white-space:nowrap}.fa-aguja-punta{width:0;height:0;margin:1px auto 0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid #2E3236}' +
-    '.fa-marcas{position:relative;height:14px;font-size:9.5px;color:#8C9196}.fa-marcas span{position:absolute;transform:translateX(-50%);top:3px}.fa-marcas span:first-child{transform:none}.fa-marcas span:last-child{transform:translateX(-100%)}' +
+    '.fa-marcas{position:relative;height:14px;font-size:9.5px;color:#8C9196}.fa-marcas span{position:absolute;transform:translateX(-50%);top:3px;white-space:nowrap}.fa-marcas span:first-child{transform:none}.fa-marcas span:last-child{transform:translateX(-100%)}' +
     '.fa-medidor-texto{font-size:12px;color:#5B6167;line-height:1.45}' +
     '.fa-titular{border-left:4px solid #178029;background:#F7F8F9;border-radius:10px;padding:10px 14px;margin:10px 0}.fa-titular-txt{font-size:17px;font-weight:800;line-height:1.2}.fa-titular-det{font-size:12.5px;color:#5B6167;margin-top:3px;line-height:1.45}' +
     '.fa-svg{width:100%;height:210px;display:block;margin-top:6px}.fa-leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:#5B6167;margin-top:4px}.fa-leyenda i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px}' +
-    '.fa-resumen{font-size:12px;color:#5B6167;margin-top:6px;line-height:1.5}.fa-vacio{font-size:12px;color:#8C9196;padding:8px 0}.fa-titulo{font-size:11.5px;font-weight:700;color:#178029;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}';
+    '.fa-mini{display:flex;align-items:center;gap:8px;margin-top:4px}.fa-mini-barra{position:relative;flex:1;height:8px;border-radius:4px;overflow:visible;display:flex;min-width:90px;max-width:220px}.fa-mini-barra i{display:block;height:100%}.fa-mini-barra i:first-child{border-radius:4px 0 0 4px}.fa-mini-barra i:last-child{border-radius:0 4px 4px 0}.fa-mini-aguja{position:absolute;top:-5px;width:0;height:0;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #2E3236}.fa-mini-txt{font-size:11px;color:#5B6167;line-height:1.3}' +
+    '.fa-resumen{font-size:12px;color:#5B6167;margin-top:6px;line-height:1.5}@media(max-width:600px){.fa-svg{height:170px}.fa-titular-txt{font-size:15px}.fa-mini-txt{white-space:normal}}.fa-vacio{font-size:12px;color:#8C9196;padding:8px 0}.fa-titulo{font-size:11.5px;font-weight:700;color:#178029;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}';
   function estilos() { if (document.getElementById('safiaFichaAguaCss')) return; var st = document.createElement('style'); st.id = 'safiaFichaAguaCss'; st.textContent = CSS; document.head.appendChild(st); }
   function html(r, opciones) {
     opciones = opciones || {}; estilos();
@@ -162,5 +175,5 @@
     if (!opciones.compacta) h += grafico(r, { diasAtras: opciones.diasAtras || 30 });
     return h + '</div>';
   }
-  window.SafiaFichaAgua = { html: html, medidor: medidor, titular: titular, grafico: grafico, proximoRiego: proximoRiego, vueltas: vueltas };
+  window.SafiaFichaAgua = { html: html, mini: mini, medidor: medidor, titular: titular, grafico: grafico, proximoRiego: proximoRiego, vueltas: vueltas };
 })();

@@ -501,6 +501,7 @@
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
   <script src="safia-clima.js"></script>
+  <script src="safia-ficha-agua.js"></script>
   <script>
     /* =====================================================================
        Dashboard de toda la operación (varios clientes, varios lotes).
@@ -580,13 +581,14 @@
       return lotes.slice().sort((a, b) => ORDEN[(a.ev || { tipo: 'sin' }).tipo] - ORDEN[(b.ev || { tipo: 'sin' }).tipo]).map(l => {
         const ev = l.ev || { tipo: 'sin', titulo: 'Sin clima', detalle: 'No se pudo calcular (falta GPS o clima).', fuente: '' }, c = l.ctx;
         const etapa = c.kc ? `día ${c.dds} · ${String(c.kc.etapa).toLowerCase()}` : '';
-        return `<a href="operador.html?equipo=${encodeURIComponent(c.equipo.id)}" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-decoration:none;color:inherit;">
+        return `<a href="operador.html?equipo=${encodeURIComponent(c.equipo.id)}" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-decoration:none;color:inherit;">
           <span style="width:10px;height:10px;border-radius:50%;background:${COLOR[ev.tipo]};flex:none;"></span>
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:700;">${esc(c.equipo.nombre)} <span style="font-weight:400;color:var(--gris-texto);">· ${esc(c.cliente ? c.cliente.nombre : '')} · ${esc(c.campo.nombre)}</span></div>
             <div style="font-size:11px;color:var(--gris-texto);">${esc(c.cultivo.cultivo)}${c.cultivo.variedad ? ' ' + esc(c.cultivo.variedad) : ''} · ${etapa}${ev.fuente ? ' · ' + ev.fuente : ''}</div>
           </div>
           <div style="text-align:right;flex:none;"><div style="font-size:12px;font-weight:700;color:${COLOR[ev.tipo]};">${ev.titulo}</div><div style="font-size:11px;color:var(--gris-texto);">${ev.detalle}</div></div>
+          ${l.ev && l.ev.r && window.SafiaFichaAgua ? '<div style="flex-basis:100%;padding-left:20px;">' + SafiaFichaAgua.mini(l.ev.r) + '</div>' : ''}
         </a>`;
       }).join('');
     }
