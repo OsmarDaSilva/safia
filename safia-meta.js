@@ -68,7 +68,7 @@
   var TECHO_REF = { soja: 7600, maiz: 14000, trigo: 6000, girasol: 4000, sorgo: 9000, otro: 6000 };   // soja: CESB irrigado nacional 7.600 (récord secano 8.130); el resto orientativo
   var WP_LIMITE = { soja: { kgMm: 9.9, noProductiva: 70 }, maiz: { kgMm: 19.3, noProductiva: 100 }, otro: { kgMm: 12, noProductiva: 80 } };   // soja/maíz: Grassini (UNL); intercepto de soja y "otro" son estimaciones a calibrar
   var PRECIOS_DEFAULT = {
-    granoUSDt: { soja: 350, maiz: 170, trigo: 230, girasol: 400, sorgo: 150, otro: 250 },
+    granoUSDt: { soja: 400, maiz: 170, trigo: 230, girasol: 400, sorgo: 150, otro: 250 },
     calcareoUSDt: 60,        // puesto y aplicado, PRNT ~80–100 %
     yesoUSDt: 70,
     p2o5USDkg: 1.35,         // MAP ~700 US$/t → 52 % P2O5
