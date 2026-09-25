@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-usuarios (v2: rol propietario)
+// SAFIA · Edge Function: safia-usuarios (v3: no pisa cuentas que ya tienen acceso)
 // Lo que un administrador de SAFIA puede hacer con las cuentas SIN entrar al panel de Supabase.
 // Usa la clave de servicio del proyecto (la inyecta Supabase en el servidor; el navegador nunca la ve).
 // El que llama tiene que estar logueado y ser admin activo en public.safia_usuarios.
@@ -55,6 +55,13 @@ Deno.serve(async (req) => {
       if (!puedeDarRol(rol)) return json({ error: 'Solo el propietario puede crear administradores o propietarios' }, 403);
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'Correo inválido' }, 400);
       if (password.length < 6) return json({ error: 'La contraseña tiene que tener al menos 6 caracteres' }, 400);
+      // Si ese correo YA tiene acceso a SAFIA, no se crea otro ni se le cambia el rol o el cliente (antes esto pisaba la fila:
+      // crear un "operador" con el correo del propietario lo convertía en operador). Solo se retoma una cuenta pendiente o dada de baja.
+      const { data: previa } = await admin.from('safia_usuarios').select('id,rol,estado,nombre,cliente_id').eq('email', email).maybeSingle();
+      if (previa && previa.estado === 'activo') {
+        return json({ error: 'Ese correo ya tiene acceso a SAFIA como ' + previa.rol + ' (' + (previa.nombre || email) + '). Para un operador nuevo usá otro correo o solo un nombre de usuario; para cambiarle el rol a alguien, hacelo en Usuarios.' }, 409);
+      }
+      if (previa && ALTOS.includes(previa.rol) && !soyPropietario) return json({ error: 'Solo el propietario puede tocar esa cuenta' }, 403);
       let id: string | null = null, existia = false;
       const r = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { nombre, app: 'safia' } });
       if (r.error) {

@@ -92,7 +92,14 @@
     if (datos.password.length < 6) { aviso('La contraseña tiene que tener al menos 6 caracteres.', true); return; }
     if (!window.SafiaSync || !SafiaSync.accionUsuario) { aviso('Sin conexión con la nube.', true); return; }
     var b = $('accCrear'); b.disabled = true; b.textContent = 'Creando…'; aviso('');
-    SafiaSync.accionUsuario(datos).then(function (r) {
+    // No pisar a nadie: si ese correo o usuario ya tiene acceso activo, se avisa acá mismo (la nube también lo rechaza)
+    var previa = (SafiaSync.listarUsuarios ? SafiaSync.listarUsuarios() : Promise.resolve([])).catch(function () { return []; });
+    previa.then(function (lista) {
+      var ya = (lista || []).find(function (u) { return String(u.email || '').toLowerCase() === datos.email && (u.estado || 'activo') === 'activo'; });
+      if (ya) { b.disabled = false; b.textContent = 'Crear acceso'; aviso((interno ? 'El usuario ' : 'El correo ') + usuarioMostrar + ' ya tiene acceso a SAFIA como ' + (ROL[ya.rol] || ya.rol) + ' (' + (ya.nombre || '') + '). Para un operador nuevo usá otro correo o solo un nombre de usuario, por ejemplo "juan.regante".', true); return null; }
+      return SafiaSync.accionUsuario(datos);
+    }).then(function (r) {
+      if (!r) return;
       b.disabled = false; b.textContent = 'Crear acceso';
       var url = location.origin === 'null' || /^file:/.test(location.href) ? 'https://safia-beige.vercel.app/login.html' : location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
       var texto = r.existia
