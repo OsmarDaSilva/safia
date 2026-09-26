@@ -1574,6 +1574,9 @@
         ['pivote-telemetria', d.telemetria], ['pivote-bomba-marca', d.bomba_marca], ['pivote-bomba-modelo', d.bomba_modelo],
         ['pivote-bomba-potencia', d.bomba_potencia_hp], ['pivote-bomba-tipo', d.bomba_tipo]
       ];
+      // Corner: si ya está marcado Sí, una ficha que dice No (o no lo menciona) no lo borra: las propuestas no siempre incluyen el corner agregado después
+      const selCorner = document.getElementById('pivote-corner');
+      if (selCorner && /^s/i.test(selCorner.value || '') && d.corner && /^no/i.test(String(d.corner))) mapa.forEach(function (par) { if (par[0] === 'pivote-corner') par[1] = null; });
       mapa.forEach(function (par) { if (ponerCampo(par[0], par[1])) n++; });
       // Datos que no tienen casillero propio van a observaciones.
       const extra = [];
@@ -1582,7 +1585,13 @@
       if (extra.length) {
         const obs = document.getElementById('observaciones');
         const txt = extra.join(' · ');
-        if (obs) obs.value = obs.value ? (obs.value + ' · ' + txt) : txt;
+        // Si ya había datos de una ficha leída antes, se reemplazan (antes se sumaban y quedaban duplicados)
+        if (obs) {
+          const previo = obs.value || '', marcas = ['Radio efectivo regado (con cañón final):', 'Propuesta ', 'Proposta '];
+          const cortes = marcas.map(function (k) { return previo.indexOf(k); }).filter(function (i) { return i >= 0; });
+          const base = cortes.length ? previo.slice(0, Math.min.apply(null, cortes)).replace(/[\s·]+$/, '') : previo;
+          obs.value = base ? (base + ' · ' + txt) : txt;
+        }
       }
       return n;
     }
