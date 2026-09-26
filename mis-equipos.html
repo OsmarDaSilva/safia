@@ -519,7 +519,8 @@
               <div class="campo"><label>Telemetría / GPS</label><select id="pivote-telemetria"><option>No</option><option>Sí</option></select></div>
             </div>
             <div class="fila-3">
-              <div class="campo"><label>Marca bomba</label><input type="text" id="pivote-bomba-marca" placeholder="Ej: KSB"></div>
+              <div class="campo"><label>Marca bomba</label><input type="text" id="pivote-bomba-marca" placeholder="Ej: Imbil, KSB, Higra, Helibombas"></div>
+              <div class="campo"><label>Modelo bomba</label><input type="text" id="pivote-bomba-modelo" placeholder="Ej: BEW 150/3, Meganorm 125-400"><div class="ayuda">Con marca y modelo, SAFIA arma el mantenimiento del fabricante</div></div>
               <div class="campo"><label>Potencia motor (HP)</label><input type="number" id="pivote-bomba-potencia" placeholder="Ej: 75"></div>
               <div class="campo"><label>Tipo de bomba</label><select id="pivote-bomba-tipo"><option value="">Seleccionar...</option><option>Centrífuga</option><option>Sumergible</option><option>Turbina vertical</option></select></div>
             </div>
@@ -659,7 +660,7 @@
 
       <div id="mantTareas"></div>
 
-      <button class="btn-agregar-tarea" id="btnPlanRecomendado" onclick="completarConRecomendado()" style="margin-bottom:8px;">Completar con el plan recomendado (Valley / Lindsay)</button>
+      <button class="btn-agregar-tarea" id="btnPlanRecomendado" onclick="completarConRecomendado()" style="margin-bottom:8px;">Actualizar al plan recomendado (marca del pivot y de la bomba)</button>
       <button class="btn-agregar-tarea" onclick="toggleAgregarTarea()">➕ Agregar tarea personalizada</button>
       <div class="agregar-tarea-form" id="agregarTareaForm">
         <div class="reg-fila">
@@ -785,9 +786,11 @@
       const horasEst = riegos.length * 4;
 
       document.getElementById('mantSub').textContent = `${equipo.nombre} · ${equipo.tipo || '?'}${equipo.marca ? ' · ' + equipo.marca : ''}`;
-      document.getElementById('mantHoras').value = equipo.horasAcumuladas || 0;
-      document.getElementById('mantHorasEstimado').textContent = horasEst > 0
-        ? `(estimado: ~${horasEst}h basado en ${riegos.length} riegos cargados)` : '';
+      const estH = window.SafiaMant ? SafiaMant.estado(equipo) : null;
+      document.getElementById('mantHoras').value = estH ? Math.round(estH.horas * 10) / 10 : (equipo.horasAcumuladas || 0);
+      document.getElementById('mantHorasEstimado').textContent = estH && estH.fuenteHoras === 'horímetro'
+        ? '(última lectura del horímetro' + (estH.fechaHoras ? ' el ' + estH.fechaHoras.split('-').reverse().join('/') : '') + ')'
+        : horasEst > 0 ? `(estimado: ~${horasEst}h basado en ${riegos.length} riegos cargados)` : '';
 
       renderizarTareas(equipo);
       document.getElementById('modalMantOverlay').classList.add('visible');
@@ -890,7 +893,7 @@
       equipos[idx].planMantenimiento = r.plan;
       localStorage.setItem('equipos', JSON.stringify(equipos));
       renderizarTareas(equipos[idx]); mostrarEquipos();
-      mostrarToast(r.agregadas ? r.agregadas + ' tarea' + (r.agregadas > 1 ? 's' : '') + ' agregada' + (r.agregadas > 1 ? 's' : '') + ' del plan recomendado' : 'El plan ya tenía todas las tareas recomendadas');
+      mostrarToast((r.agregadas || r.quitadas) ? 'Plan actualizado: ' + r.agregadas + ' agregada' + (r.agregadas === 1 ? '' : 's') + (r.quitadas ? ', ' + r.quitadas + ' que no corresponden a esta marca quitada' + (r.quitadas === 1 ? '' : 's') : '') : 'El plan ya estaba al día con el recomendado');
     }
     // Intervalo editable (horas y/o días): para completar bomba, motor y corner, o ajustar a la realidad del equipo
     function guardarIntervalo(tareaId) {
@@ -1000,7 +1003,7 @@
 
     // ===== LÓGICA EXISTENTE =====
     const camposPorTipo = {
-      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-potencia','bomba-tipo'],
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
       goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],
@@ -1568,7 +1571,7 @@
         ['pivote-corner', d.corner], ['pivote-aspersores', d.aspersores],
         ['pivote-altura', d.altura_aspersores], ['pivote-controlador', d.controlador],
         ['pivote-vri', d.vri], ['pivote-fertirrigacion', d.fertirrigacion],
-        ['pivote-telemetria', d.telemetria], ['pivote-bomba-marca', d.bomba_marca],
+        ['pivote-telemetria', d.telemetria], ['pivote-bomba-marca', d.bomba_marca], ['pivote-bomba-modelo', d.bomba_modelo],
         ['pivote-bomba-potencia', d.bomba_potencia_hp], ['pivote-bomba-tipo', d.bomba_tipo]
       ];
       mapa.forEach(function (par) { if (ponerCampo(par[0], par[1])) n++; });

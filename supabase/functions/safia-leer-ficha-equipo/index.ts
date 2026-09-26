@@ -32,10 +32,11 @@ const ESQUEMA = `{
   "fertirrigacion": "'Sí' o 'No' si tiene fertirrigación/inyectora. null si no se menciona",
   "telemetria": "'Sí' o 'No' si tiene telemetría/GPS/monitoreo remoto. null si no se menciona",
   "bomba_marca": "marca de la bomba, o null",
+  "bomba_modelo": "modelo de la bomba tal como figura (ej: BEW 150/3, Meganorm 125-400, HIGRA R2-250), o null",
   "bomba_potencia_hp": "potencia del MOTOR en HP/cv; si viene en kW multiplicá por 1.341; o null",
   "bomba_tipo": "Centrífuga, Sumergible o Turbina vertical; o null",
   "eficiencia_pct": "eficiencia de APLICACIÓN del sistema de riego en %. o null",
-  "observaciones": "resumen corto con el resto de los datos técnicos útiles: altura manométrica total, rendimiento de la bomba, modelo de bomba, motor (marca/rpm/polos/tensión), tubería adutora, transformadores, panel, cantidad de outlets, desnivel, velocidad de la última torre, alcance del cañón, distribuidor, etc. o null"
+  "observaciones": "resumen corto con el resto de los datos técnicos útiles: altura manométrica total, rendimiento de la bomba, modelo de bomba, motor (marca/rpm/polos/tensión), tubería adutora, transformadores, panel, cantidad de outlets, desnivel, velocidad de la última torre, alcance del cañón, distribuidor, propiedad/cliente, etc. o null"
 }`;
 
 const SYSTEM = `Sos un ingeniero especialista en riego que lee fichas técnicas y planillas de dimensionamiento de equipos de riego (pivotes centrales, goteo, cañones). Muchas vienen en PORTUGUÉS (Brasil/Paraguay) o mezcla de portugués y español, con marcas Zimmatic, Valley, Reinke, Bauer, Fockink, Krebs, Irrigar.

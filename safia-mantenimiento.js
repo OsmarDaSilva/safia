@@ -33,63 +33,117 @@
      Fuentes (sin inventar números):
        [V] Valley, Center Pivot 7000/8000/8120 Series Owner's Manual: reductoras de rueda pág. 64 y 66, motorreductor central
            pág. 65 y 67, cubos remolcables pág. 68, swivel del pivote pág. 70, cronograma pre/post temporada pág. 92–95.
-       [L] Lindsay (Zimmatic), "8 Pre-Season Center Pivot Maintenance Tips to Reduce Downtime".
+       [LP] Lindsay (Zimmatic), Programa Anual de Mantenimiento Recomendado (se usa tambien para marcas no Valley).
+       Bombas: IMBIL BEW (manual ES), KSB Meganorm A2742.8P, HIGRA anfibias REV22; Helibombas no publica intervalos.
        [F] Placa y manual del fabricante del equipo (bomba, motor, corner): el intervalo lo completa el usuario. */
   var TEMPORADA = 182, ANIO = 365;
-  var FUENTE_V = 'Valley, manual del dueño del pivot central 7000/8000/8120', FUENTE_L = 'Lindsay (Zimmatic), mantenimiento de pretemporada', FUENTE_F = 'placa y manual del fabricante';
+  var FUENTE_V = 'Valley, manual del dueño del pivot central 7000/8000/8120', FUENTE_F = 'placa y manual del fabricante';
+  var FUENTE_LP = 'Lindsay (Zimmatic), Programa Anual de Mantenimiento Recomendado (LI-GEN PARTS MAINT SCHED, 2010)';
+  var FUENTE_IMBIL = 'IMBIL, Manual de instalación, operación y mantenimiento bomba BEW (supervisión periódica, pág. 13; mantenimiento del mancal)';
+  var FUENTE_KSB = 'KSB, Manual de servicio Meganorm A2742.8P (supervisión 10.3; intervalos de lubricación 11.2)';
+  var FUENTE_HIGRA = 'HIGRA, Manual técnico de bombas anfibias REV22 (2.5.1 fluido interno del motor)';
   function catalogoPara(eq) {
     var dt = (eq && eq.datosTecnicos) || {}, marca = String((eq && (eq.marca || dt.marca)) || '').toLowerCase();
-    var esLindsay = /lindsay|zimmatic/.test(marca), esValley = /valley|valmont/.test(marca);
-    var tieneCorner = !!(dt.corner && String(dt.corner).toLowerCase() !== 'no' && String(dt.corner) !== '0') || /corner/i.test(String(eq && eq.nombre || ''));
-    var tieneCanon = !!(dt.canonFinal || dt.canon || dt.endgun) || true;   // casi todos los pivots de la zona tienen cañón final; si no tiene, se borra la tarea
-    var c = [];
-    // Centro del pivote
-    if (esValley) c.push({ k: 'swivel', componente: 'Centro del pivote', tarea: 'Engrasar el swivel del pivote', cada: { vueltas: 6 }, detalle: 'Cada 5 a 7 vueltas, grasa de litio resistente al agua.', fuente: FUENTE_V + ', pág. 70' });
-    else c.push({ k: 'swivel', componente: 'Centro del pivote', tarea: 'Engrasar los puntos del pivote central', cada: { horas: 1000, dias: TEMPORADA }, detalle: esLindsay ? 'Una vez por temporada o cada 1.000 h, lo que ocurra primero. Medio pomo en la posición actual y el otro medio con el pivot a 180°.' : 'Lindsay: una vez por temporada o cada 1.000 h. Valley: el swivel cada 5 a 7 vueltas. Confirmar con el manual de la marca.', fuente: esLindsay ? FUENTE_L : FUENTE_L + ' / ' + FUENTE_V + ', pág. 70' });
-    c.push({ k: 'colector', componente: 'Centro del pivote', tarea: 'Revisar drenaje de la base del colector (anillos)', cada: { dias: TEMPORADA }, detalle: 'Pre y post temporada.', fuente: FUENTE_V + ', pág. 93' });
-    c.push({ k: 'contactores', componente: 'Centro del pivote', tarea: 'Revisar contactores del pivote (arco, picaduras)', cada: { dias: TEMPORADA }, detalle: 'Con el seccionador apagado. Contactos quemados o picados indican baja tensión.', fuente: FUENTE_V + ', pág. 93' });
-    c.push({ k: 'anclaje', componente: 'Centro del pivote', tarea: 'Revisar anclajes y cables de puesta a tierra', cada: { dias: TEMPORADA }, detalle: 'Pernos de anclaje o cadenas; ajustar o limpiar la tierra.', fuente: FUENTE_V + ', pág. 93' });
-    // Torres (unidades de tracción)
-    c.push({ k: 'aceite_ruedas', componente: 'Torres', tarea: 'Cambiar aceite de las reductoras de rueda', cada: { horas: 3000, dias: 3 * ANIO }, detalle: 'Primer cambio después de la primera temporada; después cada 3 años o 3.000 h, lo que ocurra primero. Unos 3,7 L por reductora.', fuente: FUENTE_V + ', pág. 64 y 66' });
-    c.push({ k: 'drenar_ruedas', componente: 'Torres', tarea: 'Drenar condensación de reductoras de rueda y completar nivel', cada: { dias: TEMPORADA }, detalle: 'Al final de cada temporada; revisar retenes y juntas.', fuente: FUENTE_V + ', pág. 64 y 94' + (esLindsay ? ' · ' + FUENTE_L : '') });
-    c.push({ k: 'aceite_central', componente: 'Torres', tarea: 'Cambiar aceite del motorreductor central de cada torre', cada: { dias: TEMPORADA }, detalle: 'Después de cada temporada. Unos 1,3 L por motorreductor.', fuente: FUENTE_V + ', pág. 65 y 67' });
-    c.push({ k: 'neumaticos', componente: 'Torres', tarea: 'Revisar presión de neumáticos', cada: { dias: 90 }, detalle: 'Pretemporada, primera pasada y mitad de temporada.', fuente: FUENTE_V + ', pág. 93–94' + (esLindsay ? ' · ' + FUENTE_L : '') });
-    c.push({ k: 'tuercas', componente: 'Torres', tarea: 'Torque de tuercas de ruedas (169 N·m)', cada: { dias: ANIO }, detalle: 'Anual, en pretemporada.', fuente: FUENTE_V + ', pág. 68 y 94' });
-    c.push({ k: 'cardanes', componente: 'Torres', tarea: 'Revisar cardanes y protectores del eje', cada: { dias: ANIO }, detalle: 'Reponer protectores dañados.', fuente: FUENTE_V + ', pág. 94' });
-    c.push({ k: 'junta_flex', componente: 'Torres', tarea: 'Revisar mangueras de junta flexible', cada: { dias: TEMPORADA }, detalle: 'Ajustar abrazaderas o reemplazar si pierden.', fuente: FUENTE_V + ', pág. 94' });
-    // Estructura y alineación
-    c.push({ k: 'estructura', componente: 'Estructura', tarea: 'Revisar pernos, bridas y cables de los tramos', cada: { dias: TEMPORADA }, detalle: 'Ajustar pernos, bridas con pérdidas y cables de tramo.', fuente: FUENTE_V + ', pág. 92' });
-    c.push({ k: 'alineacion', componente: 'Estructura', tarea: 'Alinear y probar interruptores de seguridad', cada: { dias: ANIO }, detalle: 'Anual; lo hace el distribuidor.', fuente: FUENTE_V + ', pág. 94' });
-    // Aspersores
-    c.push({ k: 'presion', componente: 'Aspersores', tarea: 'Verificar presión contra la carta de aspersores', cada: { dias: 90 }, detalle: 'Pretemporada, primera pasada y mitad de temporada.', fuente: FUENTE_V + ', pág. 93' });
-    c.push({ k: 'boquillas', componente: 'Aspersores', tarea: 'Revisar boquillas tapadas, faltantes o gastadas', cada: { dias: 90 }, detalle: 'Limpiar las tapadas; reponer las gastadas.', fuente: FUENTE_V + ', pág. 93' + (esLindsay ? ' · ' + FUENTE_L : '') });
-    c.push({ k: 'lavado', componente: 'Aspersores', tarea: 'Lavar la máquina (abrir tapones de los tramos)', cada: { dias: TEMPORADA }, detalle: 'Pre y post temporada.', fuente: FUENTE_V + ', pág. 93' });
-    // Cañón final y voladizo
-    if (tieneCanon) {
-      c.push({ k: 'canon', componente: 'Cañón final', tarea: 'Revisar rodamiento y freno del cañón final', cada: { dias: TEMPORADA }, detalle: 'Si el pivot no tiene cañón, borrar esta tarea.', fuente: FUENTE_V + ', pág. 94' });
-      c.push({ k: 'trampa_arena', componente: 'Cañón final', tarea: 'Revisar y limpiar la trampa de arena', cada: { dias: TEMPORADA }, detalle: 'Según necesidad.', fuente: FUENTE_V + ', pág. 94' });
-    }
-    // Corner: sin manual público; el intervalo lo completa el distribuidor
+    var esValley = /valley|valmont/.test(marca);
+    var tieneCorner = !!(dt.corner && !/^(no|0|false)$/i.test(String(dt.corner).trim()));
+    var c = esValley ? catalogoValley() : catalogoLindsay();
+    c.push({ k: 'canon', componente: 'Cañón final', tarea: 'Revisar rodamiento y freno del cañón final', cada: { dias: TEMPORADA }, detalle: 'Si el pivot no tiene cañón, borrar esta tarea.', fuente: FUENTE_V + ', pág. 94' });
     if (tieneCorner) {
       c.push({ k: 'corner_engrase', componente: 'Corner', tarea: 'Engrasar la articulación y el eje del corner', cada: {}, detalle: 'Completar el intervalo con el manual del corner de la marca.', fuente: FUENTE_F });
       c.push({ k: 'corner_reductora', componente: 'Corner', tarea: 'Aceite de la reductora de la torre de dirección del corner', cada: {}, detalle: 'Completar con el manual del corner.', fuente: FUENTE_F });
     }
-    // Bomba y motor: dependen del fabricante
-    c.push({ k: 'bomba_aceite', componente: 'Bomba', tarea: 'Cambiar aceite o lubricante de la bomba', cada: {}, detalle: 'Completar con la placa y el manual de la bomba.', fuente: FUENTE_F });
-    c.push({ k: 'bomba_engrase', componente: 'Bomba', tarea: 'Engrasar rodamientos de la bomba', cada: {}, detalle: 'Completar con el manual de la bomba.', fuente: FUENTE_F });
-    c.push({ k: 'motor', componente: 'Motor', tarea: 'Mantenimiento del motor de la bomba (aceite o rodamientos)', cada: {}, detalle: 'Eléctrico: relubricación según placa. Diésel: cambio de aceite según su manual.', fuente: FUENTE_F });
-    return c;
+    return c.concat(catalogoBomba(dt));
+  }
+  // Pivots Lindsay/Zimmatic (y cualquier otra marca: los distribuidores Zimmatic atienden cualquier pivot)
+  function catalogoLindsay() {
+    var A = ANIO, T = TEMPORADA, F = FUENTE_LP;
+    return [
+      { k: 'swivel', componente: 'Centro del pivote', tarea: 'Engrasar el punto pivote', cada: { horas: 1000, dias: A }, detalle: 'Una vez al año o cada 1.000 h, lo que ocurra primero.', fuente: F },
+      { k: 'brazo_alineacion', componente: 'Centro del pivote', tarea: 'Engrasar el brazo de alineación', cada: { dias: T }, detalle: 'Antes de cada temporada de riego.', fuente: F },
+      { k: 'colector', componente: 'Centro del pivote', tarea: 'Revisar el anillo colector (polvo o corrosión)', cada: { dias: A }, detalle: 'Al inicio de la temporada de riego.', fuente: F },
+      { k: 'panel', componente: 'Centro del pivote', tarea: 'Revisar el panel principal (ratones o nidos de insectos)', cada: { dias: A }, detalle: 'Eliminarlos si hay.', fuente: F },
+      { k: 'tierra', componente: 'Centro del pivote', tarea: 'Revisar el cable de cobre desnudo #6 de puesta a tierra', cada: { dias: A }, detalle: 'Asegurar buena conexión a tierra.', fuente: F },
+      { k: 'sellos', componente: 'Torres', tarea: 'Inspeccionar sellos de motores y diferenciales', cada: { dias: A }, detalle: 'Buscar desgaste o fugas.', fuente: F },
+      { k: 'nivel_aceite', componente: 'Torres', tarea: 'Verificar nivel de aceite de diferenciales y cajas de motores centrales', cada: { dias: A }, detalle: '', fuente: F },
+      { k: 'aceite_ruedas', componente: 'Torres', tarea: 'Cambiar aceite de diferenciales y cajas de motores centrales', cada: { horas: 4000, dias: 4 * A }, detalle: 'Cada 4.000 h o 4 años, lo que ocurra primero.', fuente: F },
+      { k: 'drenar_ruedas', componente: 'Torres', tarea: 'Drenar agua condensada o aceite contaminado de diferenciales y caja del motor central', cada: { dias: A }, detalle: '', fuente: F },
+      { k: 'neumaticos', componente: 'Torres', tarea: 'Verificar presión de llantas según tabla', cada: { dias: A }, detalle: 'Nunca menos de 16 PSI.', fuente: F },
+      { k: 'cables_motores', componente: 'Torres', tarea: 'Revisar los cables que llegan a los motores', cada: { dias: A }, detalle: '', fuente: F },
+      { k: 'cajas_torre', componente: 'Torres', tarea: 'Revisar cajas de control de torre y sus protectores', cada: { dias: A }, detalle: 'Mantener los pasadores puestos para un sello adecuado.', fuente: F },
+      { k: 'tuercas', componente: 'Estructura', tarea: 'Verificar que no falten tuercas o tornillos', cada: { dias: T }, detalle: 'Dos veces al año.', fuente: F },
+      { k: 'estructura', componente: 'Estructura', tarea: 'Apretar tornillos y tuercas flojos de torres y tramos', cada: { dias: A }, detalle: 'Verificar la tensión de tornillos y tuercas.', fuente: F },
+      { k: 'cable_tramo', componente: 'Estructura', tarea: 'Revisar que el cable eléctrico sobre el tramo esté bien asegurado', cada: { dias: A }, detalle: '', fuente: F },
+      { k: 'boquillas', componente: 'Aspersores', tarea: 'Revisar el paquete de aspersión', cada: { dias: A }, detalle: 'Aspersores o reguladores deteriorados o faltantes.', fuente: F },
+      { k: 'trampa_arena', componente: 'Aspersores', tarea: 'Retirar la trampa de arena de la última torre y enjuagar el pivote', cada: { dias: T }, detalle: 'Al final y al principio de la temporada, por varios minutos.', fuente: F },
+      { k: 'drenado_final', componente: 'Estructura', tarea: 'Drenar todo el equipo, incluida la tubería del elevador', cada: { dias: A }, detalle: 'Al final de la temporada de riego. Estacionar el sistema en terreno plano o calle de servicio.', fuente: F }
+    ];
+  }
+  // Pivots Valley: manual del dueño 7000/8000/8120
+  function catalogoValley() {
+    var A = ANIO, T = TEMPORADA;
+    return [
+      { k: 'swivel', componente: 'Centro del pivote', tarea: 'Engrasar el swivel del pivote', cada: { vueltas: 6 }, detalle: 'Cada 5 a 7 vueltas, grasa de litio resistente al agua.', fuente: FUENTE_V + ', pág. 70' },
+      { k: 'colector', componente: 'Centro del pivote', tarea: 'Revisar drenaje de la base del colector (anillos)', cada: { dias: T }, detalle: 'Pre y post temporada.', fuente: FUENTE_V + ', pág. 93' },
+      { k: 'contactores', componente: 'Centro del pivote', tarea: 'Revisar contactores del pivote (arco, picaduras)', cada: { dias: T }, detalle: 'Con el seccionador apagado.', fuente: FUENTE_V + ', pág. 93' },
+      { k: 'aceite_ruedas', componente: 'Torres', tarea: 'Cambiar aceite de las reductoras de rueda', cada: { horas: 3000, dias: 3 * A }, detalle: 'Primer cambio tras la primera temporada; después cada 3 años o 3.000 h. Unos 3,7 L por reductora.', fuente: FUENTE_V + ', pág. 64 y 66' },
+      { k: 'drenar_ruedas', componente: 'Torres', tarea: 'Drenar condensación de reductoras de rueda y completar nivel', cada: { dias: T }, detalle: 'Al final de cada temporada.', fuente: FUENTE_V + ', pág. 64' },
+      { k: 'aceite_central', componente: 'Torres', tarea: 'Cambiar aceite del motorreductor central de cada torre', cada: { dias: T }, detalle: 'Después de cada temporada. Unos 1,3 L.', fuente: FUENTE_V + ', pág. 65 y 67' },
+      { k: 'neumaticos', componente: 'Torres', tarea: 'Revisar presión de neumáticos', cada: { dias: 90 }, detalle: 'Pretemporada, primera pasada y mitad de temporada.', fuente: FUENTE_V + ', pág. 93–94' },
+      { k: 'tuercas', componente: 'Torres', tarea: 'Torque de tuercas de ruedas (169 N·m)', cada: { dias: A }, detalle: 'Anual, en pretemporada.', fuente: FUENTE_V + ', pág. 68 y 94' },
+      { k: 'estructura', componente: 'Estructura', tarea: 'Revisar pernos, bridas y cables de los tramos', cada: { dias: T }, detalle: '', fuente: FUENTE_V + ', pág. 92' },
+      { k: 'alineacion', componente: 'Estructura', tarea: 'Alinear y probar interruptores de seguridad', cada: { dias: A }, detalle: 'Lo hace el distribuidor.', fuente: FUENTE_V + ', pág. 94' },
+      { k: 'boquillas', componente: 'Aspersores', tarea: 'Revisar boquillas tapadas, faltantes o gastadas', cada: { dias: 90 }, detalle: '', fuente: FUENTE_V + ', pág. 93' },
+      { k: 'trampa_arena', componente: 'Aspersores', tarea: 'Revisar y limpiar la trampa de arena; lavar la máquina', cada: { dias: T }, detalle: 'Pre y post temporada.', fuente: FUENTE_V + ', pág. 93–94' }
+    ];
+  }
+  // Bomba según marca y modelo cargados en la ficha del pivot
+  function catalogoBomba(dt) {
+    var marca = String(dt['bomba-marca'] || '').toLowerCase(), modelo = String(dt['bomba-modelo'] || '').toLowerCase(), todo = marca + ' ' + modelo, A = ANIO;
+    var motor = { k: 'motor', componente: 'Motor', tarea: 'Mantenimiento del motor de la bomba (rodamientos o aceite)', cada: {}, detalle: 'Eléctrico: relubricación según la placa del motor. Diésel: cambio de aceite según su manual.', fuente: FUENTE_F };
+    if (/imbil/.test(todo) && /bew/.test(todo)) return [
+      { k: 'bomba_semanal', componente: 'Bomba', tarea: 'Revisión semanal: vibraciones, ruidos, goteo de empaquetadura, presión de succión y punto de operación', cada: { dias: 7 }, detalle: 'Goteo de la empaquetadura entre 10 y 20 cm³ por minuto. Revisar también el volumen de grasa, la corriente del motor y la tensión de la red.', fuente: FUENTE_IMBIL },
+      { k: 'bomba_temp', componente: 'Bomba', tarea: 'Temperatura de los mancales', cada: { dias: 30 }, detalle: 'Mensual. No debe superar 45 °C por encima de la temperatura ambiente.', fuente: FUENTE_IMBIL },
+      { k: 'bomba_engrase', componente: 'Bomba', tarea: 'Relubricar los mancales con grasa de litio', cada: { dias: 90 }, detalle: 'Cada 3 meses (Shell Alvania R2, Mobil Grease 77, Lubrax GM A2 u otra de la tabla). Lavar los mancales cada 2 años.', fuente: FUENTE_IMBIL },
+      { k: 'bomba_semestral', componente: 'Bomba', tarea: 'Alineación moto-bomba, tornillos de fijación, acoplamiento y dispositivo de caudal mínimo', cada: { dias: 182 }, detalle: 'Semestral. Cambiar la empaquetadura si el aprieta-empaquetadura ya se ajustó más de 8 mm y sigue perdiendo.', fuente: FUENTE_IMBIL },
+      { k: 'bomba_lavado', componente: 'Bomba', tarea: 'Lavar los mancales y renovar la grasa', cada: { dias: 2 * A }, detalle: 'Cada 2 años.', fuente: FUENTE_IMBIL },
+      { k: 'bomba_anual', componente: 'Bomba', tarea: 'Desmontar e inspeccionar la bomba', cada: { dias: A }, detalle: 'Mancales, rodamientos, retenes, o-rings, juntas, rotores, carcasa y acoplamiento. Con agua limpia y buenas condiciones puede ser cada 2 años. Torque de tirantes BEW 150: 35 kgf·m.', fuente: FUENTE_IMBIL },
+      motor
+    ];
+    if (/ksb/.test(todo) && /meganorm/.test(todo)) return [
+      { k: 'bomba_semanal', componente: 'Bomba', tarea: 'Revisión semanal: punto de operación, presión de succión, vibraciones, ruidos, nivel de aceite y gaxetas', cada: { dias: 7 }, detalle: 'Incluye corriente del motor y tensión de la red.', fuente: FUENTE_KSB },
+      { k: 'bomba_temp', componente: 'Bomba', tarea: 'Temperatura de los mancales', cada: { dias: 30 }, detalle: 'Mensual; revisar también el intervalo de cambio de aceite.', fuente: FUENTE_KSB },
+      { k: 'bomba_aceite', componente: 'Bomba', tarea: 'Cambiar aceite del soporte de mancales', cada: { horas: 8000, dias: A }, detalle: 'Primer cambio a las 200–300 h y el segundo a las 1.500–2.000 h; después cada 8.000 h o una vez al año, lo primero. Lavar los mancales cada 2 años como máximo.', fuente: FUENTE_KSB },
+      { k: 'bomba_semestral', componente: 'Bomba', tarea: 'Tornillos de fijación, alineación, acoplamiento, gaxetas y sello mecánico', cada: { dias: 182 }, detalle: 'Semestral.', fuente: FUENTE_KSB },
+      { k: 'bomba_anual', componente: 'Bomba', tarea: 'Desmontar e inspeccionar la bomba', cada: { dias: A }, detalle: 'Mancales, retenes, juntas, o-rings, rotores, cuerpo espiral y acoplamiento.', fuente: FUENTE_KSB },
+      motor
+    ];
+    if (/higra/.test(todo)) return [
+      { k: 'bomba_preventivo', componente: 'Bomba', tarea: 'Mantenimiento preventivo de la bomba anfibia', cada: { dias: 2 * A }, detalle: 'Con agua de menos de 2 % de sólidos, después de 24 meses de operación; antes si baja el caudal o la presión. El motor va lleno de agua limpia: verificar el nivel por el filtro ecualizador al instalar o reinstalar.', fuente: FUENTE_HIGRA }
+    ];
+    var nombre = dt['bomba-marca'] ? dt['bomba-marca'] + (dt['bomba-modelo'] ? ' ' + dt['bomba-modelo'] : '') : 'la bomba';
+    var detalleMarca = /helibomba|heli/.test(todo) ? 'Helibombas no publica intervalos: completar con el manual del modelo.' : /imbil|ksb/.test(todo) ? 'Cargá el modelo de la bomba en la ficha del pivot (por ejemplo BEW 150/3 o Meganorm) para usar el plan del fabricante.' : 'Completar con la placa y el manual de ' + nombre + '.';
+    return [
+      { k: 'bomba_engrase', componente: 'Bomba', tarea: 'Lubricar los rodamientos de ' + nombre, cada: {}, detalle: detalleMarca, fuente: FUENTE_F },
+      { k: 'bomba_anual', componente: 'Bomba', tarea: 'Revisión de ' + nombre + ' (sello o empaquetadura, alineación, vibraciones)', cada: {}, detalle: detalleMarca, fuente: FUENTE_F },
+      motor
+    ];
   }
   // Plan listo para guardar en el equipo, a partir del catálogo
   function planDesdeCatalogo(eq) {
-    var ahora = hoy();
-    return catalogoPara(eq).map(function (t, i) { return { id: Date.now() + i + Math.random(), k: t.k, componente: t.componente, tarea: t.tarea, cada: t.cada, intervalo: t.cada.horas || null, detalle: t.detalle, fuente: t.fuente, creado: ahora, ultimasHorasHechas: 0, ultimaFechaHecha: null, historial: [] }; });
+    var ahora = hoy(), base = eq ? estado(Object.assign({}, eq, { planMantenimiento: [] })).horas : 0;   // cuenta desde las horas de hoy, no desde 0
+    return catalogoPara(eq).map(function (t, i) { return { id: Date.now() + i + Math.random(), k: t.k, componente: t.componente, tarea: t.tarea, cada: t.cada, intervalo: t.cada.horas || null, detalle: t.detalle, fuente: t.fuente, creado: ahora, ultimasHorasHechas: base, ultimaFechaHecha: null, historial: [] }; });
   }
   // Suma al plan existente las tareas del catálogo que faltan (por k o por nombre), sin tocar las que ya tienen historial
   function completarPlan(eq) {
-    var actual = (eq.planMantenimiento || []).slice(), nuevas = planDesdeCatalogo(eq), agregadas = 0;
+    var nuevas = planDesdeCatalogo(eq), claves = nuevas.map(function (n) { return n.k; }), quitadas = 0;
+    // tareas del catálogo anterior que no son de esta marca o bomba: se sacan si nunca se registraron
+    var evs = leer('eventos').filter(function (e) { return e && e.tipo === 'mantenimiento' && String(e.equipoId) === String(eq.id); });
+    function sinHistorial(t) { return !(t.historial && t.historial.length) && !t.ultimaFechaHecha && !evs.some(function (e) { return String(e.tareaId) === String(t.id); }); }
+    var actual = (eq.planMantenimiento || []).filter(function (t) { var sinHist = sinHistorial(t); if (t.k && claves.indexOf(t.k) < 0 && sinHist) { quitadas++; return false; } return true; }), agregadas = 0;
     nuevas.forEach(function (n) { var ya = actual.find(function (t) { return (t.k && t.k === n.k) || String(t.tarea || '').toLowerCase() === n.tarea.toLowerCase(); }); if (ya) { if (!ya.cada && !(ya.historial && ya.historial.length)) { ya.cada = n.cada; ya.detalle = n.detalle; ya.fuente = n.fuente; ya.k = n.k; } return; } actual.push(n); agregadas++; });
-    return { plan: actual, agregadas: agregadas };
+    // las del catálogo sin historial se actualizan al texto y frecuencia de la marca
+    actual.forEach(function (t) { var n = nuevas.find(function (x) { return x.k && x.k === t.k; }); if (n && sinHistorial(t)) { t.tarea = n.tarea; t.componente = n.componente; t.cada = n.cada; t.intervalo = n.intervalo; t.detalle = n.detalle; t.fuente = n.fuente; } });
+    return { plan: actual, agregadas: agregadas, quitadas: quitadas };
   }
   function textoCada(cada, intervalo) {
     cada = cada || (intervalo ? { horas: intervalo } : {});
@@ -112,6 +166,7 @@
     var tareas = plan.map(function (t) {
       var cada = t.cada || (num(t.intervalo) ? { horas: num(t.intervalo) } : {});
       var intervalo = num(cada.horas) || 0, ultHoras = num(t.ultimasHorasHechas) || 0, ultFecha = t.ultimaFechaHecha || null, ultPor = null;
+      if (!ultHoras && !ultFecha && !(t.historial && t.historial.length) && t.creado) { var primera = evs.filter(function (e) { return e.tipo === 'horimetro' && num(e.cantidad) != null && String(e.fecha || '').slice(0, 10) >= String(t.creado).slice(0, 10); }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); })[0]; if (primera) ultHoras = num(primera.cantidad) - (primera.desde && String(primera.desde).slice(0, 10) >= String(t.creado).slice(0, 10) ? (num(primera.horasPeriodo) || 0) : 0); }
       evs.filter(function (e) { return e.tipo === 'mantenimiento' && (String(e.tareaId) === String(t.id) || (!e.tareaId && e.tarea === t.tarea)); }).forEach(function (e) {
         var h = num(e.horasEquipo); if (h == null) h = 0;
         if (h >= ultHoras && (!ultFecha || String(e.fecha) >= String(ultFecha))) { ultHoras = h; ultFecha = String(e.fecha || '').slice(0, 10); ultPor = e.cargadoPor || null; }
