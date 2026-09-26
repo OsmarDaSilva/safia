@@ -388,6 +388,11 @@
   // Nombres mal escritos en la base de referencia → nombre oficial
   var ALIAS_DEPTO = { 'coordillera': 'Cordillera', 'nuembucu': 'Ñeembucú', 'neembucu': 'Ñeembucú', 'parana': 'Paraná' };
 
+  /* Distritos oficiales de Paraguay por departamento (263, Wikipedia "Anexo:Municipios de Paraguay", sep-2026)
+     + localidades productivas del Chaco que no son distrito, verificadas en OpenStreetMap / Open-Meteo. */
+  var DISTRITOS_PY = {"Alto Paraguay":["Bahía Negra","Capitán Carmelo Peralta","Fuerte Olimpo","Puerto Casado"],"Alto Paraná":["Ciudad del Este","Doctor Juan León Mallorquín","Doctor Raúl Peña","Domingo Martínez de Irala","Hernandarias","Iruña","Itakyry","Juan Emiliano O'Leary","Los Cedrales","Mbaracayú","Minga Guazú","Minga Porá","Naranjal","Ñacunday","Presidente Franco","San Alberto","San Cristóbal","Santa Fe del Paraná","Santa Rita","Santa Rosa del Monday","Tavapy","Yguazú"],"Amambay":["Bella Vista Norte","Capitán Bado","Cerro Corá","Karapaí","Pedro Juan Caballero","Zanja Pytá"],"Asunción":["Asunción"],"Boquerón":["Boquerón","Filadelfia","Loma Plata","Mariscal José Félix Estigarribia"],"Caaguazú":["Caaguazú","Carayaó","Coronel Oviedo","Doctor Cecilio Báez","Doctor Juan Eulogio Estigarribia","Doctor Juan Manuel Frutos","José Domingo Ocampos","La Pastora","Mariscal Francisco Solano López","Nueva Londres","Nueva Toledo","Raúl Arsenio Oviedo","Regimiento de Infantería Tres Corrales","Repatriación","San Joaquín","San José de los Arroyos","Santa Rosa del Mbutuy","Simón Bolívar","Tembiaporá","Tres de Febrero","Vaquería","Yhú"],"Caazapá":["Abaí","Buena Vista","Caazapá","Doctor Moisés Santiago Bertoni","Fulgencio Yegros","General Higinio Morínigo","Maciel","San Juan Nepomuceno","Tavaí","Tres de Mayo","Yuty"],"Canindeyú":["Corpus Christi","Curuguaty","General Francisco Caballero Álvarez","Itanará","Katueté","La Paloma del Espíritu Santo","Laurel","Maracaná","Nueva Esperanza","Puerto Adela","Saltos del Guairá","Villa Ygatimí","Yasy Cañy","Yby Pytá","Ybyrarobaná","Ypejhú"],"Central":["Areguá","Capiatá","Fernando de la Mora","Guarambaré","Itá","Itauguá","Julián Augusto Saldívar","Lambaré","Limpio","Luque","Mariano Roque Alonso","Nueva Italia","Ñemby","San Antonio","San Lorenzo","Villa Elisa","Villeta","Ypacaraí","Ypané"],"Concepción":["Arroyito","Azotey","Belén","Concepción","Horqueta","Itacuá","Loreto","Paso Barreto","Paso Horqueta","San Alfredo","San Carlos del Apa","San Lázaro","Sargento José Félix López","Yby Yaú"],"Cordillera":["Altos","Arroyos y Esteros","Atyrá","Caacupé","Caraguatay","Emboscada","Eusebio Ayala","Isla Pucú","Itacurubí de la Cordillera","Juan de Mena","Loma Grande","Mbocayaty del Yhaguy","Nueva Colombia","Piribebuy","Primero de Marzo","San Bernardino","San José Obrero","Santa Elena","Tobatí","Valenzuela"],"Guairá":["Borja","Capitán Mauricio José Troche","Coronel Martínez","Doctor Botrell","Félix Pérez Cardozo","General Eugenio Alejandrino Garay","Independencia","Itapé","Iturbe","José A. Fassardi","Mbocayaty del Guairá","Natalicio Talavera","Ñumí","Paso Yobái","San Salvador","Tebicuary","Villarrica","Yataity del Guairá"],"Itapúa":["Alto Verá","Bella Vista","Cambyretá","Capitán Meza","Capitán Miranda","Carlos Antonio López","Carmen del Paraná","Coronel José Félix Bogado","Edelira","Encarnación","Fram","General Artigas","General Delgado","Hohenau","Itapúa Poty","Jesús de Tavarangüé","José Leandro Oviedo","La Paz","Mayor Julio Dionisio Otaño","Natalio","Nueva Alborada","Obligado","Pirapó","San Cosme y Damián","San Juan del Paraná","San Pedro del Paraná","San Rafael del Paraná","Tomás Romero Pereira","Trinidad","Yatytay"],"Misiones":["Ayolas","San Ignacio Guazú","San Juan Bautista","San Miguel","San Patricio","Santa María de Fe","Santa Rosa de Lima","Santiago","Villa Florida","Yabebyry"],"Ñeembucú":["Alberdi","Cerrito","Desmochados","General José Eduvigis Díaz","Guazú Cuá","Humaitá","Isla Umbú","Laureles","Mayor José Martínez","Paso de Patria","Pilar","San Juan Bautista de Ñeembucú","Tacuaras","Villa Franca","Villa Oliva","Villalbín"],"Paraguarí":["Acahay","Caapucú","Carapeguá","Escobar","General Bernardino Caballero","La Colmena","María Antonia","Mbuyapey","Paraguarí","Pirayú","Quiindy","Quyquyhó","San Roque González de Santa Cruz","Sapucai","Tebicuarymí","Yaguarón","Ybycuí","Ybytymí"],"Presidente Hayes":["Benjamín Aceval","Campo Aceval","General José María Bruguez","José Falcón","Nanawa","Nueva Asunción","Puerto Pinasco","Teniente Esteban Martínez","Teniente Primero Manuel Irala Fernández","Villa Hayes"],"San Pedro":["Antequera","Capiibary","Choré","General Elizardo Aquino","General Isidoro Resquín","Guayaibí","Itacurubí del Rosario","Liberación","Lima","Nueva Germania","San José del Rosario","San Estanislao","San Pablo","San Pedro de Ycuamandiyú","San Vicente Pancholo","Santa Rosa del Aguaray","Tacuatí","Unión","Veinticinco de Diciembre","Villa del Rosario","Yataity del Norte","Yrybucuá"]};
+  var LOCALIDADES_EXTRA_PY = {"Boquerón":["Neuland","La Patria","Mayor Infante Rivarola","Capitán Joel Estigarribia","Teniente Montanía","Fortín Toledo","Pedro P. Peña"],"Presidente Hayes":["Pozo Colorado","Río Verde","Cruce Pioneros","Chaco'i"],"Alto Paraguay":["Toro Pampa","Agua Dulce"]};
+
   var _cacheUbic = {};
   function listasUbicacion(pais) {
     pais = String(pais || 'Paraguay').trim();
@@ -410,7 +415,7 @@
 
     var pares = {};          // "dep|loc" normalizado -> {localidad, departamento}
     function agregar(loc, dep) {
-      loc = String(loc || '').trim();
+      loc = nombreLocalidad(loc);
       var d = nombreDepto(dep);
       if (!loc) return;
       var k = norm(d) + '|' + norm(loc);
@@ -420,6 +425,10 @@
     leer('campos').forEach(function (c) {
       if (norm(c.pais || 'Paraguay') === norm(pais)) agregar(c.localidad, c.departamento);
     });
+    if (norm(pais) === 'paraguay') {
+      Object.keys(DISTRITOS_PY).forEach(function (d) { DISTRITOS_PY[d].forEach(function (l) { agregar(l, d); }); });
+      Object.keys(LOCALIDADES_EXTRA_PY).forEach(function (d) { LOCALIDADES_EXTRA_PY[d].forEach(function (l) { agregar(l, d); }); });
+    }
 
     var pedido = window.safiaSupabase
       ? window.safiaSupabase.from('safia_ref_produccion').select('pais,localidad,departamento')
@@ -451,20 +460,29 @@
     'm. infante rivarola': 'Mayor Infante Rivarola', 'm infante rivarola': 'Mayor Infante Rivarola', 'infante rivarola': 'Mayor Infante Rivarola',
     'mariscal estigaribia': 'Mariscal Estigarribia', 'mcal. estigarribia': 'Mariscal Estigarribia', 'mcal estigarribia': 'Mariscal Estigarribia',
     'joel estigaribia': 'Capitán Joel Estigarribia', 'joel estigarribia': 'Capitán Joel Estigarribia', 'cap. joel estigarribia': 'Capitán Joel Estigarribia',
+    'mariscal jose felix estigarribia': 'Mariscal Estigarribia', 'mcal. jose felix estigarribia': 'Mariscal Estigarribia',
     'tte. irala fernandez': 'Teniente 1° Manuel Irala Fernández', 'irala fernandez': 'Teniente 1° Manuel Irala Fernández', 'teniente irala fernandez': 'Teniente 1° Manuel Irala Fernández'
   };
   function variantesLocalidad(loc) {
     var base = String(loc || '').trim(), k = norm(base).replace(/\s+/g, ' ');
     var v = [];
     if (ALIAS_LOCALIDAD[k]) v.push(ALIAS_LOCALIDAD[k]);
+    // distritos cuyo nombre es igual al del departamento: se buscan por el nombre del pueblo cabecera
+    var CABECERA = { 'boqueron': 'Neuland' };
+    if (CABECERA[k]) v.unshift(CABECERA[k]);
     var exp = base.replace(/\bTte\.?\s*1(ro|°)?\.?\s*/i, 'Teniente Primero ').replace(/\bTte\.?\s+/i, 'Teniente ').replace(/\bGral\.?\s+/i, 'General ')
       .replace(/\bCnel\.?\s+/i, 'Coronel ').replace(/\bMcal\.?\s+/i, 'Mariscal ').replace(/\bPto\.?\s+/i, 'Puerto ').replace(/\bCol\.?\s+/i, 'Colonia ')
       .replace(/\bSta\.?\s+/i, 'Santa ').replace(/\bSto\.?\s+/i, 'Santo ').replace(/\bEstigaribia\b/i, 'Estigarribia');
     v.push(exp, base);
     var sinPref = exp.replace(/^(Colonia|Puerto|Cruce)\s+/i, '');
     if (sinPref !== exp) v.push(sinPref);
+    if (/Teniente Primero/i.test(exp)) v.push(exp.replace(/Teniente Primero/i, 'Teniente 1°'));
+    var sinTitulo = exp.replace(/^(Capitán|Capitan|Teniente Primero|Teniente|Mayor|General|Coronel|Doctor|Mariscal|Sargento)\s+/i, '');
+    if (sinTitulo !== exp && sinTitulo.split(' ').length > 1) v.push(sinTitulo);
     return v.filter(function (x, i) { return x && v.indexOf(x) === i; });
   }
+  function nombreLocalidad(loc) { var s = String(loc || '').trim(), k = norm(s).replace(/\s+/g, ' '); return (typeof ALIAS_LOCALIDAD !== 'undefined' && ALIAS_LOCALIDAD[k]) || s; }
+  function normLoc(loc) { return norm(nombreLocalidad(loc)); }
   function deptoCoincide(texto, depto) {
     if (!depto) return true;
     var d = norm(depto).replace(/^departamento (de )?/, ''), t = norm(texto);
@@ -555,6 +573,8 @@
     listasUbicacion: listasUbicacion,
     conectarListasUbicacion: conectarListasUbicacion,
     buscarLocalidad: buscarLocalidad,
+    normLoc: normLoc,
+    nombreLocalidad: nombreLocalidad,
     climaDelCiclo: climaDelCiclo,
     evaluar: evaluar,
     distanciaKm: distanciaKm,

@@ -326,7 +326,7 @@
     return cargarRef().then(function(todas){
       var filas=todas.filter(function(x){ return norm(x.cultivo)===norm(cultivo) && /grano/i.test(x.finalidad||''); });
       var ambito='';
-      var porLoc=localidad?filas.filter(function(x){return norm(x.localidad)===norm(localidad);}):[];
+      var nl=(window.SafiaCasos&&SafiaCasos.normLoc)||norm; var porLoc=localidad?filas.filter(function(x){return nl(x.localidad)===nl(localidad);}):[];
       if(porLoc.length){ filas=porLoc; ambito=localidad; }
       else { var porDep=depto?filas.filter(function(x){return norm(x.departamento)===norm(depto);}):[]; if(porDep.length){ filas=porDep; ambito=depto+' (promedio del departamento)'; } else return null; }
       if(epoca){ var pe=filas.filter(function(x){return norm(x.epoca_siembra)===norm(epoca);}); if(pe.length) filas=pe; }

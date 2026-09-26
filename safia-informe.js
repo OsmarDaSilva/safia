@@ -58,7 +58,8 @@
     return window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha').then(function (r) {
       if (r.error || !r.data) return;
       var loc = campoActual.localidad, dep = campoActual.departamento;
-      var porLoc = loc ? r.data.filter(function (x) { return norm(x.localidad) === norm(loc); }) : [];
+      var nl = (window.SafiaCasos && SafiaCasos.normLoc) || norm;
+      var porLoc = loc ? r.data.filter(function (x) { return nl(x.localidad) === nl(loc); }) : [];
       if (porLoc.length) { refZona = porLoc; refAmbito = loc; return; }
       var porDep = dep ? r.data.filter(function (x) { return norm(x.departamento) === norm(dep); }) : [];
       if (porDep.length) { refZona = porDep; refAmbito = dep; }

@@ -1090,7 +1090,8 @@
         if (r.error || !r.data) return;
         var todas = r.data;
         if (loc) {
-          var porLoc = todas.filter(function (x) { return norm(x.localidad) === norm(loc); });
+          var nl = (window.SafiaCasos && SafiaCasos.normLoc) || norm;
+          var porLoc = todas.filter(function (x) { return nl(x.localidad) === nl(loc); });
           if (porLoc.length) { refZona = porLoc; refAmbito = 'localidad'; return; }
         }
         if (dep) {
