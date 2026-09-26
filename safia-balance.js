@@ -48,9 +48,49 @@
     { k: 'franco_arenoso',   nombre: 'Franco arenoso',   nombreLargo: 'Franco arenoso (15–20 % arcilla)',      cc: 15, pmp: 6,  emoji: '🌾' },
     { k: 'franco',           nombre: 'Franco',           nombreLargo: 'Franco (20–30 % arcilla)',              cc: 25, pmp: 12, emoji: '🌱' },
     { k: 'franco_arcilloso', nombre: 'Franco arcilloso', nombreLargo: 'Franco arcilloso (30–40 % arcilla)',    cc: 28, pmp: 13, emoji: '🟫' },
-    { k: 'arcilloso',        nombre: 'Arcilloso',        nombreLargo: 'Arcilloso (> 40 % arcilla)',            cc: 36, pmp: 22, emoji: '🧱' }
+    { k: 'arcilloso',        nombre: 'Arcilloso',        nombreLargo: 'Arcilloso (> 40 % arcilla)',            cc: 36, pmp: 22, emoji: '🧱' },
+    // Limosos (típicos del Chaco Central y de los aluviones del Pilcomayo). Punto medio de FAO-56 Tabla 19, igual que los de arriba.
+    { k: 'franco_limoso',         nombre: 'Franco limoso',         nombreLargo: 'Franco limoso (limo 50–80 %, arcilla < 27 %)',        cc: 29, pmp: 15, emoji: '' },
+    { k: 'limoso',                nombre: 'Limoso',                nombreLargo: 'Limoso (limo ≥ 80 %, arcilla < 12 %)',               cc: 32, pmp: 17, emoji: '' },
+    { k: 'franco_arcillo_limoso', nombre: 'Franco arcillo limoso', nombreLargo: 'Franco arcillo limoso (arcilla 27–40 %, arena < 20 %)', cc: 34, pmp: 21, emoji: '' },
+    { k: 'arcillo_limoso',        nombre: 'Arcillo limoso',        nombreLargo: 'Arcillo limoso (arcilla ≥ 40 %, limo ≥ 40 %)',       cc: 36, pmp: 23, emoji: '' }
   ];
+  /* Clase textural por el triángulo del USDA (Soil Survey Manual) con arena, limo y arcilla del análisis.
+     Las clases sin fila propia en FAO-56 Tabla 19 van a la más cercana: franco arenoso y areno franco → franco_arenoso,
+     franco arcillo arenoso y franco arcilloso → franco_arcilloso, arcillo arenoso → arcilloso. Devuelve null si falta el limo. */
+  function claseUSDA(arena, limo, arcilla) {
+    var S = num(arena), L = num(limo), C = num(arcilla);
+    if (C == null) return null;
+    if (L == null && S != null) L = 100 - S - C;
+    if (S == null && L != null) S = 100 - L - C;
+    if (L == null || S == null || S < 0 || L < 0) return null;
+    if (S > 85 && L + 1.5 * C < 15) return 'arena';
+    if (S >= 70 && S <= 91 && L + 1.5 * C >= 15 && L + 2 * C < 30) return 'areno_franco';
+    if ((C >= 7 && C < 20 && S > 52 && L + 2 * C >= 30) || (C < 7 && L < 50 && L + 2 * C >= 30)) return 'franco_arenoso';
+    if (C >= 7 && C < 27 && L >= 28 && L < 50 && S <= 52) return 'franco';
+    if ((L >= 50 && C >= 12 && C < 27) || (L >= 50 && L < 80 && C < 12)) return 'franco_limoso';
+    if (L >= 80 && C < 12) return 'limo';
+    if (C >= 20 && C < 35 && L < 28 && S > 45) return 'franco_arcillo_arenoso';
+    if (C >= 27 && C < 40 && S > 20 && S <= 45) return 'franco_arcilloso';
+    if (C >= 27 && C < 40 && S <= 20) return 'franco_arcillo_limoso';
+    if (C >= 35 && S > 45) return 'arcillo_arenoso';
+    if (C >= 40 && L >= 40) return 'arcillo_limoso';
+    if (C >= 40) return 'arcilla';
+    return 'franco';
+  }
+  var USDA_A_SAFIA = { arena: 'arenoso', areno_franco: 'franco_arenoso', franco_arenoso: 'franco_arenoso', franco: 'franco', franco_limoso: 'franco_limoso', limo: 'limoso',
+    franco_arcillo_arenoso: 'franco_arcilloso', franco_arcilloso: 'franco_arcilloso', franco_arcillo_limoso: 'franco_arcillo_limoso', arcillo_arenoso: 'arcilloso', arcillo_limoso: 'arcillo_limoso', arcilla: 'arcilloso' };
+  var NOMBRE_USDA = { arena: 'arena', areno_franco: 'areno franco', franco_arenoso: 'franco arenoso', franco: 'franco', franco_limoso: 'franco limoso', limo: 'limo',
+    franco_arcillo_arenoso: 'franco arcillo arenoso', franco_arcilloso: 'franco arcilloso', franco_arcillo_limoso: 'franco arcillo limoso', arcillo_arenoso: 'arcillo arenoso', arcillo_limoso: 'arcillo limoso', arcilla: 'arcilla' };
   function texturaPorClave(k) { for (var i = 0; i < TEXTURAS.length; i++) if (TEXTURAS[i].k === k) return TEXTURAS[i]; return null; }
+  // Textura de un análisis: con arena/limo/arcilla usa el triángulo USDA (reconoce los limosos); solo con arcilla, como antes
+  function texturaPorAnalisis(a) {
+    if (!a) return null;
+    var p = a.parametros || {}, arena = a.arena != null ? a.arena : p.arena, limo = a.limo != null ? a.limo : p.limo, arcilla = a.arcilla != null ? a.arcilla : p.arcilla;
+    var clase = claseUSDA(arena, limo, arcilla);
+    if (clase) { var t = texturaPorClave(USDA_A_SAFIA[clase]); if (t) return { t: t, clase: NOMBRE_USDA[clase], arcilla: num(arcilla), limo: num(limo) != null ? num(limo) : 100 - num(arena) - num(arcilla) }; }
+    var tc = texturaPorArcilla(num(arcilla)); return tc ? { t: tc, clase: null, arcilla: num(arcilla), limo: null } : null;
+  }
   function texturaPorArcilla(arc) { if (arc == null || isNaN(arc)) return null; return arc < 15 ? TEXTURAS[0] : (arc < 20 ? TEXTURAS[1] : (arc < 30 ? TEXTURAS[2] : (arc < 40 ? TEXTURAS[3] : TEXTURAS[4]))); }
   var SUELO_FALLBACK = 'franco';
   var ZR_REF = 0.6;   // m; profundidad de referencia para expresar CC/PMP en mm cuando no hay cultivo (UNL: 0–60 cm)
@@ -104,8 +144,8 @@
       }
       var an = leerLS('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campo.id) && !a.enPromedio && arcillaDe(a) != null; }).sort(function (a, b) { return String(a.fecha || '').localeCompare(String(b.fecha || '')); });
       if (an.length) {
-        var arc = arcillaDe(an[an.length - 1]), t = texturaPorArcilla(arc);
-        if (t) return Object.assign(base, { cc: t.cc, pmp: t.pmp, fuente: 'analisis', origen: 'textura del análisis (' + Math.round(arc) + ' % arcilla, FAO-56 Tabla 19)', tipo: t.k, nombre: t.nombre, emoji: t.emoji, arcilla: arc });
+        var ta = texturaPorAnalisis(an[an.length - 1]);
+        if (ta) { var t = ta.t, arc = ta.arcilla; return Object.assign(base, { cc: t.cc, pmp: t.pmp, fuente: 'analisis', origen: 'textura del análisis (' + (ta.clase ? ta.clase + ': ' + Math.round(arc) + ' % arcilla, ' + Math.round(ta.limo) + ' % limo, triángulo USDA' : Math.round(arc) + ' % arcilla') + '; FAO-56 Tabla 19)', tipo: t.k, nombre: t.nombre, emoji: t.emoji, arcilla: arc }); }
       }
       if (campo.tipoSuelo && texturaPorClave(campo.tipoSuelo)) {
         var tt = texturaPorClave(campo.tipoSuelo);
@@ -400,7 +440,7 @@
     TEXTURAS: TEXTURAS, TIPOS_SUELO: TIPOS_SUELO, SUELO_FALLBACK: SUELO_FALLBACK, ZR_REF: ZR_REF,
     KY: KY, P_TABLA: P_TABLA, ZR_MAX: ZR_MAX, ETAPAS: ETAPAS, NOMBRE_ETAPA: NOMBRE_ETAPA,
     UMBRALES: UMBRALES, umbralesDe: umbralesDe, EFICIENCIA_RIEGO: EFICIENCIA_RIEGO,
-    texturaPorArcilla: texturaPorArcilla, texturaPorClave: texturaPorClave, sueloDe: sueloDe, obtenerSuelo: obtenerSuelo, notaFallbackSuelo: notaFallbackSuelo,
+    texturaPorArcilla: texturaPorArcilla, texturaPorClave: texturaPorClave, texturaPorAnalisis: texturaPorAnalisis, claseUSDA: claseUSDA, sueloDe: sueloDe, obtenerSuelo: obtenerSuelo, notaFallbackSuelo: notaFallbackSuelo,
     getEficienciaEquipo: getEficienciaEquipo, esSecano: esSecano,
     claveCultivo: claveCultivo, kcYEtapa: kcYEtapa, calcularKc: calcularKc, obtenerCultivoKc: obtenerCultivoKc,
     parametrosDia: parametrosDia, pasoDia: pasoDia,

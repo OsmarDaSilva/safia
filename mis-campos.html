@@ -172,10 +172,15 @@
             <option value="arenoso">🏖️ Arenoso (suelto, drena rápido)</option>
             <option value="franco_arenoso">🌾 Franco arenoso (mezcla con algo de arena)</option>
             <option value="franco">🌱 Franco (suelo balanceado, lo más común)</option>
+            <option value="franco_limoso">Franco limoso (mucho limo, harinoso; típico del Chaco Central)</option>
+            <option value="limoso">Limoso (casi todo limo, se encostra)</option>
             <option value="franco_arcilloso">🟫 Franco arcilloso (más pesado, retiene agua)</option>
             <option value="arcilloso">🧱 Arcilloso (muy pesado, se compacta)</option>
+            <option value="franco_arcillo_limoso">Franco arcillo limoso (pesado y limoso)</option>
+            <option value="arcillo_limoso">Arcillo limoso (muy pesado y limoso; bajos del Chaco)</option>
           </select>
-          <div class="hint">Si no estás seguro, elegí "Franco" — es lo más común en suelos paraguayos.</div>
+          <div class="hint">Si no estás seguro, elegí "Franco" — es lo más común en la Región Oriental. En el Chaco Central predominan los <b>franco limosos</b>; en los bajos del Chaco Húmedo, los arcillosos. Con un análisis que traiga arena, limo y arcilla, SAFIA clasifica solo por el triángulo textural.</div>
+          <div class="note warn" id="avisoChaco" style="display:none;margin-top:8px;">En el Chaco, antes de regar, pedí al laboratorio <b>conductividad eléctrica (CE)</b> y <b>sodio intercambiable (PSI)</b> del suelo, y analizá el <b>agua de riego</b> (CE y RAS): hay suelos salinos y sódicos y napas saladas. Los limosos además forman costra y dejan entrar poca agua de golpe: láminas chicas y frecuentes.</div>
         </div>
         <div class="suelo-info" id="suelo-info"></div>
         <div class="note info" style="margin-top:10px;">
@@ -270,10 +275,22 @@
       franco_arenoso: { nombre: 'Franco arenoso', emoji: '🌾', cc: 15, pmp: 6, AAU: 54, arcilla: '15–20 %', infiltracion: '13-20 mm/h', desc: 'Buena mezcla con algo de arena. Drena bien y retiene moderado. Común en suelos cultivados.' },
       franco: { nombre: 'Franco', emoji: '🌱', cc: 25, pmp: 12, AAU: 78, arcilla: '20–30 %', infiltracion: '8-15 mm/h', desc: 'Suelo balanceado, ideal para cultivos. Buena retención de agua y aireación. Es el que se usa por defecto cuando el campo no tiene suelo cargado.' },
       franco_arcilloso: { nombre: 'Franco arcilloso', emoji: '🟫', cc: 28, pmp: 13, AAU: 90, arcilla: '30–40 %', infiltracion: '3-8 mm/h', desc: 'Suelo más pesado, rico en arcilla. Retiene mucha agua pero infiltra lento. Riegos espaciados pero abundantes.' },
-      arcilloso: { nombre: 'Arcilloso', emoji: '🧱', cc: 36, pmp: 22, AAU: 84, arcilla: '> 40 %', infiltracion: '1-5 mm/h', desc: 'Suelo muy pesado y compactable. Retiene mucha agua pero la infiltración es muy lenta. Riegos lentos para no encharcar.' }
+      arcilloso: { nombre: 'Arcilloso', emoji: '🧱', cc: 36, pmp: 22, AAU: 84, arcilla: '> 40 %', infiltracion: '1-5 mm/h', desc: 'Suelo muy pesado y compactable. Retiene mucha agua pero la infiltración es muy lenta. Riegos lentos para no encharcar.' },
+      franco_limoso: { nombre: 'Franco limoso', emoji: '', cc: 29, pmp: 15, AAU: 84, arcilla: '< 27 % (limo 50–80 %)', infiltracion: '7-15 mm/h', desc: 'Mucho limo: suelo harinoso, típico del Chaco Central. Guarda bastante agua, pero la superficie se sella (costra) con gotas grandes: conviene lámina moderada y emisores de gota fina.' },
+      limoso: { nombre: 'Limoso', emoji: '', cc: 32, pmp: 17, AAU: 90, arcilla: '< 12 % (limo ≥ 80 %)', infiltracion: '5-10 mm/h', desc: 'Casi todo limo. Retiene mucha agua útil pero se encostra y erosiona fácil. Láminas chicas y frecuentes para no escurrir.' },
+      franco_arcillo_limoso: { nombre: 'Franco arcillo limoso', emoji: '', cc: 34, pmp: 21, AAU: 78, arcilla: '27–40 % (arena < 20 %)', infiltracion: '3-8 mm/h', desc: 'Pesado y limoso. Infiltra lento: riegos espaciados y sin pasar la capacidad de infiltración.' },
+      arcillo_limoso: { nombre: 'Arcillo limoso', emoji: '', cc: 36, pmp: 23, AAU: 78, arcilla: '≥ 40 % (limo ≥ 40 %)', infiltracion: '1-5 mm/h', desc: 'Muy pesado y limoso, frecuente en los bajos del Chaco Húmedo. Drena mal y puede tener sales o sodio: revisar CE y PSI antes de regar.' }
     };
 
+    // Aviso de salinidad y sodicidad cuando el campo está en el Chaco
+    function avisoChaco() {
+      const d = normalizarTexto(document.getElementById('departamento').value);
+      const el = document.getElementById('avisoChaco'); if (el) el.style.display = /boqueron|presidente hayes|alto paraguay|chaco/.test(d) ? '' : 'none';
+    }
+    document.getElementById('departamento').addEventListener('input', avisoChaco);
+    document.getElementById('departamento').addEventListener('change', avisoChaco);
     function mostrarInfoSuelo() {
+      avisoChaco();
       const tipo = document.getElementById('tipoSuelo').value;
       const div = document.getElementById('suelo-info');
       if (!tipo || !TIPOS_SUELO[tipo]) { div.classList.remove('visible'); return; }

@@ -196,6 +196,9 @@
     html += svg(fs, sens, cfg);
     // configuración
     var arc = ultimaArcilla(c.id), tex = texturaPorArcilla(arc);
+    var ultAn = B().leer('analisis_suelo').filter(function (a) { return String(a.campoId) === String(c.id) && a.arcilla != null && !a.enPromedio; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }).pop();
+    var ta = ultAn && window.SafiaBalance && SafiaBalance.texturaPorAnalisis ? SafiaBalance.texturaPorAnalisis(ultAn) : null;
+    if (ta) tex = { k: ta.t.k, n: ta.t.nombreLargo, cc: ta.t.cc, pmp: ta.t.pmp };
     html += '<div class="card" style="margin-top:14px;"><div class="card-h"><h3>Configuración de la sonda de este campo</h3><span class="muted">CC = capacidad de campo · PMP = punto de marchitez · FAO-56 [1], UNL [2]</span></div><div class="form-grid">' +
       '<div class="field"><label>Unidad de la sonda</label><select id="humUnidad"><option value="vwc"' + (cfg.unidad === 'vwc' ? ' selected' : '') + '>Humedad volumétrica (% vol) — sondas capacitivas</option><option value="kpa"' + (cfg.unidad === 'kpa' ? ' selected' : '') + '>Tensión (kPa) — Watermark</option></select></div>' +
       '<div class="field"><label>Capacidad de campo (% vol)</label><input type="number" id="humCC" step="0.5" value="' + (cfg.cc != null ? cfg.cc : '') + '"><span class="hint">' + (tex ? 'Por textura (' + fmt(arc, 0) + ' % arcilla → ' + tex.n.split(' (')[0] + '): CC ' + tex.cc + ' · PMP ' + tex.pmp + ' [1]. ' : '') + 'Mejor: el valor que marca la sonda 1–2 días después de una lluvia grande.</span></div>' +
