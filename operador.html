@@ -650,6 +650,33 @@
     .campana-meta, .campana-meta * { color: #5B6167 !important; opacity: 1 !important; }
     .campana-meta svg { stroke: #5B6167 !important; }
   </style>
+
+  <style id="safia-operador-pc">
+    /* Operador en PC (≥ 1100 px): todo en una pantalla. Izquierda: equipo, campaña, recomendación, carga y eventos.
+       Derecha: la ficha de agua completa. En celular sigue la columna única de siempre. */
+    @media (min-width: 1100px) {
+      .main { padding-top: 14px !important; padding-bottom: 14px !important; }
+      .main > .crumb { display: none; }
+      .main > .topbar { margin-bottom: 10px !important; padding-bottom: 8px !important; }
+      .contenedor { max-width: 1240px !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
+        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "eventos agua"; }
+      .contenedor > .header-operador { display: none !important; }
+      .contenedor > #alertaSinEquipo { grid-area: alerta; }
+      .contenedor > #selectorCard { grid-area: sel; margin-bottom: 10px !important; padding: 10px 14px !important; }
+      .contenedor > #campanaCard { grid-area: camp; margin-bottom: 10px !important; }
+      .contenedor > #recoCard { grid-area: reco; margin-bottom: 10px !important; padding: 12px 16px !important; }
+      .contenedor > #fichaAguaCard { grid-area: agua; margin: 0 !important; position: sticky; top: 12px; }
+      .contenedor > #botonesCarga { grid-area: carga; margin-bottom: 10px !important; }
+      .contenedor > #eventosSeccion { grid-area: eventos; }
+      #selectorCard select { padding-top: 9px !important; padding-bottom: 9px !important; }
+      #recoCard .reco-titulo { font-size: 17px !important; }
+      #recoCard .reco-detalle { font-size: 13px !important; }
+      #botonesCarga .boton-carga { padding: 12px 8px !important; }
+      #botonesCarga .boton-carga-icono svg { width: 26px !important; height: 26px !important; }
+      #eventosSeccion #listaEventos { max-height: 190px; overflow-y: auto; }
+      #fichaAguaCard .fa-svg { height: 200px; }
+    }
+  </style>
 </head>
 <body>
 
