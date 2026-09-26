@@ -242,14 +242,11 @@
     var hint=document.getElementById('geoHint');
     if(!loc){ toast('Cargá la localidad',true); return; }
     hint.textContent='Buscando…';
-    var url='https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(loc)+'&count=10&language=es'+(COD_PAIS[pais]?'&countryCode='+COD_PAIS[pais]:'');
-    fetch(url).then(function(r){return r.json();}).then(function(j){
-      var res=j.results||[];
-      if(dep){ var d=norm(dep); var c=res.filter(function(x){return norm(x.admin1).indexOf(d)!==-1||d.indexOf(norm(x.admin1))!==-1;}); if(c.length)res=c; }
-      if(!res.length){ hint.textContent='No se encontró esa localidad. Pegá el punto de Google Maps.'; return; }
+    SafiaCasos.buscarLocalidad(loc,dep,pais).then(function(res){
+      if(!res.length){ hint.textContent='No se encontró "'+loc+'"'+(dep?' en '+dep:'')+' (ni en Open-Meteo ni en OpenStreetMap). Pegá el punto de Google Maps.'; return; }
       var x=res[0]; ponerCoordenadas(x.latitude,x.longitude);
       if(!dep && x.admin1) document.getElementById('pDepto').value=x.admin1;
-      hint.textContent='✓ '+x.name+(x.admin1?' — '+x.admin1:'')+' (aprox. del pueblo; ajustá con Google Maps si tenés el lote)';
+      hint.textContent='✓ '+x.name+(x.admin1?' — '+x.admin1:'')+' ('+x.fuente+'; aprox. del pueblo, ajustá con Google Maps si tenés el lote)';
     }).catch(function(){ hint.textContent='No se pudo buscar.'; });
   });
 

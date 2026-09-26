@@ -439,6 +439,80 @@
     });
   }
 
+  /* ---------- buscar coordenadas de una localidad ----------
+     1) Corrige abreviaturas y errores de escritura de la base de referencia ("M. Infante Rivarola",
+        "Estigaribia", "Tte.", "Gral."…). 2) Busca en Open-Meteo (GeoNames). 3) Si no aparece en el
+        departamento elegido, busca en OpenStreetMap (Nominatim), que cubre mucho mejor el Chaco.
+     Nunca devuelve un resultado de otro departamento cuando hay departamento cargado (antes, "Mariscal
+     Estigarribia" de Boquerón caía en el barrio homónimo de Asunción).
+     Devuelve una promesa con [{ name, admin1, latitude, longitude, fuente }] (el mejor primero). */
+  var COD_PAIS_GEO = { Paraguay: 'PY', Brasil: 'BR', Argentina: 'AR', Bolivia: 'BO', Uruguay: 'UY' };
+  var ALIAS_LOCALIDAD = {
+    'm. infante rivarola': 'Mayor Infante Rivarola', 'm infante rivarola': 'Mayor Infante Rivarola', 'infante rivarola': 'Mayor Infante Rivarola',
+    'mariscal estigaribia': 'Mariscal Estigarribia', 'mcal. estigarribia': 'Mariscal Estigarribia', 'mcal estigarribia': 'Mariscal Estigarribia',
+    'joel estigaribia': 'Capitán Joel Estigarribia', 'joel estigarribia': 'Capitán Joel Estigarribia', 'cap. joel estigarribia': 'Capitán Joel Estigarribia',
+    'tte. irala fernandez': 'Teniente 1° Manuel Irala Fernández', 'irala fernandez': 'Teniente 1° Manuel Irala Fernández', 'teniente irala fernandez': 'Teniente 1° Manuel Irala Fernández'
+  };
+  function variantesLocalidad(loc) {
+    var base = String(loc || '').trim(), k = norm(base).replace(/\s+/g, ' ');
+    var v = [];
+    if (ALIAS_LOCALIDAD[k]) v.push(ALIAS_LOCALIDAD[k]);
+    var exp = base.replace(/\bTte\.?\s*1(ro|°)?\.?\s*/i, 'Teniente Primero ').replace(/\bTte\.?\s+/i, 'Teniente ').replace(/\bGral\.?\s+/i, 'General ')
+      .replace(/\bCnel\.?\s+/i, 'Coronel ').replace(/\bMcal\.?\s+/i, 'Mariscal ').replace(/\bPto\.?\s+/i, 'Puerto ').replace(/\bCol\.?\s+/i, 'Colonia ')
+      .replace(/\bSta\.?\s+/i, 'Santa ').replace(/\bSto\.?\s+/i, 'Santo ').replace(/\bEstigaribia\b/i, 'Estigarribia');
+    v.push(exp, base);
+    var sinPref = exp.replace(/^(Colonia|Puerto|Cruce)\s+/i, '');
+    if (sinPref !== exp) v.push(sinPref);
+    return v.filter(function (x, i) { return x && v.indexOf(x) === i; });
+  }
+  function deptoCoincide(texto, depto) {
+    if (!depto) return true;
+    var d = norm(depto).replace(/^departamento (de )?/, ''), t = norm(texto);
+    return !!d && (t.indexOf(d) !== -1 || (d.length > 3 && d.indexOf(t.replace(/^departamento (de )?/, '')) !== -1 && t.length > 3));
+  }
+  var TIPOS_LUGAR = ['city', 'town', 'village', 'hamlet', 'locality', 'suburb', 'municipality', 'isolated_dwelling', 'neighbourhood', 'quarter', 'county', 'district'];
+  function geoOpenMeteo(nombre, depto, pais) {
+    var url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(nombre) + '&count=10&language=es' + (COD_PAIS_GEO[pais] ? '&countryCode=' + COD_PAIS_GEO[pais] : '');
+    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      return (j.results || []).filter(function (x) { return deptoCoincide(x.admin1 || '', depto); })
+        .map(function (x) { return { name: x.name, admin1: x.admin1 || '', latitude: x.latitude, longitude: x.longitude, fuente: 'Open-Meteo' }; });
+    }).catch(function () { return []; });
+  }
+  function geoOSM(q, depto, pais) {
+    var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&accept-language=es&q=' + encodeURIComponent(q) + (COD_PAIS_GEO[pais] ? '&countrycodes=' + COD_PAIS_GEO[pais].toLowerCase() : '');
+    return fetch(url).then(function (r) { return r.json(); }).then(function (lista) {
+      var buenos = (lista || []).filter(function (x) { return TIPOS_LUGAR.indexOf(x.addresstype) !== -1 && deptoCoincide(x.display_name || '', depto); });
+      var sede = false;
+      if (!buenos.length) {   // el pueblo no está como lugar: la sede del distrito (juzgado de paz o municipalidad) sirve de punto aproximado
+        var clave = norm(q.split(',')[0]).replace(/^(capitan|teniente|mayor|general|coronel|mariscal)s+/, '');
+        buenos = (lista || []).filter(function (x) { var n = norm(x.name || ''); return /juzgado|municipalidad/.test(n) && n.indexOf(clave) !== -1 && deptoCoincide(x.display_name || '', depto); });
+        sede = buenos.length > 0;
+      }
+      return buenos.map(function (x) {
+          var a = x.address || {};
+          return { name: sede ? q.split(',')[0].trim() + ' (sede del distrito)' : (x.name || String(x.display_name || '').split(',')[0]), admin1: a.state || a.region || '', latitude: +(+x.lat).toFixed(5), longitude: +(+x.lon).toFixed(5), fuente: 'OpenStreetMap' };
+        });
+    }).catch(function () { return []; });
+  }
+  function buscarLocalidad(loc, depto, pais) {
+    pais = pais || 'Paraguay';
+    var vars = variantesLocalidad(loc), res = [];
+    var cadena = Promise.resolve();
+    vars.forEach(function (v) { cadena = cadena.then(function () { if (res.length) return; return geoOpenMeteo(v, depto, pais).then(function (r) { res = res.concat(r); }); }); });
+    // OpenStreetMap: de a una consulta por vez (su regla de uso es máximo una por segundo)
+    vars.forEach(function (v, i) {
+      cadena = cadena.then(function () {
+        if (res.length) return;
+        var espera = i ? new Promise(function (ok) { setTimeout(ok, 1100); }) : Promise.resolve();
+        return espera.then(function () { return geoOSM(depto ? v + ', ' + depto : v, depto, pais); }).then(function (r) { res = res.concat(r); });
+      });
+    });
+    return cadena.then(function () {
+      var vistos = {};
+      return res.filter(function (x) { var k = x.latitude.toFixed(2) + ',' + x.longitude.toFixed(2); if (vistos[k]) return false; vistos[k] = 1; return true; });
+    });
+  }
+
   /* Conecta los inputs de departamento y localidad a listas para elegir,
      según el país (input/select opcional). Al elegir una localidad
      conocida, completa su departamento. Si cambia el país, se rearman. */
@@ -480,6 +554,7 @@
     armarCasos: armarCasos,
     listasUbicacion: listasUbicacion,
     conectarListasUbicacion: conectarListasUbicacion,
+    buscarLocalidad: buscarLocalidad,
     climaDelCiclo: climaDelCiclo,
     evaluar: evaluar,
     distanciaKm: distanciaKm,

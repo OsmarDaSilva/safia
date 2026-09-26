@@ -386,19 +386,9 @@
       boton.disabled = true; boton.textContent = 'Buscando…';
       cont.innerHTML = '';
 
-      let url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(localidad)}&count=10&language=es`;
-      if (COD_PAIS[pais]) url += `&countryCode=${COD_PAIS[pais]}`;
-
-      fetch(url).then(r => r.json()).then(j => {
-        let res = j.results || [];
-        // si hay departamento cargado, priorizar los que coinciden
-        if (depto) {
-          const d = normalizarTexto(depto);
-          const coinciden = res.filter(x => normalizarTexto(x.admin1).indexOf(d) !== -1 || d.indexOf(normalizarTexto(x.admin1)) !== -1);
-          if (coinciden.length) res = coinciden;
-        }
+      SafiaCasos.buscarLocalidad(localidad, depto, pais).then(res => {
         if (!res.length) {
-          cont.innerHTML = '<div class="note warn">No se encontró esa localidad. Revisá el nombre, o pegá el punto de Google Maps abajo.</div>';
+          cont.innerHTML = '<div class="note warn">No se encontró "' + localidad + '"' + (depto ? ' en ' + depto : '') + ' (ni en Open-Meteo ni en OpenStreetMap). Revisá el nombre, o pegá el punto de Google Maps abajo.</div>';
           return;
         }
         if (res.length === 1) { usarResultadoGeo(res[0]); return; }
@@ -407,7 +397,7 @@
           '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">' +
           res.map((x, i) =>
             `<button type="button" class="btn" style="justify-content:flex-start;" data-i="${i}">`+
-            `📍 ${x.name} — ${x.admin1 || ''} <span class="muted" style="margin-left:6px;">(${x.latitude.toFixed(4)}, ${x.longitude.toFixed(4)})</span></button>`
+            `${x.name} — ${x.admin1 || ''} <span class="muted" style="margin-left:6px;">(${x.latitude.toFixed(4)}, ${x.longitude.toFixed(4)} · ${x.fuente || ''})</span></button>`
           ).join('') + '</div>';
         cont.querySelectorAll('button[data-i]').forEach(b => {
           b.addEventListener('click', () => { usarResultadoGeo(res[parseInt(b.dataset.i)]); });
@@ -424,11 +414,11 @@
       document.getElementById('longitud').value = x.longitude;
       document.getElementById('gpsCompleto').value = x.latitude + ', ' + x.longitude;
       // la localidad encontrada también corrige el nombre si estaba distinto
-      if (x.name) document.getElementById('localidad').value = x.name;
+      if (x.name && x.fuente !== 'OpenStreetMap') document.getElementById('localidad').value = x.name;
       document.getElementById('altitud').value = ''; // dejar que se recalcule para este punto
       validarGPS(x.latitude, x.longitude);
       const cont = document.getElementById('localidadResultados');
-      cont.innerHTML = '<div class="note ok">✓ Coordenada aproximada de <b>' + (x.name||'') + '</b> cargada. Ajustala al campo exacto del cliente pegando el punto de Google Maps si querés más precisión.</div>';
+      cont.innerHTML = '<div class="note ok">✓ Coordenada aproximada de <b>' + (x.name||'') + '</b> cargada (' + (x.fuente || '') + '). Ajustala al campo exacto del cliente pegando el punto de Google Maps si querés más precisión.</div>';
     }
 
     // Si cargás latitud y longitud a mano (sin pegar), también valida y busca altitud.
