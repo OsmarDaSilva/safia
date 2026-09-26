@@ -407,6 +407,13 @@
     .campana-meta svg { stroke: #5B6167 !important; }
   </style>
   <style id="safia-encargado-pc">
+    .para-hoy{background:#fff;border:1px solid #E1E4E7;border-left:4px solid #178029;border-radius:10px;padding:4px 12px;}
+    .para-hoy-fila{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12.5px;color:#2E3236;text-decoration:none;border-top:1px solid #F0F2F4;}
+    .para-hoy-fila:first-child{border-top:0;}
+    .para-hoy-fila i{width:9px;height:9px;border-radius:50%;flex:none;}
+    .para-hoy-fila span:first-of-type{flex:1;}
+    .para-hoy-ir{font-size:11px;color:#8C9196;font-weight:700;white-space:nowrap;}
+    .equipo-extras{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 8px;}
     .alertas-clima-lista{background:#fff;border:1px solid #E1E4E7;border-left:4px solid #C0392B;border-radius:10px;padding:8px 12px;}
     .alerta-clima-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:4px 0;font-size:12.5px;color:#2E3236;}
     .alerta-clima-fila+.alerta-clima-fila{border-top:1px solid #F0F2F4;}
@@ -539,6 +546,9 @@
       <button class="filtro-pill" onclick="filtrar('ok', this)">🟢 OK</button>
     </div>
 
+
+    <!-- PARA HOY: lo que el encargado tiene que hacer o mirar -->
+    <div id="paraHoy" style="display:none;" class="alertas-clima-wrap"></div>
 
     <!-- ALERTAS CLIMÁTICAS -->
     <div id="alertasClimaticas" style="display:none;" class="alertas-clima-wrap"></div>
@@ -693,6 +703,7 @@
 
       // Banner "Datos del ... — no se pudo actualizar" si algún equipo usó caché.
       SafiaClima.avisoCache(climaStale);
+      try { pintarParaHoy(); } catch (e) { console.warn('[SAFIA] Para hoy:', e); }
     }
 
 
@@ -857,6 +868,65 @@
     }
 
     // ============ RENDERIZAR ============
+    // ===== Lo que cada lote tiene pendiente (mantenimiento, cargas, sensores, satélite) =====
+    function hoyISO() { return SafiaBalance.hoyLocal(); }
+    function diasDesde(f) { if (!f) return null; return Math.round((new Date(hoyISO() + 'T12:00:00') - new Date(String(f).slice(0, 10) + 'T12:00:00')) / 86400000); }
+    function mantenimientoDe(eq) {
+      const plan = eq && eq.planMantenimiento; if (!plan || !plan.length) return { sinPlan: true, vencidas: [], proximas: [], horas: parseFloat(eq && eq.horasAcumuladas) || 0 };
+      const horas = parseFloat(eq.horasAcumuladas) || 0, vencidas = [], proximas = [];
+      plan.forEach(t => { const it = parseFloat(t.intervalo); if (!(it > 0)) return; const pct = (horas - (parseFloat(t.ultimasHorasHechas) || 0)) / it * 100; if (pct >= 100) vencidas.push({ tarea: t.tarea, pct: Math.round(pct) }); else if (pct >= 80) proximas.push({ tarea: t.tarea, pct: Math.round(pct) }); });
+      return { sinPlan: false, vencidas, proximas, horas };
+    }
+    function ultimaCargaDe(d) { const ev = d.eventosEquipo && d.eventosEquipo[0]; return ev ? diasDesde(ev.fecha) : null; }
+    function sensorDe(d) {
+      const campo = d.campo; if (!campo || !campo.estacionId) return null;
+      const est = SafiaBalance.estacionDelCampo(campo);
+      if (!est) return { texto: 'estación sin lecturas', mal: true };
+      const atraso = diasDesde(est.hasta);
+      let sonda = ''; if (est.sondaOk) { const fs = Object.keys(est.humedad || {}).sort(); if (fs.length) sonda = ' · sonda ' + (Math.round(est.humedad[fs[fs.length - 1]] * 10) / 10) + ' % vol'; }
+      return { texto: 'estación ' + (atraso === 0 ? 'hoy' : 'hace ' + atraso + ' d') + sonda, mal: atraso > 2 };
+    }
+    function ndviDe(eq) { try { const s = (JSON.parse(localStorage.getItem('ndvi_' + eq.id) || '[]') || []).filter(x => x.fecha && x.ndvi != null).sort((a, b) => String(a.fecha).localeCompare(String(b.fecha))); const u = s[s.length - 1]; return u ? { fecha: u.fecha, ndvi: u.ndvi } : null; } catch (e) { return null; } }
+    function cosechasSinCargar() {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]'), equipos = JSON.parse(localStorage.getItem('equipos') || '[]'), out = [];
+      campanas.forEach(c => { if (c.estado === 'Cerrada') return; (c.cultivos || []).forEach((cu, i) => { if (!cu || parseFloat(cu.rendimientoReal) > 0) return; const fin = cu.fechaCosecha; if (fin && diasDesde(fin) > 0) { const eq = equipos.find(e => String(e.id) === String(c.equipoId)); out.push({ campana: c, cu, i, eq, dias: diasDesde(fin) }); } }); });
+      return out;
+    }
+    function vueltasTexto(mm, eq) { const v = window.SafiaFichaAgua && SafiaFichaAgua.vueltas ? SafiaFichaAgua.vueltas(mm, eq) : null; return v ? ' (' + v.texto + ')' : ''; }
+    function pintarParaHoy() {
+      const div = document.getElementById('paraHoy'); if (!div) return;
+      const equiposTodos = JSON.parse(localStorage.getItem('equipos') || '[]').filter(e => !e.zona);
+      const enFiltro = (eqId) => !campoFiltro || String((equiposTodos.find(e => String(e.id) === String(eqId)) || {}).campoId) === String(campoFiltro);
+      const items = [];
+      // 1. Regar hoy
+      estadoEquipos.forEach(d => { const r = d.balance && d.balance.r; if (r && r.recomendacion && r.recomendacion.regar && enFiltro(d.equipo.id)) items.push({ col: '#C0392B', txt: '<b>Regar hoy ' + d.equipo.nombre + '</b>: ' + Math.round(r.recomendacion.mm) + ' mm' + vueltasTexto(r.recomendacion.mm, d.equipo) + (r.porcentajeHoy != null ? ' · agua útil ' + Math.round(r.porcentajeHoy) + ' %' : ''), href: 'operador.html?equipo=' + d.equipo.id }); });
+      // 2. Mantenimiento vencido o próximo
+      equiposTodos.forEach(eq => { if (!enFiltro(eq.id)) return; const mt = mantenimientoDe(eq); if (mt.sinPlan) return; mt.vencidas.forEach(t => items.push({ col: '#C0392B', txt: '<b>Mantenimiento vencido ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' % del intervalo, ' + Math.round(mt.horas) + ' h)', href: 'mis-equipos.html' })); mt.proximas.forEach(t => items.push({ col: '#B8731A', txt: '<b>Mantenimiento próximo ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' %)', href: 'mis-equipos.html' })); });
+      // 3. Cosechas sin cargar
+      cosechasSinCargar().forEach(x => { if (x.eq && !enFiltro(x.eq.id)) return; items.push({ col: '#B8731A', txt: '<b>Cosecha sin cargar</b>: ' + x.cu.cultivo + ' · ' + (x.campana.nombre || '') + (x.eq ? ' · ' + x.eq.nombre : '') + ' (terminó hace ' + x.dias + ' d)', href: 'mis-campanas.html?cosecha=' + x.campana.id }); });
+      // 4. Lotes en ciclo sin novedades hace más de 7 días
+      estadoEquipos.forEach(d => { if (!d.campanaActiva || !enFiltro(d.equipo.id)) return; const u = ultimaCargaDe(d); if (u == null || u > 7) items.push({ col: '#8C9196', txt: '<b>' + d.equipo.nombre + '</b>: ' + (u == null ? 'ningún riego, lluvia ni aplicación cargados' : 'sin cargas hace ' + u + ' días'), href: 'operador.html?equipo=' + d.equipo.id }); });
+      // 5. Estación sin lecturas
+      const vistos = {};
+      estadoEquipos.forEach(d => { if (!d.campo || vistos[d.campo.id] || !enFiltro(d.equipo.id)) return; vistos[d.campo.id] = 1; const s = sensorDe(d); if (s && s.mal) items.push({ col: '#B8731A', txt: '<b>' + d.campo.nombre + '</b>: ' + s.texto + ' (traer datos de la estación)', href: 'banco.html' }); });
+      const titulo = '<div class="alertas-clima-titulo" style="color:#178029;"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Para hoy</div>';
+      div.style.display = 'block';
+      div.innerHTML = titulo + '<div class="para-hoy">' + (items.length ? items.map(it => '<a class="para-hoy-fila" href="' + it.href + '"><i style="background:' + it.col + '"></i><span>' + it.txt + '</span><span class="para-hoy-ir">abrir →</span></a>').join('') : '<div class="para-hoy-fila" style="color:#178029;"><i style="background:#178029"></i><span>Nada pendiente: sin riegos para hoy, mantenimiento al día y cosechas cargadas.</span></div>') + '</div>';
+    }
+    function extrasDe(d) {
+      const chips = [];
+      const mt = mantenimientoDe(d.equipo);
+      if (mt.sinPlan) chips.push({ col: '#8C9196', txt: 'sin plan de mantenimiento' });
+      else if (mt.vencidas.length) chips.push({ col: '#C0392B', txt: mt.vencidas.length + ' mantenimiento' + (mt.vencidas.length > 1 ? 's' : '') + ' vencido' + (mt.vencidas.length > 1 ? 's' : '') + ' · ' + Math.round(mt.horas) + ' h' });
+      else if (mt.proximas.length) chips.push({ col: '#B8731A', txt: mt.proximas.length + ' mantenimiento' + (mt.proximas.length > 1 ? 's' : '') + ' por vencer · ' + Math.round(mt.horas) + ' h' });
+      else chips.push({ col: '#178029', txt: 'mantenimiento al día · ' + Math.round(mt.horas) + ' h' });
+      const u = ultimaCargaDe(d);
+      chips.push({ col: u == null ? '#8C9196' : (u > 7 ? '#B8731A' : '#178029'), txt: u == null ? 'sin cargas' : (u === 0 ? 'cargado hoy' : 'última carga hace ' + u + ' d') });
+      const s = sensorDe(d); if (s) chips.push({ col: s.mal ? '#B8731A' : '#178029', txt: s.texto });
+      const n = ndviDe(d.equipo); if (n) chips.push({ col: '#178029', txt: 'satélite NDVI ' + (Math.round(n.ndvi * 100) / 100) + ' (' + String(n.fecha).slice(8, 10) + '/' + String(n.fecha).slice(5, 7) + ')' });
+      return '<div class="equipo-extras">' + chips.map(c => '<span class="alerta-chip" style="border-color:' + c.col + ';color:' + c.col + ';"><i style="background:' + c.col + '"></i>' + c.txt + '</span>').join('') + '</div>';
+    }
+
     function renderizar() {
       // Stats arriba (del campo elegido, si hay filtro)
       const base = campoFiltro ? estadoEquipos.filter(e => e.campo && String(e.campo.id) === String(campoFiltro)) : estadoEquipos;
@@ -976,6 +1046,7 @@
               </div>
             </div>
 
+            ${extrasDe(d)}
             ${recoHTML}
             ${d.balance && d.balance.r && window.SafiaFichaAgua ? '<div style="margin-top:10px;">' + SafiaFichaAgua.html(d.balance.r, { equipo: d.equipo, compacta: true, titulo: false }) + '</div>' : ''}
             ${eventosMiniHTML}
