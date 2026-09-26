@@ -33,6 +33,7 @@
      Fuentes (sin inventar números):
        [V] Valley, Center Pivot 7000/8000/8120 Series Owner's Manual: reductoras de rueda pág. 64 y 66, motorreductor central
            pág. 65 y 67, cubos remolcables pág. 68, swivel del pivote pág. 70, cronograma pre/post temporada pág. 92–95.
+       [CC] Zimmatic 9500CC Corner, Operation Manual P/N 1239680 Rev B (Section 2 – Maintenance) para corners Lindsay/Zimmatic.
        [LP] Lindsay (Zimmatic), Programa Anual de Mantenimiento Recomendado (se usa tambien para marcas no Valley).
        Bombas: IMBIL BEW (manual ES), KSB Meganorm A2742.8P, HIGRA anfibias REV22; Helibombas no publica intervalos.
        [F] Placa y manual del fabricante del equipo (bomba, motor, corner): el intervalo lo completa el usuario. */
@@ -48,7 +49,8 @@
     var tieneCorner = !!(dt.corner && !/^(no|0|false)$/i.test(String(dt.corner).trim()));
     var c = esValley ? catalogoValley() : catalogoLindsay();
     c.push({ k: 'canon', componente: 'Cañón final', tarea: 'Revisar rodamiento y freno del cañón final', cada: { dias: TEMPORADA }, detalle: 'Si el pivot no tiene cañón, borrar esta tarea.', fuente: FUENTE_V + ', pág. 94' });
-    if (tieneCorner) {
+    if (tieneCorner && !esValley) c = c.concat(catalogoCornerZimmatic(c));
+    else if (tieneCorner) {
       c.push({ k: 'corner_engrase', componente: 'Corner', tarea: 'Engrasar la articulación y el eje del corner', cada: {}, detalle: 'Completar el intervalo con el manual del corner de la marca.', fuente: FUENTE_F });
       c.push({ k: 'corner_reductora', componente: 'Corner', tarea: 'Aceite de la reductora de la torre de dirección del corner', cada: {}, detalle: 'Completar con el manual del corner.', fuente: FUENTE_F });
     }
@@ -76,6 +78,22 @@
       { k: 'boquillas', componente: 'Aspersores', tarea: 'Revisar el paquete de aspersión', cada: { dias: A }, detalle: 'Aspersores o reguladores deteriorados o faltantes.', fuente: F },
       { k: 'trampa_arena', componente: 'Aspersores', tarea: 'Retirar la trampa de arena de la última torre y enjuagar el pivote', cada: { dias: T }, detalle: 'Al final y al principio de la temporada, por varios minutos.', fuente: F },
       { k: 'drenado_final', componente: 'Estructura', tarea: 'Drenar todo el equipo, incluida la tubería del elevador', cada: { dias: A }, detalle: 'Al final de la temporada de riego. Estacionar el sistema en terreno plano o calle de servicio.', fuente: F }
+    ];
+  }
+  // Corner Zimmatic 9500CC (Lindsay): manual de operación P/N 1239680 Rev B, Section 2 – Maintenance.
+  // Con corner, el checklist periódico del manual pide engrasar el punto pivote cada 6 meses (más seguido que el programa general).
+  function catalogoCornerZimmatic(base) {
+    var F = 'Zimmatic 9500CC Corner, Operation Manual P/N 1239680 Rev B', A = ANIO;
+    var sw = base.find(function (t) { return t.k === 'swivel'; });
+    if (sw) { sw.cada = { horas: 1000, dias: 182 }; sw.detalle = 'Con corner: cada 6 meses o cada 1.000 h, lo que ocurra primero (checklist periódico del corner).'; sw.fuente = F + ', pág. 2-7 · ' + FUENTE_LP; }
+    return [
+      { k: 'corner_engrase', componente: 'Corner', tarea: 'Engrasar la articulación de la última torre y el H-Frame del corner', cada: { horas: 1000, dias: A }, detalle: 'Tres graseras en la articulación y tres en cada tubo vertical del H-Frame. Grasa multipropósito. Una vez al año o cada 1.000 h, lo que ocurra primero.', fuente: F + ', pág. 2-1' },
+      { k: 'corner_direccion', componente: 'Corner', tarea: 'Engrasar husillos de dirección y crucetas (U-joints) del corner', cada: { dias: A }, detalle: 'Anual, antes de empezar la temporada.', fuente: F + ', pág. 2-7' },
+      { k: 'corner_nivel', componente: 'Corner', tarea: 'Nivel de aceite de reductoras y motorreductor de la torre del corner', cada: { dias: 182 }, detalle: 'Cada 6 meses. Reductoras: Zimmatic 85W-140 GL-5 (aprox. 1 galón por caja), sin llenar de más.', fuente: F + ', pág. 2-3, 2-4 y 2-7' },
+      { k: 'corner_reductora', componente: 'Corner', tarea: 'Cambiar aceite de reductoras y motorreductor del corner', cada: { horas: 4000, dias: 4 * A }, detalle: 'Primer cambio al final de la primera temporada; después cada 4 años o 4.000 h, lo que ocurra primero. Solo aceite Zimmatic.', fuente: F + ', pág. 2-3' },
+      { k: 'corner_neumaticos', componente: 'Corner', tarea: 'Presión de neumáticos y tuercas de ruedas del corner', cada: { dias: 90 }, detalle: 'Cada 3 meses. Nunca menos de 16 PSI (1,1 bar). Tuercas en cruz a 162,7 N·m.', fuente: F + ', pág. 2-6 y 2-7' },
+      { k: 'corner_filtro', componente: 'Corner', tarea: 'Revisar el filtro de la línea piloto', cada: { dias: 182 }, detalle: 'Dos veces al año; sin agua al final de la temporada.', fuente: F + ', pág. 2-2' },
+      { k: 'corner_drenaje', componente: 'Corner', tarea: 'Drenar la articulación de la última torre', cada: { dias: TEMPORADA }, detalle: 'Al final de la temporada si tiene tapón o válvula de bola (con dren Wade drena solo).', fuente: F + ', pág. 2-2' }
     ];
   }
   // Pivots Valley: manual del dueño 7000/8000/8120
