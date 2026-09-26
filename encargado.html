@@ -406,6 +406,46 @@
     .campana-meta, .campana-meta * { color: #5B6167 !important; opacity: 1 !important; }
     .campana-meta svg { stroke: #5B6167 !important; }
   </style>
+  <style id="safia-encargado-tabla">
+    .enc-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid #E1E4E7;}
+    .enc-crumb{font-size:12px;color:#8C9196;margin-bottom:2px;} .enc-crumb b{color:#178029;font-weight:700;}
+    .enc-titulo{font-size:24px;font-weight:800;color:#2E3236;line-height:1.1;}
+    .enc-sub{font-size:12.5px;color:#8C9196;margin-top:3px;}
+    .enc-head-der{text-align:right;}
+    .enc-stats{display:flex;gap:14px;justify-content:flex-end;font-size:12.5px;color:#5B6167;margin-bottom:4px;flex-wrap:wrap;}
+    .enc-stats span{display:inline-flex;align-items:center;gap:5px;} .enc-stats b{color:#2E3236;} .enc-stats i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+    .enc-stats .ok i{background:#178029;} .enc-stats .mon i{background:#B8731A;} .enc-stats .urg i{background:#C0392B;}
+    .enc-fecha{font-size:12px;color:#8C9196;}
+    .tabla-lotes{display:none;}
+    .tl-card{background:#fff;border:1px solid #E1E4E7;border-radius:10px;box-shadow:0 1px 3px rgba(30,40,50,.06);overflow:hidden;}
+    .tl-titulo{font-size:11.5px;font-weight:800;color:#178029;text-transform:uppercase;letter-spacing:.06em;padding:12px 14px 8px;}
+    .tl{width:100%;border-collapse:collapse;font-size:12.5px;color:#2E3236;table-layout:fixed;}
+    .tl th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#8C9196;text-align:left;padding:8px 10px;border-top:1px solid #E1E4E7;border-bottom:1px solid #E1E4E7;background:#FAFBFB;}
+    .tl td{padding:10px 10px;border-bottom:1px solid #F0F2F4;vertical-align:middle;line-height:1.35;overflow-wrap:anywhere;}
+    .tl tbody tr{cursor:pointer;} .tl tbody tr:hover td{background:#F7F8F9;} .tl tbody tr:last-child td{border-bottom:0;}
+    .tl th:nth-child(1),.tl td:nth-child(1){width:26%;} .tl th:nth-child(2),.tl td:nth-child(2){width:13%;} .tl th:nth-child(3),.tl td:nth-child(3){width:17%;}
+    .tl th:nth-child(4),.tl td:nth-child(4){width:16%;} .tl th:nth-child(5),.tl td:nth-child(5){width:12%;} .tl th:nth-child(6),.tl td:nth-child(6){width:16%;}
+    .tl-lote{display:flex;align-items:center;gap:8px;flex-wrap:wrap;} .tl-lote b{font-size:13px;}
+    .tl-sens{margin-top:4px;padding-top:4px;border-top:1px dashed #EEF0F2;font-size:11px;color:#5B6167;}
+    .tl th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .tl-badge{white-space:normal;line-height:1.25;}
+    .tl-sub{font-size:11px;color:#8C9196;margin-top:2px;} .tl-sub-inline{font-size:11px;color:#8C9196;font-weight:500;} .tl-muted{color:#8C9196;}
+    .tl-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap;}
+    .tl-badge.ok{background:#E7F6EA;color:#178029;} .tl-badge.monitorear{background:#FBF1DF;color:#8a5713;} .tl-badge.urgente{background:#FBECEA;color:#B3261E;} .tl-badge.lluvia{background:#EEF4FB;color:#1F5A96;} .tl-badge.gris{background:#F0F2F4;color:#5B6167;}
+    .tl-agua b{font-size:13px;} .tl-agua .fa-mini{margin-top:3px;} .tl-agua .fa-mini-txt{display:none;} .tl-agua .fa-mini-barra{height:7px;margin-top:8px;}
+    .tl-vacio{padding:24px;text-align:center;color:#8C9196;font-size:13px;background:#fff;border:1px solid #E1E4E7;border-radius:10px;}
+    @media (min-width: 1100px) {
+      .contenedor{display:grid;grid-template-columns:minmax(0,1fr) 310px;column-gap:14px;align-items:start;
+        grid-template-areas:"head head" "filtros filtros" "tabla hoy" "tabla clima" "tabla resto";}
+      .contenedor > .enc-head{grid-area:head;}
+      .contenedor > .resumen-grid,.contenedor > .seccion-titulo,.contenedor > #listaEquipos{display:none !important;}
+      .contenedor > .filtros{grid-area:filtros;}
+      .contenedor > .filtros + .filtros{grid-area:filtros;justify-self:end;}
+      .contenedor > #tablaLotes{grid-area:tabla;display:block;}
+      .contenedor > #paraHoy{grid-area:hoy;}
+      .contenedor > #alertasClimaticas{grid-area:clima;}
+    }
+  </style>
   <style id="safia-encargado-pc">
     .para-hoy{background:#fff;border:1px solid #E1E4E7;border-left:4px solid #178029;border-radius:10px;padding:4px 12px;}
     .para-hoy-fila{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12.5px;color:#2E3236;text-decoration:none;border-top:1px solid #F0F2F4;}
@@ -504,12 +544,16 @@
 
   <div style="overflow-x:hidden;">
   <div class="contenedor" style="padding:24px 32px 40px;">
-    <!-- HEADER -->
-    <div class="header-encargado">
-      <div class="header-icono"><svg class="ic-hero" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></div>
-      <div class="header-textos">
-        <h1>ENCARGADO</h1>
-        <p>Supervisión multi-equipo · Estado actual de operaciones</p>
+    <!-- CABECERA DE PÁGINA -->
+    <div class="enc-head">
+      <div>
+        <div class="enc-crumb">Operación · <b>Encargado</b></div>
+        <div class="enc-titulo">Encargado</div>
+        <div class="enc-sub">Supervisión de lotes · estado de hoy</div>
+      </div>
+      <div class="enc-head-der">
+        <div class="enc-stats" id="encStats"></div>
+        <div class="enc-fecha" id="encFecha"></div>
       </div>
     </div>
 
@@ -555,6 +599,7 @@
 
     <!-- LISTA DE EQUIPOS -->
     <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg> Estado de equipos</div>
+    <div id="tablaLotes" class="tabla-lotes"></div>
     <div id="listaEquipos">
       <div class="loading-text" style="text-align:center; padding:40px;">⏳ Cargando estado de equipos...</div>
     </div>
@@ -927,6 +972,63 @@
       return '<div class="equipo-extras">' + chips.map(c => '<span class="alerta-chip" style="border-color:' + c.col + ';color:' + c.col + ';"><i style="background:' + c.col + '"></i>' + c.txt + '</span>').join('') + '</div>';
     }
 
+    // ===== Tabla de lotes (PC): una fila por lote =====
+    function badgeEstado(d) {
+      const cls = { rojo: 'urgente', amarillo: 'monitorear', verde: 'ok', azul: 'lluvia', secano: 'gris', gris: 'gris' }[d.semaforo] || 'gris';
+      const txt = String(d.textoSemaforo || '').replace(/^[^\wÁÉÍÓÚáéíóú]+/, '').replace('Lluvia esperada', 'Lluvia').replace('URGENTE', 'Urgente').trim();
+      return '<span class="tl-badge ' + cls + '">' + txt + '</span>';
+    }
+    function celdaAgua(d) {
+      const r = d.balance && d.balance.r; if (!r || r.porcentajeHoy == null) return '<span class="tl-muted">—</span>';
+      const mini = window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : '';
+      return '<div class="tl-agua"><b>' + Math.round(r.porcentajeHoy) + ' %</b>' + mini + '</div>';
+    }
+    function celdaRiego(d) {
+      const r = d.balance && d.balance.r; if (!r || !window.SafiaFichaAgua) return '<span class="tl-muted">—</span>';
+      const p = SafiaFichaAgua.proximoRiego(r, d.equipo);
+      const col = { urgente: '#C0392B', regar: '#E67E22', proximo: '#B8731A', ok: '#178029', lluvia: '#2E72C8', secano: '#8C9196' }[p.tipo] || '#2E3236';
+      const corto = String(p.titulo || '').replace('Sin riego previsto en los próximos', 'Sin riego en').replace(' (urgente)', '').replace('No regar: viene lluvia', 'No regar, viene lluvia');
+      return '<div style="color:' + col + ';font-weight:700;">' + corto + '</div>';
+    }
+    function celdaMant(d) {
+      const mt = mantenimientoDe(d.equipo);
+      if (mt.sinPlan) return '<span class="tl-muted">sin plan</span>';
+      if (mt.vencidas.length) return '<span style="color:#C0392B;font-weight:700;">' + mt.vencidas.length + ' vencido' + (mt.vencidas.length > 1 ? 's' : '') + '</span><div class="tl-sub">' + mt.vencidas[0].tarea + ' · ' + Math.round(mt.horas) + ' h</div>';
+      if (mt.proximas.length) return '<span style="color:#B8731A;font-weight:700;">' + mt.proximas.length + ' por vencer</span><div class="tl-sub">' + mt.proximas[0].tarea + ' · ' + Math.round(mt.horas) + ' h</div>';
+      return '<span style="color:#178029;font-weight:700;">al día</span><div class="tl-sub">' + Math.round(mt.horas) + ' h</div>';
+    }
+    function celdaCarga(d) {
+      const u = ultimaCargaDe(d), ev = d.eventosEquipo && d.eventosEquipo[0];
+      if (u == null) return '<span class="tl-muted">sin cargas</span>';
+      const que = ev ? (ev.tipo === 'riego' ? 'riego ' + ev.cantidad + ' mm' : ev.tipo === 'lluvia' ? 'lluvia ' + ev.cantidad + ' mm' : ev.tipo === 'aplicacion' ? (ev.producto || 'aplicación') : ev.tipo) : '';
+      return '<span style="color:' + (u > 7 ? '#B8731A' : '#2E3236') + ';font-weight:700;">' + (u === 0 ? 'hoy' : 'hace ' + u + ' d') + '</span><div class="tl-sub">' + que + '</div>';
+    }
+    function celdaSensores(d) {
+      const s = sensorDe(d), n = ndviDe(d.equipo), partes = [];
+      if (s) partes.push('<div style="color:' + (s.mal ? '#B8731A' : '#2E3236') + ';">' + s.texto + '</div>');
+      if (n) partes.push('<div class="tl-sub">NDVI ' + (Math.round(n.ndvi * 100) / 100) + ' · ' + String(n.fecha).slice(8, 10) + '/' + String(n.fecha).slice(5, 7) + '</div>');
+      return partes.length ? partes.join('') : '<span class="tl-muted">—</span>';
+    }
+    function renderTabla(aMostrar, total, urgente, monitorear, ok) {
+      const cont = document.getElementById('tablaLotes'); if (!cont) return;
+      const st = document.getElementById('encStats'); if (st) st.innerHTML = '<span><b>' + total + '</b> lotes</span><span class="ok"><i></i><b>' + ok + '</b> OK</span><span class="mon"><i></i><b>' + monitorear + '</b> monitorear</span><span class="urg"><i></i><b>' + urgente + '</b> urgente' + (urgente === 1 ? '' : 's') + '</span>';
+      const fe = document.getElementById('encFecha'); if (fe) fe.textContent = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+      if (!aMostrar.length) { cont.innerHTML = '<div class="tl-vacio">No hay lotes con estos filtros.</div>'; return; }
+      const filas = aMostrar.map(d => {
+        const c = d.campanaActiva && d.campanaActiva.cultivos && d.campanaActiva.cultivos[0];
+        let cultivo = '<span class="tl-muted">sin campaña</span>';
+        if (c) { const dias = c.fechaSiembra ? diasDesde(c.fechaSiembra) : null; cultivo = '<b>' + c.cultivo + '</b>' + (c.variedad ? ' <span class="tl-sub-inline">' + c.variedad + '</span>' : '') + '<div class="tl-sub">' + (dias != null ? 'día ' + dias : 'sin fecha de siembra') + (c.superficie ? ' · ' + c.superficie + ' ha' : '') + '</div>'; }
+        return '<tr onclick="window.location.href=\'operador.html?equipo=' + d.equipo.id + '\'">' +
+          '<td><div class="tl-lote"><b>' + d.equipo.nombre + '</b>' + badgeEstado(d) + '</div><div class="tl-sub">' + (d.campo ? d.campo.nombre : '?') + ' · ' + (d.cliente ? d.cliente.nombre : '?') + '</div></td>' +
+          '<td>' + cultivo + '</td>' +
+          '<td>' + celdaAgua(d) + '</td>' +
+          '<td>' + celdaRiego(d) + '</td>' +
+          '<td>' + celdaMant(d) + '</td>' +
+          '<td>' + celdaCarga(d) + (function () { const s = celdaSensores(d); return s.indexOf('tl-muted') >= 0 ? '' : '<div class="tl-sens">' + s + '</div>'; })() + '</td></tr>';
+      }).join('');
+      cont.innerHTML = '<div class="tl-card"><div class="tl-titulo">Estado de los lotes <span class="tl-sub-inline">tocá un lote para abrirlo en el Operador</span></div><table class="tl"><thead><tr><th>Lote</th><th>Cultivo</th><th>Agua útil</th><th>Riego</th><th>Mantenim.</th><th>Última carga</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+    }
+
     function renderizar() {
       // Stats arriba (del campo elegido, si hay filtro)
       const base = campoFiltro ? estadoEquipos.filter(e => e.campo && String(e.campo.id) === String(campoFiltro)) : estadoEquipos;
@@ -1054,6 +1156,7 @@
         `;
         lista.innerHTML += html;
       });
+      renderTabla(aMostrar, total, urgente, monitorear, ok);
     }
   </script>
 
