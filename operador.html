@@ -2,6 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <script>
+    /* Vista embebida (dentro del Encargado): sin menú ni título; los enlaces abren en la ventana completa */
+    (function () { try { if (window.top !== window && (/[?&]embed=1(&|$)/.test(location.search) || /^safia-embebido/.test(window.name || ''))) { document.documentElement.classList.add('embebido'); var b = document.createElement('base'); b.target = '_top'; document.head.appendChild(b); } } catch (e) {} })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SAFIA — Operador</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -651,6 +655,35 @@
     .campana-meta svg { stroke: #5B6167 !important; }
   </style>
 
+  <style id="safia-operador-embebido">
+    html.embebido body { background: transparent !important; }
+    html.embebido .layout { display: block !important; }
+    html.embebido .sidebar, html.embebido .menu-toggle, html.embebido .sidebar-overlay,
+    html.embebido .main > .crumb, html.embebido .main > .topbar, html.embebido .header-operador, html.embebido #selectorCard { display: none !important; }
+    html.embebido .main { padding: 2px 2px 12px !important; margin: 0 !important; width: 100% !important; }
+    html.embebido #safiaSyncBarra, html.embebido #safiaCuentaBtn, html.embebido #safiaCuentaMenu { display: none !important; }
+    @media (min-width: 860px) {
+      html.embebido .contenedor > .header-operador { display: none !important; }
+      html.embebido .contenedor > #alertaSinEquipo { grid-area: alerta; }
+      html.embebido .contenedor > #selectorCard { grid-area: sel; margin-bottom: 10px !important; padding: 10px 14px !important; }
+      html.embebido .contenedor > #campanaCard { grid-area: camp; margin-bottom: 10px !important; }
+      html.embebido .contenedor > #recoCard { grid-area: reco; margin-bottom: 10px !important; padding: 12px 16px !important; }
+      html.embebido .contenedor > #fichaAguaCard { grid-area: agua; margin: 0 !important; }
+      html.embebido .contenedor > #mantCard { grid-area: mant; margin: 10px 0 0 !important; padding: 12px 16px !important; }
+      html.embebido .contenedor > #botonesCarga { grid-area: carga; margin-bottom: 10px !important; }
+      html.embebido .contenedor > #eventosSeccion { grid-area: eventos; }
+      html.embebido #selectorCard select { padding-top: 9px !important; padding-bottom: 9px !important; }
+      html.embebido #recoCard .reco-titulo { font-size: 17px !important; }
+      html.embebido #recoCard .reco-detalle { font-size: 13px !important; }
+      html.embebido #botonesCarga .boton-carga { padding: 12px 8px !important; }
+      html.embebido #botonesCarga .boton-carga-icono svg { width: 26px !important; height: 26px !important; }
+      html.embebido #eventosSeccion #listaEventos { max-height: 190px; overflow-y: auto; }
+      html.embebido #fichaAguaCard .fa-svg { height: 200px; }
+      html.embebido .contenedor { max-width: none !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
+        grid-template-areas: "alerta alerta" "camp agua" "reco agua" "carga agua" "eventos agua" "eventos mant" !important;
+        grid-template-rows: auto auto auto auto 1fr auto; }   /* el espacio que sobra por la columna del agua va abajo, no entre tarjetas */
+    }
+  </style>
   <style id="safia-operador-pc">
     /* Operador en PC (≥ 1100 px): todo en una pantalla. Izquierda: equipo, campaña, recomendación, carga y eventos.
        Derecha: la ficha de agua completa. En celular sigue la columna única de siempre. */
@@ -1043,7 +1076,7 @@
         select.appendChild(og);
       });
       // Abrir directo en el lote pedido (?equipo=ID) o en el último usado en este celular
-      let pedido = null; try { pedido = new URLSearchParams(location.search).get('equipo') || localStorage.getItem('operador_equipo'); } catch (e) {}
+      let pedido = null; try { pedido = new URLSearchParams(location.search).get('equipo') || (/^safia-embebido:/.test(window.name || '') ? window.name.split(':')[1] : null) || localStorage.getItem('operador_equipo'); } catch (e) {}
       if (pedido && equipos.some(e => String(e.id) === String(pedido))) { select.value = String(pedido); cargarEquipoSeleccionado(); }
     }
 

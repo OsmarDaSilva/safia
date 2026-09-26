@@ -304,7 +304,8 @@
     function abrirAcceso(id, rol) {
       const c = obtenerClientes().find(x => x.id === id); if (!c) return;
       if (!window.SafiaAccesos) { mostrarToast('Sin conexión con la nube', true); return; }
-      SafiaAccesos.abrir({ nombre: rol === 'operador' ? '' : (c.nombre || ''), email: rol === 'operador' ? '' : (c.email || ''), telefono: rol === 'operador' ? '' : (c.telefono || ''), clienteId: c.id, rol }, { titulo: rol === 'operador' ? 'Nuevo operador de ' + c.nombre : 'Crear acceso a SAFIA para ' + c.nombre, onDone: () => { usuariosCache = null; mostrarClientes(); } });
+      const esPersonal = rol === 'operador' || rol === 'encargado';
+      SafiaAccesos.abrir({ nombre: esPersonal ? '' : (c.nombre || ''), email: esPersonal ? '' : (c.email || ''), telefono: esPersonal ? '' : (c.telefono || ''), clienteId: c.id, rol }, { titulo: esPersonal ? 'Nuevo ' + rol + ' de ' + c.nombre : 'Crear acceso a SAFIA para ' + c.nombre, onDone: () => { usuariosCache = null; mostrarClientes(); } });
     }
     // Acceso a SAFIA de cada cliente (usuarios con rol cliente/operador asignados a él); solo lo ve el admin
     let usuariosCache = null;
@@ -313,7 +314,7 @@
         const celda = document.querySelector('.acceso-' + c.id); if (!celda) return;
         const suyos = (lista || []).filter(u => String(u.cliente_id) === String(c.id));
         const q = 'usuarios.html?nuevo=1&cliente=' + encodeURIComponent(c.id) + '&nombre=' + encodeURIComponent(c.nombre || '') + '&email=' + encodeURIComponent(c.email || '') + '&telefono=' + encodeURIComponent(c.telefono || '');
-        if (suyos.length) celda.innerHTML = suyos.map(u => '<span class="badge ' + (u.estado === 'activo' ? 'green' : (u.estado === 'baja' ? 'red' : 'amber')) + '" title="' + (u.email || '') + '">' + (u.nombre || u.email) + (u.rol === 'operador' ? ' · operador' : '') + '</span>').join(' ') + ' <a href="#" onclick="abrirAcceso(' + c.id + ', \'operador\'); return false;" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;">+ operador</a>';
+        if (suyos.length) celda.innerHTML = suyos.map(u => '<span class="badge ' + (u.estado === 'activo' ? 'green' : (u.estado === 'baja' ? 'red' : 'amber')) + '" title="' + (u.email || '') + '">' + (u.nombre || u.email) + (u.rol === 'operador' || u.rol === 'encargado' ? ' · ' + u.rol : '') + '</span>').join(' ') + ' <a href="#" onclick="abrirAcceso(' + c.id + ', \'encargado\'); return false;" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-right:8px;">+ encargado</a><a href="#" onclick="abrirAcceso(' + c.id + ', \'operador\'); return false;" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;">+ operador</a>';
         else celda.innerHTML = '<button class="btn" style="padding:5px 10px;font-size:12px;" onclick="abrirAcceso(' + c.id + ', \'cliente\')">Crear acceso</button>';
       });
       if (usuariosCache) { pintar(usuariosCache); return; }

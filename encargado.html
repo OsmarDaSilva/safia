@@ -448,6 +448,24 @@
       .contenedor > #alertasClimaticas{grid-area:clima;}
     }
   </style>
+  <style id="safia-encargado-vista">
+    .enc-op{margin-top:14px;}
+    .enc-op-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid #E1E4E7;border-left:4px solid #178029;border-radius:10px;padding:10px 14px;margin-bottom:10px;}
+    .enc-op-tit{font-size:11.5px;font-weight:800;color:#178029;text-transform:uppercase;letter-spacing:.06em;margin-right:6px;}
+    .enc-op-nombre{font-size:15px;font-weight:800;color:#2E3236;}
+    .enc-op-sub{font-size:12px;color:#8C9196;margin-left:6px;}
+    .enc-op-acc{display:flex;gap:8px;align-items:center;}
+    .enc-op-acc select{font:inherit;font-size:13px;padding:6px 10px;border:1px solid #E1E4E7;border-radius:8px;background:#fff;max-width:260px;}
+    .enc-op-link{font-size:12px;font-weight:700;color:#B8731A;text-decoration:none;white-space:nowrap;}
+    #encOpFrame{width:100%;height:calc(100vh - 80px);min-height:560px;border:0;display:block;background:transparent;}
+    .tl tbody tr.sel td{background:#EEF7F0 !important;}
+    .tl tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 #178029;}
+    .equipo-card.sel{outline:2px solid #178029;outline-offset:-2px;}
+    @media (min-width: 1100px) {
+      .contenedor{grid-template-areas:"head head" "filtros filtros" "tabla hoy" "tabla clima" "tabla resto" "op op" !important;}
+      .contenedor > #encOperador{grid-area:op;}
+    }
+  </style>
   <style id="safia-encargado-pc">
     .para-hoy{background:#fff;border:1px solid #E1E4E7;border-left:4px solid #178029;border-radius:10px;padding:4px 12px;}
     .para-hoy-fila{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12.5px;color:#2E3236;text-decoration:none;border-top:1px solid #F0F2F4;}
@@ -604,6 +622,15 @@
     <div id="tablaLotes" class="tabla-lotes"></div>
     <div id="listaEquipos">
       <div class="loading-text" style="text-align:center; padding:40px;">⏳ Cargando estado de equipos...</div>
+    </div>
+
+    <!-- VISTA DEL OPERADOR del lote elegido: la misma pantalla del Operador (se ve y se carga igual) -->
+    <div id="encOperador" class="enc-op" style="display:none;">
+      <div class="enc-op-head">
+        <div><span class="enc-op-tit">Vista del operador</span><span class="enc-op-nombre" id="encOpNombre"></span><span class="enc-op-sub" id="encOpSub"></span></div>
+        <div class="enc-op-acc"><select id="encOpSel" onchange="verLote(this.value, false)" aria-label="Lote"></select><a id="encOpAbrir" class="enc-op-link" href="operador.html">Abrir en pantalla completa</a></div>
+      </div>
+      <iframe id="encOpFrame" title="Vista del operador"></iframe>
     </div>
 
   </div>
@@ -1031,16 +1058,16 @@
         const c = d.campanaActiva && d.campanaActiva.cultivos && d.campanaActiva.cultivos[0];
         let cultivo = '<span class="tl-muted">sin campaña</span>';
         if (c) { const dias = c.fechaSiembra ? diasDesde(c.fechaSiembra) : null; cultivo = '<b>' + c.cultivo + '</b>' + (c.variedad ? ' <span class="tl-sub-inline">' + c.variedad + '</span>' : '') + '<div class="tl-sub">' + (dias != null ? 'día ' + dias : 'sin fecha de siembra') + (c.superficie ? ' · ' + c.superficie + ' ha' : '') + '</div>'; }
-        return '<tr onclick="window.location.href=\'operador.html?equipo=' + d.equipo.id + '\'">' +
+        return '<tr data-eq="' + d.equipo.id + '" onclick="verLote(\'' + d.equipo.id + '\')">' +
           '<td><div class="tl-lote"><b>' + d.equipo.nombre + '</b>' + badgeEstado(d) + '</div><div class="tl-sub">' + (d.campo ? d.campo.nombre : '?') + ' · ' + (d.cliente ? d.cliente.nombre : '?') + '</div></td>' +
           '<td>' + cultivo + '</td>' +
           '<td>' + celdaAgua(d) + '</td>' +
           '<td>' + celdaRiego(d) + '</td>' +
           '<td>' + celdaMant(d) + '</td>' +
           '<td>' + celdaCarga(d) + (function () { const s = celdaSensores(d); return s.indexOf('tl-muted') >= 0 ? '' : '<div class="tl-sens">' + s + '</div>'; })() + '</td></tr>' +
-          (function () { const r = d.balance && d.balance.r; const mini = r && r.porcentajeHoy != null && window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : ''; return mini ? '<tr class="tl-agua-fila" onclick="window.location.href=\'operador.html?equipo=' + d.equipo.id + '\'"><td colspan="6">' + mini + '</td></tr>' : ''; })();
+          (function () { const r = d.balance && d.balance.r; const mini = r && r.porcentajeHoy != null && window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : ''; return mini ? '<tr class="tl-agua-fila" data-eq="' + d.equipo.id + '" onclick="verLote(\'' + d.equipo.id + '\')"><td colspan="6">' + mini + '</td></tr>' : ''; })();
       }).join('');
-      cont.innerHTML = '<div class="tl-card"><div class="tl-titulo">Estado de los lotes <span class="tl-sub-inline">tocá un lote para abrirlo en el Operador</span></div><table class="tl"><thead><tr><th>Lote</th><th>Cultivo</th><th>Agua útil</th><th>Riego</th><th>Mantenim.</th><th>Última carga</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
+      cont.innerHTML = '<div class="tl-card"><div class="tl-titulo">Estado de los lotes <span class="tl-sub-inline">tocá un lote para ver todo su detalle abajo</span></div><table class="tl"><thead><tr><th>Lote</th><th>Cultivo</th><th>Agua útil</th><th>Riego</th><th>Mantenim.</th><th>Última carga</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
     }
 
     function renderizar() {
@@ -1134,7 +1161,7 @@
         }
 
         const html = `
-          <div class="equipo-card semaforo-${d.semaforo}" onclick="window.location.href='operador.html?equipo=${d.equipo.id}'">
+          <div class="equipo-card semaforo-${d.semaforo}" data-eq="${d.equipo.id}" onclick="verLote('${d.equipo.id}')">
             <div class="equipo-header">
               <div>
                 <div class="equipo-nombre">💧 ${d.equipo.nombre}</div>
@@ -1171,7 +1198,63 @@
         lista.innerHTML += html;
       });
       renderTabla(aMostrar, total, urgente, monitorear, ok);
+      try { pintarVista(false); } catch (e) { console.error(e); }
     }
+
+    // ============ VISTA DEL OPERADOR DEL LOTE ELEGIDO ============
+    // El encargado ve exactamente lo mismo que el operador (agua, campaña, recomendación, carga, eventos y mantenimiento)
+    // del lote que toca en la tabla. Es la misma pantalla del Operador embebida: lo que se carga ahí se guarda igual.
+    let equipoVista = null;
+    try { equipoVista = localStorage.getItem('encargado_equipo') || null; } catch (e) {}
+    function verLote(id, desplazar) {
+      equipoVista = String(id);
+      try { localStorage.setItem('encargado_equipo', equipoVista); } catch (e) {}
+      pintarVista(desplazar !== false);
+    }
+    function pintarVista(desplazar) {
+      const sec = document.getElementById('encOperador'); if (!sec) return;
+      const orden = { rojo: 0, amarillo: 1, verde: 2, azul: 3, secano: 4, gris: 5 };
+      const visibles = (campoFiltro ? estadoEquipos.filter(e => e.campo && String(e.campo.id) === String(campoFiltro)) : estadoEquipos.slice())
+        .sort((a, b) => (orden[a.semaforo] - orden[b.semaforo]) || String(a.equipo.nombre).localeCompare(String(b.equipo.nombre)));
+      if (!visibles.length) { sec.style.display = 'none'; return; }
+      let d = visibles.find(x => String(x.equipo.id) === String(equipoVista));
+      if (!d) { d = visibles.find(x => x.campanaActiva) || visibles[0]; equipoVista = String(d.equipo.id); }
+      sec.style.display = 'block';
+      document.getElementById('encOpNombre').textContent = d.equipo.nombre;
+      document.getElementById('encOpSub').textContent = (d.campo ? d.campo.nombre : '') + (d.cliente ? ' · ' + d.cliente.nombre : '');
+      document.getElementById('encOpAbrir').href = 'operador.html?equipo=' + encodeURIComponent(equipoVista);
+      const sel = document.getElementById('encOpSel');
+      sel.innerHTML = visibles.map(x => '<option value="' + x.equipo.id + '"' + (String(x.equipo.id) === equipoVista ? ' selected' : '') + '>' + String(x.equipo.nombre).replace(/</g, '&lt;') + (x.campo && !campoFiltro ? ' · ' + String(x.campo.nombre).replace(/</g, '&lt;') : '') + '</option>').join('');
+      sel.style.display = visibles.length > 1 ? '' : 'none';
+      const fr = document.getElementById('encOpFrame'), src = 'operador.html?embed=1&equipo=' + encodeURIComponent(equipoVista);
+      if (fr.dataset.src !== src) {
+        // marco nuevo con el nombre puesto antes de cargar: así la vista se reconoce embebida en cualquier servidor
+        const nuevo = document.createElement('iframe');
+        nuevo.id = 'encOpFrame'; nuevo.title = 'Vista del operador'; nuevo.name = 'safia-embebido:' + equipoVista; nuevo.dataset.src = src;
+        fr.replaceWith(nuevo); nuevo.src = src;
+      }
+      document.querySelectorAll('#tablaLotes tr[data-eq], #listaEquipos .equipo-card[data-eq]').forEach(el => el.classList.toggle('sel', el.dataset.eq === equipoVista));
+      if (desplazar) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // "Para hoy" y alertas: los enlaces a un lote lo muestran abajo en vez de salir de la pantalla
+    document.addEventListener('click', (ev) => {
+      const a = ev.target.closest && ev.target.closest('a[href^="operador.html?equipo="]');
+      if (!a || a.id === 'encOpAbrir' || !document.getElementById('encOperador')) return;
+      const id = new URLSearchParams(a.getAttribute('href').split('?')[1]).get('equipo'); if (!id) return;
+      ev.preventDefault(); verLote(id);
+    });
+    // Lo que se carga en la vista del operador (riego, lluvia, mantenimiento…) actualiza la tabla de arriba
+    let recalculoPendiente = null;
+    window.addEventListener('storage', (ev) => {
+      if (!ev.key || ['eventos', 'campanas', 'equipos', 'ciclos'].indexOf(ev.key) < 0) return;
+      clearTimeout(recalculoPendiente);
+      recalculoPendiente = setTimeout(async () => { try { await analizarTodosLosEquipos(); renderizar(); pintarAlertasFiltradas(); pintarParaHoy(); } catch (e) { console.error(e); } }, 1500);
+    });
+    // Llegaron datos nuevos de la nube: la vista del operador se recarga (si no hay un formulario abierto)
+    window.addEventListener('safia:datos', () => {
+      const fr = document.getElementById('encOpFrame'); if (!fr || !fr.contentWindow) return;
+      try { if (fr.contentDocument && fr.contentDocument.querySelector('.modal-overlay.visible')) return; fr.contentWindow.location.reload(); } catch (e) {}
+    });
   </script>
 
   <script>

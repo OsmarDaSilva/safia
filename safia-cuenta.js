@@ -19,7 +19,7 @@
   var $ = function (id) { return document.getElementById(id); };
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
-  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
   // Significado del nombre (un solo lugar para cambiarlo): cada palabra empieza con una letra de SAFIA
   // Definido por Osmar (24-sep-2026): Smart Agricultural Farm Intelligence Assistant
   var SIGNIFICADO = window.SAFIA_SIGNIFICADO || ['Smart', 'Agricultural', 'Farm', 'Intelligence', 'Assistant'];
@@ -33,7 +33,7 @@
   var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html'];
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
-    if (rol === 'operador') return PAGINAS_OPERADOR.indexOf(pag) < 0;
+    if (rol === 'operador' || rol === 'encargado') return PAGINAS_OPERADOR.indexOf(pag) < 0;   // el encargado ve lo mismo que el operador
     if (rol === 'cliente') return PAGINAS_IRRIGAR.indexOf(pag) >= 0;
     return false;
   }
@@ -41,7 +41,7 @@
     if (!u || esAlto(u)) return;
     var rol = u.rol, pag = paginaActual();
     // Redirigir solo con el usuario confirmado por la nube (el guardado en el navegador puede estar viejo)
-    if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : 'index.html'); return; }
+    if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : rol === 'encargado' ? 'encargado.html' : 'index.html'); return; }
     var aplicar = function () {
       document.querySelectorAll('aside a[href], nav a[href], .sidebar a[href]').forEach(function (a) {
         var h = (a.getAttribute('href') || '').split(/[?#]/)[0].toLowerCase();

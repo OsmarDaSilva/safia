@@ -119,10 +119,10 @@
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmtF = (f) => { if (!f) return '—'; const d = new Date(f); return isNaN(d) ? '—' : d.toLocaleDateString('es-PY'); };
     function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast visible' + (err ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 3600); }
-    const ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+    const ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
     const soyProp = () => SafiaSync.esPropietario && SafiaSync.esPropietario();
     // opciones de rol: admin/propietario solo las puede dar el propietario; un admin no puede tocar filas de admin/propietario
-    const opcionesRol = (sel) => ['cliente', 'operador'].concat(soyProp() ? ['admin', 'propietario'] : []).map(r => `<option value="${r}"${sel === r ? ' selected' : ''}>${ROL[r]}</option>`).join('') + (!soyProp() && (sel === 'admin' || sel === 'propietario') ? `<option value="${sel}" selected>${ROL[sel]}</option>` : '');
+    const opcionesRol = (sel) => ['cliente', 'encargado', 'operador'].concat(soyProp() ? ['admin', 'propietario'] : []).map(r => `<option value="${r}"${sel === r ? ' selected' : ''}>${ROL[r]}</option>`).join('') + (!soyProp() && (sel === 'admin' || sel === 'propietario') ? `<option value="${sel}" selected>${ROL[sel]}</option>` : '');
     const bloqueada = (u) => !soyProp() && (u.rol === 'admin' || u.rol === 'propietario');
     const clientes = (() => { try { return JSON.parse(localStorage.getItem('clientes') || '[]'); } catch (e) { return []; } })();
     let usuarios = [];
@@ -130,6 +130,16 @@
 
     function generarClave() { const s = 'abcdefghjkmnpqrstuvwxyz23456789'; let p = ''; for (let i = 0; i < 4; i++) p += s.charAt(Math.floor(Math.random() * s.length)); return 'safia-' + p + Math.floor(10 + Math.random() * 89); }
     function opcionesClientes(sel) { return '<option value="">— Ninguno (Irrigar) —</option>' + clientes.slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))).map(c => `<option value="${esc(c.id)}"${String(sel || '') === String(c.id) ? ' selected' : ''}>${esc(c.nombre)}</option>`).join(''); }
+    // Estancias del cliente: el operador o encargado ve y carga solo las marcadas (ninguna marcada = todas las del cliente)
+    const camposTodos = (() => { try { return JSON.parse(localStorage.getItem('campos') || '[]'); } catch (e) { return []; } })();
+    function camposHtml(clienteId, rol, marcados) {
+      if (rol !== 'operador' && rol !== 'encargado') return '';
+      const lista = camposTodos.filter(c => String(c.clienteId) === String(clienteId || ''));
+      if (!clienteId) return '<div class="correo">Elegí el cliente para asignarle estancias.</div>';
+      if (!lista.length) return '<div class="correo">Ese cliente no tiene estancias cargadas.</div>';
+      const sel = (marcados || []).map(String);
+      return '<div class="correo" style="margin-top:6px;">Estancias que ve (ninguna = todas):</div>' + lista.map(c => '<label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:3px;"><input type="checkbox" class="f-campo" value="' + esc(c.id) + '"' + (sel.includes(String(c.id)) ? ' checked' : '') + '> ' + esc(c.nombre) + '</label>').join('');
+    }
     function nombreCliente(id) { const c = clientes.find(x => String(x.id) === String(id)); return c ? c.nombre : ''; }
 
     function confirmar(titulo, texto, cb) { $('confTitulo').textContent = titulo; $('confTexto').innerHTML = texto; confirmarCb = cb; $('modalConfirmar').classList.add('visible'); }
@@ -147,7 +157,7 @@
             <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''} · pidió el ${fmtF(u.creado_en)}</div>${u.solicitud ? '<div style="font-size:12px;margin-top:4px;">“' + esc(u.solicitud) + '”</div>' : ''}</div>
             <div></div>
             <div><select class="f-rol">${opcionesRol('cliente')}</select></div>
-            <div><select class="f-cliente">${opcionesClientes('')}</select></div>
+            <div><select class="f-cliente">${opcionesClientes('')}</select><div class="f-campos"></div></div>
             <div class="acc"><button class="btn green" data-acc="aprobar">Aprobar</button><button class="btn danger" data-acc="rechazar">Rechazar</button></div>
           </div>`).join('') + '</div>';
       }
@@ -158,15 +168,25 @@
             <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''}${esYo ? ' · <b>vos</b>' : ''}</div></div>
             <div><span class="badge ${u.estado === 'activo' ? 'green' : 'red'}">${u.estado === 'activo' ? 'Activo' : 'De baja'}</span>${u.aprobado_en ? '<div class="correo">desde ' + fmtF(u.aprobado_en) + '</div>' : ''}</div>
             <div><select class="f-rol" ${esYo || bloqueada(u) ? 'disabled' : ''}>${opcionesRol(u.rol)}</select></div>
-            <div><select class="f-cliente">${opcionesClientes(u.cliente_id)}</select></div>
+            <div><select class="f-cliente">${opcionesClientes(u.cliente_id)}</select><div class="f-campos">${camposHtml(u.cliente_id, u.rol, u.campos)}</div></div>
             <div class="acc">${bloqueada(u) ? '<span class="muted" style="font-size:11px;">solo el propietario</span>' : `<button class="btn" data-acc="guardar">Guardar</button><button class="btn" data-acc="clave">Contraseña</button>${esYo ? '' : (u.estado === 'activo' ? '<button class="btn danger" data-acc="baja">Dar de baja</button>' : '<button class="btn green" data-acc="reactivar">Reactivar</button><button class="btn danger" data-acc="quitar">Quitar</button>')}`}</div>
           </div>`;
         }).join('') : '<div class="muted" style="padding:12px 0;">Todavía no hay usuarios aprobados.</div>') +
-        `<div class="muted" style="font-size:11px;margin-top:10px;">Propietario = dueño de SAFIA, sin límites · Administrador = funcionarios de Irrigar (soporte): manejan usuarios y clientes, pero no tocan al propietario ni nombran administradores · Cliente = productor que ve solo lo suyo · Operador = encargado que carga eventos de los lotes de su cliente. Cada cliente ve y carga solo lo suyo (el candado está en la base, no en la pantalla); en Rankings y en el Banco ve a los demás como "Lote 1 de Katueté", sin nombres. El operador ve solo Operador, Eventos, Encargado y Cargar por voz de su cliente. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
+        `<div class="muted" style="font-size:11px;margin-top:10px;">Propietario = dueño de SAFIA, sin límites · Administrador = funcionarios de Irrigar (soporte): manejan usuarios y clientes, pero no tocan al propietario ni nombran administradores · Cliente = productor que ve solo lo suyo · Encargado = supervisa una o varias estancias del cliente (ve lo mismo que el operador, de todas sus estancias) · Operador = regante que carga en su estancia. Al encargado y al operador se les marcan las estancias que ven; sin marcar ninguna ven todas las del cliente. Cada cliente ve y carga solo lo suyo (el candado está en la base, no en la pantalla); en Rankings y en el Banco ve a los demás como "Lote 1 de Katueté", sin nombres. El operador y el encargado ven solo Operador, Eventos, Encargado y Cargar por voz, de sus estancias. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
       cont.innerHTML = h;
     }
 
-    function datosFila(fila) { return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), rol: fila.querySelector('.f-rol').value, clienteId: fila.querySelector('.f-cliente').value || null }; }
+    function datosFila(fila) {
+      const rol = fila.querySelector('.f-rol').value;
+      const campos = (rol === 'operador' || rol === 'encargado') ? Array.from(fila.querySelectorAll('.f-campo:checked')).map(x => x.value) : null;
+      return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), rol, clienteId: fila.querySelector('.f-cliente').value || null, campos };
+    }
+    // al cambiar rol o cliente de una fila, se vuelven a mostrar sus estancias
+    document.addEventListener('change', (ev) => {
+      const fila = ev.target.closest && ev.target.closest('.fila-usr'); if (!fila || !ev.target.matches('.f-rol, .f-cliente')) return;
+      const marcados = Array.from(fila.querySelectorAll('.f-campo:checked')).map(x => x.value);
+      fila.querySelector('.f-campos').innerHTML = camposHtml(fila.querySelector('.f-cliente').value, fila.querySelector('.f-rol').value, ev.target.matches('.f-cliente') ? [] : marcados);
+    });
     function ocupar(boton, si) { boton.disabled = si; boton.style.opacity = si ? '.6' : ''; }
 
     $('contenido').addEventListener('click', (ev) => {
@@ -174,9 +194,9 @@
       const fila = b.closest('.fila-usr'), d = datosFila(fila), u = usuarios.find(x => x.id === d.id) || {};
       const acc = b.dataset.acc;
       const correr = (p, msg) => { ocupar(b, true); p.then(() => { toast(msg); return cargar(); }).catch(e => { toast(e.message || 'No se pudo', true); ocupar(b, false); }); };
-      if (acc === 'aprobar') correr(SafiaSync.accionUsuario({ accion: 'aprobar', id: d.id, rol: d.rol, clienteId: d.clienteId, nombre: d.nombre }), 'Acceso aprobado: ' + (d.nombre || u.email));
+      if (acc === 'aprobar') correr(SafiaSync.accionUsuario({ accion: 'aprobar', id: d.id, rol: d.rol, clienteId: d.clienteId, campos: d.campos, nombre: d.nombre }), 'Acceso aprobado: ' + (d.nombre || u.email));
       if (acc === 'rechazar') confirmar('Rechazar solicitud', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista de SAFIA. La cuenta sigue existiendo (puede volver a pedir acceso).`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Solicitud rechazada'));
-      if (acc === 'guardar') correr(SafiaSync.guardarUsuario(d.id, { nombre: d.nombre, rol: d.rol, cliente_id: d.clienteId }), 'Guardado');
+      if (acc === 'guardar') correr(SafiaSync.guardarUsuario(d.id, { nombre: d.nombre, rol: d.rol, cliente_id: d.clienteId, campos: d.campos }), 'Guardado');
       if (acc === 'baja') confirmar('Dar de baja', `<b>${esc(d.nombre || u.email)}</b> no va a poder entrar más a SAFIA${u.email ? ' (' + esc(u.email) + ')' : ''}. Si usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas apps.`, () => correr(SafiaSync.accionUsuario({ accion: 'baja', id: d.id }), 'Usuario dado de baja'));
       if (acc === 'reactivar') correr(SafiaSync.accionUsuario({ accion: 'reactivar', id: d.id }), 'Usuario reactivado');
       if (acc === 'quitar') confirmar('Quitar de SAFIA', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista. No borra la cuenta.`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Usuario quitado'));

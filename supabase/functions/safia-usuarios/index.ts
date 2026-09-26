@@ -1,9 +1,10 @@
-// SAFIA · Edge Function: safia-usuarios (v3: no pisa cuentas que ya tienen acceso)
+// SAFIA · Edge Function: safia-usuarios (v4: rol encargado y estancias asignadas; v3: no pisa cuentas que ya tienen acceso)
 // Lo que un administrador de SAFIA puede hacer con las cuentas SIN entrar al panel de Supabase.
 // Usa la clave de servicio del proyecto (la inyecta Supabase en el servidor; el navegador nunca la ve).
 // El que llama tiene que estar logueado y ser admin activo en public.safia_usuarios.
-//   { accion: 'crear', email, password, nombre, rol, clienteId, telefono } → crea la cuenta (o aprueba la que ya existía con ese correo)
-//   { accion: 'aprobar', id, rol, clienteId, nombre }                     → pendiente → activo
+//   { accion: 'crear', email, password, nombre, rol, clienteId, campos, telefono } → crea la cuenta (o aprueba la que ya existía con ese correo)
+//   { accion: 'aprobar', id, rol, clienteId, campos, nombre }                     → pendiente → activo
+//   campos: estancias (ids de campo) que ve un operador o encargado; vacío = todas las de su cliente
 //   { accion: 'baja', id }                                                → activo → baja (y la cuenta queda bloqueada para entrar)
 //   { accion: 'reactivar', id }                                           → baja → activo
 //   { accion: 'clave', id, password }                                     → nueva contraseña
@@ -16,7 +17,9 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
-const ROLES = ['propietario', 'admin', 'cliente', 'operador'];
+const ROLES = ['propietario', 'admin', 'cliente', 'encargado', 'operador'];
+// estancias asignadas: solo para operador y encargado; lista vacía = todas las del cliente
+const camposDe = (c: Record<string, unknown>, rol: string) => (rol === 'operador' || rol === 'encargado') && Array.isArray(c.campos) ? (c.campos as unknown[]).map(String).filter(Boolean) : null;
 const ALTOS = ['propietario', 'admin'];   // solo un propietario puede otorgar estos roles o tocar a un propietario/admin
 
 Deno.serve(async (req) => {
@@ -82,7 +85,9 @@ Deno.serve(async (req) => {
         if (c.cambiarClave) await admin.auth.admin.updateUserById(id, { password, ban_duration: 'none' });
         else await admin.auth.admin.updateUserById(id, { ban_duration: 'none' });
       } else id = r.data.user.id;
-      const { error: eF } = await admin.from('safia_usuarios').upsert({ id, email, nombre, rol, estado: 'activo', cliente_id: c.clienteId ? String(c.clienteId) : null, telefono: c.telefono ? String(c.telefono) : null, aprobado_en: ahora, actualizado_en: ahora });
+      const perfil: Record<string, unknown> = { id, email, nombre, rol, estado: 'activo', cliente_id: c.clienteId ? String(c.clienteId) : null, campos: camposDe(c, rol), telefono: c.telefono ? String(c.telefono) : null, aprobado_en: ahora, actualizado_en: ahora };
+      let { error: eF } = await admin.from('safia_usuarios').upsert(perfil);
+      if (eF && /campos/.test(eF.message)) { delete perfil.campos; ({ error: eF } = await admin.from('safia_usuarios').upsert(perfil)); }   // base sin la columna todavía
       if (eF) return json({ error: 'La cuenta se creó pero no se pudo guardar el perfil: ' + eF.message }, 500);
       return json({ ok: true, id, existia });
     }
@@ -95,9 +100,10 @@ Deno.serve(async (req) => {
     if (accion === 'aprobar') {
       const rol = ROLES.includes(c.rol) ? c.rol : 'cliente';
       if (!puedeDarRol(rol)) return json({ error: 'Solo el propietario puede otorgar ese rol' }, 403);
-      const cambios: Record<string, unknown> = { estado: 'activo', rol, cliente_id: c.clienteId ? String(c.clienteId) : null, aprobado_en: ahora, actualizado_en: ahora };
+      const cambios: Record<string, unknown> = { estado: 'activo', rol, cliente_id: c.clienteId ? String(c.clienteId) : null, campos: camposDe(c, rol), aprobado_en: ahora, actualizado_en: ahora };
       if (c.nombre) cambios.nombre = String(c.nombre).trim();
-      const { error } = await admin.from('safia_usuarios').update(cambios).eq('id', id);
+      let { error } = await admin.from('safia_usuarios').update(cambios).eq('id', id);
+      if (error && /campos/.test(error.message)) { delete cambios.campos; ({ error } = await admin.from('safia_usuarios').update(cambios).eq('id', id)); }
       if (error) return json({ error: error.message }, 500);
       await admin.auth.admin.updateUserById(id, { ban_duration: 'none' });
       return json({ ok: true });

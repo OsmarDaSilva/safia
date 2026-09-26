@@ -90,6 +90,32 @@
     return;
   }
 
+  /* Vista embebida (operador.html?embed=1 dentro del Encargado): usa la conexión, el usuario y la
+     sincronización de la página que la contiene. No abre otra sesión (dos clientes refrescando el mismo
+     token se pisan) ni otro refresco. Lo que se guarda acá lo sube la página de afuera, registro por registro. */
+  var PADRE = null;
+  try { if (window.top !== window && (/[?&]embed=1(&|$)/.test(location.search) || /^safia-embebido/.test(window.name || '')) && window.parent.SafiaSync && window.parent.SafiaSync._subir) PADRE = window.parent; } catch (e) { PADRE = null; }
+  if (PADRE) {
+    window.safiaSupabase = PADRE.safiaSupabase;
+    var _setEmb = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (clave, valor) {
+      _setEmb.call(this, clave, valor);
+      if (this === window.localStorage && TABLAS.hasOwnProperty(clave)) { try { PADRE.SafiaSync._subir(clave, leerLista(valor)); } catch (e) { console.error('SAFIA sync (embebido):', e); } }
+    };
+    window.SafiaSync = Object.assign(window.SafiaSync || {}, {
+      embebido: true,
+      usuario: function () { return PADRE.SafiaSync.usuario(); },
+      esAdmin: function () { return PADRE.SafiaSync.esAdmin(); },
+      esPropietario: function () { return PADRE.SafiaSync.esPropietario(); },
+      estadoSync: function () { return PADRE.SafiaSync.estadoSync(); },
+      refrescar: function () { return PADRE.SafiaSync.refrescar(); },
+      zona: function () { return PADRE.SafiaSync.zona(); },
+      sb: function () { return PADRE.SafiaSync.sb(); },
+      cerrarSesion: function () { return PADRE.SafiaSync.cerrarSesion(); }
+    });
+    return;
+  }
+
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   window.safiaSupabase = sb; // disponible para otras páginas (login, futuro)
 
@@ -383,7 +409,7 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', poner); else poner();
   }
   function filaAUsuario(f, base) {
-    return { id: f.id, email: f.email || base.email, nombre: f.nombre || base.nombre, rol: f.rol || 'cliente', clienteId: f.cliente_id || null, estado: f.estado || 'activo', telefono: f.telefono || null };
+    return { id: f.id, email: f.email || base.email, nombre: f.nombre || base.nombre, rol: f.rol || 'cliente', clienteId: f.cliente_id || null, campos: Array.isArray(f.campos) ? f.campos.map(String) : [], estado: f.estado || 'activo', telefono: f.telefono || null };
   }
   // Devuelve una promesa con el usuario (activo o no). Si no tiene fila en safia_usuarios, la crea pendiente.
   function cargarUsuario(user) {
@@ -391,7 +417,7 @@
     var meta = user.user_metadata || {};
     var base = { id: user.id, email: user.email || '', nombre: meta.nombre || nombreDesdeCorreo(user.email), rol: 'cliente', clienteId: null, estado: 'activo' };
     if (!usuarioActual || usuarioActual.id !== user.id) publicarUsuario(base);
-    return sb.from('safia_usuarios').select('id,email,nombre,rol,cliente_id,estado,telefono').eq('id', user.id).maybeSingle().then(function (r) {
+    return sb.from('safia_usuarios').select('*').eq('id', user.id).maybeSingle().then(function (r) {
       if (r.error) { return usuarioActual; }   // tabla vieja o sin tabla: se sigue como hasta ahora
       if (r.data) { var u = filaAUsuario(r.data, base); publicarUsuario(u); return u; }
       // cuenta de otra app del grupo (o creada antes de la tabla): pedido de acceso automático, queda pendiente
@@ -418,6 +444,7 @@
     esPropietario: function () { return !!usuarioActual && usuarioActual.rol === 'propietario' && (usuarioActual.estado || 'activo') === 'activo'; },
     estadoSync: function () { return estadoOk; },
     fusionar: fusionar, huella: huella,
+    _subir: function (clave, lista) { if (TABLAS.hasOwnProperty(clave)) return subirColeccion(clave, lista); },
     refrescar: function () { return sincronizarTodo(false); },
     zona: function () { try { return JSON.parse(setGet('zona') || 'null') || null; } catch (e) { return null; } },
     sb: function () { return sb; },

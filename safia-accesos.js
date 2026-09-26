@@ -14,7 +14,19 @@
   function generarClave() { var s = 'abcdefghjkmnpqrstuvwxyz23456789', p = ''; for (var i = 0; i < 4; i++) p += s.charAt(Math.floor(Math.random() * s.length)); return 'safia-' + p + Math.floor(10 + Math.random() * 89); }
   function opcionesClientes(sel) { return '<option value="">— Ninguno (Irrigar) —</option>' + leer('clientes').slice().sort(function (a, b) { return String(a.nombre).localeCompare(String(b.nombre)); }).map(function (c) { return '<option value="' + esc(c.id) + '"' + (String(sel || '') === String(c.id) ? ' selected' : '') + '>' + esc(c.nombre) + '</option>'; }).join(''); }
   function nombreCliente(id) { var c = leer('clientes').find(function (x) { return String(x.id) === String(id); }); return c ? c.nombre : ''; }
-  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', operador: 'Operador' };
+  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
+  var OPCIONES_ROL = '<option value="cliente">Cliente (productor, dueño de sus campos)</option><option value="encargado">Encargado (supervisa una o varias estancias)</option><option value="operador">Operador (regante de una estancia)</option>';
+  // Estancias del cliente elegido, con casillas: el operador o encargado ve solo las marcadas (ninguna marcada = todas)
+  function pintarCampos(marcados) {
+    var wrap = $('accCamposWrap'), cont = $('accCampos'); if (!wrap || !cont) return;
+    var rol = $('accRol').value, cli = $('accCliente').value;
+    var campos = leer('campos').filter(function (c) { return String(c.clienteId) === String(cli); });
+    if ((rol !== 'operador' && rol !== 'encargado') || !cli || !campos.length) { wrap.style.display = 'none'; cont.innerHTML = ''; return; }
+    var sel = (marcados || []).map(String);
+    wrap.style.display = '';
+    cont.innerHTML = campos.map(function (c) { return '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 14px 6px 0;font-size:13px;font-weight:500;"><input type="checkbox" class="accCampo" value="' + esc(c.id) + '"' + (sel.indexOf(String(c.id)) >= 0 || (campos.length === 1 && !sel.length) ? ' checked' : '') + '> ' + esc(c.nombre) + '</label>'; }).join('');
+  }
+  function camposMarcados() { return Array.prototype.map.call(document.querySelectorAll('#accCampos .accCampo:checked'), function (x) { return x.value; }); }
 
   function aviso(texto, err) {
     var a = $('accAviso'); if (!a) return;
@@ -34,8 +46,9 @@
       '<div class="field full"><label>Nombre y apellido</label><input type="text" id="accNombre" placeholder="Ej: Anderson Pereira"></div>' +
       '<div class="field"><label>Correo o nombre de usuario (con esto entra)</label><input type="text" id="accEmail" placeholder="correo@ejemplo.com o, si no tiene correo, un usuario: anderson" autocomplete="off"><div class="muted" id="accEmailAyuda" style="font-size:11px;margin-top:4px;"></div></div>' +
       '<div class="field"><label>WhatsApp</label><input type="tel" id="accTelefono" placeholder="+595 981 234567"></div>' +
-      '<div class="field"><label>Rol</label><select id="accRol"><option value="cliente">Cliente (productor)</option><option value="operador">Operador (encargado de campo)</option><option value="admin">Administrador (Irrigar)</option></select></div>' +
+      '<div class="field"><label>Rol</label><select id="accRol"></select></div>' +
       '<div class="field"><label>Cliente al que pertenece</label><select id="accCliente"></select></div>' +
+      '<div class="field full" id="accCamposWrap" style="display:none;"><label>Estancias que ve y en las que carga</label><div id="accCampos" style="padding-top:4px;"></div><div class="muted" style="font-size:11px;margin-top:2px;">Sin marcar ninguna = todas las estancias del cliente.</div></div>' +
       '<div class="field full"><label>Contraseña temporal (se la pasás vos; la puede cambiar con "Olvidé mi contraseña")</label><div style="display:flex;gap:8px;"><input type="text" id="accPass" style="font-family:ui-monospace,Menlo,Consolas,monospace;"><button class="btn" type="button" id="accGenerar" style="white-space:nowrap;">Generar</button></div></div>' +
       '</div>' +
       '<div id="accAviso" class="note" style="display:none;margin-top:8px;"></div>' +
@@ -53,6 +66,8 @@
     $('accCancelar').addEventListener('click', cerrar);
     $('accCerrar').addEventListener('click', function () { cerrar(); if (estado.onDone) estado.onDone(estado.resultado); });
     $('accCrear').addEventListener('click', crear);
+    $('accRol').addEventListener('change', function () { pintarCampos(camposMarcados()); });
+    $('accCliente').addEventListener('change', function () { pintarCampos([]); });
     $('accCopiar').addEventListener('click', function () { var t = $('accCred').dataset.texto || ''; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { aviso2('Copiado'); }, function () { aviso2('No se pudo copiar: seleccioná el texto'); }); });
   }
   function ayudaUsuario() {
@@ -76,8 +91,9 @@
     $('accNombre').value = pre.nombre || ''; $('accEmail').value = pre.email || ''; $('accTelefono').value = pre.telefono || '';
     ayudaUsuario();
     var selRol = $('accRol'), soyProp = window.SafiaSync && SafiaSync.esPropietario && SafiaSync.esPropietario();
-    selRol.innerHTML = '<option value="cliente">Cliente (productor)</option><option value="operador">Operador (encargado de campo)</option>' + (soyProp ? '<option value="admin">Administrador (Irrigar, soporte)</option><option value="propietario">Propietario (sin límites)</option>' : '');
+    selRol.innerHTML = OPCIONES_ROL + (soyProp ? '<option value="admin">Administrador (Irrigar, soporte)</option><option value="propietario">Propietario (sin límites)</option>' : '');
     $('accRol').value = pre.rol || 'cliente'; $('accCliente').innerHTML = opcionesClientes(pre.clienteId || ''); $('accPass').value = generarClave();
+    pintarCampos(pre.campos || []);
     if (!window.SafiaSync || !SafiaSync.esAdmin || !SafiaSync.esAdmin()) aviso('Solo un administrador de SAFIA puede crear accesos.', true);
     $('modalAcceso').classList.add('visible');
     setTimeout(function () { (pre.email ? $('accPass') : $('accEmail')).focus(); }, 50);
@@ -86,6 +102,7 @@
   function crear() {
     var escrito = $('accEmail').value.trim(), interno = escrito.indexOf('@') === -1;
     var datos = { accion: 'crear', nombre: $('accNombre').value.trim(), email: window.SafiaUsuario ? SafiaUsuario.aCorreo(escrito) : escrito.toLowerCase(), telefono: $('accTelefono').value.trim(), rol: $('accRol').value, clienteId: $('accCliente').value || null, password: $('accPass').value.trim() };
+    if (datos.rol === 'operador' || datos.rol === 'encargado') datos.campos = camposMarcados();
     if (!datos.nombre) { aviso('Poné el nombre.', true); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { aviso(interno ? 'Poné un correo o un nombre de usuario (letras y números).' : 'El correo no es válido.', true); return; }
     var usuarioMostrar = interno ? SafiaUsuario.aUsuario(datos.email) : datos.email;
@@ -106,7 +123,7 @@
         ? 'Hola ' + datos.nombre + ', ya tenés acceso a SAFIA.\nEntrá en ' + url + ' con tu ' + (interno ? 'usuario ' : 'correo ') + usuarioMostrar + ' y la misma contraseña que usás en las otras apps del grupo.' + (interno ? '' : ' Si no la recordás, tocá "Olvidé mi contraseña".')
         : 'Hola ' + datos.nombre + ', te creamos el acceso a SAFIA.\nEntrá en ' + url + '\n' + (interno ? 'Usuario: ' : 'Correo: ') + usuarioMostrar + '\nContraseña: ' + datos.password + (interno ? '\nSi la olvidás, avisá a Irrigar y te damos una nueva.' : '\nPodés cambiarla con "Olvidé mi contraseña".');
       $('accCred').innerHTML = (r.existia ? 'Ese correo ya tenía cuenta en el grupo: quedó <b>activo en SAFIA</b> con su contraseña de siempre.<br>' : 'Contraseña temporal: <b style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;">' + esc(datos.password) + '</b><br>') +
-        (interno ? 'Usuario: <b>' : 'Correo: <b>') + esc(usuarioMostrar) + '</b><br>Rol: ' + ROL[datos.rol] + (datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : '');
+        (interno ? 'Usuario: <b>' : 'Correo: <b>') + esc(usuarioMostrar) + '</b><br>Rol: ' + ROL[datos.rol] + (datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : '') + (datos.campos && datos.campos.length ? ' · ' + esc(leer('campos').filter(function (c) { return datos.campos.indexOf(String(c.id)) >= 0; }).map(function (c) { return c.nombre; }).join(', ')) : '');
       $('accCred').dataset.texto = texto;
       var tel = datos.telefono.replace(/[^0-9]/g, ''); if (tel.indexOf('0') === 0) tel = '595' + tel.slice(1); else if (tel && tel.indexOf('595') !== 0) tel = '595' + tel;
       $('accWhatsApp').href = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
