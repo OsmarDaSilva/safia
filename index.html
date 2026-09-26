@@ -502,6 +502,7 @@
   <script src="safia-balance.js"></script>
   <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
+  <script src="safia-mantenimiento.js"></script>
   <script>
     /* =====================================================================
        Dashboard de toda la operación (varios clientes, varios lotes).
@@ -799,6 +800,7 @@
       const equipos = leer('equipos'), vencidos = [], atencion = [];
       equipos.forEach(eq => {
         const plan = eq.planMantenimiento; if (!plan || !plan.length) return;
+        if (window.SafiaMant) { const s = SafiaMant.estado(eq); s.vencidas.forEach(t => vencidos.push({ equipo: eq.nombre, tarea: t.tarea, pct: t.pct })); s.proximas.forEach(t => atencion.push({ equipo: eq.nombre, tarea: t.tarea, pct: t.pct })); return; }
         const horas = parseFloat(eq.horasAcumuladas) || 0;
         plan.forEach(t => { if (!(parseFloat(t.intervalo) > 0)) return; const pct = (horas - (parseFloat(t.ultimasHorasHechas) || 0)) / parseFloat(t.intervalo) * 100; if (pct >= 100) vencidos.push({ equipo: eq.nombre, tarea: t.tarea, pct: Math.round(pct) }); else if (pct >= 80) atencion.push({ equipo: eq.nombre, tarea: t.tarea, pct: Math.round(pct) }); });
       });

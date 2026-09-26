@@ -614,6 +614,7 @@
   <script src="safia-pasturas.js"></script>
   <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
+  <script src="safia-mantenimiento.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
     let filtroActivo = 'todos';
@@ -927,6 +928,7 @@
     function hoyISO() { return SafiaBalance.hoyLocal(); }
     function diasDesde(f) { if (!f) return null; return Math.round((new Date(hoyISO() + 'T12:00:00') - new Date(String(f).slice(0, 10) + 'T12:00:00')) / 86400000); }
     function mantenimientoDe(eq) {
+      if (window.SafiaMant) { const s = SafiaMant.estado(eq); return { sinPlan: s.sinPlan, vencidas: s.vencidas.map(t => ({ tarea: t.tarea, pct: t.pct })), proximas: s.proximas.map(t => ({ tarea: t.tarea, pct: t.pct })), horas: s.horas }; }
       const plan = eq && eq.planMantenimiento; if (!plan || !plan.length) return { sinPlan: true, vencidas: [], proximas: [], horas: parseFloat(eq && eq.horasAcumuladas) || 0 };
       const horas = parseFloat(eq.horasAcumuladas) || 0, vencidas = [], proximas = [];
       plan.forEach(t => { const it = parseFloat(t.intervalo); if (!(it > 0)) return; const pct = (horas - (parseFloat(t.ultimasHorasHechas) || 0)) / it * 100; if (pct >= 100) vencidas.push({ tarea: t.tarea, pct: Math.round(pct) }); else if (pct >= 80) proximas.push({ tarea: t.tarea, pct: Math.round(pct) }); });
@@ -956,7 +958,7 @@
       // 1. Regar hoy
       estadoEquipos.forEach(d => { const r = d.balance && d.balance.r; if (r && r.recomendacion && r.recomendacion.regar && enFiltro(d.equipo.id)) items.push({ col: '#C0392B', txt: '<b>Regar hoy ' + d.equipo.nombre + '</b>: ' + Math.round(r.recomendacion.mm) + ' mm' + vueltasTexto(r.recomendacion.mm, d.equipo) + (r.porcentajeHoy != null ? ' · agua útil ' + Math.round(r.porcentajeHoy) + ' %' : ''), href: 'operador.html?equipo=' + d.equipo.id }); });
       // 2. Mantenimiento vencido o próximo
-      equiposTodos.forEach(eq => { if (!enFiltro(eq.id)) return; const mt = mantenimientoDe(eq); if (mt.sinPlan) return; mt.vencidas.forEach(t => items.push({ col: '#C0392B', txt: '<b>Mantenimiento vencido ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' % del intervalo, ' + Math.round(mt.horas) + ' h)', href: 'mis-equipos.html' })); mt.proximas.forEach(t => items.push({ col: '#B8731A', txt: '<b>Mantenimiento próximo ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' %)', href: 'mis-equipos.html' })); });
+      equiposTodos.forEach(eq => { if (!enFiltro(eq.id)) return; const mt = mantenimientoDe(eq); if (mt.sinPlan) return; mt.vencidas.forEach(t => items.push({ col: '#C0392B', txt: '<b>Mantenimiento vencido ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' % del intervalo, ' + Math.round(mt.horas) + ' h)', href: 'operador.html?equipo=' + eq.id })); mt.proximas.forEach(t => items.push({ col: '#B8731A', txt: '<b>Mantenimiento próximo ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' %)', href: 'operador.html?equipo=' + eq.id })); });
       // 3. Cosechas sin cargar
       cosechasSinCargar().forEach(x => { if (x.eq && !enFiltro(x.eq.id)) return; items.push({ col: '#B8731A', txt: '<b>Cosecha sin cargar</b>: ' + x.cu.cultivo + ' · ' + (x.campana.nombre || '') + (x.eq ? ' · ' + x.eq.nombre : '') + ' (terminó hace ' + x.dias + ' d)', href: 'mis-campanas.html?cosecha=' + x.campana.id }); });
       // 4. Lotes en ciclo sin novedades hace más de 7 días

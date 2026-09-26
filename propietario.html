@@ -436,6 +436,7 @@
 <script src="safia-balance.js"></script>
 <script src="safia-clima.js"></script>
 <script src="safia-ficha-agua.js"></script>
+<script src="safia-mantenimiento.js"></script>
 <script>
   document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -680,9 +681,10 @@
       mantBody.innerHTML = equipos.map(eq => {
         const campo = campos.find(f => f.id === eq.campoId);
         const plan  = eq.planMantenimiento || [];
-        const horas = parseFloat(eq.horasAcumuladas) || 0;
+        let horas = parseFloat(eq.horasAcumuladas) || 0;
         let vencidas = 0, proximas = 0;
-        plan.forEach(t => {
+        if (window.SafiaMant) { const s = SafiaMant.estado(eq); horas = s.horas; vencidas = s.vencidas.length; proximas = s.proximas.length; }   // incluye horímetro y tareas marcadas por el operador
+        else plan.forEach(t => {
           const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
           const pct = parseFloat(t.intervalo) > 0 ? (desde / t.intervalo) * 100 : 0;
           if (pct >= 100) vencidas++;

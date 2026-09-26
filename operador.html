@@ -659,13 +659,14 @@
       .main > .crumb { display: none; }
       .main > .topbar { margin-bottom: 10px !important; padding-bottom: 8px !important; }
       .contenedor { max-width: 1240px !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
-        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "eventos agua"; }
+        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "eventos agua" "eventos mant"; }
       .contenedor > .header-operador { display: none !important; }
       .contenedor > #alertaSinEquipo { grid-area: alerta; }
       .contenedor > #selectorCard { grid-area: sel; margin-bottom: 10px !important; padding: 10px 14px !important; }
       .contenedor > #campanaCard { grid-area: camp; margin-bottom: 10px !important; }
       .contenedor > #recoCard { grid-area: reco; margin-bottom: 10px !important; padding: 12px 16px !important; }
-      .contenedor > #fichaAguaCard { grid-area: agua; margin: 0 !important; position: sticky; top: 12px; }
+      .contenedor > #fichaAguaCard { grid-area: agua; margin: 0 !important; }
+      .contenedor > #mantCard { grid-area: mant; margin: 10px 0 0 !important; padding: 12px 16px !important; }
       .contenedor > #botonesCarga { grid-area: carga; margin-bottom: 10px !important; }
       .contenedor > #eventosSeccion { grid-area: eventos; }
       #selectorCard select { padding-top: 9px !important; padding-bottom: 9px !important; }
@@ -828,6 +829,7 @@
           <div class="reco-detalle" id="recoDetalle">—</div>
         </div>
         <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div></div>
+        <div class="card" id="mantCard" style="display:none;margin-top:12px;"><div id="mantEquipo"></div></div>
 
         <div class="botones-carga" id="botonesCarga" style="display:none;">
           <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
@@ -994,6 +996,7 @@
   <script src="safia-pasturas.js"></script>
   <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
+  <script src="safia-mantenimiento.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
       weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
@@ -1052,6 +1055,7 @@
         document.getElementById('recoCard').classList.remove('visible');
         document.getElementById('botonesCarga').style.display = 'none';
         document.getElementById('eventosSeccion').style.display = 'none';
+        const mc = document.getElementById('mantCard'); if (mc) mc.style.display = 'none';
         equipoSeleccionadoId = null;
         return;
       }
@@ -1070,6 +1074,7 @@
       mostrarCampana();
       mostrarRecomendacionClima();
       mostrarEventos();
+      pintarMant();
 
       document.getElementById('botonesCarga').style.display = 'grid';
       document.getElementById('eventosSeccion').style.display = 'block';
@@ -1475,6 +1480,15 @@
       mostrarRecomendacionClima();
     }
 
+    // Mantenimiento del equipo: el operador ve qué falta y marca lo que hizo (queda como evento del lote)
+    function pintarMant() {
+      const card = document.getElementById('mantCard'), div = document.getElementById('mantEquipo'); if (!card || !div || !window.SafiaMant) return;
+      const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
+      if (!eq || SafiaBalance.esSecano(eq)) { card.style.display = 'none'; return; }
+      div.innerHTML = SafiaMant.html(eq); card.style.display = 'block';
+    }
+    window.addEventListener('safia:mantenimiento', () => { try { mostrarEventos(); } catch (e) {} });
+
     function mostrarEventos() {
       const lista = document.getElementById('listaEventos');
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
@@ -1517,6 +1531,14 @@
           icono = '🧪';
           titulo = `${ev.producto} (${ev.dosis} ${ev.unidad})`;
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'horimetro') {
+          icono = '⏱️';
+          titulo = `Horímetro ${ev.cantidad} h`;
+          detalle = `${diaSemana} ${fechaStr}`;
+        } else if (ev.tipo === 'mantenimiento') {
+          icono = '🔧';
+          titulo = `Mantenimiento: ${ev.tarea || ''}`;
+          detalle = `${diaSemana} ${fechaStr}${ev.horasEquipo != null ? ' · a las ' + ev.horasEquipo + ' h' : ''}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'pastoreo') {
           icono = '🐄';
           titulo = (ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte') + ' · piquete ' + (ev.piquete || '?') + (ev.cabezas ? ' · ' + ev.cabezas + ' cab.' : '') + (ev.kgMsHa ? ' · ' + ev.kgMsHa + ' kg MS/ha' : '');
