@@ -284,7 +284,7 @@
         const ed = editandoId === c.id ? 'editando' : '';
         return `
           <tr class="${ed}">
-            <td><span class="num">${c.nombre || '—'}</span></td>
+            <td><span class="num">${c.nombre || '—'}</span>${c.estado === 'prospecto' ? ' <span class="badge amber" title="Evaluado en Evaluar proyecto; todavía sin riego activo">Prospecto</span>' : ''} <a href="evaluar.html?cliente=${c.id}" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-left:4px;" title="Evaluaciones de proyecto de este cliente">Evaluar</a></td>
             <td>${c.tipo ? `<span class="badge muted">${c.tipo}</span>` : '—'}</td>
             <td>${c.documento || '—'}</td>
             <td>${c.telefono || '—'}</td>

@@ -488,8 +488,8 @@
     // Vista del PROPIETARIO: un cliente por vez (el elegido arriba, recordado), no la suma de todos los clientes de Irrigar
     const selCli = document.getElementById('selCliente');
     let clienteSel = ''; try { clienteSel = localStorage.getItem('propietario_cliente') || ''; } catch (e) {}
-    if (!clientes.some(c => String(c.id) === clienteSel)) clienteSel = clientes.length ? String(clientes[0].id) : '';
-    selCli.innerHTML = clientes.slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))).map(c => '<option value="' + c.id + '"' + (String(c.id) === clienteSel ? ' selected' : '') + '>' + c.nombre + '</option>').join('');
+    if (!clientes.some(c => String(c.id) === clienteSel)) clienteSel = clientes.length ? String((clientes.find(c => c.estado !== 'prospecto') || clientes[0]).id) : '';
+    selCli.innerHTML = clientes.slice().sort((a, b) => ((a.estado === 'prospecto') - (b.estado === 'prospecto')) || String(a.nombre).localeCompare(String(b.nombre))).map(c => '<option value="' + c.id + '"' + (String(c.id) === clienteSel ? ' selected' : '') + '>' + (c.estado === 'prospecto' ? '[prospecto] ' : '') + '' + c.nombre + '</option>').join('');
     const clienteObj = clientes.find(c => String(c.id) === clienteSel) || null;
     const campos    = JSON.parse(localStorage.getItem('campos')        || '[]').filter(c => !clienteSel || String(c.clienteId) === clienteSel);
     const equipos   = JSON.parse(localStorage.getItem('equipos')       || '[]').filter(e => campos.some(c => String(c.id) === String(e.campoId)));

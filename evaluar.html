@@ -99,12 +99,31 @@
 
       <div class="tabs no-print">
         <button class="on" data-tab="evaluar">Evaluar un proyecto</button>
+        <button data-tab="guardadas">Evaluaciones guardadas</button>
         <button data-tab="casos">Banco de casos</button>
       </div>
 
       <!-- ================= EVALUAR ================= -->
       <section class="panel on" id="panel-evaluar">
         <div class="note info no-print" id="notaCasos"></div>
+
+        <div class="formcard" id="cardProspecto">
+          <h3>0 · Cliente o prospecto</h3>
+          <div class="formsub">La evaluación se guarda sola cada vez que tocás <b>Evaluar proyecto</b>. Elegí el prospecto (o un cliente) para seguir donde quedaron, o creá uno nuevo: pasa a ser parte de SAFIA, sin riego activo todavía.</div>
+          <div class="form-grid">
+            <div class="field"><label>Cliente o prospecto</label><select id="evCliente"></select></div>
+            <div class="field"><label>Proyecto (campo)</label><select id="evCampo"></select></div>
+            <div class="field"><label>Estrategia</label><select id="evEstrategia"></select></div>
+            <div class="field"><label>Nombre de la estrategia</label><input id="evNombre" placeholder="Ej: soja + maíz zafriña, 200 ha"></div>
+            <div class="field ev-nuevo-cli" style="display:none;"><label>Nombre del prospecto</label><input id="evCliNombre" placeholder="Ej: Juan Pérez"></div>
+            <div class="field ev-nuevo-cli" style="display:none;"><label>WhatsApp</label><input id="evCliTel" placeholder="0981 123456"></div>
+            <div class="field ev-nuevo-cli" style="display:none;"><label>Correo (opcional)</label><input id="evCliEmail" placeholder="correo@ejemplo.com"></div>
+            <div class="field ev-nuevo-campo" style="display:none;"><label>Nombre del proyecto</label><input id="evCampoNombre" placeholder="Ej: Estancia San José"></div>
+            <div class="field ev-nuevo-campo" style="display:none;"><label>Superficie a regar (ha)</label><input type="number" id="evCampoSup" step="any" placeholder="Ej: 200"></div>
+            <div class="field full"><label>Notas de la conversación</label><textarea id="evNotas" rows="2" placeholder="Qué pidió, qué le preocupa, próximos pasos…"></textarea></div>
+          </div>
+          <div class="hint" id="evEstado" style="margin-top:6px;"></div>
+        </div>
 
         <div class="formcard">
           <h3>1 · Ubicación del proyecto</h3>
@@ -151,6 +170,7 @@
           </div>
           <div class="form-actions">
             <span style="flex:1"></span>
+            <button class="btn" id="btnEvaluarNueva" title="Guarda lo cargado como otra estrategia del mismo proyecto">Evaluar como estrategia nueva</button>
             <button class="btn green lg" id="btnEvaluar">🔎 Evaluar proyecto</button>
           </div>
         </div>
@@ -174,6 +194,12 @@
           </div>
           <div class="no-print" style="display:flex;gap:8px;"><button class="btn" onclick="window.print()">🖨️ Imprimir evaluación</button></div>
         </div>
+      </section>
+
+      <!-- ================= EVALUACIONES GUARDADAS ================= -->
+      <section class="panel" id="panel-guardadas">
+        <div class="note info" id="notaGuardadas"></div>
+        <div class="tablewrap"><div class="tablescroll"><table class="tbl" id="tablaGuardadas"></table></div></div>
       </section>
 
       <!-- ================= BANCO DE CASOS ================= -->
@@ -425,7 +451,7 @@
     document.getElementById('resultados').style.display='';
     document.getElementById('rResumenSub').textContent=filas.length+' cultivo(s) · '+(localidad||depto||'sin ubicación');
 
-    var cadena=Promise.resolve();
+    var cadena=Promise.resolve(), paraGuardar=[];
     filas.forEach(function(f, idx){
       var p={ lat:base.lat, lon:base.lon, altitud:base.altitud, suelo:base.suelo, cultivo:f.cultivo, epoca:f.epoca, objetivoKgHa:f.objetivoKgHa };
       // Potencial con riego (casos con riego) y, aparte, qué dan los casos de secano parecidos
@@ -439,9 +465,184 @@
           '<td class="r">'+(ref?fmt(ref.riego,0):'—')+'</td><td class="r">'+(ref?fmt(ref.secano,0):'—')+'</td>'+
           '<td>'+lecturaResumen(p,r,ref)+'</td></tr>';
         bloques.innerHTML+=bloqueCultivoHTML(idx,p,r,ref);
+        paraGuardar.push({ cultivo:p.cultivo, epoca:p.epoca||null, objetivoKgHa:p.objetivoKgHa,
+          potencial: r.potencial?{ estimado:Math.round(r.potencial.estimado), min:Math.round(r.potencial.min), max:Math.round(r.potencial.max), nCasos:r.potencial.nCasos }:null,
+          secano: r.secano?{ estimado:Math.round(r.secano.estimado), nCasos:r.secano.nCasos }:null,
+          refRiego: ref&&ref.riego!=null?Math.round(ref.riego):null, refSecano: ref&&ref.secano!=null?Math.round(ref.secano):null, ambito: ref?ref.ambito||null:null,
+          lectura: String(lecturaResumen(p,r,ref)).replace(/<[^>]+>/g,'').replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ]+/,'').trim() });
       }); });
     });
-    cadena.then(function(){ document.getElementById('resultados').scrollIntoView({behavior:'smooth'}); });
+    cadena.then(function(){
+      try { guardarEvaluacion({ suelo:base.suelo, lat:base.lat, lon:base.lon, altitud:base.altitud, localidad:localidad, depto:depto, cultivos:filas, resultados:paraGuardar }); } catch(e){ console.error(e); document.getElementById('evEstado').textContent='No se pudo guardar la evaluación: '+e.message; }
+      if(!evaluandoCallado) document.getElementById('resultados').scrollIntoView({behavior:'smooth'});
+      evaluandoCallado=false;
+    });
+  });
+
+  /* ---------- evaluaciones guardadas: prospecto → cliente de SAFIA con su campo, su suelo y sus estrategias ---------- */
+  function L(k){ try{ return JSON.parse(localStorage.getItem(k)||'[]')||[]; }catch(e){ return []; } }
+  function G(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+  function $(id){ return document.getElementById(id); }
+  var CLAVES_SUELO=['ph','mo','p','k','ca','mg','cic','satBases','arena','limo','arcilla'];
+  var evActual=null, sueloCargado=null, evaluandoCallado=false;
+  function esProspecto(c){ return c && c.estado==='prospecto'; }
+  function pintarClientesEv(sel){
+    var cl=L('clientes').slice().sort(function(a,b){ return (esProspecto(b)-esProspecto(a)) || String(a.nombre).localeCompare(String(b.nombre)); });
+    $('evCliente').innerHTML='<option value="">— Elegí —</option><option value="nuevo">+ Nuevo prospecto</option>'+cl.map(function(c){ return '<option value="'+c.id+'"'+(String(c.id)===String(sel)?' selected':'')+'>'+esc(c.nombre)+(esProspecto(c)?' · prospecto':' · cliente')+'</option>'; }).join('');
+    if(sel==='nuevo') $('evCliente').value='nuevo';
+  }
+  function pintarCamposEv(sel){
+    var cli=$('evCliente').value, cs=cli&&cli!=='nuevo'?L('campos').filter(function(c){ return String(c.clienteId)===String(cli); }):[];
+    $('evCampo').innerHTML=(cli?'<option value="nuevo">+ Nuevo proyecto</option>':'<option value="">—</option>')+cs.map(function(c){ return '<option value="'+c.id+'"'+(String(c.id)===String(sel)?' selected':'')+'>'+esc(c.nombre)+(c.localidad?' · '+esc(c.localidad):'')+'</option>'; }).join('');
+    if(!sel && cs.length) $('evCampo').value=String(cs[0].id);
+    if(sel==='nuevo') $('evCampo').value='nuevo';
+  }
+  function pintarEstrategias(sel){
+    var campo=$('evCampo').value, evs=campo&&campo!=='nuevo'?L('evaluaciones').filter(function(e){ return String(e.campoId)===String(campo); }).sort(function(a,b){ return String(b.fechaModificacion||b.fecha).localeCompare(String(a.fechaModificacion||a.fecha)); }):[];
+    $('evEstrategia').innerHTML='<option value="nuevo">+ Nueva estrategia</option>'+evs.map(function(e){ return '<option value="'+e.id+'"'+(String(e.id)===String(sel)?' selected':'')+'>'+esc(e.nombre||'Estrategia')+' · '+fmtFecha(String(e.fechaModificacion||e.fecha).slice(0,10))+'</option>'; }).join('');
+    if(sel==null && evs.length) $('evEstrategia').value=String(evs[0].id);
+    if(sel==='nuevo') $('evEstrategia').value='nuevo';
+    return evs;
+  }
+  function mostrarNuevos(){
+    var nc=$('evCliente').value==='nuevo', np=$('evCampo').value==='nuevo';
+    document.querySelectorAll('.ev-nuevo-cli').forEach(function(x){ x.style.display=nc?'':'none'; });
+    document.querySelectorAll('.ev-nuevo-campo').forEach(function(x){ x.style.display=(nc||np)?'':'none'; });
+  }
+  function ponerSuelo(s){ CLAVES_SUELO.forEach(function(k){ $('s_'+k).value = s&&s[k]!=null&&s[k]!==''?s[k]:''; }); }
+  function sueloDelForm(){ var s={}, hay=false; CLAVES_SUELO.forEach(function(k){ var v=num($('s_'+k).value); s[k]=v; if(v!=null) hay=true; }); return hay?s:null; }
+  function mismoSuelo(a,b){ if(!a||!b) return false; return CLAVES_SUELO.every(function(k){ var x=num(a[k]), y=num(b[k]); return (x==null&&y==null)||(x!=null&&y!=null&&Math.abs(x-y)<1e-9); }); }
+  function cargarCampo(campo){
+    if(!campo) return;
+    if(campo.departamento) $('pDepto').value=campo.departamento;
+    if(campo.localidad) $('pLocalidad').value=campo.localidad;
+    if(campo.pais) $('pPais').value=campo.pais;
+    $('pLat').value=campo.latitud||''; $('pLon').value=campo.longitud||''; $('pAlt').value=campo.altitud||'';
+    $('pGps').value=campo.latitud&&campo.longitud?campo.latitud+', '+campo.longitud:'';
+    // el análisis de suelo más nuevo del campo (si lo hay)
+    var an=L('analisis_suelo').filter(function(a){ return String(a.campoId)===String(campo.id) && !a.esPromedio; }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')); })[0]||null;
+    sueloCargado=an; ponerSuelo(an);
+    $('evCampoSup').value=campo.superficie||'';
+  }
+  function cargarEvaluacion(ev){
+    evActual=ev.id;
+    $('evNombre').value=ev.nombre||''; $('evNotas').value=ev.notas||'';
+    var u=ev.ubicacion||{};
+    if(u.departamento) $('pDepto').value=u.departamento; if(u.localidad) $('pLocalidad').value=u.localidad; if(u.pais) $('pPais').value=u.pais;
+    if(u.lat!=null){ $('pLat').value=u.lat; $('pLon').value=u.lon; $('pGps').value=u.lat+', '+u.lon; } if(u.altitud!=null) $('pAlt').value=u.altitud;
+    if(ev.suelo){ ponerSuelo(ev.suelo); var an=L('analisis_suelo').find(function(a){ return String(a.id)===String(ev.analisisId); }); sueloCargado=an||null; }
+    $('filasCultivos').innerHTML='';
+    (ev.cultivos&&ev.cultivos.length?ev.cultivos:[{cultivo:'',epoca:'',objetivoKgHa:''}]).forEach(function(c){ agregarFilaCultivo(c.cultivo||'', c.epoca||'', c.objetivoKgHa||''); });
+    $('evEstado').innerHTML='Estrategia abierta: <b>'+esc(ev.nombre||'')+'</b>, guardada el '+fmtFecha(String(ev.fechaModificacion||ev.fecha).slice(0,10))+'. Tocá Evaluar para ver el resultado con el banco de hoy.';
+  }
+  $('evCliente').addEventListener('change',function(){ evActual=null; pintarCamposEv(); mostrarNuevos(); $('evCampo').dispatchEvent(new Event('change')); });
+  $('evCampo').addEventListener('change',function(){
+    evActual=null; mostrarNuevos();
+    var campo=L('campos').find(function(c){ return String(c.id)===String($('evCampo').value); });
+    if(campo) cargarCampo(campo); else sueloCargado=null;
+    var evs=pintarEstrategias();
+    if(evs.length) cargarEvaluacion(evs[0]); else { $('evNombre').value=''; $('evEstado').textContent=campo?'Este proyecto todavía no tiene estrategias guardadas.':''; }
+  });
+  $('evEstrategia').addEventListener('change',function(){
+    var ev=L('evaluaciones').find(function(e){ return String(e.id)===String($('evEstrategia').value); });
+    if(ev) cargarEvaluacion(ev); else { evActual=null; $('evNombre').value=''; $('evEstado').textContent='Estrategia nueva: al evaluar se guarda aparte, con lo que está cargado ahora.'; }
+  });
+  $('btnEvaluarNueva').addEventListener('click',function(){ evActual=null; $('evEstrategia').value='nuevo'; if(!$('evNombre').value.trim()||L('evaluaciones').some(function(e){ return e.nombre===$('evNombre').value.trim() && String(e.campoId)===String($('evCampo').value); })) $('evNombre').value=''; $('btnEvaluar').click(); });
+
+  function guardarEvaluacion(d){
+    var cliSel=$('evCliente').value, campoSel=$('evCampo').value, est=$('evEstado');
+    if(!cliSel){ est.innerHTML='<b>No se guardó:</b> elegí o creá el prospecto arriba (paso 0) y volvé a evaluar.'; return; }
+    var ahora=new Date().toISOString(), hoy=ahora.slice(0,10), t0=Date.now(), pais=$('pPais').value;
+    var clientes=L('clientes'), campos=L('campos'), analisis=L('analisis_suelo'), evs=L('evaluaciones'), cliente, campo;
+    if(cliSel==='nuevo'){
+      var nom=$('evCliNombre').value.trim(); if(!nom){ est.innerHTML='<b>No se guardó:</b> poné el nombre del prospecto.'; toast('Poné el nombre del prospecto',true); return; }
+      cliente={ id:t0, nombre:nom, telefono:$('evCliTel').value.trim(), email:$('evCliEmail').value.trim(), tipo:'Persona física', documento:'', estado:'prospecto', localidad:[d.localidad,d.depto].filter(Boolean).join(', '), fechaCreacion:ahora };
+      clientes.push(cliente); G('clientes',clientes);
+    } else cliente=clientes.find(function(c){ return String(c.id)===String(cliSel); });
+    if(!cliente){ est.textContent='No se encontró el cliente.'; return; }
+    var sup=num($('evCampoSup').value);
+    if(!campoSel||campoSel==='nuevo'){
+      campo={ id:t0+1, clienteId:cliente.id, nombre:$('evCampoNombre').value.trim()||('Proyecto '+(d.localidad||d.depto||'')).trim(), pais:pais, departamento:d.depto, localidad:d.localidad,
+        latitud:d.lat!=null?String(d.lat):'', longitud:d.lon!=null?String(d.lon):'', altitud:d.altitud!=null?String(d.altitud):'', superficie:sup!=null?String(sup):'', actividad:'Agrícola', proyecto:true,
+        observaciones:'Creado desde Evaluar proyecto', fechaCreacion:ahora };
+      campos.push(campo);
+    } else {
+      campo=campos.find(function(c){ return String(c.id)===String(campoSel); });
+      if(!campo){ est.textContent='No se encontró el proyecto.'; return; }
+      // la ubicación que se afinó en la evaluación queda en el campo
+      if(d.depto) campo.departamento=d.depto; if(d.localidad) campo.localidad=d.localidad; campo.pais=pais;
+      if(d.lat!=null){ campo.latitud=String(d.lat); campo.longitud=String(d.lon); } if(d.altitud!=null) campo.altitud=String(d.altitud);
+      if(sup!=null) campo.superficie=String(sup); campo.fechaModificacion=ahora;
+    }
+    G('campos',campos);
+    // suelo: si es el mismo análisis que ya tenía el campo, se usa ese; si cambió, queda como análisis del proyecto
+    var evPrev=evActual?evs.find(function(e){ return String(e.id)===String(evActual); }):null, analisisId=null;
+    if(d.suelo){
+      if(sueloCargado && mismoSuelo(sueloCargado,d.suelo)) analisisId=sueloCargado.id;
+      else {
+        var propio=evPrev&&evPrev.analisisId?analisis.find(function(a){ return String(a.id)===String(evPrev.analisisId) && a.origen==='evaluacion'; }):null;
+        if(propio){ CLAVES_SUELO.forEach(function(k){ propio[k]=d.suelo[k]; }); propio.fechaModificacion=ahora; analisisId=propio.id; }
+        else { var a={ id:t0+2, campoId:campo.id, equipoId:null, fecha:hoy, origen:'evaluacion', profundidad:'0-20 cm', observaciones:'Cargado en Evaluar proyecto', fechaCreacion:ahora }; CLAVES_SUELO.forEach(function(k){ a[k]=d.suelo[k]; }); analisis.push(a); analisisId=a.id; }
+        G('analisis_suelo',analisis);
+        sueloCargado=analisis.find(function(x){ return String(x.id)===String(analisisId); })||null;
+      }
+    }
+    var nombreDef=d.cultivos.map(function(c){ return c.cultivo+(c.objetivoKgHa?' '+Math.round(c.objetivoKgHa/100)/10+' t':''); }).join(' + ');
+    var u=(window.SafiaSync&&SafiaSync.usuario&&SafiaSync.usuario())||{};
+    // nombre automático (cultivos y objetivos) mientras no se escriba uno propio
+    var escrito=$('evNombre').value.trim(), auto=!escrito || (evPrev && evPrev.nombreAuto && escrito===evPrev.nombre);
+    var datos={ clienteId:cliente.id, campoId:campo.id, analisisId:analisisId, nombre:auto?(nombreDef||'Estrategia'):escrito, nombreAuto:auto, notas:$('evNotas').value.trim(),
+      superficieHa:sup, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
+      cultivos:d.cultivos, suelo:d.suelo, resultados:d.resultados, casosEnBanco:casos.length, evaluadoPor:u.nombre||null, fechaModificacion:ahora };
+    var ev=evPrev;
+    if(ev) Object.assign(ev,datos); else { ev=Object.assign({ id:t0+3, fecha:ahora },datos); evs.push(ev); }
+    G('evaluaciones',evs);
+    evActual=ev.id;
+    pintarClientesEv(cliente.id); pintarCamposEv(campo.id); pintarEstrategias(ev.id); mostrarNuevos();
+    $('evNombre').value=ev.nombre;
+    est.innerHTML='✓ Guardada: <b>'+esc(ev.nombre)+'</b> de '+esc(cliente.nombre)+(esProspecto(cliente)?' (prospecto)':'')+' · '+new Date().toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'})+' — queda en <b>Evaluaciones guardadas</b>.';
+    toast('Evaluación guardada');
+    pintarGuardadas();
+  }
+
+  function pintarGuardadas(){
+    var evs=L('evaluaciones').slice().sort(function(a,b){ return String(b.fechaModificacion||b.fecha).localeCompare(String(a.fechaModificacion||a.fecha)); });
+    var clientes=L('clientes'), campos=L('campos'), t=$('tablaGuardadas');
+    $('notaGuardadas').innerHTML=evs.length?'<b>'+evs.length+'</b> estrategia(s) guardada(s) de <b>'+new Set(evs.map(function(e){ return String(e.clienteId); })).size+'</b> cliente(s) o prospecto(s). Abrila para seguir la conversación donde quedó.':'Todavía no hay evaluaciones guardadas: se guardan solas al tocar <b>Evaluar proyecto</b> con el prospecto elegido en el paso 0.';
+    t.innerHTML='<thead><tr><th>Cliente o prospecto</th><th>Proyecto</th><th>Estrategia</th><th>Cultivos · objetivo → potencial</th><th>Guardada</th><th></th></tr></thead><tbody>'+
+      (evs.length?evs.map(function(e){
+        var c=clientes.find(function(x){ return String(x.id)===String(e.clienteId); })||{}, p=campos.find(function(x){ return String(x.id)===String(e.campoId); })||{};
+        var cul=(e.resultados&&e.resultados.length?e.resultados:(e.cultivos||[])).map(function(r){ return esc(r.cultivo)+' '+fmt(r.objetivoKgHa,0)+' → '+(r.potencial?fmt(r.potencial.estimado,0):'—'); }).join('<br>');
+        return '<tr><td><b>'+esc(c.nombre||'—')+'</b><div class="sub">'+(esProspecto(c)?'prospecto':'cliente')+(c.telefono?' · '+esc(c.telefono):'')+'</div></td>'+
+          '<td>'+esc(p.nombre||'—')+'<div class="sub">'+esc([p.localidad,p.departamento].filter(Boolean).join(', '))+(e.superficieHa?' · '+fmt(e.superficieHa,0)+' ha':'')+'</div></td>'+
+          '<td>'+esc(e.nombre||'')+(e.notas?'<div class="sub">'+esc(String(e.notas).slice(0,90))+'</div>':'')+'</td><td>'+cul+'</td>'+
+          '<td>'+fmtFecha(String(e.fechaModificacion||e.fecha).slice(0,10))+(e.evaluadoPor?'<div class="sub">'+esc(e.evaluadoPor)+'</div>':'')+'</td>'+
+          '<td class="r" style="white-space:nowrap;"><button class="btn" data-abrir="'+e.id+'">Abrir</button> '+(esProspecto(c)?'<button class="btn" data-cliente="'+c.id+'" title="Cerró la venta: pasa a cliente activo">Pasar a cliente</button> ':'')+'<button class="btn danger" data-borrar="'+e.id+'">Borrar</button></td></tr>';
+      }).join(''):'<tr><td colspan="6" class="muted">Sin evaluaciones guardadas.</td></tr>')+'</tbody>';
+  }
+  function abrirEvaluacion(id, evaluar){
+    var ev=L('evaluaciones').find(function(e){ return String(e.id)===String(id); }); if(!ev) return;
+    document.querySelector('.tabs button[data-tab="evaluar"]').click();
+    pintarClientesEv(ev.clienteId); pintarCamposEv(ev.campoId); mostrarNuevos();
+    var campo=L('campos').find(function(c){ return String(c.id)===String(ev.campoId); }); if(campo) cargarCampo(campo);
+    pintarEstrategias(ev.id); cargarEvaluacion(ev);
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(evaluar){ evaluandoCallado=true; $('btnEvaluar').click(); }
+  }
+  $('tablaGuardadas').addEventListener('click',function(ev){
+    var b=ev.target.closest('button'); if(!b) return;
+    if(b.dataset.abrir) abrirEvaluacion(b.dataset.abrir, true);
+    if(b.dataset.cliente){
+      var cl=L('clientes'), c=cl.find(function(x){ return String(x.id)===String(b.dataset.cliente); }); if(!c) return;
+      if(b.dataset.ok!=='1'){ b.dataset.ok='1'; b.textContent='¿Confirmás? Tocá de nuevo'; setTimeout(function(){ b.dataset.ok=''; b.textContent='Pasar a cliente'; },4000); return; }
+      delete c.estado; c.clienteDesde=new Date().toISOString().slice(0,10); G('clientes',cl); toast(c.nombre+' pasó a cliente activo'); pintarGuardadas(); pintarClientesEv($('evCliente').value);
+    }
+    if(b.dataset.borrar){
+      if(b.dataset.ok!=='1'){ b.dataset.ok='1'; b.textContent='¿Borrar? Tocá de nuevo'; setTimeout(function(){ b.dataset.ok=''; b.textContent='Borrar'; },4000); return; }
+      G('evaluaciones',L('evaluaciones').filter(function(e){ return String(e.id)!==String(b.dataset.borrar); }));
+      if(String(evActual)===String(b.dataset.borrar)) evActual=null;
+      toast('Estrategia borrada (el prospecto y su proyecto quedan)'); pintarGuardadas(); pintarEstrategias(evActual||'nuevo');
+    }
   });
 
   /* ---------- banco de casos ---------- */
@@ -506,6 +707,13 @@
     ? 'El banco tiene <b>'+casos.length+' caso(s) reales</b> cosechados. '+(casos.length<5?'Con pocos casos el resultado es una <b>orientación</b>; se vuelve confiable a medida que cargás clientes.':'')
     : 'Todavía no hay campañas cosechadas en el banco: la evaluación va a mostrar solo la referencia regional.';
   pintarBanco();
+  (function(){
+    var q=new URLSearchParams(location.search), evq=q.get('evaluacion'), cq=q.get('cliente');
+    pintarClientesEv(cq||''); pintarCamposEv(); pintarEstrategias(); mostrarNuevos(); pintarGuardadas();
+    if(evq) abrirEvaluacion(evq, true);
+    else if(cq) $('evCliente').dispatchEvent(new Event('change'));
+    window.addEventListener('safia:datos',function(){ pintarGuardadas(); });
+  })();
 })();
 </script>
 </body>

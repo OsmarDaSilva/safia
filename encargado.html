@@ -651,7 +651,7 @@
     function llenarFiltroCampo() {
       const sel = document.getElementById('filtroCampo'); if (!sel) return;
       const campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
-      const filas = campos.map(c => { const cl = clientes.find(x => String(x.id) === String(c.clienteId)); return { id: String(c.id), txt: (cl ? cl.nombre + ' · ' : '') + c.nombre }; }).sort((a, b) => a.txt.localeCompare(b.txt));
+      const filas = campos.filter(c => { const cl = clientes.find(x => String(x.id) === String(c.clienteId)); return !(cl && cl.estado === 'prospecto'); }).map(c => { const cl = clientes.find(x => String(x.id) === String(c.clienteId)); return { id: String(c.id), txt: (cl ? cl.nombre + ' · ' : '') + c.nombre }; }).sort((a, b) => a.txt.localeCompare(b.txt));
       sel.innerHTML = '<option value="">Todos los clientes y campos</option>' + filas.map(f => '<option value="' + f.id + '">' + f.txt + '</option>').join('');
       if (campoFiltro && filas.some(f => f.id === campoFiltro)) sel.value = campoFiltro; else campoFiltro = '';
     }
