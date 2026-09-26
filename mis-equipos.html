@@ -810,7 +810,7 @@
       const est = window.SafiaMant ? SafiaMant.estado(equipo) : null;
       equipo.planMantenimiento.forEach(t => {
         const e = est ? est.tareas.find(x => String(x.id) === String(t.id)) : null;
-        const desde = (est ? est.horas : horas) - (e ? e.ultHoras : (parseFloat(t.ultimasHorasHechas) || 0));
+        const desde = (e && e.horasContador != null ? e.horasContador : est ? est.horas : horas) - (e ? e.ultHoras : (parseFloat(t.ultimasHorasHechas) || 0));
         const pct = e ? Math.min(120, e.pct == null ? 0 : e.pct) : Math.min(120, Math.round((desde / t.intervalo) * 100));
         const faltan = Math.max(0, (t.intervalo || 0) - desde);
 

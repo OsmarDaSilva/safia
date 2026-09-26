@@ -1533,7 +1533,7 @@
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'horimetro') {
           icono = '⏱️';
-          titulo = `Horímetro ${ev.cantidad} h`;
+          titulo = `Horímetro${ev.contador === 'bomba' ? ' bomba' : ev.contador === 'canon' ? ' cañón final' : ''} ${ev.cantidad} h`;
           detalle = `${diaSemana} ${fechaStr}`;
         } else if (ev.tipo === 'mantenimiento') {
           icono = '🔧';
