@@ -432,7 +432,9 @@
     .tl-sub{font-size:11px;color:#8C9196;margin-top:2px;} .tl-sub-inline{font-size:11px;color:#8C9196;font-weight:500;} .tl-muted{color:#8C9196;}
     .tl-badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;white-space:nowrap;}
     .tl-badge.ok{background:#E7F6EA;color:#178029;} .tl-badge.monitorear{background:#FBF1DF;color:#8a5713;} .tl-badge.urgente{background:#FBECEA;color:#B3261E;} .tl-badge.lluvia{background:#EEF4FB;color:#1F5A96;} .tl-badge.gris{background:#F0F2F4;color:#5B6167;}
-    .tl-agua b{font-size:13px;} .tl-agua .fa-mini{margin-top:3px;} .tl-agua .fa-mini-txt{display:none;} .tl-agua .fa-mini-barra{height:7px;margin-top:8px;}
+    .tl-agua b{font-size:14px;}
+    .tl tbody tr.tl-agua-fila td{padding:0 10px 10px;border-bottom:1px solid #F0F2F4;} .tl tbody tr:has(+ .tl-agua-fila) td{border-bottom:0;padding-bottom:4px;}
+    .tl-agua-fila .fa-mini{margin-top:0;} .tl-agua-fila .fa-mini-txt{font-size:11px;color:#5B6167;} .tl-agua-fila .fa-mini-barra{height:8px;margin-top:8px;}
     .tl-vacio{padding:24px;text-align:center;color:#8C9196;font-size:13px;background:#fff;border:1px solid #E1E4E7;border-radius:10px;}
     @media (min-width: 1100px) {
       .contenedor{display:grid;grid-template-columns:minmax(0,1fr) 310px;column-gap:14px;align-items:start;
@@ -980,8 +982,9 @@
     }
     function celdaAgua(d) {
       const r = d.balance && d.balance.r; if (!r || r.porcentajeHoy == null) return '<span class="tl-muted">—</span>';
-      const mini = window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : '';
-      return '<div class="tl-agua"><b>' + Math.round(r.porcentajeHoy) + ' %</b>' + mini + '</div>';
+      const U = r.umbrales || {}; const pct = Math.round(r.porcentajeHoy);
+      const banda = pct < (U.URGENTE || 35) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 50) ? ['regar', '#E67E22'] : pct < (U.ATENCION || 70) ? ['atención', '#D4A24C'] : pct < 95 ? ['óptimo', '#178029'] : ['lleno', '#2E72C8'];
+      return '<div class="tl-agua"><b style="color:' + banda[1] + ';">' + pct + ' %</b><div class="tl-sub">' + banda[0] + ' · ' + Math.round(r.aguaDisponibleHoy) + ' de ' + Math.round(r.tawHoy) + ' mm</div></div>';
     }
     function celdaRiego(d) {
       const r = d.balance && d.balance.r; if (!r || !window.SafiaFichaAgua) return '<span class="tl-muted">—</span>';
@@ -1024,7 +1027,8 @@
           '<td>' + celdaAgua(d) + '</td>' +
           '<td>' + celdaRiego(d) + '</td>' +
           '<td>' + celdaMant(d) + '</td>' +
-          '<td>' + celdaCarga(d) + (function () { const s = celdaSensores(d); return s.indexOf('tl-muted') >= 0 ? '' : '<div class="tl-sens">' + s + '</div>'; })() + '</td></tr>';
+          '<td>' + celdaCarga(d) + (function () { const s = celdaSensores(d); return s.indexOf('tl-muted') >= 0 ? '' : '<div class="tl-sens">' + s + '</div>'; })() + '</td></tr>' +
+          (function () { const r = d.balance && d.balance.r; const mini = r && r.porcentajeHoy != null && window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : ''; return mini ? '<tr class="tl-agua-fila" onclick="window.location.href=\'operador.html?equipo=' + d.equipo.id + '\'"><td colspan="6">' + mini + '</td></tr>' : ''; })();
       }).join('');
       cont.innerHTML = '<div class="tl-card"><div class="tl-titulo">Estado de los lotes <span class="tl-sub-inline">tocá un lote para abrirlo en el Operador</span></div><table class="tl"><thead><tr><th>Lote</th><th>Cultivo</th><th>Agua útil</th><th>Riego</th><th>Mantenim.</th><th>Última carga</th></tr></thead><tbody>' + filas + '</tbody></table></div>';
     }
