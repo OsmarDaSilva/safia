@@ -227,6 +227,37 @@
     .campana-meta, .campana-meta * { color: #5B6167 !important; opacity: 1 !important; }
     .campana-meta svg { stroke: #5B6167 !important; }
   </style>
+  <style id="safia-propietario-pc">
+    /* PC (≥ 1100 px): una sola pantalla en tres columnas. Fila 1: alertas | actividad | campañas activas. Fila 2: cosechas | clientes | mantenimiento. */
+    @media (min-width: 1100px) {
+      .main{padding:12px 22px 12px !important;height:100vh;box-sizing:border-box;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.7fr);grid-template-rows:auto auto auto minmax(0,1fr) minmax(0,1fr);column-gap:10px;row-gap:10px;grid-auto-flow:row;}
+      .main > .topbar,.main > .header-prop,.main > .kpis-grid{grid-column:1 / -1;}
+      .main > .topbar{margin-bottom:0 !important;padding-bottom:6px !important;}
+      .main > .header-prop{margin-bottom:0 !important;padding:8px 14px !important;}
+      .main > .kpis-grid{margin-bottom:0 !important;gap:8px !important;}
+      .main > .grid-2{display:contents;}   /* sus dos tarjetas pasan a ser celdas de la grilla */
+      .main > .card,.grid-2 > .card{min-height:0;overflow:auto;margin-bottom:0 !important;padding:10px 12px !important;border-radius:10px !important;}
+      .kpi{padding:8px 12px !important;border-radius:10px !important;}
+      .kpi-icono{font-size:16px !important;margin-bottom:2px !important;}
+      .kpi-icono svg{width:16px !important;height:16px !important;}
+      .kpi-valor{font-size:20px !important;}
+      .card-titulo{font-size:11.5px !important;}
+      .card-header{margin-bottom:6px !important;flex-wrap:wrap;gap:4px;}
+      .vacio{padding:8px !important;}
+      .topbar-titulo{font-size:20px !important;}
+      .tabla{font-size:11.5px !important;}
+      .tabla th,.tabla td{padding:5px 6px !important;}
+      /* tabla de campañas: en PC se esconden Sup. y Kc para que entre el estado del riego con la barra */
+      #tablaCampanas th:nth-child(4),#tablaCampanas td:nth-child(4),#tablaCampanas th:nth-child(6),#tablaCampanas td:nth-child(6),#tablaCampanas th:nth-child(7),#tablaCampanas td:nth-child(7){display:none;}
+      #tablaCampanas{width:100% !important;table-layout:fixed;}
+      #tablaCampanas th:nth-child(1),#tablaCampanas td:nth-child(1){width:26%;}
+      #tablaCampanas th:nth-child(2),#tablaCampanas td:nth-child(2){width:17%;}
+      #tablaCampanas th:nth-child(3),#tablaCampanas td:nth-child(3){width:17%;}
+      #tablaCampanas th:nth-child(5),#tablaCampanas td:nth-child(5){width:8%;}
+      #tablaCampanas td{overflow-wrap:anywhere;}
+      #tablaCampanas .fa-mini-barra{min-width:120px;}
+    }
+  </style>
 </head>
 <body>
 <div class="layout">
@@ -767,7 +798,7 @@
       const celdas = document.querySelectorAll('.estado-riego-' + campId);
       // Estado + barra con la aguja del agua útil (misma ficha que Operador, Encargado y Dashboard)
       const mini = window.SafiaFichaAgua ? SafiaFichaAgua.mini(r) : '';
-      celdas.forEach(c => c.innerHTML = badge + notaSuelo + (mini ? '<div style="min-width:170px;">' + mini + '</div>' : ''));
+      celdas.forEach(c => c.innerHTML = badge + notaSuelo + (mini ? '<div style="min-width:0;">' + mini + '</div>' : ''));
 
       if (tipo) {
         alertas.push({ tipo, titulo: `${tipo==="urgente"?"🔴":"🟡"} ${eq?.nombre||"?"} — ${tipo==="urgente"?"Riego urgente":"Programar riego"}`, detalle: `Humedad ${pct.toFixed(0)}% del agua útil · ${campo.nombre}` });

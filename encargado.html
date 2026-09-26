@@ -406,6 +406,41 @@
     .campana-meta, .campana-meta * { color: #5B6167 !important; opacity: 1 !important; }
     .campana-meta svg { stroke: #5B6167 !important; }
   </style>
+  <style id="safia-encargado-pc">
+    .alertas-clima-lista{background:#fff;border:1px solid #E1E4E7;border-left:4px solid #C0392B;border-radius:10px;padding:8px 12px;}
+    .alerta-clima-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:4px 0;font-size:12.5px;color:#2E3236;}
+    .alerta-clima-fila+.alerta-clima-fila{border-top:1px solid #F0F2F4;}
+    .alerta-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border:1px solid;border-radius:100px;background:#fff;}
+    .alerta-chip i{width:7px;height:7px;border-radius:50%;display:inline-block;}
+    .equipo-reco-extra{font-size:11.5px !important;color:#5B6167 !important;background:transparent !important;padding:4px 0 0 !important;border:0 !important;}
+    /* PC (≥ 1100 px): todo más compacto y los lotes en dos columnas */
+    @media (min-width: 1100px) {
+      .main{padding-top:14px !important;padding-bottom:14px !important;}
+      .main > .crumb{display:none;}
+      .contenedor{max-width:1240px !important;}
+      .header-encargado{display:none !important;}
+      .resumen-grid{margin-bottom:10px !important;gap:8px !important;}
+      .resumen-card{padding:8px 12px !important;}
+      .resumen-numero{font-size:20px !important;}
+      .filtros{display:inline-flex !important;margin:0 14px 8px 0 !important;vertical-align:middle;}
+      .alertas-clima-wrap{margin-bottom:10px !important;}
+      #listaEquipos{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+      #listaEquipos > *{margin-bottom:0 !important;}
+      #listaEquipos > *:not(.equipo-card){grid-column:1 / -1;}
+      .equipo-card{padding:12px 14px !important;border-radius:10px !important;}
+      .equipo-nombre{font-size:15px !important;}
+      .equipo-info-grid{grid-template-columns:repeat(4,1fr) !important;gap:6px !important;margin:8px 0 !important;}
+      .info-bloque{padding:6px 8px !important;}
+      .info-bloque-valor{font-size:12.5px !important;}
+      .equipo-recomendacion{padding:8px 10px !important;font-size:12px !important;margin:6px 0 !important;}
+      .equipo-eventos-mini{margin-top:6px !important;}
+      .fa-medidor{padding:22px 0 12px !important;}
+      .fa-titular{padding:8px 12px !important;margin:6px 0 !important;}
+      .fa-titular-txt{font-size:15px !important;}
+      .fa-titular-det{font-size:12px !important;}
+      .fa-medidor-texto{font-size:11.5px !important;}
+    }
+  </style>
 </head>
 <body>
 <div class="layout">
@@ -713,14 +748,20 @@
       if (!alertas || alertas.length === 0) { div.style.display = 'none'; return; }
       div.style.display = 'block';
       div.innerHTML = `<div class="alertas-clima-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="#C0392B" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg> Alertas climáticas — próximos 5 días</div>` +
-        alertas.map(a => `<div class="alerta-clima-card ${a.tipo}">
-          <div class="alerta-clima-icono">${a.icono}</div>
-          <div class="alerta-clima-info">
-            <div class="alerta-clima-nombre">${a.nombre}</div>
-            <div class="alerta-clima-detalle">${a.detalle}</div>
-          </div>
-          <div class="alerta-clima-fecha">${a.fecha}</div>
-        </div>`).join('');
+        (function () {
+          // Agrupadas por campo: "Estancia Villa Alta · Tormenta eléctrica mar 29/09, mié 30/09 · Lluvia intensa 48 mm mié 30/09"
+          const COLOR_AL = { tormenta: '#C0392B', helada: '#2E72C8', calor: '#B8731A', viento: '#B8731A', lluvia: '#2E72C8' };
+          const porCampo = {};
+          alertas.forEach(a => {
+            const partes = String(a.nombre || '').split(' — '), campo = partes.length > 1 ? partes.slice(1).join(' — ') : 'Campo', tipoNombre = partes[0];
+            porCampo[campo] = porCampo[campo] || {};
+            const k = a.tipo + '|' + tipoNombre;
+            porCampo[campo][k] = porCampo[campo][k] || { tipo: a.tipo, nombre: tipoNombre, fechas: [], detalle: a.detalle || '' };
+            if (porCampo[campo][k].fechas.indexOf(a.fecha) < 0) porCampo[campo][k].fechas.push(a.fecha);
+          });
+          const mm = (d) => { const m = String(d || '').match(/(\d+)\s*mm/); return m ? m[1] + ' mm ' : ''; };
+          return '<div class="alertas-clima-lista">' + Object.keys(porCampo).map(campo => '<div class="alerta-clima-fila"><b>' + campo + '</b>' + Object.keys(porCampo[campo]).map(k => { const x = porCampo[campo][k]; const col = COLOR_AL[x.tipo] || '#8C9196'; return '<span class="alerta-chip" style="border-color:' + col + ';color:' + col + ';" title="' + x.detalle.replace(/"/g, '&quot;') + '"><i style="background:' + col + '"></i>' + x.nombre + ' ' + mm(x.detalle) + x.fechas.join(', ') + '</span>'; }).join('') + '</div>').join('') + '</div>';
+        })();
     }
 
     // ============ CALCULAR BALANCE HÍDRICO ============
@@ -890,7 +931,12 @@
         }
 
         let recoHTML = '';
-        if (d.recomendacion) {
+        const hayFicha = !!(d.balance && d.balance.r && window.SafiaFichaAgua);
+        if (d.recomendacion && hayFicha) {
+          // la ficha ya dice "No regar: viene lluvia" / "Regar hoy: X mm"; acá quedan solo los agregados
+          const extra = /Etapa crítica|sonda|class="note|pastoreo|Pastura|asumid|rebrote|invernal/i.test(d.recomendacion);
+          if (extra) recoHTML = `<div class="equipo-recomendacion equipo-reco-extra">${d.recomendacion}</div>`;
+        } else if (d.recomendacion) {
           recoHTML = `<div class="equipo-recomendacion">💡 ${d.recomendacion}</div>`;
         } else if (d.semaforo === 'gris') {
           recoHTML = `<div class="equipo-recomendacion" style="color:#8C9196;font-style:italic;">${
