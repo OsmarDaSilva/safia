@@ -396,6 +396,7 @@
               <button type="button" class="btn green" id="btnLeerFicha">✨ Leer ficha</button>
             </div>
             <div class="ayuda" id="fichaHint" style="margin-top:8px;">Revisá los valores cargados antes de guardar.</div>
+            <div class="ayuda" id="fichaActual" style="margin-top:6px;display:none;"></div>
           </div>
 
           <div class="fila solo-riego">
@@ -689,6 +690,47 @@
     });
 
     let editandoId = null;
+    let fichaPendiente = null;   // ficha técnica leída y todavía no guardada: { archivo, datos, textoObs }
+
+    // Sube el archivo de la ficha técnica: una sola por equipo (la nueva reemplaza a la anterior, también en el depósito)
+    function guardarArchivoFicha(equipoId, campoId, fp) {
+      if (!fp || !fp.archivo) return;
+      const ext = (/\.([a-z0-9]{2,5})$/i.exec(fp.archivo.name || '') || [, 'pdf'])[1].toLowerCase();
+      const ruta = 'campo_' + campoId + '/equipos/' + equipoId + '/ficha-tecnica.' + ext;
+      const ficha = { nombre: fp.archivo.name || ('ficha-tecnica.' + ext), fecha: new Date().toISOString(), ruta: null, textoObs: fp.textoObs || null, datos: fp.datos || null };
+      const poner = function (ruta2) {
+        const eqs = JSON.parse(localStorage.getItem('equipos') || '[]'); const i = eqs.findIndex(e => e.id === equipoId); if (i === -1) return;
+        const vieja = eqs[i].fichaTecnica && eqs[i].fichaTecnica.ruta;
+        ficha.ruta = ruta2; eqs[i].fichaTecnica = ficha; eqs[i].fechaModificacion = new Date().toISOString();
+        localStorage.setItem('equipos', JSON.stringify(eqs)); mostrarEquipos();
+        if (vieja && ruta2 && vieja !== ruta2 && window.safiaSupabase) window.safiaSupabase.storage.from('safia').remove([vieja]).catch(function () {});
+      };
+      if (!window.safiaSupabase) { poner(null); return; }
+      window.safiaSupabase.storage.from('safia').upload(ruta, fp.archivo, { upsert: true, contentType: fp.archivo.type || undefined }).then(function (res) {
+        if (res.error) throw res.error; poner(ruta); mostrarToast('Ficha técnica guardada (reemplaza a la anterior)');
+      }).catch(function (e) { console.error(e); poner(null); mostrarToast('Los datos se guardaron, pero el archivo de la ficha no se pudo subir'); });
+    }
+    function verFichaTecnica(ruta) {
+      if (!ruta || !window.safiaSupabase) return;
+      window.safiaSupabase.storage.from('safia').createSignedUrl(ruta, 3600).then(function (res) { if (res.data && res.data.signedUrl) window.open(res.data.signedUrl, '_blank'); else mostrarToast('No se pudo abrir la ficha'); });
+    }
+    function pintarFichaActual(equipo) {
+      const div = document.getElementById('fichaActual'); if (!div) return;
+      const ft = equipo && equipo.fichaTecnica;
+      if (!ft) { div.style.display = 'none'; div.innerHTML = ''; return; }
+      div.style.display = 'block';
+      div.innerHTML = 'Ficha técnica actual: <b>' + escL(ft.nombre || 'ficha') + '</b> · cargada el ' + new Date(ft.fecha).toLocaleDateString('es-PY') +
+        (ft.ruta ? ' · <a href="#" onclick="verFichaTecnica(\'' + escL(ft.ruta) + '\');return false;" style="color:var(--green-d);font-weight:700;">Ver</a>' : '') +
+        '. Si subís otra, reemplaza a esta.';
+    }
+    // Si cambió lo que define el plan (marca, bomba o corner), el plan de mantenimiento se pone al día solo
+    function actualizarPlanSiCambio(eq, antes) {
+      if (!eq || eq.tipo !== 'pivote' || !window.SafiaMant || !(eq.planMantenimiento && eq.planMantenimiento.length)) return 0;
+      const dt = eq.datosTecnicos || {}, a = antes || {}, ad = a.datosTecnicos || {};
+      const cambio = ['bomba-marca', 'bomba-modelo', 'corner'].some(k => String(dt[k] || '') !== String(ad[k] || '')) || String(eq.marca || '') !== String(a.marca || '');
+      if (!cambio) return 0;
+      const res = SafiaMant.completarPlan(eq); eq.planMantenimiento = res.plan; return (res.agregadas || 0) + (res.quitadas || 0) || -1;
+    }
     let mantEquipoId = null;
 
     // ===== TEMPLATES MANTENIMIENTO =====
@@ -1088,6 +1130,7 @@
         if (existe) { alert('Este campo ya tiene OTRO equipo con ese nombre.'); return; }
         const index = equipos.findIndex(e => e.id === editandoId);
         if (index !== -1) {
+          const antes = JSON.parse(JSON.stringify(equipos[index]));
           equipos[index] = { ...equipos[index], campoId: parseInt(campoId), tipo, nombre,
             poligono: poligonoAlGuardar(equipos[index].poligono),
             marca: document.getElementById('marca').value,
@@ -1102,15 +1145,19 @@
             observaciones: document.getElementById('observaciones').value.trim(),
             datosTecnicos: recolectarDatosTecnicos(tipo),
             fechaModificacion: new Date().toISOString() };
+          const planCambio = actualizarPlanSiCambio(equipos[index], antes);
           localStorage.setItem('equipos', JSON.stringify(equipos));
           completarCoordenadasCampo(parseInt(campoId));
-          alert('¡Equipo actualizado!');
+          if (fichaPendiente) guardarArchivoFicha(editandoId, parseInt(campoId), fichaPendiente);
+          fichaPendiente = null;
+          alert('¡Equipo actualizado!' + (planCambio ? '\nCambió la bomba, la marca o el corner: el plan de mantenimiento se actualizó con el recomendado.' : ''));
           cancelarEdicion();
         }
       } else {
         const existe = equipos.find(e => e.campoId === parseInt(campoId) && e.nombre.toLowerCase() === nombre.toLowerCase());
         if (existe) { alert('Este campo ya tiene un equipo con ese nombre.'); return; }
-        equipos.push({ id: Date.now(), campoId: parseInt(campoId), tipo, nombre,
+        const nuevoId = Date.now();
+        equipos.push({ id: nuevoId, campoId: parseInt(campoId), tipo, nombre,
           poligono: poligonoAlGuardar(null),
           marca: document.getElementById('marca').value,
           modelo: document.getElementById('modelo').value.trim(),
@@ -1126,6 +1173,8 @@
           fechaCreacion: new Date().toISOString() });
         localStorage.setItem('equipos', JSON.stringify(equipos));
         completarCoordenadasCampo(parseInt(campoId));
+        if (fichaPendiente) guardarArchivoFicha(nuevoId, parseInt(campoId), fichaPendiente);
+        fichaPendiente = null;
         alert('¡Equipo guardado!');
         limpiarFormulario();
       }
@@ -1163,6 +1212,7 @@
       document.getElementById('fuenteAgua').value = equipo.fuenteAgua || '';
       document.getElementById('eficiencia').value = equipo.eficiencia || '';
       document.getElementById('observaciones').value = equipo.observaciones || '';
+      fichaPendiente = null; pintarFichaActual(equipo);
       actualizarClienteMostrado();
       mostrarSeccionTipo();
       if (equipo.datosTecnicos && equipo.tipo) {
@@ -1199,6 +1249,7 @@
     }
 
     function limpiarFormulario() {
+      fichaPendiente = null; pintarFichaActual(null);
       document.querySelectorAll('#tarjetaForm input, #tarjetaForm select, #tarjetaForm textarea').forEach(el => el.value = '');
       poligonoPendiente = null; poligonoQuitar = false; itemsLeidos = [];
       document.getElementById('poligonoEstado').innerHTML = ''; document.getElementById('poligonoLista').innerHTML = '';
@@ -1559,7 +1610,14 @@
     }
 
     function volcarFicha(d) {
-      let n = 0;
+      let n = 0; volcarFicha.textoObs = null;
+      // si la ficha nueva no trae observaciones, igual se borran las de la ficha anterior
+      const obs0 = document.getElementById('observaciones');
+      if (obs0 && !d.radio_efectivo_m && !d.observaciones) {
+        const eqAct = editandoId ? JSON.parse(localStorage.getItem('equipos') || '[]').find(e => e.id === editandoId) : null;
+        const tv = eqAct && eqAct.fichaTecnica && eqAct.fichaTecnica.textoObs;
+        if (tv && obs0.value.indexOf(tv) >= 0) obs0.value = obs0.value.split(tv).join('').replace(/[\s·]+$/, '');
+      }
       const mapa = [
         ['marca', d.marca], ['modelo', d.modelo], ['anio', d.anio],
         ['numeroSerie', d.numero_serie],
@@ -1574,10 +1632,15 @@
         ['pivote-telemetria', d.telemetria], ['pivote-bomba-marca', d.bomba_marca], ['pivote-bomba-modelo', d.bomba_modelo],
         ['pivote-bomba-potencia', d.bomba_potencia_hp], ['pivote-bomba-tipo', d.bomba_tipo]
       ];
-      // Corner: si ya está marcado Sí, una ficha que dice No (o no lo menciona) no lo borra: las propuestas no siempre incluyen el corner agregado después
-      const selCorner = document.getElementById('pivote-corner');
-      if (selCorner && /^s/i.test(selCorner.value || '') && d.corner && /^no/i.test(String(d.corner))) mapa.forEach(function (par) { if (par[0] === 'pivote-corner') par[1] = null; });
-      mapa.forEach(function (par) { if (ponerCampo(par[0], par[1])) n++; });
+      // Una sola ficha por equipo: la nueva pisa todo. Lo que la ficha nueva no trae queda vacío (y se avisa).
+      const vacios = [];
+      mapa.forEach(function (par) {
+        const el = document.getElementById(par[0]); if (!el) return;
+        if (ponerCampo(par[0], par[1])) { n++; return; }
+        el.value = ''; const lab = el.closest('.campo') && el.closest('.campo').querySelector('label');
+        if (lab) vacios.push(lab.textContent.trim());
+      });
+      volcarFicha.vacios = vacios;
       // Datos que no tienen casillero propio van a observaciones.
       const extra = [];
       if (d.radio_efectivo_m) extra.push('Radio efectivo regado (con cañón final): ' + d.radio_efectivo_m + ' m');
@@ -1587,11 +1650,16 @@
         const txt = extra.join(' · ');
         // Si ya había datos de una ficha leída antes, se reemplazan (antes se sumaban y quedaban duplicados)
         if (obs) {
-          const previo = obs.value || '', marcas = ['Radio efectivo regado (con cañón final):', 'Propuesta ', 'Proposta '];
+          let previo = obs.value || '';
+          const eqAct = editandoId ? JSON.parse(localStorage.getItem('equipos') || '[]').find(e => e.id === editandoId) : null;
+          const txtViejo = eqAct && eqAct.fichaTecnica && eqAct.fichaTecnica.textoObs;
+          if (txtViejo && previo.indexOf(txtViejo) >= 0) previo = previo.split(txtViejo).join('').replace(/[\s·]+$/, '');
+          const marcas = ['Radio efectivo regado (con cañón final):', 'Propuesta ', 'Proposta '];
           const cortes = marcas.map(function (k) { return previo.indexOf(k); }).filter(function (i) { return i >= 0; });
           const base = cortes.length ? previo.slice(0, Math.min.apply(null, cortes)).replace(/[\s·]+$/, '') : previo;
           obs.value = base ? (base + ' · ' + txt) : txt;
         }
+        volcarFicha.textoObs = txt;
       }
       return n;
     }
@@ -1620,8 +1688,10 @@
           const d = r.data && r.data.datos;
           if (!d) throw new Error('sin datos');
           const n = volcarFicha(d);
+          fichaPendiente = n ? { archivo: archivo, datos: d, textoObs: volcarFicha.textoObs || null } : null;
+          const vac = (volcarFicha.vacios || []);
           hint.textContent = n
-            ? ('✓ ' + n + ' dato(s) cargados desde la ficha. Revisalos y corregí si hace falta antes de guardar.')
+            ? ('✓ ' + n + ' dato(s) cargados desde la ficha. Esta ficha reemplaza a la anterior al guardar.' + (vac.length ? ' La ficha no trae: ' + vac.join(', ') + ' (quedaron vacíos: completalos a mano si hace falta).' : '') + ' Revisá antes de guardar.')
             : 'La IA no encontró datos técnicos reconocibles en ese archivo. Cargalos a mano.';
         }).catch(function (e) {
           console.error(e);
