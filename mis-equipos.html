@@ -263,6 +263,7 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-lotes.js"></script>
+<script src="safia-mantenimiento.js"></script>
 </head>
 <body>
   <div class="layout">
@@ -658,6 +659,7 @@
 
       <div id="mantTareas"></div>
 
+      <button class="btn-agregar-tarea" id="btnPlanRecomendado" onclick="completarConRecomendado()" style="margin-bottom:8px;">Completar con el plan recomendado (Valley / Lindsay)</button>
       <button class="btn-agregar-tarea" onclick="toggleAgregarTarea()">➕ Agregar tarea personalizada</button>
       <div class="agregar-tarea-form" id="agregarTareaForm">
         <div class="reg-fila">
@@ -733,6 +735,7 @@
 
     // ===== FUNCIONES MANTENIMIENTO =====
     function calcularEstadoMant(equipo) {
+      if (window.SafiaMant) { const s = SafiaMant.estado(equipo); return s.sinPlan ? 'sin-plan' : s.vencidas.length ? 'vencido' : s.proximas.length ? 'atencion' : 'ok'; }
       const plan = equipo.planMantenimiento;
       if (!plan || plan.length === 0) return 'sin-plan';
       const horas = parseFloat(equipo.horasAcumuladas) || 0;
@@ -759,6 +762,11 @@
       let equipo = equipos.find(e => e.id === equipoId);
       if (!equipo) return;
 
+      if (!equipo.planMantenimiento && equipo.tipo === 'pivote' && window.SafiaMant) {
+        equipo.planMantenimiento = SafiaMant.planDesdeCatalogo(equipo);
+        equipo.horasAcumuladas = equipo.horasAcumuladas || 0;
+        const idx0 = equipos.findIndex(e => e.id === equipoId); equipos[idx0] = equipo; localStorage.setItem('equipos', JSON.stringify(equipos));
+      }
       if (!equipo.planMantenimiento) {
         const tpl = TEMPLATES_MANT[equipo.tipo] || TEMPLATES_MANT.aspersion;
         equipo.planMantenimiento = tpl.map(t => ({
@@ -795,23 +803,30 @@
         return;
       }
 
+      const btnRec = document.getElementById('btnPlanRecomendado'); if (btnRec) btnRec.style.display = equipo.tipo === 'pivote' && window.SafiaMant ? '' : 'none';
+      const est = window.SafiaMant ? SafiaMant.estado(equipo) : null;
       equipo.planMantenimiento.forEach(t => {
-        const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
-        const pct = Math.min(120, Math.round((desde / t.intervalo) * 100));
-        const faltan = Math.max(0, t.intervalo - desde);
+        const e = est ? est.tareas.find(x => String(x.id) === String(t.id)) : null;
+        const desde = (est ? est.horas : horas) - (e ? e.ultHoras : (parseFloat(t.ultimasHorasHechas) || 0));
+        const pct = e ? Math.min(120, e.pct == null ? 0 : e.pct) : Math.min(120, Math.round((desde / t.intervalo) * 100));
+        const faltan = Math.max(0, (t.intervalo || 0) - desde);
 
         let claseB = 'tb-verde', badge = '', label = '';
-        if (pct >= 100) {
+        if (e && e.estado === 'completar') {
+          claseB = 'tb-ambar';
+          badge = `<span class="item-mant-badge mant-sin-plan" style="font-size:10px;">Completar intervalo</span>`;
+          label = 'Poné el intervalo de la placa o el manual';
+        } else if (pct >= 100) {
           claseB = 'tb-rojo';
           badge = `<span class="item-mant-badge mant-vencido" style="font-size:10px;">🔴 VENCIDO</span>`;
-          label = `Pasado por ${Math.round(desde - t.intervalo)}h`;
+          label = e && e.faltaTxt ? e.faltaTxt.replace('pasada por', 'Pasado por') : `Pasado por ${Math.round(desde - t.intervalo)}h`;
         } else if (pct >= 80) {
           claseB = 'tb-ambar';
           badge = `<span class="item-mant-badge mant-atencion" style="font-size:10px;">🟡 ATENCIÓN</span>`;
-          label = `Faltan ~${Math.round(faltan)}h`;
+          label = e && e.faltaTxt ? e.faltaTxt.replace('faltan', 'Faltan') : `Faltan ~${Math.round(faltan)}h`;
         } else {
           badge = `<span class="item-mant-badge mant-ok" style="font-size:10px;">🟢 OK</span>`;
-          label = `Faltan ~${Math.round(faltan)}h`;
+          label = e && e.faltaTxt ? e.faltaTxt.replace('faltan', 'Faltan') : `Faltan ~${Math.round(faltan)}h`;
         }
 
         const ultima = t.ultimaFechaHecha
@@ -826,12 +841,15 @@
               <div>
                 <div class="tarea-componente">${t.componente}</div>
                 <div class="tarea-nombre">${t.tarea}</div>
-                <div class="tarea-intervalo">Cada ${t.intervalo}h</div>
+                <div class="tarea-intervalo">${e ? e.cadaTxt : 'Cada ' + t.intervalo + 'h'}${e && e.sinVueltas ? ' · falta cargar las horas por vuelta al 100 % en la ficha del pivot' : ''}</div>
+                ${t.detalle ? '<div class="tarea-intervalo" style="color:#5B6167;">' + t.detalle + '</div>' : ''}
+                ${t.fuente ? '<div class="tarea-intervalo" style="font-style:italic;">Fuente: ' + t.fuente + '</div>' : ''}
+                <div class="tarea-intervalo" style="margin-top:4px;">Intervalo: <input type="number" min="0" id="ivH-${t.id}" value="${(t.cada && t.cada.horas) || (!t.cada && t.intervalo) || ''}" placeholder="h" style="width:70px;padding:3px 6px;border:1px solid #E1E4E7;border-radius:6px;"> h · <input type="number" min="0" id="ivD-${t.id}" value="${(t.cada && t.cada.dias) || ''}" placeholder="días" style="width:70px;padding:3px 6px;border:1px solid #E1E4E7;border-radius:6px;"> días <button type="button" onclick="guardarIntervalo('${t.id}')" style="padding:3px 8px;border:1px solid #E1E4E7;border-radius:6px;background:#fff;font-weight:700;font-size:11px;cursor:pointer;">Guardar</button></div>
               </div>
               ${badge}
             </div>
             <div class="tarea-barra-label">
-              <span>${Math.round(desde)}h desde última vez</span>
+              <span>${e && !e.intervalo && e.faltaTxt ? e.faltaTxt.charAt(0).toUpperCase() + e.faltaTxt.slice(1) : Math.round(desde) + 'h desde última vez'}</span>
               <span>${pct}%</span>
             </div>
             <div class="tarea-barra-fondo">
@@ -861,6 +879,30 @@
             </div>
           </div>`;
       });
+    }
+
+    // Completar con el plan recomendado: suma las tareas del catálogo que faltan, sin tocar las que ya tienen historial
+    function completarConRecomendado() {
+      if (!window.SafiaMant) return;
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const idx = equipos.findIndex(e => e.id === mantEquipoId); if (idx === -1) return;
+      const r = SafiaMant.completarPlan(equipos[idx]);
+      equipos[idx].planMantenimiento = r.plan;
+      localStorage.setItem('equipos', JSON.stringify(equipos));
+      renderizarTareas(equipos[idx]); mostrarEquipos();
+      mostrarToast(r.agregadas ? r.agregadas + ' tarea' + (r.agregadas > 1 ? 's' : '') + ' agregada' + (r.agregadas > 1 ? 's' : '') + ' del plan recomendado' : 'El plan ya tenía todas las tareas recomendadas');
+    }
+    // Intervalo editable (horas y/o días): para completar bomba, motor y corner, o ajustar a la realidad del equipo
+    function guardarIntervalo(tareaId) {
+      let equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
+      const idx = equipos.findIndex(e => e.id === mantEquipoId); if (idx === -1) return;
+      const t = (equipos[idx].planMantenimiento || []).find(x => String(x.id) === String(tareaId)); if (!t) return;
+      const h = parseFloat(document.getElementById('ivH-' + tareaId).value), d = parseFloat(document.getElementById('ivD-' + tareaId).value);
+      const cada = Object.assign({}, t.cada || {}); delete cada.horas; delete cada.dias;
+      if (h > 0) cada.horas = h; if (d > 0) cada.dias = d;
+      t.cada = cada; t.intervalo = h > 0 ? h : null; if (!t.creado) t.creado = new Date().toISOString().slice(0, 10);
+      localStorage.setItem('equipos', JSON.stringify(equipos));
+      renderizarTareas(equipos[idx]); mostrarEquipos(); mostrarToast('Intervalo guardado');
     }
 
     function toggleRegistro(tareaId) {

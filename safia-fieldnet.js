@@ -227,6 +227,19 @@
     $('fnCuerpo').innerHTML = h;
     enganchar();
   }
+  // Horas de funcionamiento del informe → horímetro del pivot (para el mantenimiento). No se suma dos veces el mismo período.
+  function horasYaSumadas(eqId, desde, hasta) {
+    return leer('eventos').filter(function (e) { return String(e.equipoId) === String(eqId) && e.tipo === 'horimetro' && e.origen === 'fieldnet' && e.desde && e.hasta; })
+      .find(function (e) { return !(String(e.hasta) < desde || String(e.desde) > hasta); }) || null;
+  }
+  function bloqueHoras(x, n) {
+    var s = estado; if (x.f.horas == null || !window.SafiaMant || !x.eqId) return '';
+    var ya = horasYaSumadas(x.eqId, s.desde, s.hasta);
+    if (ya) return aviso('info', 'Las horas de un período que se cruza con este (' + fmtF(ya.desde) + ' al ' + fmtF(ya.hasta) + ') ya se sumaron al horímetro del pivot.');
+    var eq = leer('equipos').find(function (e) { return String(e.id) === String(x.eqId); }); var actual = eq ? SafiaMant.estado(eq).horas : 0;
+    return '<div style="margin-top:8px;font-size:12.5px;">Mantenimiento: el pivot marcó <b>' + fmt(x.f.horas, 1) + ' h de funcionamiento</b> en este período. Horímetro en SAFIA: ' + fmt(actual, 0) + ' h. ' +
+      '<button type="button" class="fnHoras" data-n="' + n + '" style="margin-left:4px;padding:6px 10px;border:1px solid #E1E4E7;border-radius:8px;background:#fff;font-weight:700;font-size:12px;cursor:pointer;">Sumar al horímetro (' + fmt(actual + x.f.horas, 0) + ' h)</button></div>';
+  }
   function resultado(x, n) {
     var s = estado, a = analizar(x.f, x.eqId, s.desde, s.hasta), h = '';
     if (!a.partes.length) return aviso('warn', 'Este lote no tiene campañas entre esas fechas en SAFIA.');
@@ -235,6 +248,7 @@
       '<tr style="border-top:1px solid #E1E4E7;font-weight:700;"><td style="padding:5px 6px;" colspan="2">Total en SAFIA · FieldNET</td><td style="padding:5px 6px;text-align:right;white-space:nowrap;">' + fmt(a.totalSafia, 1) + ' · ' + fmt(x.f.mm, 1) + ' mm</td></tr></table>';
     var dif = a.diferencia, pct = a.totalSafia > 0 ? Math.abs(dif) / a.totalSafia * 100 : null;
     var dicho = Math.abs(dif) < 0.5 ? 'coinciden' : (dif > 0 ? 'FieldNET registra ' + fmt(dif, 1) + ' mm más' : 'SAFIA tiene ' + fmt(-dif, 1) + ' mm más') + (pct != null ? ' (' + fmt(pct, 0) + ' %)' : '');
+    h += bloqueHoras(x, n);
     if (a.caso === 'ciclo-cerrado') {
       var p = a.partes[0];
       h += aviso('ok', 'El informe cubre el ciclo completo de <b>' + esc(p.k.cu.cultivo) + ' · ' + esc(p.k.c.nombre || '') + '</b>: ' + dicho + '. Si usás el dato de FieldNET, queda como el riego del ciclo de esa campaña (lo usan el Banco, el informe y los rankings).') +
@@ -255,6 +269,17 @@
     if (d2) d2.addEventListener('change', function () { s.hasta = d2.value; pintar(); });
     Array.prototype.forEach.call(document.querySelectorAll('.fnLote'), function (sel) {
       sel.addEventListener('change', function () { var x = s.filas[+sel.dataset.n]; x.eqId = sel.value; x.como = sel.value ? 'elegido' : ''; if (sel.value) recordarEnlace(sel.value, x.f.equipo); pintar(); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.fnHoras'), function (b) {
+      b.addEventListener('click', function () {
+        var x = s.filas[+b.dataset.n], eq = leer('equipos').find(function (e) { return String(e.id) === String(x.eqId); }); if (!eq) return;
+        var total = SafiaMant.estado(eq).horas + x.f.horas;
+        var eventos = leer('eventos');
+        eventos.push({ id: Date.now(), equipoId: eq.id, tipo: 'horimetro', fecha: s.hasta, cantidad: Math.round(total * 10) / 10, unidad: 'h', origen: 'fieldnet', desde: s.desde, hasta: s.hasta, horasPeriodo: x.f.horas, archivo: s.nombre || null, cargadoPor: 'fieldnet', fechaCreacion: new Date().toISOString() });
+        localStorage.setItem('eventos', JSON.stringify(eventos));
+        recordarEnlace(x.eqId, x.f.equipo);
+        b.outerHTML = aviso('ok', 'Horímetro del pivot: ' + fmt(total, 0) + ' h (se sumaron ' + fmt(x.f.horas, 1) + ' h de FieldNET). El mantenimiento se recalcula con esas horas.');
+      });
     });
     Array.prototype.forEach.call(document.querySelectorAll('.fnAplicar'), function (b) {
       b.addEventListener('click', function () {
