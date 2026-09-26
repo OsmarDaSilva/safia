@@ -627,7 +627,12 @@
       sel.innerHTML = '<option value="">Todos los clientes y campos</option>' + filas.map(f => '<option value="' + f.id + '">' + f.txt + '</option>').join('');
       if (campoFiltro && filas.some(f => f.id === campoFiltro)) sel.value = campoFiltro; else campoFiltro = '';
     }
-    function cambiarCampoEnc(id) { campoFiltro = id || ''; try { localStorage.setItem('encargado_campo', campoFiltro); } catch (e) {} renderizar(); }
+    let alertasPorCampo = {};
+    function pintarAlertasFiltradas() {
+      const ids = Object.keys(alertasPorCampo).filter(k => !campoFiltro || String(k) === String(campoFiltro));
+      mostrarAlertasClimaticas(ids.reduce((acc, k) => acc.concat(alertasPorCampo[k]), []));
+    }
+    function cambiarCampoEnc(id) { campoFiltro = id || ''; try { localStorage.setItem('encargado_campo', campoFiltro); } catch (e) {} renderizar(); pintarAlertasFiltradas(); try { pintarParaHoy(); } catch (e) {} }
 
     window.onload = async function() {
       llenarFiltroCampo();
@@ -651,7 +656,7 @@
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
 
       estadoEquipos = [];
-      const alertasPorCampo = {};   // alertas climáticas de cada campo, con el nombre del campo
+      alertasPorCampo = {};   // alertas climáticas de cada campo, con el nombre del campo (global: el filtro de campo las vuelve a pintar)
       let climaStale = null;   // fecha del clima cacheado, si algún equipo cae a caché
 
       for (const equipo of equipos) {
@@ -703,7 +708,7 @@
           // Mostrar alertas climáticas (solo la primera vez)
           if (balance.alertasClimaticas && balance.alertasClimaticas.length > 0 && campo && !alertasPorCampo[campo.id]) {
             alertasPorCampo[campo.id] = balance.alertasClimaticas.map(a => Object.assign({}, a, { nombre: a.nombre + ' — ' + campo.nombre }));
-            mostrarAlertasClimaticas(Object.keys(alertasPorCampo).reduce((acc, k) => acc.concat(alertasPorCampo[k]), []));
+            pintarAlertasFiltradas();
           }
 
           // Semáforo según humedad del suelo (% agua útil HOY) + lluvia próxima.
@@ -818,7 +823,10 @@
             if (porCampo[campo][k].fechas.indexOf(a.fecha) < 0) porCampo[campo][k].fechas.push(a.fecha);
           });
           const mm = (d) => { const m = String(d || '').match(/(\d+)\s*mm/); return m ? m[1] + ' mm ' : ''; };
-          return '<div class="alertas-clima-lista">' + Object.keys(porCampo).map(campo => '<div class="alerta-clima-fila"><b>' + campo + '</b>' + Object.keys(porCampo[campo]).map(k => { const x = porCampo[campo][k]; const col = COLOR_AL[x.tipo] || '#8C9196'; return '<span class="alerta-chip" style="border-color:' + col + ';color:' + col + ';" title="' + x.detalle.replace(/"/g, '&quot;') + '"><i style="background:' + col + '"></i>' + x.nombre + ' ' + mm(x.detalle) + x.fechas.join(', ') + '</span>'; }).join('') + '</div>').join('') + '</div>';
+          // campos vecinos suelen tener el mismo pronóstico: se muestran juntos una sola vez
+          const grupos = {};
+          Object.keys(porCampo).forEach(campo => { const firma = Object.keys(porCampo[campo]).sort().map(k => k + '@' + porCampo[campo][k].fechas.join('|') + '@' + mm(porCampo[campo][k].detalle)).join(';'); (grupos[firma] = grupos[firma] || { campos: [], alertas: porCampo[campo] }).campos.push(campo); });
+          return '<div class="alertas-clima-lista">' + Object.keys(grupos).map(firma => { const g = grupos[firma]; return '<div class="alerta-clima-fila"><b>' + g.campos.join(' y ') + '</b>' + Object.keys(g.alertas).map(k => { const x = g.alertas[k]; const col = COLOR_AL[x.tipo] || '#8C9196'; return '<span class="alerta-chip" style="border-color:' + col + ';color:' + col + ';" title="' + x.detalle.replace(/"/g, '&quot;') + '"><i style="background:' + col + '"></i>' + x.nombre + ' ' + mm(x.detalle) + x.fechas.join(', ') + '</span>'; }).join('') + '</div>'; }).join('') + '</div>';
         })();
     }
 
