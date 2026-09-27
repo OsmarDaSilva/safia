@@ -291,6 +291,8 @@
 
     var candidatos = casos.filter(function (c) {
       if (prospecto.cultivo && norm(c.cultivo) !== norm(prospecto.cultivo)) return false;
+      // misma finalidad: un maíz para ensilaje no se compara con uno para grano (otra unidad, otro manejo)
+      if (prospecto.cultivo && grupoFinalidad(prospecto.cultivo, prospecto.finalidad) !== grupoFinalidad(c.cultivo, c.finalidad)) return false;
       // opciones.riego: true = solo casos con riego, false = solo secano, sin definir = todos
       if (opciones.riego === true && c.riego === false) return false;
       if (opciones.riego === false && c.riego !== false) return false;
@@ -580,11 +582,15 @@
      Regla única para toda la app: solo grano COMERCIAL (el grano húmedo pesa más por el agua y la semilla es
      otro negocio) y sin mezclar épocas (regla de Osmar: verano y zafriña no se promedian). Si se pide una época,
      se usa esa; si no, la época que tenga dato con riego Y en secano (para comparar lo mismo con lo mismo),
-     prefiriendo Primavera/Verano; si ninguna tiene los dos, la que tenga riego. Devuelve la época usada. */
-  function refRegional(filas, cultivo, epoca) {
+     prefiriendo Primavera/Verano; si ninguna tiene los dos, la que tenga riego. Devuelve la época usada.
+     Con finalidad (grano húmedo, semilla, ensilaje…) se usan solo las filas de ESA finalidad: nunca se mezclan. */
+  function refRegional(filas, cultivo, epoca, finalidad) {
     var f = (filas || []).filter(function (x) { return norm(x.cultivo) === norm(cultivo); });
-    var com = f.filter(function (x) { return /comercial/i.test(x.finalidad || ''); });
-    if (!com.length) com = f.filter(function (x) { return /grano/i.test(x.finalidad || '') && !/humed/i.test(norm(x.finalidad || '')); });
+    var fk = finalidadClave(finalidad), com;
+    if (fk === 'comercial') {
+      com = f.filter(function (x) { return /comercial/i.test(x.finalidad || ''); });
+      if (!com.length) com = f.filter(function (x) { return /grano/i.test(x.finalidad || '') && !/humed/i.test(norm(x.finalidad || '')); });
+    } else com = f.filter(function (x) { return finalidadClave(x.finalidad) === fk; });
     if (!com.length) return null;
     var prom = function (l) { var v = l.map(function (x) { return Number(x.prod_ton_ha); }).filter(function (n) { return !isNaN(n) && n > 0; }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length * 1000) : null; };
     var grupos = {}; com.forEach(function (x) { var k = x.epoca_siembra || '—'; (grupos[k] = grupos[k] || []).push(x); });
@@ -600,7 +606,103 @@
     delete mejor.puntos; return mejor;
   }
 
+  /* ---------- finalidad de cada cultivo del proyecto ----------
+     El mismo cultivo se produce para cosas distintas (maíz para grano seco, grano húmedo o ensilaje;
+     Zuri para pastoreo, fardos o ensilaje) y cada finalidad tiene su unidad y su referencia.
+     Todo se guarda en kilos por hectárea del producto; la pantalla lo muestra en su unidad. */
+  var FINALIDADES = [
+    { k: 'comercial', n: 'Granos Comercial', t: 'Grano comercial' },
+    { k: 'humedo', n: 'Granos Húmedos', t: 'Grano húmedo' },
+    { k: 'semilla', n: 'Semilla', t: 'Semilla' },
+    { k: 'ensilaje', n: 'Ensilaje', t: 'Ensilaje' },
+    { k: 'fardos', n: 'Fardos', t: 'Fardos / heno' },
+    { k: 'pastoreo', n: 'Pastoreo', t: 'Pastoreo directo' }
+  ];
+  function finalidadClave(f) {
+    var s = norm(f);
+    if (!s) return 'comercial';
+    if (/humed/.test(s)) return 'humedo';
+    if (/semilla/.test(s)) return 'semilla';
+    if (/ensil/.test(s)) return 'ensilaje';
+    if (/fardo|heno|henif/.test(s)) return 'fardos';
+    if (/pastoreo/.test(s)) return 'pastoreo';
+    if (/forraj/.test(s)) return 'forraje';
+    return 'comercial';
+  }
+  function finalidadNombre(k) { var x = FINALIDADES.find(function (y) { return y.k === finalidadClave(k); }); return x ? x.n : 'Forraje'; }
+  function finalidadTexto(k) { var x = FINALIDADES.find(function (y) { return y.k === finalidadClave(k); }); return x ? x.t : 'Forraje'; }
+  // mismo criterio que SafiaPasturas.esPastura
+  var RE_PASTO = /pastura|pasto\b|brachiaria|braquiaria|mombaca|tifton|alfalfa|panicum|cynodon|zuri|gatton|forraj|marandu|piata|xaraes|tanzania/;
+  function esPasto(cultivo) { return RE_PASTO.test(norm(cultivo)); }
+  var RE_VERDEO = /avena|centeno|triticale|raigras|ryegrass/;   // cereales de invierno que también se usan como forraje
+  var RE_GRANO_FORRAJERO = /maiz|sorgo/;
+  // finalidades posibles de un cultivo (la primera es la habitual)
+  function finalidadesPara(cultivo) {
+    var c = norm(cultivo);
+    if (esPasto(cultivo)) return ['pastoreo', 'fardos', 'ensilaje'];
+    if (RE_GRANO_FORRAJERO.test(c)) return ['comercial', 'humedo', 'ensilaje', 'semilla'];
+    if (RE_VERDEO.test(c)) return ['comercial', 'pastoreo', 'fardos', 'ensilaje', 'semilla'];
+    return ['comercial', 'semilla'];
+  }
+  // para comparar casos: pastoreo, fardos y "Forraje" de las campañas son el mismo pasto (kg de materia seca)
+  function grupoFinalidad(cultivo, finalidad) {
+    var k = finalidad ? finalidadClave(finalidad) : finalidadesPara(cultivo)[0];
+    if (esPasto(cultivo) && k === 'comercial') k = 'forraje';   // campañas de pastura sin finalidad cargada
+    return (k === 'pastoreo' || k === 'fardos' || k === 'forraje') ? 'forraje' : k;
+  }
+  // unidad de la producción según cultivo y finalidad (factor = kilos por unidad mostrada)
+  function unidadDe(cultivo, finalidad) {
+    var k = finalidad ? finalidadClave(finalidad) : finalidadesPara(cultivo)[0];
+    if (esPasto(cultivo)) return { k: 'ms', corto: 'kg MS/ha/año', largo: 'kilos de materia seca de pasto por hectárea y por año', factor: 1, dec: 0 };
+    if (k === 'pastoreo' || k === 'fardos' || k === 'forraje') return { k: 'ms', corto: 'kg MS/ha', largo: 'kilos de materia seca de forraje por hectárea en el ciclo', factor: 1, dec: 0 };
+    if (k === 'ensilaje') return { k: 'mv', corto: 't MV/ha', largo: 'toneladas de forraje verde picado (materia verde) por hectárea', factor: 1000, dec: 1 };
+    if (k === 'humedo') return { k: 'grano', corto: 'kg/ha', largo: 'kilos de grano húmedo por hectárea, con su humedad de cosecha', factor: 1, dec: 0 };
+    if (k === 'semilla') return { k: 'grano', corto: 'kg/ha', largo: 'kilos de semilla por hectárea', factor: 1, dec: 0 };
+    return { k: 'grano', corto: 'kg/ha', largo: 'kilos de grano seco en silo por hectárea', factor: 1, dec: 0 };
+  }
+  // aviso para pasto cortado: la referencia forrajera es lo que produce la hectárea, no lo que queda en el fardo o el silo
+  function notaForraje(cultivo, finalidad) {
+    var k = finalidad ? finalidadClave(finalidad) : finalidadesPara(cultivo)[0];
+    if (!esPasto(cultivo) || (k !== 'fardos' && k !== 'ensilaje')) return '';
+    return 'La referencia es el pasto que produce la hectárea en el año; lo que termina ' + (k === 'fardos' ? 'en fardos' : 'en el silo') + ' es menos por las pérdidas de corte, secado y ' + (k === 'fardos' ? 'enfardado' : 'ensilado') + ', que dependen del manejo. Tomala como techo.';
+  }
+  // kilos por hectárea -> número en la unidad de la finalidad (texto)
+  function enUnidad(kg, u) {
+    if (kg == null || kg === '' || isNaN(kg)) return '—';
+    return (Number(kg) / u.factor).toLocaleString('es-PY', { minimumFractionDigits: 0, maximumFractionDigits: u.dec });
+  }
+  /* Referencia forrajera anual (tabla safia_ref_forraje_mensual tal cual viene: valores ×100, forma Normal/Regada).
+     Región por departamento (Boquerón, Alto Paraguay y Presidente Hayes = Chaco). Busca el pasto por nombre;
+     si no está, usa "Pasturas Varias" de la región y lo dice; si tampoco, no hay referencia. */
+  var MESES_F = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  function regionForrajera(departamento) { return /boqueron|alto paraguay|presidente hayes/.test(norm(departamento)) ? 'Occidental/Chaco' : 'Oriental/Centro'; }
+  function refForrajeAnual(filas, departamento, cultivo) {
+    if (!departamento) return null;
+    var region = regionForrajera(departamento), n = norm(cultivo), tipos = {};
+    (filas || []).filter(function (f) { return f.region === region; }).forEach(function (f) {
+      (tipos[f.tipo_pastura] = tipos[f.tipo_pastura] || {})[/rega|riego/i.test(f.forma_producida || f.forma || '') ? 'riego' : 'secano'] = f;
+    });
+    var nombres = Object.keys(tipos);
+    var exacto = nombres.find(function (t) { var c = norm(t).replace(/^brs\s+/, ''); return !/varias/.test(c) && n.indexOf(c) !== -1; });
+    var tipo = exacto || nombres.find(function (t) { return /varias/i.test(t); });
+    if (!tipo) return { riego: null, secano: null, region: region, sinDato: true };
+    var suma = function (f) { if (!f) return null; var yaEnKg = f.forma != null && f.forma_producida == null; return Math.round(MESES_F.reduce(function (a, m) { return a + (f[m] == null ? 0 : Number(f[m]) / (yaEnKg ? 1 : 100)); }, 0)); };
+    return { riego: suma(tipos[tipo].riego), secano: suma(tipos[tipo].secano), tipo: tipo, exacta: !!exacto, region: region, anio: (tipos[tipo].riego || tipos[tipo].secano || {}).anio || null, n: (tipos[tipo].riego ? 1 : 0) + (tipos[tipo].secano ? 1 : 0) };
+  }
+
   window.SafiaCasos = {
+    FINALIDADES: FINALIDADES,
+    finalidadClave: finalidadClave,
+    finalidadNombre: finalidadNombre,
+    finalidadTexto: finalidadTexto,
+    finalidadesPara: finalidadesPara,
+    grupoFinalidad: grupoFinalidad,
+    unidadDe: unidadDe,
+    enUnidad: enUnidad,
+    notaForraje: notaForraje,
+    esPasto: esPasto,
+    regionForrajera: regionForrajera,
+    refForrajeAnual: refForrajeAnual,
     refRegional: refRegional,
     armarCasos: armarCasos,
     listasUbicacion: listasUbicacion,

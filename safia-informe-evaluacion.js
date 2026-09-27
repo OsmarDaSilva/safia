@@ -87,18 +87,27 @@
     return null;
   }
   function promedio(l) { var v = l.map(function (x) { return Number(x.prod_ton_ha); }).filter(function (n) { return !isNaN(n) && n > 0; }); return v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length * 1000 : null; }
-  // grano comercial y sin mezclar épocas (SafiaCasos.refRegional)
-  function refCultivo(cultivo, epoca) {
-    var a = ambitoRef(); if (!a || !window.SafiaCasos) return null;
-    var rr = SafiaCasos.refRegional(a.filas, cultivo, epoca); if (!rr) return null;
+  // misma finalidad y sin mezclar épocas (SafiaCasos.refRegional); los pastos, con la referencia forrajera de la región
+  function refCultivo(cultivo, epoca, finalidad) {
+    if (!window.SafiaCasos) return null;
+    if (SafiaCasos.esPasto(cultivo)) {
+      var rf = SafiaCasos.refForrajeAnual(refForraje, ubic().depto, cultivo);
+      if (!rf || rf.sinDato) return null;
+      return { riego: rf.riego, secano: rf.secano, n: rf.n, forraje: true, ambito: 'región ' + rf.region + ' · ' + rf.tipo + (rf.exacta ? '' : ' (no hay dato propio de ' + cultivo + ')'), nivel: 'region' };
+    }
+    var a = ambitoRef(); if (!a) return null;
+    var rr = SafiaCasos.refRegional(a.filas, cultivo, epoca, finalidad); if (!rr) return null;
     return { riego: rr.riego, secano: rr.secano, n: rr.n, epoca: rr.epoca, ambito: a.nombre, nivel: a.nivel };
   }
+  function unidad(c) { return SafiaCasos.unidadDe(c.cultivo, c.finalidad); }
+  function U(v, u) { return SafiaCasos.enUnidad(v, u); }
+  function finTxt(c) { return SafiaCasos.finalidadTexto(c.finalidad || SafiaCasos.finalidadesPara(c.cultivo)[0]); }
   function potenciales() {
     var u = ubic(), s = suelo(), casos = window.SafiaCasos ? SafiaCasos.armarCasos() : [];
     return cultivos().map(function (c) {
-      var p = { lat: u.lat, lon: u.lon, altitud: u.altitud, suelo: tieneSuelo(s) ? s : null, cultivo: c.cultivo, epoca: c.epoca || null, objetivoKgHa: num(c.objetivoKgHa) };
+      var p = { lat: u.lat, lon: u.lon, altitud: u.altitud, suelo: tieneSuelo(s) ? s : null, cultivo: c.cultivo, finalidad: c.finalidad || null, epoca: c.epoca || null, objetivoKgHa: num(c.objetivoKgHa) };
       var r = window.SafiaCasos ? SafiaCasos.evaluar(p, casos, { maxCasos: 5, radioKm: 300, riego: true }) : { similares: [], potencial: null };
-      return { c: c, p: p, r: r, ref: refCultivo(c.cultivo, c.epoca) };
+      return { c: c, p: p, r: r, u: unidad(c), ref: refCultivo(c.cultivo, c.epoca, c.finalidad) };
     });
   }
   function lecturaAgua() {
@@ -108,7 +117,7 @@
   }
   function lecturaSuelo() {
     var s = suelo(); if (!tieneSuelo(s) || !window.SafiaAgro) return null;
-    var cu = cultivos()[0] ? cultivos()[0].cultivo : 'Soja', obj = cultivos()[0] ? num(cultivos()[0].objetivoKgHa) : null;
+    var c0 = cultivos()[0], cu = c0 ? c0.cultivo : 'Soja', obj = c0 && unidad(c0).k === 'grano' ? num(c0.objetivoKgHa) : null;
     var inter = SafiaAgro.interpretarSuelo(s, cu), recs = SafiaAgro.recomendaciones(s, cu, obj);
     return { s: s, cultivo: cu, inter: inter, recs: recs, limitan: inter.filter(function (i) { return i.estado === 'limita'; }).map(function (i) { return i.n; }) };
   }
@@ -124,20 +133,28 @@
   function secResumen(P, LA, LS) {
     var aguaK = LA ? LA.L.veredicto.k : null, aguaCol = { ok: '#178029', cuidado: '#B8731A', grave: '#C0392B' }[aguaK] || '#5B6167';
     var kpis = '<div class="kpis">' +
-      '<div class="kpi"><div class="sl">Superficie</div><div class="sv">' + (ev.superficieHa ? fmt(ev.superficieHa, 0) + ' ha' : '—') + '</div><div class="ss">' + esc(cultivos().map(function (c) { return c.cultivo; }).join(' + ') || 'sin cultivos') + '</div></div>' +
+      '<div class="kpi"><div class="sl">Superficie</div><div class="sv">' + (ev.superficieHa ? fmt(ev.superficieHa, 0) + ' ha' : '—') + '</div><div class="ss">' + esc(cultivos().map(function (c) { return c.cultivo + ' (' + finTxt(c).toLowerCase() + ')'; }).join(' + ') || 'sin cultivos') + '</div></div>' +
       '<div class="kpi"><div class="sl">Agua de riego</div><div class="sv" style="color:' + aguaCol + ';font-size:14px;">' + (LA ? esc(LA.L.veredicto.titulo.split(':')[0]) : 'Sin análisis') + '</div><div class="ss">' + (LA && LA.L.r.clase ? 'clase ' + esc(LA.L.r.clase.txt) + ' · RAS ' + fmt(LA.L.r.ras, 1) : 'falta el análisis del agua') + '</div></div>' +
       '<div class="kpi"><div class="sl">Suelo</div><div class="sv" style="font-size:14px;">' + (LS ? (LS.limitan.length ? 'Limita: ' + esc(LS.limitan.slice(0, 2).join(', ')) : 'Sin limitantes fuertes') : 'Sin análisis') + '</div><div class="ss">' + (LS ? 'para ' + esc(LS.cultivo.toLowerCase()) : 'falta el análisis de suelo') + '</div></div>' +
       '<div class="kpi"><div class="sl">Déficit hídrico anual</div><div class="sv">' + (clima ? fmt(clima.deficit, 0) + ' mm' : '—') + '</div><div class="ss">' + (clima ? 'ETo ' + fmt(clima.etoAnual, 0) + ' vs lluvia ' + fmt(clima.lluviaAnual, 0) + ' mm (' + clima.desde + '–' + clima.hasta + ')' : (climaEstado === 'cargando' ? 'cargando el clima…' : 'sin clima')) + '</div></div></div>';
     var filas = P.map(function (x) {
       var pot = x.r.potencial ? x.r.potencial.estimado : null, rie = x.ref ? x.ref.riego : null, sec = x.ref ? x.ref.secano : null, con = pot != null ? pot : rie;
       var gana = con != null && sec != null ? con - sec : null;
-      return '<tr>' + td('<b>' + esc(x.c.cultivo) + '</b>' + ((x.c.epoca || (x.ref && x.ref.epoca)) ? '<div class="sub">' + esc(x.c.epoca || x.ref.epoca) + '</div>' : '')) + td(fmt(num(x.c.objetivoKgHa), 0), 1) +
-        td(pot != null ? '<b>' + fmt(pot, 0) + '</b><div class="sub">' + x.r.potencial.nCasos + ' caso(s) cercanos</div>' : '<span class="sub">' + (x.r.fueraDeRadio ? 'sin casos a menos de 300 km' : 'sin casos') + '</span>', 1) +
-        td(fmt(rie, 0), 1) + td(fmt(sec, 0), 1) + td(gana != null ? '<b style="color:#178029;">+' + fmt(gana, 0) + '</b><div class="sub">+' + fmt(gana / sec * 100, 0) + ' %</div>' : '—', 1) + '</tr>';
+      var ep = x.c.epoca || (x.ref && x.ref.epoca);
+      return '<tr>' + td('<b>' + esc(x.c.cultivo) + '</b><div class="sub">' + esc(finTxt(x.c)) + (ep ? ' · ' + esc(ep) : '') + '</div>') + td(U(num(x.c.objetivoKgHa), x.u) + '<div class="sub">' + x.u.corto + '</div>', 1) +
+        td(pot != null ? '<b>' + U(pot, x.u) + '</b><div class="sub">' + x.r.potencial.nCasos + ' caso(s) cercanos</div>' : '<span class="sub">' + (x.r.fueraDeRadio ? 'sin casos a menos de 300 km' : 'sin casos') + '</span>', 1) +
+        td(x.ref ? U(rie, x.u) : '<span class="sub">sin referencia</span>', 1) + td(x.ref ? U(sec, x.u) : '—', 1) + td(gana != null ? '<b style="color:#178029;">+' + U(gana, x.u) + '</b><div class="sub">+' + fmt(gana / sec * 100, 0) + ' %</div>' : '—', 1) + '</tr>';
     });
-    return '<h2>Resumen ejecutivo</h2>' + kpis + tabla([{ t: 'Cultivo', w: 18 }, { t: 'Objetivo kg/ha', r: 1, w: 13 }, { t: 'Potencial con riego (casos)', r: 1, w: 19 }, { t: 'Zona con riego', r: 1, w: 15 }, { t: 'Zona secano', r: 1, w: 15 }, { t: 'Lo que suma el riego', r: 1, w: 20 }], filas) +
-      '<div class="sub" style="margin-top:4px;">Kilos de grano comercial en silo por hectárea, comparando la misma época de siembra. Zona: referencia agrícola de SAFIA' + (P[0] && P[0].ref ? ' (' + esc(P[0].ref.ambito) + ', ' + (P[0].ref.nivel === 'localidad' ? 'localidad' : 'promedio del departamento') + ')' : '') + '. Lo que suma el riego = potencial con riego (o la zona con riego si no hay casos cercanos) menos la zona en secano.</div>' +
+    return '<h2>Resumen ejecutivo</h2>' + kpis + tabla([{ t: 'Cultivo · finalidad', w: 18 }, { t: 'Objetivo', r: 1, w: 13 }, { t: 'Potencial con riego (casos)', r: 1, w: 19 }, { t: 'Zona con riego', r: 1, w: 15 }, { t: 'Zona secano', r: 1, w: 15 }, { t: 'Lo que suma el riego', r: 1, w: 20 }], filas) +
+      '<div class="sub" style="margin-top:4px;">' + notaUnidades(P) + ' Cada cultivo se compara con la misma finalidad y la misma época de siembra. Zona: referencia agrícola de SAFIA' + (refAgr(P) ? ' (' + esc(refAgr(P).ambito) + ', ' + (refAgr(P).nivel === 'localidad' ? 'localidad' : 'promedio del departamento') + ')' : '') + (P.some(function (x) { return x.ref && x.ref.forraje; }) ? '; pastos: referencia forrajera de la región' : '') + '. Lo que suma el riego = potencial con riego (o la zona con riego si no hay casos cercanos) menos la zona en secano.</div>' +
       '<h3>Conclusión</h3><ul>' + conclusiones(P, LA, LS).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>';
+  }
+  function refAgr(P) { var x = P.find(function (y) { return y.ref && !y.ref.forraje; }); return x ? x.ref : null; }
+  // qué unidad usa cada tipo de producción del proyecto
+  function notaUnidades(P) {
+    var grupos = {}, orden = [];
+    P.forEach(function (x) { var g = grupos[x.u.corto]; if (!g) { g = grupos[x.u.corto] = []; orden.push(x.u.corto); } if (g.indexOf(x.u.largo) === -1) g.push(x.u.largo); });
+    return orden.length ? 'Unidades: ' + orden.map(function (c) { return c + ' = ' + grupos[c].join(' o '); }).join('; ') + '.' : '';
   }
   function conclusiones(P, LA, LS) {
     var out = [];
@@ -148,7 +165,9 @@
     if (clima) out.push('<b>Clima:</b> en ' + clima.desde + '–' + clima.hasta + ' llovieron en promedio ' + fmt(clima.lluviaAnual, 0) + ' mm por año (entre ' + fmt(clima.lluviaMin, 0) + ' y ' + fmt(clima.lluviaMax, 0) + ' mm) contra una demanda de ' + fmt(clima.etoAnual, 0) + ' mm; faltan en promedio ' + fmt(clima.deficit, 0) + ' mm por año' + (clima.mesesDeficit.length ? ', con los mayores faltantes en ' + clima.mesesDeficit.slice(0, 4).join(', ').toLowerCase() : '') + '.');
     P.forEach(function (x) {
       var pot = x.r.potencial ? x.r.potencial.estimado : null, rie = x.ref ? x.ref.riego : null, sec = x.ref ? x.ref.secano : null, con = pot != null ? pot : rie;
-      if (con != null && sec != null) out.push('<b>' + esc(x.c.cultivo) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : '') + ':</b> con riego se espera ' + fmt(con, 0) + ' kg/ha' + (pot != null ? ' (casos reales cercanos)' : ' (zona con riego)') + ' contra ' + fmt(sec, 0) + ' kg/ha en secano: <b>+' + fmt(con - sec, 0) + ' kg/ha</b>.' + (LA && LA.L.veredicto.k === 'grave' ? ' Con el agua actual ese rinde no se alcanza.' : ''));
+      var uu = x.u.corto;
+      if (con != null && sec != null) out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : '') + ':</b> con riego se espera ' + U(con, x.u) + ' ' + uu + (pot != null ? ' (casos reales cercanos)' : (x.ref && x.ref.forraje ? ' (referencia forrajera)' : ' (zona con riego)')) + ' contra ' + U(sec, x.u) + ' ' + uu + ' en secano: <b>+' + U(con - sec, x.u) + ' ' + uu + '</b>.' + (LA && LA.L.veredicto.k === 'grave' ? ' Con el agua actual esa producción no se alcanza.' : ''));
+      else if (!x.ref && pot == null) out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + ':</b> la base de SAFIA todavía no tiene referencia de la zona ni casos cercanos para esta finalidad; no se estima un número.');
     });
     return out;
   }
@@ -197,13 +216,14 @@
     var h = '<h2>Potencial productivo por cultivo</h2>';
     P.forEach(function (x) {
       var r = x.r, pot = r.potencial;
-      h += '<div class="seccion"><h3>' + esc(x.c.cultivo) + (x.c.epoca ? ' · ' + esc(x.c.epoca) : '') + (num(x.c.objetivoKgHa) ? ' · objetivo ' + fmt(num(x.c.objetivoKgHa), 0) + ' kg/ha' : '') + '</h3>';
-      h += '<div class="stats"><div class="stat"><div class="sl">Potencial con riego</div><div class="sv">' + (pot ? fmt(pot.estimado, 0) : '—') + '</div><div class="ss">' + (pot ? 'entre ' + fmt(pot.min, 0) + ' y ' + fmt(pot.max, 0) + ' · ' + pot.nCasos + ' caso(s)' : (r.fueraDeRadio ? 'sin casos a menos de 300 km' + (r.masCercano ? ' (el más cercano a ' + fmt(r.masCercano.km, 0) + ' km)' : '') : 'sin casos en el banco')) + '</div></div>' +
-        '<div class="stat"><div class="sl">Zona con riego</div><div class="sv green">' + fmt(x.ref && x.ref.riego, 0) + '</div><div class="ss">' + (x.ref ? esc(x.ref.ambito) + ' · ' + x.ref.n + ' registros' : 'sin referencia') + '</div></div>' +
-        '<div class="stat"><div class="sl">Zona secano</div><div class="sv">' + fmt(x.ref && x.ref.secano, 0) + '</div><div class="ss">kg/ha' + (x.ref && x.ref.epoca ? ' · época ' + esc(x.ref.epoca) : '') + '</div></div></div>';
+      h += '<div class="seccion"><h3>' + esc(x.c.cultivo) + ' · ' + esc(finTxt(x.c).toLowerCase()) + (x.c.epoca ? ' · ' + esc(x.c.epoca) : '') + (num(x.c.objetivoKgHa) ? ' · objetivo ' + U(num(x.c.objetivoKgHa), x.u) + ' ' + x.u.corto : '') + '</h3>';
+      h += '<div class="stats"><div class="stat"><div class="sl">Potencial con riego</div><div class="sv">' + (pot ? U(pot.estimado, x.u) : '—') + '</div><div class="ss">' + (pot ? 'entre ' + U(pot.min, x.u) + ' y ' + U(pot.max, x.u) + ' · ' + pot.nCasos + ' caso(s)' : (r.fueraDeRadio ? 'sin casos a menos de 300 km' + (r.masCercano ? ' (el más cercano a ' + fmt(r.masCercano.km, 0) + ' km)' : '') : 'sin casos en el banco')) + '</div></div>' +
+        '<div class="stat"><div class="sl">Zona con riego</div><div class="sv green">' + (x.ref ? U(x.ref.riego, x.u) : '—') + '</div><div class="ss">' + (x.ref ? esc(x.ref.ambito) + (x.ref.forraje ? '' : ' · ' + x.ref.n + ' registros') : 'sin referencia para esta finalidad') + '</div></div>' +
+        '<div class="stat"><div class="sl">Zona secano</div><div class="sv">' + (x.ref ? U(x.ref.secano, x.u) : '—') + '</div><div class="ss">' + x.u.corto + (x.ref && x.ref.epoca ? ' · época ' + esc(x.ref.epoca) : '') + '</div></div></div>';
+      if (SafiaCasos.notaForraje(x.c.cultivo, x.c.finalidad)) h += '<div class="sub" style="margin:4px 0;">' + SafiaCasos.notaForraje(x.c.cultivo, x.c.finalidad) + '</div>';
       if (pot && pot.nCasos < 3) h += '<div class="note warn">Basado en solo ' + pot.nCasos + ' caso(s): es una orientación, no una predicción.</div>';
-      var filas = (r.similares || []).map(function (t, i) { var c = t.caso; return '<tr>' + td('Caso ' + (i + 1)) + td(esc(c.localidad || c.departamento || '—')) + td(t.distanciaKm == null ? '—' : fmt(t.distanciaKm, 0) + ' km', 1) + td(esc(c.campana || '—')) + td(esc(c.variedad || '—')) + td('<b>' + fmt(c.rindeKgHa, 0) + '</b>', 1) + td(c.aguaTotalMM == null ? '—' : fmt(c.aguaTotalMM, 0), 1) + td(t.similitud + ' %', 1) + '</tr>'; });
-      if (filas.length) h += tabla([{ t: 'Caso', w: 9 }, { t: 'Localidad', w: 18 }, { t: 'Distancia', r: 1, w: 11 }, { t: 'Campaña', w: 12 }, { t: 'Variedad', w: 16 }, { t: 'Rinde kg/ha', r: 1, w: 12 }, { t: 'Agua mm', r: 1, w: 10 }, { t: 'Parecido', r: 1, w: 12 }], filas) +
+      var filas = (r.similares || []).map(function (t, i) { var c = t.caso; return '<tr>' + td('Caso ' + (i + 1)) + td(esc(c.localidad || c.departamento || '—')) + td(t.distanciaKm == null ? '—' : fmt(t.distanciaKm, 0) + ' km', 1) + td(esc(c.campana || '—')) + td(esc(c.variedad || '—')) + td('<b>' + U(c.rindeKgHa, x.u) + '</b>', 1) + td(c.aguaTotalMM == null ? '—' : fmt(c.aguaTotalMM, 0), 1) + td(t.similitud + ' %', 1) + '</tr>'; });
+      if (filas.length) h += tabla([{ t: 'Caso', w: 9 }, { t: 'Localidad', w: 18 }, { t: 'Distancia', r: 1, w: 11 }, { t: 'Campaña', w: 12 }, { t: 'Variedad', w: 16 }, { t: 'Rinde ' + x.u.corto, r: 1, w: 12 }, { t: 'Agua mm', r: 1, w: 10 }, { t: 'Parecido', r: 1, w: 12 }], filas) +
         '<div class="sub">Casos reales con riego del banco de SAFIA, sin nombres de productores. Parecido = suelo, distancia, altitud y época.' + (r.fueraDeRadio ? ' <b>Ninguno está a menos de 300 km: se muestran solo como información y no entran en el potencial.</b>' : '') + '</div>';
       h += '</div>';
     });
@@ -219,10 +239,11 @@
         var g = grupos[k], p = k.split('|'), rie = promedio(g.filter(function (x) { return x.riego; })), sec = promedio(g.filter(function (x) { return !x.riego; }));
         if (rie == null && sec == null) return null;
         var anios = g.map(function (x) { return x.anio; }).filter(Boolean), aa = anios.length ? Math.min.apply(null, anios) + (Math.max.apply(null, anios) !== Math.min.apply(null, anios) ? '–' + Math.max.apply(null, anios) : '') : '—';
-        return '<tr>' + td('<b>' + esc(p[0]) + '</b>') + td(esc(p[1] || '—')) + td(esc(p[2] || '—')) + td(fmt(sec, 0), 1) + td('<b>' + fmt(rie, 0) + '</b>', 1) + td(rie != null && sec != null ? '<span style="color:#178029;font-weight:700;">+' + fmt(rie - sec, 0) + '</span>' : '—', 1) + td(g.length, 1) + td(aa) + '</tr>';
+        var uz = SafiaCasos.unidadDe(p[0], p[1]);
+        return '<tr>' + td('<b>' + esc(p[0]) + '</b>') + td(esc(p[1] || '—')) + td(esc(p[2] || '—')) + td(uz.corto) + td(U(sec, uz), 1) + td('<b>' + U(rie, uz) + '</b>', 1) + td(rie != null && sec != null ? '<span style="color:#178029;font-weight:700;">+' + U(rie - sec, uz) + '</span>' : '—', 1) + td(g.length, 1) + td(aa) + '</tr>';
       }).filter(Boolean);
-      h += '<div class="sub" style="margin-bottom:4px;">' + (a.nivel === 'localidad' ? 'Localidad ' : 'Departamento ') + '<b>' + esc(a.nombre) + '</b> · rinde promedio en kg/ha (ensilaje y granos húmedos en su propia unidad de la base)</div>' +
-        tabla([{ t: 'Cultivo', w: 16 }, { t: 'Finalidad', w: 17 }, { t: 'Época', w: 14 }, { t: 'Secano', r: 1, w: 11 }, { t: 'Con riego', r: 1, w: 11 }, { t: 'Diferencia', r: 1, w: 11 }, { t: 'Registros', r: 1, w: 9 }, { t: 'Año', w: 11 }], filas);
+      h += '<div class="sub" style="margin-bottom:4px;">' + (a.nivel === 'localidad' ? 'Localidad ' : 'Departamento ') + '<b>' + esc(a.nombre) + '</b> · producción promedio por finalidad: grano en kg/ha, ensilaje en toneladas de materia verde por ha</div>' +
+        tabla([{ t: 'Cultivo', w: 14 }, { t: 'Finalidad', w: 15 }, { t: 'Época', w: 13 }, { t: 'Unidad', w: 9 }, { t: 'Secano', r: 1, w: 10 }, { t: 'Con riego', r: 1, w: 10 }, { t: 'Diferencia', r: 1, w: 10 }, { t: 'Registros', r: 1, w: 9 }, { t: 'Año', w: 10 }], filas);
     }
     // forraje por región (la base de Irrigar: Chaco / Oriental)
     var u = ubic(), chaco = /boqueron|alto paraguay|presidente hayes/.test(norm(u.depto)), region = chaco ? 'Occidental/Chaco' : 'Oriental/Centro';
@@ -244,7 +265,7 @@
     var h = '<h2>Próximos pasos</h2><ol>' + pasos.map(function (p) { return '<li>' + p + '</li>'; }).join('') + '</ol>' +
       '<div class="note info" style="font-size:11px;"><b>Supuestos y fuentes.</b> Clima: Open-Meteo, reanálisis ERA5, datos diarios de los últimos 10 años completos. Zona: referencia agrícola y forrajera de SAFIA (base de Irrigar). Potencial: casos reales con riego del banco de SAFIA a menos de 300 km (con menos de 3 casos es orientación). Suelo: Manual de Calagem e Adubação RS/SC 2016, Embrapa, CAPECO/IPTA. Agua: FAO Riego y Drenaje 29, USDA Manual 60, universidades e INTA (detalle en la sección del agua). SAFIA compara e interpreta; la prescripción y la decisión de inversión las toma el productor con su ingeniero agrónomo.</div>';
     if (autor || config.firma) h += '<div class="firma"><div class="bloque">' + (config.firma ? '<img src="' + config.firma + '" alt="firma">' : '<div style="height:40px;"></div>') + '<b>' + esc(autor) + '</b>' + (config.matricula ? '<div class="sub">' + esc(config.matricula) + '</div>' : '') + '<div class="sub">' + esc([config.empresa, config.telefono, config.correo].filter(Boolean).join(' · ')) + '</div></div></div>';
-    return h + '<div class="pie"><span>Kilos de grano en silo por hectárea. Evaluación preparada con SAFIA con datos reales de la zona y del banco de casos.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
+    return h + '<div class="pie"><span>Evaluación preparada con SAFIA con datos reales de la zona y del banco de casos.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
   }
 
   function secciones() { var s = {}; document.querySelectorAll('#secciones input').forEach(function (c) { s[c.dataset.s] = c.checked; }); return s; }
