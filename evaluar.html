@@ -43,6 +43,7 @@
 <script src="safia-casos.js"></script>
 <script src="safia-fertilidad.js"></script>
 <script src="safia-agronomia.js"></script>
+<script src="safia-calidad-agua.js"></script>
 </head>
 <body>
   <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
@@ -168,6 +169,39 @@
             <div class="field"><label>Limo (%)</label><input type="number" id="s_limo" step="0.1"></div>
             <div class="field"><label>Arcilla (%)</label><input type="number" id="s_arcilla" step="0.1"></div>
           </div>
+        </div>
+
+        <div class="formcard">
+          <h3>4 · Análisis de agua de riego</h3>
+          <div class="formsub">Subí el análisis del pozo, río o tajamar que va a regar el proyecto y la IA completa los valores. SAFIA calcula RAS y salinidad, lo ubica en el diagrama de Riverside y dice si se puede regar, con cuidados o no. Iones en meq/L (si el laboratorio da mg/L, elegí esa unidad y SAFIA convierte); CE en µS/cm.</div>
+          <div class="form-grid">
+            <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;">
+              <input type="file" id="wArchivo" accept=".pdf,image/*" style="max-width:260px;">
+              <button class="btn green" id="btnLeerAguaIA">Leer análisis de agua con IA</button>
+              <span class="hint" id="wHint"></span>
+            </div>
+            <div class="field full" id="wMuestras" style="display:none;flex-direction:row;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+            <div class="field"><label>Fecha del análisis</label><input type="date" id="wFecha"></div>
+            <div class="field"><label>Fuente</label><select id="wFuente"><option>Pozo</option><option>Río</option><option>Arroyo</option><option>Tajamar</option><option>Represa</option><option>Laguna</option><option>Otra</option></select></div>
+            <div class="field"><label>Identificación de la fuente</label><input id="wFuenteNombre" placeholder="Ej.: Pozo 1"></div>
+            <div class="field"><label>Laboratorio</label><input id="wLab" placeholder="Ej.: INTN"></div>
+            <div class="field"><label>Unidad de los iones</label><select id="wUnidad"><option value="meq">meq/L (= mmolc/L)</option><option value="mg">mg/L (= ppm): SAFIA convierte</option></select></div>
+            <div class="field"><label>CE <span style="text-transform:none;">(µS/cm)</span></label><input type="number" id="w_ce" step="1" min="0"></div>
+            <div class="field"><label>pH</label><input type="number" id="w_ph" step="0.01" min="0" max="14"></div>
+            <div class="field"><label>Sodio Na⁺</label><input type="number" id="w_na" step="0.01" min="0"></div>
+            <div class="field"><label>Potasio K⁺</label><input type="number" id="w_k" step="0.01" min="0"></div>
+            <div class="field"><label>Calcio Ca²⁺</label><input type="number" id="w_ca" step="0.01" min="0"></div>
+            <div class="field"><label>Magnesio Mg²⁺</label><input type="number" id="w_mg" step="0.01" min="0"></div>
+            <div class="field"><label>Amonio NH₄⁺</label><input type="number" id="w_nh4" step="0.01" min="0"></div>
+            <div class="field"><label>Cloruros Cl⁻</label><input type="number" id="w_cl" step="0.01" min="0"></div>
+            <div class="field"><label>Sulfatos SO₄²⁻</label><input type="number" id="w_so4" step="0.01" min="0"></div>
+            <div class="field"><label>Carbonatos CO₃²⁻</label><input type="number" id="w_co3" step="0.01" min="0"></div>
+            <div class="field"><label>Bicarbonatos HCO₃⁻</label><input type="number" id="w_hco3" step="0.01" min="0"></div>
+            <div class="field"><label>Nitratos NO₃⁻</label><input type="number" id="w_no3" step="0.01" min="0"></div>
+            <div class="field"><label>Fosfatos (meq/L)</label><input type="number" id="w_po4" step="0.01" min="0"></div>
+            <div class="field"><label>Boro (mg/L)</label><input type="number" id="w_boro" step="0.01" min="0"></div>
+            <div class="field"><label>Temperatura del agua (°C)</label><input type="number" id="w_temperatura" step="0.1"></div>
+          </div>
           <div class="form-actions">
             <span style="flex:1"></span>
             <button class="btn" id="btnEvaluarNueva" title="Guarda lo cargado como otra estrategia del mismo proyecto">Evaluar como estrategia nueva</button>
@@ -185,6 +219,11 @@
                 <tbody id="rResumen"></tbody>
               </table>
             </div>
+          </div>
+
+          <div class="card" id="rAguaCard" style="margin-bottom:14px;display:none;">
+            <div class="card-h"><h3>Agua de riego del proyecto</h3><span class="muted" id="rAguaSub"></span></div>
+            <div id="rAgua"></div>
           </div>
 
           <div id="bloquesCultivo"></div>
@@ -297,6 +336,65 @@
     }).catch(function(){ hint.textContent='No se pudo leer. Cargá los valores a mano.'; })
     .finally(function(){ b.disabled=false; b.textContent='✨ Leer análisis con IA'; });
   });
+
+  /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
+  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4'], NUM_AGUA=['ph','ce','boro','temperatura'];
+  var aguaCargada=null, aguaArchivo=null;
+  function ponerAgua(a){
+    var w=function(id){ return document.getElementById(id); };
+    w('wUnidad').value='meq';
+    w('wFecha').value=a&&a.fecha?String(a.fecha).slice(0,10):'';
+    var fu=w('wFuente'), fv=(a&&a.fuente)||'Pozo';
+    if(![].some.call(fu.options,function(o){ return o.value===fv; })) fu.insertAdjacentHTML('beforeend','<option>'+esc(fv)+'</option>');
+    fu.value=fv;
+    w('wFuenteNombre').value=(a&&a.fuenteNombre)||''; w('wLab').value=(a&&a.laboratorio)||'';
+    CLAVES_AGUA.concat(NUM_AGUA).forEach(function(k){ var x=a?num(a[k]):null; w('w_'+k).value=x==null?'':x; });
+  }
+  function aguaDelForm(){
+    var w=function(id){ return document.getElementById(id); }, enMg=w('wUnidad').value==='mg';
+    var a={ fecha:w('wFecha').value||null, fuente:w('wFuente').value, fuenteNombre:w('wFuenteNombre').value.trim(), laboratorio:w('wLab').value.trim() };
+    CLAVES_AGUA.forEach(function(k){ var x=num(w('w_'+k).value), ion=SafiaCalidadAgua.IONES.find(function(i){ return i.k===k; }); a[k]=x==null?null:(enMg&&ion.eq?Math.round(x/ion.eq*10000)/10000:x); });
+    NUM_AGUA.forEach(function(k){ a[k]=num(w('w_'+k).value); });
+    return (a.ce!=null||a.na!=null)?a:null;
+  }
+  function mismaAgua(a,b){ if(!a||!b) return false; return CLAVES_AGUA.concat(NUM_AGUA).every(function(k){ var x=num(a[k]), y=num(b[k]); return (x==null&&y==null)||(x!=null&&y!=null&&Math.abs(x-y)<1e-6); }); }
+  document.getElementById('wArchivo').addEventListener('change',function(){ aguaArchivo=this.files&&this.files[0]||null; });
+  document.getElementById('btnLeerAguaIA').addEventListener('click',function(){
+    var f=document.getElementById('wArchivo').files[0], hint=document.getElementById('wHint'), b=this, cont=document.getElementById('wMuestras');
+    if(!f){ toast('Elegí la foto o PDF del análisis de agua',true); return; }
+    if(!window.safiaSupabase){ toast('Sin conexión',true); return; }
+    var esPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
+    b.disabled=true; b.textContent='Leyendo…'; hint.textContent='Leyendo el análisis de agua con IA, tarda unos segundos…';
+    (esPdf?aBase64(f):comprimirImagen(f,2000,0.85)).then(function(b64){
+      return window.safiaSupabase.functions.invoke('safia-leer-analisis',{body:{mime:esPdf?'application/pdf':'image/jpeg',data_base64:b64,tipo:'agua'}});
+    }).then(function(r){
+      if(r.error) throw r.error;
+      var ms=((r.data&&r.data.muestras)||[]).map(SafiaCalidadAgua.desdeIA);
+      if(!ms.length) throw new Error('sin datos');
+      ponerAgua(ms[0]);
+      if(ms.length>1){
+        cont.style.display='flex';
+        cont.innerHTML='<span class="muted" style="font-size:12px;">El informe tiene '+ms.length+' muestras, elegí la del proyecto:</span>'+ms.map(function(x,i){ return '<button type="button" class="btn" data-i="'+i+'">'+esc([x.fuenteNombre,x.fecha].filter(Boolean).join(' · ')||('Muestra '+(i+1)))+'</button>'; }).join('');
+        cont.querySelectorAll('button').forEach(function(bt){ bt.addEventListener('click',function(){ ponerAgua(ms[+bt.dataset.i]); toast('Cargada: '+bt.textContent); }); });
+      } else { cont.style.display='none'; cont.innerHTML=''; }
+      hint.textContent='Valores cargados por IA (en meq/L). Revisalos antes de evaluar.';
+    }).catch(function(){ hint.textContent='No se pudo leer. Cargá los valores a mano.'; })
+    .finally(function(){ b.disabled=false; b.textContent='Leer análisis de agua con IA'; });
+  });
+  function opcionesAgua(cultivos, suelo){
+    // proyecto de riego por pivot: se evalúa para aspersión (lo más exigente para la hoja)
+    return { aspersion:true, cultivos:cultivos.length?cultivos:['Soja','Maíz'], sueloFino:!!(suelo&&num(suelo.arcilla)!=null&&num(suelo.arcilla)>=35) };
+  }
+  function pintarAgua(agua, cultivos, suelo){
+    var card=document.getElementById('rAguaCard');
+    if(!agua){ card.style.display='none'; document.getElementById('rAgua').innerHTML=''; return null; }
+    card.style.display='';
+    var fuente=[agua.fuente,agua.fuenteNombre].filter(Boolean).join(' · ');
+    document.getElementById('rAguaSub').textContent=[fuente,agua.laboratorio,agua.fecha?fmtFecha(agua.fecha):''].filter(Boolean).join(' · ');
+    var op=opcionesAgua(cultivos,suelo);
+    document.getElementById('rAgua').innerHTML=SafiaCalidadAgua.tarjeta(agua,op);
+    return SafiaCalidadAgua.interpretar(agua,op);
+  }
 
   /* ---------- cultivos del proyecto (varias filas) ---------- */
   var listaCultivos = [];   // nombres para el desplegable
@@ -444,6 +542,8 @@
     var filas=leerFilasCultivo();
     if(!filas.length){ toast('Elegí al menos un cultivo',true); return; }
     if(base.lat==null && !base.suelo){ toast('Cargá al menos la ubicación o el análisis de suelo',true); return; }
+    var agua=aguaDelForm();
+    var lecturaAgua=pintarAgua(agua, filas.map(function(x){ return x.cultivo; }), base.suelo);
 
     var localidad=document.getElementById('pLocalidad').value.trim(), depto=document.getElementById('pDepto').value.trim();
     var resumen=document.getElementById('rResumen'), bloques=document.getElementById('bloquesCultivo');
@@ -473,7 +573,7 @@
       }); });
     });
     cadena.then(function(){
-      try { guardarEvaluacion({ suelo:base.suelo, lat:base.lat, lon:base.lon, altitud:base.altitud, localidad:localidad, depto:depto, cultivos:filas, resultados:paraGuardar }); } catch(e){ console.error(e); document.getElementById('evEstado').textContent='No se pudo guardar la evaluación: '+e.message; }
+      try { guardarEvaluacion({ agua:agua, aguaLectura:lecturaAgua?{ k:lecturaAgua.veredicto.k, titulo:lecturaAgua.veredicto.titulo, clase:lecturaAgua.r.clase?lecturaAgua.r.clase.txt:null, ras:lecturaAgua.r.ras!=null?Math.round(lecturaAgua.r.ras*100)/100:null, ce:agua.ce }:null, suelo:base.suelo, lat:base.lat, lon:base.lon, altitud:base.altitud, localidad:localidad, depto:depto, cultivos:filas, resultados:paraGuardar }); } catch(e){ console.error(e); document.getElementById('evEstado').textContent='No se pudo guardar la evaluación: '+e.message; }
       if(!evaluandoCallado) document.getElementById('resultados').scrollIntoView({behavior:'smooth'});
       evaluandoCallado=false;
     });
@@ -522,6 +622,9 @@
     // el análisis de suelo más nuevo del campo (si lo hay)
     var an=L('analisis_suelo').filter(function(a){ return String(a.campoId)===String(campo.id) && !a.esPromedio; }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')); })[0]||null;
     sueloCargado=an; ponerSuelo(an);
+    // y el análisis de agua más nuevo del campo
+    var ag=L('analisis_agua').filter(function(a){ return String(a.campoId)===String(campo.id); }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')); })[0]||null;
+    aguaCargada=ag; ponerAgua(ag); aguaArchivo=null; $('wArchivo').value=''; $('wHint').textContent=ag?'Análisis de agua del '+fmtFecha(ag.fecha)+' cargado del proyecto.':'';
     $('evCampoSup').value=campo.superficie||'';
   }
   function cargarEvaluacion(ev){
@@ -531,6 +634,7 @@
     if(u.departamento) $('pDepto').value=u.departamento; if(u.localidad) $('pLocalidad').value=u.localidad; if(u.pais) $('pPais').value=u.pais;
     if(u.lat!=null){ $('pLat').value=u.lat; $('pLon').value=u.lon; $('pGps').value=u.lat+', '+u.lon; } if(u.altitud!=null) $('pAlt').value=u.altitud;
     if(ev.suelo){ ponerSuelo(ev.suelo); var an=L('analisis_suelo').find(function(a){ return String(a.id)===String(ev.analisisId); }); sueloCargado=an||null; }
+    if(ev.agua){ ponerAgua(ev.agua); aguaCargada=L('analisis_agua').find(function(a){ return String(a.id)===String(ev.aguaId); })||null; }
     $('filasCultivos').innerHTML='';
     (ev.cultivos&&ev.cultivos.length?ev.cultivos:[{cultivo:'',epoca:'',objetivoKgHa:''}]).forEach(function(c){ agregarFilaCultivo(c.cultivo||'', c.epoca||'', c.objetivoKgHa||''); });
     $('evEstado').innerHTML='Estrategia abierta: <b>'+esc(ev.nombre||'')+'</b>, guardada el '+fmtFecha(String(ev.fechaModificacion||ev.fecha).slice(0,10))+'. Tocá Evaluar para ver el resultado con el banco de hoy.';
@@ -539,7 +643,7 @@
   $('evCampo').addEventListener('change',function(){
     evActual=null; mostrarNuevos();
     var campo=L('campos').find(function(c){ return String(c.id)===String($('evCampo').value); });
-    if(campo) cargarCampo(campo); else sueloCargado=null;
+    if(campo) cargarCampo(campo); else { sueloCargado=null; aguaCargada=null; }
     var evs=pintarEstrategias();
     if(evs.length) cargarEvaluacion(evs[0]); else { $('evNombre').value=''; $('evEstado').textContent=campo?'Este proyecto todavía no tiene estrategias guardadas.':''; }
   });
@@ -587,13 +691,36 @@
         sueloCargado=analisis.find(function(x){ return String(x.id)===String(analisisId); })||null;
       }
     }
+    // agua: igual que el suelo; si es el mismo análisis del campo se usa ese, si cambió queda como análisis del proyecto
+    var aguaId=null;
+    if(d.agua){
+      var aguas=L('analisis_agua');
+      if(aguaCargada && mismaAgua(aguaCargada,d.agua)) aguaId=aguaCargada.id;
+      else {
+        var propiaA=evPrev&&evPrev.aguaId?aguas.find(function(a){ return String(a.id)===String(evPrev.aguaId) && a.origen==='evaluacion'; }):null;
+        if(propiaA){ Object.assign(propiaA,d.agua,{ fecha:d.agua.fecha||propiaA.fecha||hoy, fechaModificacion:ahora }); aguaId=propiaA.id; }
+        else { var w=Object.assign({ id:t0+4, campoId:campo.id, equipoId:null, origen:'evaluacion', observaciones:'Cargado en Evaluar proyecto', fechaCreacion:ahora }, d.agua); if(!w.fecha) w.fecha=hoy; aguas.push(w); aguaId=w.id; }
+        G('analisis_agua',aguas);
+      }
+      aguaCargada=L('analisis_agua').find(function(x){ return String(x.id)===String(aguaId); })||null;
+      // el PDF o la foto del laboratorio queda guardado con el análisis
+      if(aguaArchivo && window.safiaSupabase){
+        var arch=aguaArchivo, idA=aguaId; aguaArchivo=null;
+        var nomA=String(arch.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').slice(0,80);
+        window.safiaSupabase.storage.from('safia').upload('campo_'+campo.id+'/agua/'+Date.now()+'_'+nomA, arch, { upsert:false }).then(function(res){
+          if(res.error) throw res.error;
+          var l=L('analisis_agua'), x=l.find(function(y){ return String(y.id)===String(idA); }); if(!x) return;
+          x.archivoRuta=res.data&&res.data.path?res.data.path:null; x.archivoNombre=arch.name; G('analisis_agua',l);
+        }).catch(function(e){ console.error(e); toast('El archivo del análisis de agua no se pudo subir; los valores quedaron guardados',true); });
+      }
+    }
     var nombreDef=d.cultivos.map(function(c){ return c.cultivo+(c.objetivoKgHa?' '+Math.round(c.objetivoKgHa/100)/10+' t':''); }).join(' + ');
     var u=(window.SafiaSync&&SafiaSync.usuario&&SafiaSync.usuario())||{};
     // nombre automático (cultivos y objetivos) mientras no se escriba uno propio
     var escrito=$('evNombre').value.trim(), auto=!escrito || (evPrev && evPrev.nombreAuto && escrito===evPrev.nombre);
     var datos={ clienteId:cliente.id, campoId:campo.id, analisisId:analisisId, nombre:auto?(nombreDef||'Estrategia'):escrito, nombreAuto:auto, notas:$('evNotas').value.trim(),
       superficieHa:sup, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
-      cultivos:d.cultivos, suelo:d.suelo, resultados:d.resultados, casosEnBanco:casos.length, evaluadoPor:u.nombre||null, fechaModificacion:ahora };
+      cultivos:d.cultivos, suelo:d.suelo, resultados:d.resultados, aguaId:aguaId, agua:d.agua||null, aguaLectura:d.aguaLectura||null, casosEnBanco:casos.length, evaluadoPor:u.nombre||null, fechaModificacion:ahora };
     var ev=evPrev;
     if(ev) Object.assign(ev,datos); else { ev=Object.assign({ id:t0+3, fecha:ahora },datos); evs.push(ev); }
     G('evaluaciones',evs);
@@ -613,6 +740,7 @@
       (evs.length?evs.map(function(e){
         var c=clientes.find(function(x){ return String(x.id)===String(e.clienteId); })||{}, p=campos.find(function(x){ return String(x.id)===String(e.campoId); })||{};
         var cul=(e.resultados&&e.resultados.length?e.resultados:(e.cultivos||[])).map(function(r){ return esc(r.cultivo)+' '+fmt(r.objetivoKgHa,0)+' → '+(r.potencial?fmt(r.potencial.estimado,0):'—'); }).join('<br>');
+        if(e.aguaLectura) cul+='<div class="sub" style="margin-top:3px;">Agua: <b style="color:'+({ok:'#178029',cuidado:'#B8731A',grave:'#C0392B'}[e.aguaLectura.k]||'#5B6167')+';">'+esc(e.aguaLectura.titulo)+'</b>'+(e.aguaLectura.clase?' · '+esc(e.aguaLectura.clase):'')+'</div>';
         return '<tr><td><b>'+esc(c.nombre||'—')+'</b><div class="sub">'+(esProspecto(c)?'prospecto':'cliente')+(c.telefono?' · '+esc(c.telefono):'')+'</div></td>'+
           '<td>'+esc(p.nombre||'—')+'<div class="sub">'+esc([p.localidad,p.departamento].filter(Boolean).join(', '))+(e.superficieHa?' · '+fmt(e.superficieHa,0)+' ha':'')+'</div></td>'+
           '<td>'+esc(e.nombre||'')+(e.notas?'<div class="sub">'+esc(String(e.notas).slice(0,90))+'</div>':'')+'</td><td>'+cul+'</td>'+

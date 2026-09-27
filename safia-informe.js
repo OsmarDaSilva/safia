@@ -188,6 +188,22 @@
     return html;
   }
 
+  // Calidad del agua de riego: el análisis más nuevo de cada fuente (pozo, río, tajamar), con la misma lectura del Banco
+  function secCalidadAgua() {
+    if (!window.SafiaCalidadAgua) return '';
+    var html = '<h2>Calidad del agua de riego</h2>', ultimos = {};
+    leer('analisis_agua').filter(function (a) { return String(a.campoId) === String(campoActual.id) && (!equipoSel || !a.equipoId || String(a.equipoId) === String(equipoSel)); })
+      .sort(function (a, b) { return String(a.fecha || '').localeCompare(String(b.fecha || '')); })
+      .forEach(function (a) { ultimos[norm((a.fuente || '') + '|' + (a.fuenteNombre || ''))] = a; });
+    var lista = Object.keys(ultimos).map(function (k) { return ultimos[k]; });
+    if (!lista.length) return html + '<div class="note">No hay análisis de agua cargados. Con el análisis del pozo, río o tajamar, SAFIA calcula RAS y salinidad (FAO 29, USDA Manual 60) y dice si se puede regar y con qué cuidados.</div>';
+    lista.forEach(function (a) {
+      var fuente = [a.fuente, a.fuenteNombre].filter(Boolean).join(' · ') || 'Fuente de agua';
+      html += '<div class="seccion"><h3>' + esc(fuente) + ' · análisis del ' + fmtF(a.fecha) + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</h3>' + SafiaCalidadAgua.tarjeta(a, SafiaCalidadAgua.opcionesDe(a)) + '</div>';
+    });
+    return html;
+  }
+
   function secFoliar() {
     if (!window.SafiaFoliar) return '';
     var lotes = lotesDelCampo(), html = '<h2>Análisis foliar: lo que absorbió la planta</h2>', alguno = false;
@@ -312,6 +328,7 @@
     if (s.campanas) html += secCampanas(cx);
     if (s.agua) html += secAgua(cx);
     if (s.suelo) html += secSuelo(cx);
+    if (s.calidadAgua) html += secCalidadAgua();
     if (s.foliar) html += secFoliar();
     if (s.ndvi) html += secNDVI();
     if (s.rotacion) html += secRotacion();

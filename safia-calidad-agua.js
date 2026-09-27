@@ -450,5 +450,5 @@
   function alCambiarCampo() { if (iniciado) { cerrarForm(); if ($('panel-calidadAgua').classList.contains('on')) activar(); } }
   function ultimoDelCampo(campoId) { var l = B() ? B().leer('analisis_agua').filter(function (a) { return String(a.campoId) === String(campoId); }).sort(function (a, b) { return String(a.fecha || '').localeCompare(String(b.fecha || '')); }) : []; return l.length ? l[l.length - 1] : null; }
 
-  window.SafiaCalidadAgua = { activar: activar, alCambiarCampo: alCambiarCampo, calcular: calcular, interpretar: interpretar, claseUSSL: claseUSSL, svgDiagrama: svgDiagrama, tarjeta: tarjeta, CULTIVOS: CULTIVOS, IONES: IONES, ultimoDelCampo: ultimoDelCampo, lista: lista };
+  window.SafiaCalidadAgua = { activar: activar, alCambiarCampo: alCambiarCampo, calcular: calcular, interpretar: interpretar, claseUSSL: claseUSSL, svgDiagrama: svgDiagrama, tarjeta: tarjeta, CULTIVOS: CULTIVOS, IONES: IONES, ultimoDelCampo: ultimoDelCampo, lista: lista, desdeIA: desdeIA, opcionesDe: opcionesDe };
 })();
