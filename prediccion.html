@@ -18,9 +18,12 @@
     /* Predicción en una hoja: equipos a la izquierda, el elegido a la derecha con sus 7 días lado a lado */
     .pred-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
     .loading { text-align: center; padding: 40px 20px; color: #8C9196; }
+    .pred-sel-l { display: block; font-size: 11px; font-weight: 700; color: #8C9196; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .pred-sel { min-width: 260px; padding: 9px 12px; border: 1.5px solid rgba(0,0,0,.12); border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 600; background: #fff; color: #2E3236; }
+    .dia-datos b { white-space: nowrap; }
     .pred-grid { display: grid; gap: 12px; grid-template-columns: minmax(0,1fr); grid-template-areas: "lista" "cab" "dias" "fue"; }
     @media (min-width: 1100px) {
-      .pred-grid { grid-template-columns: 320px minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto; grid-template-areas: "lista cab" "lista dias" "fue fue"; height: calc(100vh - 118px); min-height: 600px; }
+      .pred-grid { grid-template-columns: 290px minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto; grid-template-areas: "lista cab" "lista dias" "fue fue"; height: calc(100vh - 118px); min-height: 600px; }
     }
     .cc { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: auto; min-height: 0; }
     .cc-t { font-size: 12px; font-weight: 800; color: #178029; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
@@ -57,7 +60,7 @@
     .resumen-stat-valor { font-size: 17px; font-weight: 800; color: #2E3236; white-space: nowrap; }
     .resumen-stat-label { font-size: 10.5px; color: #8C9196; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
     /* los 7 días */
-    .dias-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 8px; }
+    .dias-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 6px; }
     .dia-card { border-radius: 12px; background: #F7F8F9; padding: 8px 8px; border-top: 4px solid #178029; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
     .dia-card.dia-lluvia { border-top-color: #2E72C8; } .dia-card.dia-atencion { border-top-color: #D08A1E; } .dia-card.dia-regar { border-top-color: #C0392B; background: #FDF3F2; }
     .dia-card.dia-hoy { box-shadow: 0 0 0 2px #178029 inset; }
@@ -66,7 +69,7 @@
     .dia-estado { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 12px; line-height: 1.15; }
     .dia-estado svg { width: 22px; height: 22px; flex: 0 0 auto; }
     .est-ok { color: #178029; } .est-lluvia { color: #2E72C8; } .est-atencion { color: #B8731A; } .est-regar { color: #C0392B; }
-    .dia-datos { font-size: 11.5px; color: #5B6167; line-height: 1.5; }
+    .dia-datos { font-size: 11px; color: #5B6167; line-height: 1.45; }
     .dia-datos b { color: #2E3236; }
     .dia-barra-label { display: flex; justify-content: space-between; font-size: 11px; color: #5B6167; }
     .dia-barra-fondo { position: relative; height: 8px; background: #E1E4E7; border-radius: 4px; overflow: visible; }
@@ -138,6 +141,8 @@
           <h2>Predicción de riego · 7 días</h2>
           <div class="sub">Cuándo y cuánto regar cada equipo, con el clima previsto y la humedad del suelo día por día.</div>
         </div>
+        <div class="actions" id="filtroWrap" style="display:none;"><div><label class="pred-sel-l" for="filtroCliente">Cliente</label>
+          <select id="filtroCliente" class="pred-sel"><option value="">Todos los clientes</option></select></div></div>
       </div>
 
       <div class="note danger" id="alertaSinDatos" style="display:none;">Para usar la predicción hace falta al menos una <strong>campaña activa</strong> con cultivo y fecha de siembra. <a href="mis-campanas.html" style="font-weight:700;text-decoration:underline;">Cargar campaña</a></div>
@@ -287,12 +292,9 @@
       SafiaClima.avisoCache(climaStale);
 
       document.getElementById('contenidoPrediccion').style.display = '';
+      armarFiltroCliente();
       mostrarResumen();
-
-      // Arrancar con el último equipo mirado (o el primero)
-      let previo = null; try { previo = localStorage.getItem('prediccion_equipo'); } catch (e) {}
-      const primerId = previo && datosTodos[previo] ? previo : Object.keys(datosTodos)[0];
-      if (primerId) seleccionarEquipo(isNaN(primerId) ? primerId : parseInt(primerId));
+      elegirEquipoInicial();
     }
 
     // (fetchOpenMeteo eliminado: la conexión a Open-Meteo ahora la hace SafiaClima)
@@ -371,16 +373,43 @@
       };
     }
 
+    // ============ FILTRO POR CLIENTE ============
+    function clienteDe(data) { return data.cliente ? String(data.cliente.id) : ''; }
+    function armarFiltroCliente() {
+      const sel = document.getElementById('filtroCliente'), vistos = {};
+      Object.values(datosTodos).forEach(d => { if (d.cliente) vistos[String(d.cliente.id)] = d.cliente.nombre; });
+      const ids = Object.keys(vistos).sort((a, b) => String(vistos[a]).localeCompare(String(vistos[b])));
+      sel.innerHTML = '<option value="">Todos los clientes (' + ids.length + ')</option>' + ids.map(id => '<option value="' + id + '">' + vistos[id] + '</option>').join('');
+      document.getElementById('filtroWrap').style.display = ids.length ? '' : 'none';
+      let elegido = '';
+      try { const vc = JSON.parse(localStorage.getItem('safia_ver_como') || 'null'); elegido = vc && vc.id != null ? String(vc.id) : (localStorage.getItem('prediccion_cliente') || ''); } catch (e) {}
+      sel.value = ids.indexOf(elegido) >= 0 ? elegido : '';
+      sel.addEventListener('change', function () {
+        try { localStorage.setItem('prediccion_cliente', sel.value); } catch (e) {}
+        mostrarResumen(); elegirEquipoInicial();
+      });
+    }
+    function equiposVisibles() {
+      const c = document.getElementById('filtroCliente').value;
+      return Object.values(datosTodos).filter(d => !c || clienteDe(d) === c);
+    }
+    function elegirEquipoInicial() {
+      const vis = equiposVisibles(); if (!vis.length) return;
+      let previo = null; try { previo = localStorage.getItem('prediccion_equipo'); } catch (e) {}
+      const d = vis.find(x => String(x.equipo.id) === String(previo)) || vis[0];
+      seleccionarEquipo(d.equipo.id);
+    }
+
     // ============ MOSTRAR RESUMEN (lista de equipos) ============
     function mostrarResumen() {
       const grid = document.getElementById('gridEquipos');
-      grid.innerHTML = Object.values(datosTodos).map(data => {
+      grid.innerHTML = equiposVisibles().map(data => {
         const pred = data.prediccion;
         const diasMini = pred.dias.map(d => {
           const letra = fechaLocal(d.fecha).toLocaleDateString('es-PY', { weekday: 'short' }).slice(0, 2);
           return '<div class="dia-mini dia-' + d.estado + '" title="' + fechaLocal(d.fecha).toLocaleDateString('es-PY', { weekday: 'long', day: 'numeric' }) + ': ' + d.recomendacion + '">' + (d.esHoy ? 'Hoy' : letra) + '<br>' + SVG(ICO[d.estado] || ICO.ok, 13) + '</div>';
         }).join('');
-        return '<div class="card-equipo" id="card-' + data.equipo.id + '" onclick="seleccionarEquipo(' + data.equipo.id + ')">' +
+        return '<div class="card-equipo" id="card-' + data.equipo.id + '" onclick="seleccionarEquipo(&quot;' + data.equipo.id + '&quot;)">' +
           '<div class="card-equipo-header"><div class="card-equipo-semaforo semaforo-' + pred.semaforo + '"></div><div class="card-equipo-nombre">' + data.equipo.nombre + '</div></div>' +
           '<div class="card-equipo-cultivo">' + data.cultivo.cultivo + ' · ' + data.campo.nombre + ' · ' + (data.cliente ? data.cliente.nombre : '') + '</div>' +
           '<div class="card-equipo-resumen">' + diasMini + '</div>' +
@@ -395,7 +424,7 @@
       document.querySelectorAll('.card-equipo').forEach(c => c.classList.remove('seleccionado'));
       const card = document.getElementById('card-' + equipoId);
       if (card) card.classList.add('seleccionado');
-      const data = datosTodos[equipoId];
+      const data = datosTodos[equipoId] || Object.values(datosTodos).find(d => String(d.equipo.id) === String(equipoId));
       if (!data) return;
       const pred = data.prediccion;
       const EST = { verde: ['Semana tranquila', '#E7F6EA', '#178029', ICO.ok], amarillo: ['Atención esta semana', '#FBF0DD', '#B8731A', ICO.atencion], rojo: ['Semana con riegos', '#FBE5E2', '#C0392B', ICO.regar] }[pred.semaforo] || ['—', '#F2F3F5', '#5B6167', ICO.ok];
@@ -422,8 +451,8 @@
         return '<div class="dia-card dia-' + dia.estado + (dia.esHoy ? ' dia-hoy' : '') + '" title="' + tip + '">' +
           '<div class="dia-fecha">' + (dia.esHoy ? 'Hoy' : f.toLocaleDateString('es-PY', { weekday: 'short' })) + ' <small>' + f.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' }) + '</small></div>' +
           '<div class="dia-estado est-' + dia.estado + '">' + SVG(ICO[dia.estado] || ICO.ok, 22) + '<span>' + titulo + '</span></div>' +
-          '<div class="dia-datos"><b>' + dia.tMax.toFixed(0) + '° / ' + dia.tMin.toFixed(0) + '°</b><br>Lluvia <b>' + dia.lluviaDia.toFixed(1) + '</b> mm<br>Consumo <b>' + dia.etcDia.toFixed(1) + '</b> mm</div>' +
-          '<div><div class="dia-barra-label"><span>Humedad útil</span><strong>' + dia.porcentajeAAU.toFixed(0) + ' %</strong></div>' +
+          '<div class="dia-datos"><b>' + dia.tMax.toFixed(0) + '° / ' + dia.tMin.toFixed(0) + '°</b><br>Lluvia <b>' + dia.lluviaDia.toFixed(1) + ' mm</b><br>ETc <b>' + dia.etcDia.toFixed(1) + ' mm</b></div>' +
+          '<div><div class="dia-barra-label"><span>Humedad</span><strong>' + dia.porcentajeAAU.toFixed(0) + ' %</strong></div>' +
           '<div class="dia-barra-fondo"><div class="dia-barra-llena ' + barra + '" style="width:' + Math.max(0, Math.min(100, dia.porcentajeAAU)) + '%;"></div><div class="dia-barra-umbral" style="left:' + UMB.CRITICO + '%;" title="Umbral crítico ' + UMB.CRITICO + ' %"></div></div></div>' +
           (dia.estado !== 'ok' ? '<div class="dia-mensaje">' + msg + '</div>' : '') +
           (dia.riegoManual > 0 ? '<div class="dia-mensaje" style="color:#2E72C8;"><b>Riego cargado: ' + dia.riegoManual + ' mm</b> (incluido)</div>' : '') +
