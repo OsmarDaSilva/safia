@@ -246,26 +246,49 @@
     4: 'S4 · sodio muy alto: en general no apta para riego, salvo con salinidad baja o media donde el calcio del suelo o el yeso lo hagan viable.'
   };
   function svgDiagrama(ce, ras) {
-    var W = 560, H = 360, x0 = 58, x1 = W - 18, y0 = 16, y1 = H - 46, cMin = 100, cMax = 5000, sMax = 32;
+    var W = 560, H = 376, x0 = 58, x1 = W - 18, y0 = 32, y1 = H - 46, cMin = 100, cMax = 5000, sMax = 32;
     var X = function (c) { return x0 + (log10(c) - 2) / (log10(cMax) - 2) * (x1 - x0); };
     var Y = function (s) { return y1 - Math.max(0, Math.min(sMax, s)) / sMax * (y1 - y0); };
     var linea = function (f) { var pts = []; for (var c = 100; c <= 5000; c *= 1.12) pts.push(X(c).toFixed(1) + ',' + Y(f(c)).toFixed(1)); pts.push(X(5000).toFixed(1) + ',' + Y(f(5000)).toFixed(1)); return pts.join(' '); };
     var h = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:560px;height:auto;font-family:system-ui,sans-serif;" role="img" aria-label="Diagrama de clasificación del agua de riego">';
     h += '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x1 - x0) + '" height="' + (y1 - y0) + '" fill="#FAFBFB" stroke="#C9CED3"/>';
+    // la zona de la clase de esta agua va sombreada (verde / ámbar / rojo según la peor de las dos letras)
+    var cl = ce != null && ras != null ? claseUSSL(Math.max(cMin, Math.min(cMax, ce)), ras) : null, colorZona = null;
+    if (cl) {
+      var peor = Math.max(cl.c, cl.s); colorZona = peor >= 4 ? '#C0392B' : (peor === 3 ? '#B8731A' : '#178029');
+      var lim = { 1: [100, 250], 2: [250, 750], 3: [750, 2250], 4: [2250, 5000] }[cl.c];
+      var fS = { 0: function () { return 0; }, 1: function (c) { return 18.87 - 4.44 * log10(c); }, 2: function (c) { return 31.31 - 6.66 * log10(c); }, 3: function (c) { return 43.75 - 8.87 * log10(c); }, 4: function () { return sMax; } };
+      var abajo = fS[cl.s - 1], arriba = fS[cl.s], pts = [], cc;
+      for (cc = lim[0]; cc < lim[1]; cc *= 1.05) pts.push(X(cc).toFixed(1) + ',' + Y(abajo(cc)).toFixed(1));
+      pts.push(X(lim[1]).toFixed(1) + ',' + Y(abajo(lim[1])).toFixed(1));
+      var sup = []; for (cc = lim[0]; cc < lim[1]; cc *= 1.05) sup.push(X(cc).toFixed(1) + ',' + Y(arriba(cc)).toFixed(1));
+      sup.push(X(lim[1]).toFixed(1) + ',' + Y(arriba(lim[1])).toFixed(1));
+      h += '<polygon points="' + pts.concat(sup.reverse()).join(' ') + '" fill="' + colorZona + '" fill-opacity="0.22" stroke="' + colorZona + '" stroke-width="2"/>';
+    }
     [250, 750, 2250].forEach(function (c) { h += '<line x1="' + X(c) + '" y1="' + y0 + '" x2="' + X(c) + '" y2="' + y1 + '" stroke="#8C9196" stroke-width="1"/>'; });
     [function (c) { return 18.87 - 4.44 * log10(c); }, function (c) { return 31.31 - 6.66 * log10(c); }, function (c) { return 43.75 - 8.87 * log10(c); }].forEach(function (f) { h += '<polyline points="' + linea(f) + '" fill="none" stroke="#8C9196" stroke-width="1"/>'; });
     [0, 4, 8, 12, 16, 20, 24, 28, 32].forEach(function (s) { h += '<text x="' + (x0 - 6) + '" y="' + (Y(s) + 4) + '" font-size="10" text-anchor="end" fill="#5B6167">' + s + '</text>'; });
     [100, 250, 750, 2250, 5000].forEach(function (c) { h += '<text x="' + X(c) + '" y="' + (y1 + 14) + '" font-size="10" text-anchor="middle" fill="#5B6167">' + c + '</text>'; });
     var cx = { 1: X(160), 2: X(430), 3: X(1300), 4: X(3400) };
     var sy = function (c, s) { var cc = { 1: 160, 2: 430, 3: 1300, 4: 3400 }[c], l = limitesS(cc), bajo = { 1: 0, 2: l.s12, 3: l.s23, 4: l.s34 }[s], alto = { 1: l.s12, 2: l.s23, 3: l.s34, 4: sMax }[s]; return Y((bajo + Math.min(alto, sMax)) / 2) + 4; };
-    for (var c = 1; c <= 4; c++) for (var s = 1; s <= 4; s++) h += '<text x="' + cx[c] + '" y="' + sy(c, s) + '" font-size="10" text-anchor="middle" fill="#9AA0A6">C' + c + '-S' + s + '</text>';
+    var yEtiq = function (c, s) {
+      if (!(cl && cl.c === c && cl.s === s && ce != null && ras != null)) return sy(c, s);
+      var cc = { 1: 160, 2: 430, 3: 1300, 4: 3400 }[c], l = limitesS(cc), bajo = { 1: 0, 2: l.s12, 3: l.s23, 4: l.s34 }[s], alto = Math.min({ 1: l.s12, 2: l.s23, 3: l.s34, 4: sMax }[s], sMax);
+      var yPunto = Y(ras), yA = Y(alto) + 16, yB = Y(bajo) - 6;
+      return Math.abs(yPunto - yA) > Math.abs(yPunto - yB) ? yA : yB;
+    };
+    for (var c = 1; c <= 4; c++) for (var s = 1; s <= 4; s++) { var es = cl && cl.c === c && cl.s === s; h += '<text x="' + cx[c] + '" y="' + yEtiq(c, s) + '" font-size="' + (es ? 13 : 10) + '"' + (es ? ' font-weight="800"' : '') + ' text-anchor="middle" fill="' + (es ? colorZona : '#9AA0A6') + '">C' + c + '-S' + s + '</text>'; }
     h += '<text x="' + ((x0 + x1) / 2) + '" y="' + (H - 12) + '" font-size="11" text-anchor="middle" fill="#2E3236">Conductividad eléctrica (µS/cm a 25 °C) · peligro de salinidad</text>';
     h += '<text x="14" y="' + ((y0 + y1) / 2) + '" font-size="11" text-anchor="middle" fill="#2E3236" transform="rotate(-90 14 ' + ((y0 + y1) / 2) + ')">RAS · peligro de sodio</text>';
     if (ce != null && ras != null) {
       var px = X(Math.max(cMin, Math.min(cMax, ce))), py = Y(ras), fuera = ras > sMax || ce > cMax || ce < cMin;
-      h += '<circle cx="' + px + '" cy="' + py + '" r="7" fill="#C0392B" stroke="#fff" stroke-width="2"/>';
-      var derecha = px > (x0 + x1) / 2, ty = py < y0 + 24 ? py + 20 : py - 12;
-      h += '<text x="' + (px + (derecha ? -12 : 12)) + '" y="' + ty + '" font-size="11.5" font-weight="700" text-anchor="' + (derecha ? 'end' : 'start') + '" fill="#2E3236" stroke="#FAFBFB" stroke-width="3" paint-order="stroke">Esta agua: CE ' + fmt(ce, 0) + ' · RAS ' + fmt(ras, 1) + (fuera ? ' (fuera de escala)' : '') + '</text>';
+      h += '<line x1="' + px + '" y1="' + py + '" x2="' + px + '" y2="' + y1 + '" stroke="' + colorZona + '" stroke-width="1.5" stroke-dasharray="4 3"/>';
+      h += '<line x1="' + x0 + '" y1="' + py + '" x2="' + px + '" y2="' + py + '" stroke="' + colorZona + '" stroke-width="1.5" stroke-dasharray="4 3"/>';
+      h += '<circle cx="' + px + '" cy="' + py + '" r="12" fill="' + colorZona + '" fill-opacity="0.25"/>';
+      h += '<circle cx="' + px + '" cy="' + py + '" r="7" fill="' + colorZona + '" stroke="#fff" stroke-width="2"/>';
+      // leyenda arriba del gráfico (así no tapa el nombre de la zona)
+      h += '<circle cx="' + (x0 + 6) + '" cy="14" r="6" fill="' + colorZona + '" stroke="#fff" stroke-width="1.5"/><rect x="' + (x0 + 18) + '" y="7" width="22" height="14" fill="' + colorZona + '" fill-opacity="0.22" stroke="' + colorZona + '" stroke-width="1.5"/>';
+      h += '<text x="' + (x0 + 46) + '" y="18" font-size="11.5" font-weight="700" fill="#2E3236">Esta agua: CE ' + fmt(ce, 0) + ' µS/cm · RAS ' + fmt(ras, 1) + (fuera ? ' (fuera de escala)' : '') + ' → ' + (cl ? cl.txt : '') + '</text>';
     }
     return h + '</svg>';
   }
