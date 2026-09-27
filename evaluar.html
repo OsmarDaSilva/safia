@@ -173,7 +173,7 @@
 
         <div class="formcard">
           <h3>4 · Análisis de agua de riego</h3>
-          <div class="formsub">Subí el análisis del pozo, río o tajamar que va a regar el proyecto y la IA completa los valores. SAFIA calcula RAS y salinidad, lo ubica en el diagrama de Riverside y dice si se puede regar, con cuidados o no. Iones en meq/L (si el laboratorio da mg/L, elegí esa unidad y SAFIA convierte); CE en µS/cm.</div>
+          <div class="formsub">Subí el análisis del pozo, río o tajamar que va a regar el proyecto y la IA completa los valores. SAFIA calcula RAS y salinidad, lo ubica en el diagrama de Riverside y dice si se puede regar, con cuidados o no. Cargá cada valor tal cual el informe y su unidad: SAFIA lo convierte con la regla que se ve en cada línea.</div>
           <div class="form-grid">
             <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;">
               <input type="file" id="wArchivo" accept=".pdf,image/*" style="max-width:260px;">
@@ -185,21 +185,8 @@
             <div class="field"><label>Fuente</label><select id="wFuente"><option>Pozo</option><option>Río</option><option>Arroyo</option><option>Tajamar</option><option>Represa</option><option>Laguna</option><option>Otra</option></select></div>
             <div class="field"><label>Identificación de la fuente</label><input id="wFuenteNombre" placeholder="Ej.: Pozo 1"></div>
             <div class="field"><label>Laboratorio</label><input id="wLab" placeholder="Ej.: INTN"></div>
-            <div class="field"><label>Unidad de los iones</label><select id="wUnidad"><option value="meq">meq/L (= mmolc/L)</option><option value="mg">mg/L (= ppm): SAFIA convierte</option></select></div>
-            <div class="field"><label>CE <span style="text-transform:none;">(µS/cm)</span></label><input type="number" id="w_ce" step="1" min="0"></div>
+            <div class="field full"><label>Valores del laboratorio</label><div id="wGrilla"></div></div>
             <div class="field"><label>pH</label><input type="number" id="w_ph" step="0.01" min="0" max="14"></div>
-            <div class="field"><label>Sodio Na⁺</label><input type="number" id="w_na" step="0.01" min="0"></div>
-            <div class="field"><label>Potasio K⁺</label><input type="number" id="w_k" step="0.01" min="0"></div>
-            <div class="field"><label>Calcio Ca²⁺</label><input type="number" id="w_ca" step="0.01" min="0"></div>
-            <div class="field"><label>Magnesio Mg²⁺</label><input type="number" id="w_mg" step="0.01" min="0"></div>
-            <div class="field"><label>Amonio NH₄⁺</label><input type="number" id="w_nh4" step="0.01" min="0"></div>
-            <div class="field"><label>Cloruros Cl⁻</label><input type="number" id="w_cl" step="0.01" min="0"></div>
-            <div class="field"><label>Sulfatos SO₄²⁻</label><input type="number" id="w_so4" step="0.01" min="0"></div>
-            <div class="field"><label>Carbonatos CO₃²⁻</label><input type="number" id="w_co3" step="0.01" min="0"></div>
-            <div class="field"><label>Bicarbonatos HCO₃⁻</label><input type="number" id="w_hco3" step="0.01" min="0"></div>
-            <div class="field"><label>Nitratos NO₃⁻</label><input type="number" id="w_no3" step="0.01" min="0"></div>
-            <div class="field"><label>Fosfatos (meq/L)</label><input type="number" id="w_po4" step="0.01" min="0"></div>
-            <div class="field"><label>Boro (mg/L)</label><input type="number" id="w_boro" step="0.01" min="0"></div>
             <div class="field"><label>Temperatura del agua (°C)</label><input type="number" id="w_temperatura" step="0.1"></div>
           </div>
           <div class="form-actions">
@@ -339,22 +326,23 @@
   });
 
   /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
-  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4'], NUM_AGUA=['ph','ce','boro','temperatura'];
+  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura'];
+  document.getElementById('wGrilla').innerHTML=SafiaCalidadAgua.grillaHTML('w'); SafiaCalidadAgua.conectarGrilla('w'); SafiaCalidadAgua.limpiarGrilla('w');
   var aguaCargada=null, aguaArchivo=null;
   function ponerAgua(a){
     var w=function(id){ return document.getElementById(id); };
-    w('wUnidad').value='meq';
     w('wFecha').value=a&&a.fecha?String(a.fecha).slice(0,10):'';
     var fu=w('wFuente'), fv=(a&&a.fuente)||'Pozo';
     if(![].some.call(fu.options,function(o){ return o.value===fv; })) fu.insertAdjacentHTML('beforeend','<option>'+esc(fv)+'</option>');
     fu.value=fv;
     w('wFuenteNombre').value=(a&&a.fuenteNombre)||''; w('wLab').value=(a&&a.laboratorio)||'';
-    CLAVES_AGUA.concat(NUM_AGUA).forEach(function(k){ var x=a?num(a[k]):null; w('w_'+k).value=x==null?'':x; });
+    if(a) SafiaCalidadAgua.ponerGrilla('w', a); else SafiaCalidadAgua.limpiarGrilla('w');
+    NUM_AGUA.forEach(function(k){ var x=a?num(a[k]):null; w('w_'+k).value=x==null?'':x; });
   }
   function aguaDelForm(){
-    var w=function(id){ return document.getElementById(id); }, enMg=w('wUnidad').value==='mg';
+    var w=function(id){ return document.getElementById(id); }, g=SafiaCalidadAgua.leerGrilla('w');
     var a={ fecha:w('wFecha').value||null, fuente:w('wFuente').value, fuenteNombre:w('wFuenteNombre').value.trim(), laboratorio:w('wLab').value.trim() };
-    CLAVES_AGUA.forEach(function(k){ var x=num(w('w_'+k).value), ion=SafiaCalidadAgua.IONES.find(function(i){ return i.k===k; }); a[k]=x==null?null:(enMg&&ion.eq?Math.round(x/ion.eq*10000)/10000:x); });
+    CLAVES_AGUA.forEach(function(k){ a[k]=g.vals[k]==null?null:g.vals[k]; }); a.lab=g.lab;
     NUM_AGUA.forEach(function(k){ a[k]=num(w('w_'+k).value); });
     return (a.ce!=null||a.na!=null)?a:null;
   }
@@ -378,7 +366,7 @@
         cont.innerHTML='<span class="muted" style="font-size:12px;">El informe tiene '+ms.length+' muestras, elegí la del proyecto:</span>'+ms.map(function(x,i){ return '<button type="button" class="btn" data-i="'+i+'">'+esc([x.fuenteNombre,x.fecha].filter(Boolean).join(' · ')||('Muestra '+(i+1)))+'</button>'; }).join('');
         cont.querySelectorAll('button').forEach(function(bt){ bt.addEventListener('click',function(){ ponerAgua(ms[+bt.dataset.i]); toast('Cargada: '+bt.textContent); }); });
       } else { cont.style.display='none'; cont.innerHTML=''; }
-      hint.textContent='Valores cargados por IA (en meq/L). Revisalos antes de evaluar.';
+      hint.textContent='Valores cargados tal cual el laboratorio, con su unidad; SAFIA los convierte en cada línea. Revisalos contra el PDF.'+(ms[0].unidadesDudosas?' Ojo: revisá la unidad de '+ms[0].unidadesDudosas.join(', ')+' (marcada en rojo).':'');
     }).catch(function(){ hint.textContent='No se pudo leer. Cargá los valores a mano.'; })
     .finally(function(){ b.disabled=false; b.textContent='Leer análisis de agua con IA'; });
   });

@@ -58,6 +58,131 @@
   function v(a, k) { var x = num(a && a[k]); return x == null ? 0 : x; }
   function tiene(a, k) { return num(a && a[k]) != null; }
 
+  /* ---------- del informe del laboratorio a las unidades del motor ----------
+     Regla fija y a la vista: se carga el número TAL CUAL lo da el laboratorio con
+     su unidad, y SAFIA lo pasa a meq/L (iones), µS/cm (CE) y mg/L (boro).
+       meq/L = mmolc/L = me/L ........ igual
+       mg/L = ppm .................... ÷ peso equivalente del ion (Na 22,99; Ca 20,04; …)
+       mmol/L ........................ × cargas del ion (Ca, Mg, SO₄, CO₃: × 2; los demás × 1)
+       mg/L como CaCO₃ ............... ÷ 50,04 (alcalinidad, carbonatos, bicarbonatos, dureza)
+       mg/L como N (N-NH₄, N-NO₃) .... ÷ 14,01
+       mg/L como S (S-SO₄) ........... ÷ 16,03
+       CE: dS/m = mS/cm = mmho/cm .... × 1000 → µS/cm;  µmho/cm = µS/cm
+       Boro: µg/L = ppb .............. ÷ 1000 → mg/L */
+  var UNIDADES = {
+    meq: 'meq/L (= mmolc/L)', mg: 'mg/L (= ppm)', mmol: 'mmol/L', caco3: 'mg/L como CaCO₃', n: 'mg/L como N', s: 'mg/L como S',
+    uS: 'µS/cm (= µmho/cm)', dS: 'dS/m (= mS/cm)', ug: 'µg/L (= ppb)'
+  };
+  var CARGAS = { ca: 2, mg: 2, so4: 2, co3: 2 };
+  var FILAS = IONES.map(function (x) { return { k: x.k, n: x.n, base: 'meq', destino: 'meq/L' }; })
+    .concat([{ k: 'ce', n: 'Conductividad (CE)', base: 'uS', destino: 'µS/cm' }, { k: 'boro', n: 'Boro (B)', base: 'mg', destino: 'mg/L' }]);
+  function fila(k) { return FILAS.find(function (f) { return f.k === k; }); }
+  function unidadesDe(k) {
+    if (k === 'ce') return ['uS', 'dS'];
+    if (k === 'boro') return ['mg', 'ug'];
+    if (k === 'po4') return ['meq', 'mg'];
+    var u = ['mg', 'meq', 'mmol'];
+    if (k === 'co3' || k === 'hco3' || k === 'ca' || k === 'mg') u.push('caco3');
+    if (k === 'nh4' || k === 'no3') u.push('n');
+    if (k === 'so4') u.push('s');
+    return u;
+  }
+  function f2(n, d) { return Number(n).toLocaleString('es-PY', { maximumFractionDigits: d == null ? 2 : d }); }
+  // Devuelve { valor: en la unidad del motor, regla: texto de la conversión }
+  function convertir(k, valor, unidad) {
+    var x = num(valor); if (x == null) return { valor: null, regla: '' };
+    var r = function (v, t) { return { valor: v == null ? null : Math.round(v * 10000) / 10000, regla: t }; };
+    if (k === 'ce') return unidad === 'dS' ? r(x * 1000, '× 1.000') : r(x, 'igual');
+    if (k === 'boro') return unidad === 'ug' ? r(x / 1000, '÷ 1.000') : r(x, 'igual');
+    var ion = IONES.find(function (i) { return i.k === k; }), carga = CARGAS[k] || 1;
+    if (unidad === 'meq') return r(x, 'igual');
+    if (unidad === 'mmol') return r(x * carga, carga === 2 ? '× 2 (dos cargas)' : '× 1 (una carga)');
+    if (unidad === 'caco3') return r(x / 50.04, '÷ 50,04 (como CaCO₃)');
+    if (unidad === 'n') return r(x / 14.01, '÷ 14,01 (como N)');
+    if (unidad === 's') return r(x / 16.03, '÷ 16,03 (como S)');
+    if (unidad === 'mg') return ion && ion.eq ? r(x / ion.eq, '÷ ' + f2(ion.eq) + ' (peso equivalente)') : r(null, 'en mg/L no entra en el cálculo');
+    return r(null, 'unidad no reconocida');
+  }
+  // Texto de la unidad que devuelve la IA → código
+  function codigoUnidad(txt, k) {
+    var t = norm(txt).replace(/\s+/g, ' ').replace('µ', 'u').replace('μ', 'u');
+    if (!t) return null;
+    if (k === 'ce') { if (/ds|ms\/cm|mmho/.test(t)) return 'dS'; if (/us|umho|micro/.test(t)) return 'uS'; return null; }
+    if (k === 'boro') { if (/ug|ppb|micro/.test(t)) return 'ug'; if (/mg|ppm|g\/m/.test(t)) return 'mg'; return null; }
+    if (/caco3|caco₃/.test(t)) return 'caco3';
+    if (/meq|mmolc|me\/l/.test(t)) return 'meq';
+    if (/mmol/.test(t)) return 'mmol';
+    if (/(mg\/l|ppm)\s*(como\s*)?n$|n-n[oh]/.test(t)) return 'n';
+    if (/(mg\/l|ppm)\s*(como\s*)?s$|s-so4/.test(t)) return 's';
+    if (/mg|ppm|g\/m/.test(t)) return 'mg';
+    return null;
+  }
+  // Grilla del formulario: una línea por parámetro (valor del laboratorio · unidad · regla · resultado)
+  function grillaHTML(p) {
+    return '<div class="tablescroll"><table class="tbl" id="' + p + 'Tabla"><thead><tr><th>Parámetro</th><th>Valor del laboratorio</th><th>Unidad del informe</th><th>Conversión</th><th class="r">Para el cálculo</th></tr></thead><tbody>' +
+      FILAS.map(function (f) {
+        return '<tr><td><b>' + f.n + '</b>' + (f.k === 'ce' ? ' *' : '') + '</td>' +
+          '<td><input type="number" id="' + p + 'v_' + f.k + '" step="any" min="0" style="width:120px;"></td>' +
+          '<td><select id="' + p + 'u_' + f.k + '" style="min-width:170px;">' + unidadesDe(f.k).map(function (u) { return '<option value="' + u + '">' + UNIDADES[u] + '</option>'; }).join('') + '</select></td>' +
+          '<td class="sub" id="' + p + 'r_' + f.k + '" style="white-space:nowrap;"></td>' +
+          '<td class="r" id="' + p + 'o_' + f.k + '" style="white-space:nowrap;font-weight:700;"></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="muted" style="font-size:11.5px;margin-top:6px;">Cargá los números <b>tal cual el informe</b> y elegí su unidad: SAFIA los convierte con la regla de cada línea (meq/L para iones, µS/cm para la CE, mg/L para el boro). Revisá que coincidan con el PDF.</div>';
+  }
+  function actualizarFila(p, k) {
+    var v = $(p + 'v_' + k), u = $(p + 'u_' + k); if (!v || !u) return;
+    var c = convertir(k, v.value, u.value), f = fila(k);
+    $(p + 'r_' + k).textContent = v.value === '' ? '' : c.regla;
+    $(p + 'o_' + k).innerHTML = c.valor == null ? (v.value === '' ? '' : '—') : f2(c.valor, k === 'ce' ? 0 : 3) + ' <span class="sub">' + f.destino + '</span>';
+  }
+  function conectarGrilla(p) {
+    var t = $(p + 'Tabla'); if (!t || t.dataset.conectada) return; t.dataset.conectada = '1';
+    var al = function (ev) { var id = ev.target && ev.target.id || ''; var m = id.match(new RegExp('^' + p + '[vu]_(.+)$')); if (m) { ev.target.style.borderColor = ''; actualizarFila(p, m[1]); } };
+    t.addEventListener('input', al); t.addEventListener('change', al);
+  }
+  function ponerGrilla(p, a) {
+    FILAS.forEach(function (f) {
+      var l = a && a.lab && a.lab[f.k], v, u;
+      if (l && l.valor != null) { v = l.valor; u = l.unidad; } else { v = a ? num(a[f.k]) : null; u = f.base; }
+      var sel = $(p + 'u_' + f.k); if (!sel) return;
+      $(p + 'v_' + f.k).value = v == null ? '' : v;
+      sel.value = unidadesDe(f.k).indexOf(u) >= 0 ? u : f.base;
+      sel.style.borderColor = l && l.dudosa ? '#C0392B' : '';
+      actualizarFila(p, f.k);
+    });
+  }
+  function limpiarGrilla(p) {
+    FILAS.forEach(function (f) { var sel = $(p + 'u_' + f.k); if (!sel) return; $(p + 'v_' + f.k).value = ''; sel.value = f.k === 'ce' ? 'uS' : 'mg'; sel.style.borderColor = ''; actualizarFila(p, f.k); });
+  }
+  function leerGrilla(p) {
+    var vals = {}, lab = {};
+    FILAS.forEach(function (f) {
+      var el = $(p + 'v_' + f.k); if (!el) return;
+      var v = num(el.value), u = $(p + 'u_' + f.k).value;
+      if (v == null) { vals[f.k] = null; return; }
+      lab[f.k] = { valor: v, unidad: u }; vals[f.k] = convertir(f.k, v, u).valor;
+    });
+    return { vals: vals, lab: lab };
+  }
+  // Lo que devuelve la IA (valor + unidad del informe) → análisis con valores del motor + datos del laboratorio
+  var CAMPO_IA = { na: 'sodio', k: 'potasio', ca: 'calcio', mg: 'magnesio', nh4: 'amonio', cl: 'cloruros', so4: 'sulfatos', co3: 'carbonatos', hco3: 'bicarbonatos', no3: 'nitratos', po4: 'fosfatos', ce: 'ce', boro: 'boro' };
+  function desdeIA(m) {
+    var a = { fecha: m.fecha || null, fuente: m.fuente || null, fuenteNombre: m.muestra || '', laboratorio: m.laboratorio || '', informe: m.informe || '',
+      ph: num(m.ph), tds: num(m.tds), temperatura: num(m.temperatura), observaciones: m.observaciones || '' }, lab = {}, dudas = [];
+    FILAS.forEach(function (f) {
+      var x = m[CAMPO_IA[f.k]], valor, u;
+      if (x == null || x === '') { a[f.k] = null; return; }
+      if (typeof x === 'object') { valor = num(x.valor); u = codigoUnidad(x.unidad, f.k); }
+      else { valor = num(x); u = f.base; }   // formato anterior: ya venía convertido
+      if (valor == null) { a[f.k] = null; return; }
+      var dudosa = !u || unidadesDe(f.k).indexOf(u) < 0; if (dudosa) { u = f.base; dudas.push(f.n); }
+      lab[f.k] = { valor: valor, unidad: u }; if (dudosa) lab[f.k].dudosa = true;
+      a[f.k] = convertir(f.k, valor, u).valor;
+    });
+    a.lab = lab; if (dudas.length) a.unidadesDudosas = dudas;
+    return a;
+  }
+
   /* ---------- cálculo de índices (hoja Analisis_Agua, corregida) ---------- */
   function calcular(a) {
     var r = {}, ce = num(a.ce), ecw = ce != null ? ce / 1000 : null;   // dS/m
@@ -286,7 +411,10 @@
       fila('Sólidos disueltos (TDS)', fmt(r.tds, 0), 'mg/L', 'CE × 0,64 [1]' + (r.tdsMedido != null ? ' · medido ' + fmt(r.tdsMedido, 0) + ' mg/L' : '')) +
       fila('Suma de cationes / aniones', fmt(r.cationes, 2) + ' / ' + fmt(r.aniones, 2), 'meq/L', r.balance != null ? 'diferencia ' + fmt(Math.abs(r.balance), 1) + ' % (hasta 5 % es normal)' : '') +
       '</tbody></table></div>';
-    h += '<div class="tablescroll" style="margin-top:10px;"><table class="tbl"><thead><tr><th>Ion</th><th class="r">meq/L</th><th class="r">mg/L</th></tr></thead><tbody>' + IONES.filter(function (x) { return tiene(a, x.k); }).map(function (x) { return '<tr><td>' + x.n + '</td><td class="r">' + fmt(num(a[x.k]), 2) + '</td><td class="r">' + (x.eq ? fmt(num(a[x.k]) * x.eq, 1) : '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    h += '<div class="tablescroll" style="margin-top:10px;"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Informe del laboratorio</th><th>Conversión</th><th class="r">Para el cálculo</th></tr></thead><tbody>' + FILAS.filter(function (f) { return tiene(a, f.k) || (a.lab && a.lab[f.k]); }).map(function (f) {
+      var l = a.lab && a.lab[f.k], c = l ? convertir(f.k, l.valor, l.unidad) : null;
+      return '<tr><td>' + f.n + '</td><td class="r">' + (l ? f2(l.valor, 3) + ' <span class="sub">' + esc(UNIDADES[l.unidad] || l.unidad) + '</span>' : '<span class="sub">cargado en ' + f.destino + '</span>') + '</td><td class="sub">' + (c ? esc(c.regla) : '') + '</td><td class="r"><b>' + (num(a[f.k]) == null ? '—' : f2(num(a[f.k]), f.k === 'ce' ? 0 : 3)) + '</b> <span class="sub">' + f.destino + '</span></td></tr>';
+    }).join('') + '</tbody></table></div>';
     h += '<div class="muted" style="font-size:11px;margin-top:8px;line-height:1.5;">[1] FAO Riego y Drenaje 29 (Ayers &amp; Westcot 1985): Tabla 1, sección 2.4.2 ec. 9, Tabla 4. [2] USDA Agriculture Handbook 60 (Richards 1954), p. 79–81 y Figura 25. [3] Doneen (1959, 1961); Palacios y Aceves (1970); Valle (1992). [4] Índice de Scott en mg/L. [5] Langelier, fórmula de Carrier (1965).</div>';
     return h;
   }
@@ -320,27 +448,27 @@
   function abrirForm() { $('formAgua').classList.add('visible'); llenarLotes(); }
   function cerrarForm() {
     $('formAgua').classList.remove('visible'); editandoId = null; muestrasIA = null;
-    ['aFecha', 'aFuenteNombre', 'aLab', 'aInforme', 'aPh', 'aCe', 'aBoro', 'aTds', 'aTemp', 'aObs', 'aArchivo'].forEach(function (id) { var el = $(id); if (el) el.value = ''; });
-    CAMPOS_IONES.forEach(function (k) { $('aIon_' + k).value = ''; });
-    $('aFuente').value = 'Pozo'; $('aUnidad').value = 'meq'; $('aArchivoActual').textContent = ''; $('muestrasAguaIA').innerHTML = '';
+    ['agFecha', 'agFuenteNombre', 'agLab', 'agInforme', 'agPh', 'agTds', 'agTemp', 'agObs', 'agArchivo'].forEach(function (id) { var el = $(id); if (el) el.value = ''; });
+    limpiarGrilla('ag');
+    $('agFuente').value = 'Pozo'; $('agArchivoActual').textContent = ''; $('muestrasAguaIA').innerHTML = '';
     $('tituloFormAgua').textContent = 'Nuevo análisis de agua';
   }
-  function llenarLotes() { var s = $('aEquipo'), v0 = s.value; s.innerHTML = '<option value="">Toda la estancia</option>' + lotesDelCampo().map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join(''); s.value = v0; }
+  function llenarLotes() { var s = $('agEquipo'), v0 = s.value; s.innerHTML = '<option value="">Toda la estancia</option>' + lotesDelCampo().map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join(''); s.value = v0; }
   function volcar(a) {
-    if (a.fecha) $('aFecha').value = String(a.fecha).slice(0, 10);
-    if (a.fuente) { var f = $('aFuente'); if (![].some.call(f.options, function (o) { return o.value === a.fuente; })) f.insertAdjacentHTML('beforeend', '<option>' + esc(a.fuente) + '</option>'); f.value = a.fuente; }
-    if (a.fuenteNombre != null) $('aFuenteNombre').value = a.fuenteNombre || '';
-    if (a.laboratorio != null) $('aLab').value = a.laboratorio || '';
-    if (a.informe != null) $('aInforme').value = a.informe || '';
-    $('aUnidad').value = 'meq';
-    CAMPOS_IONES.forEach(function (k) { var x = num(a[k]); $('aIon_' + k).value = x == null ? '' : x; });
-    [['ph', 'aPh'], ['ce', 'aCe'], ['boro', 'aBoro'], ['tds', 'aTds'], ['temperatura', 'aTemp']].forEach(function (p) { var x = num(a[p[0]]); $(p[1]).value = x == null ? '' : x; });
-    if (a.observaciones) $('aObs').value = a.observaciones;
+    if (a.fecha) $('agFecha').value = String(a.fecha).slice(0, 10);
+    if (a.fuente) { var f = $('agFuente'); if (![].some.call(f.options, function (o) { return o.value === a.fuente; })) f.insertAdjacentHTML('beforeend', '<option>' + esc(a.fuente) + '</option>'); f.value = a.fuente; }
+    if (a.fuenteNombre != null) $('agFuenteNombre').value = a.fuenteNombre || '';
+    if (a.laboratorio != null) $('agLab').value = a.laboratorio || '';
+    if (a.informe != null) $('agInforme').value = a.informe || '';
+    ponerGrilla('ag', a);
+    [['ph', 'agPh'], ['tds', 'agTds'], ['temperatura', 'agTemp']].forEach(function (p) { var x = num(a[p[0]]); $(p[1]).value = x == null ? '' : x; });
+    if (a.observaciones) $('agObs').value = a.observaciones;
   }
   function leerForm() {
-    var enMg = $('aUnidad').value === 'mg', item = { fecha: $('aFecha').value || null, equipoId: $('aEquipo').value || null, fuente: $('aFuente').value, fuenteNombre: $('aFuenteNombre').value.trim(), laboratorio: $('aLab').value.trim(), informe: $('aInforme').value.trim(), observaciones: $('aObs').value.trim() };
-    CAMPOS_IONES.forEach(function (k) { var x = num($('aIon_' + k).value), ion = IONES.find(function (i) { return i.k === k; }); item[k] = x == null ? null : (enMg && ion.eq ? Math.round(x / ion.eq * 10000) / 10000 : x); });
-    item.ph = num($('aPh').value); item.ce = num($('aCe').value); item.boro = num($('aBoro').value); item.tds = num($('aTds').value); item.temperatura = num($('aTemp').value);
+    var g = leerGrilla('ag'), item = { fecha: $('agFecha').value || null, equipoId: $('agEquipo').value || null, fuente: $('agFuente').value, fuenteNombre: $('agFuenteNombre').value.trim(), laboratorio: $('agLab').value.trim(), informe: $('agInforme').value.trim(), observaciones: $('agObs').value.trim() };
+    FILAS.forEach(function (f) { item[f.k] = g.vals[f.k] == null ? null : g.vals[f.k]; });
+    item.lab = g.lab;
+    item.ph = num($('agPh').value); item.tds = num($('agTds').value); item.temperatura = num($('agTemp').value);
     return item;
   }
   function limpiarNombre(n) { return String(n).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80); }
@@ -357,12 +485,12 @@
     if (item.ce == null && item.na == null) { B().toast('Cargá al menos la CE y el sodio', true); return; }
     var previo = editandoId ? B().leer('analisis_agua').find(function (a) { return String(a.id) === String(editandoId); }) : null;
     Object.assign(item, { id: previo ? previo.id : Date.now(), campoId: c.id, fechaCreacion: previo ? previo.fechaCreacion : new Date().toISOString(), archivoRuta: previo ? previo.archivoRuta : null, archivoNombre: previo ? previo.archivoNombre : null });
-    var archivo = $('aArchivo').files && $('aArchivo').files[0];
+    var archivo = $('agArchivo').files && $('agArchivo').files[0];
     var pre = archivo && window.safiaSupabase ? window.safiaSupabase.storage.from('safia').upload('campo_' + c.id + '/agua/' + Date.now() + '_' + limpiarNombre(archivo.name), archivo, { upsert: false }).then(function (r) { if (r.error) throw r.error; item.archivoRuta = r.data && r.data.path ? r.data.path : null; item.archivoNombre = archivo.name; }).catch(function (e) { console.error(e); B().toast('El archivo no se pudo subir; el análisis se guarda igual', true); }) : Promise.resolve();
     pre.then(function () { guardarItem(item); B().toast('Análisis de agua guardado'); cerrarForm(); pintar(item.id); });
   }
   function leerConIA() {
-    var archivo = $('aArchivo').files && $('aArchivo').files[0], hint = $('leerAguaHint'), boton = $('btnLeerAguaIA');
+    var archivo = $('agArchivo').files && $('agArchivo').files[0], hint = $('leerAguaHint'), boton = $('btnLeerAguaIA');
     if (!archivo) { B().toast('Primero elegí la foto o el PDF del laboratorio', true); return; }
     if (!window.safiaSupabase) { B().toast('Sin conexión a internet', true); return; }
     var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
@@ -374,7 +502,8 @@
       var muestras = ((r.data && r.data.muestras) || []).map(desdeIA);
       if (!muestras.length) throw new Error('La IA no encontró valores de análisis de agua en el archivo');
       muestrasIA = muestras; volcar(muestras[0]); mostrarMuestras(muestras);
-      hint.textContent = muestras.length > 1 ? 'El informe tiene ' + muestras.length + ' muestras: elegí cuál revisar y guardá una por una.' : 'Valores cargados por IA (en meq/L). Revisalos y corregí si hace falta antes de guardar.';
+      var dud = muestras[0].unidadesDudosas;
+      hint.textContent = (muestras.length > 1 ? 'El informe tiene ' + muestras.length + ' muestras: elegí cuál revisar y guardá una por una. ' : '') + 'Valores cargados tal cual el laboratorio, con su unidad; SAFIA los convierte en cada línea. Revisalos contra el PDF antes de guardar.' + (dud ? ' Ojo: revisá la unidad de ' + dud.join(', ') + ' (marcada en rojo).' : '');
       B().toast('Análisis de agua leído: revisá los valores');
     }).catch(function (e) {
       console.error(e);
@@ -382,11 +511,6 @@
       if (e && e.context && typeof e.context.json === 'function') e.context.json().then(function (j) { explicar((j && (j.error + (j.detalle ? ' · ' + j.detalle : ''))) || e.message); }).catch(function () { explicar(e.message); });
       else explicar((e && e.message) || '');
     }).finally(function () { boton.disabled = false; boton.textContent = 'Leer análisis de agua con IA y completar solo'; });
-  }
-  function desdeIA(m) {
-    return { fecha: m.fecha || null, fuente: m.fuente || null, fuenteNombre: m.muestra || '', laboratorio: m.laboratorio || '', informe: m.informe || '',
-      na: num(m.sodio), k: num(m.potasio), ca: num(m.calcio), mg: num(m.magnesio), nh4: num(m.amonio), cl: num(m.cloruros), so4: num(m.sulfatos), co3: num(m.carbonatos), hco3: num(m.bicarbonatos), no3: num(m.nitratos), po4: num(m.fosfatos),
-      ph: num(m.ph), ce: num(m.ce), boro: num(m.boro), tds: num(m.tds), temperatura: num(m.temperatura), observaciones: m.observaciones || '' };
   }
   function mostrarMuestras(muestras) {
     var cont = $('muestrasAguaIA'); if (!cont) return;
@@ -398,9 +522,9 @@
     var a = B().leer('analisis_agua').find(function (x) { return String(x.id) === String(id); }); if (!a) return;
     cerrarForm(); abrirForm(); editandoId = a.id;
     $('tituloFormAgua').textContent = 'Editar análisis de agua del ' + fmtF(a.fecha);
-    $('aEquipo').value = a.equipoId ? String(a.equipoId) : '';
+    $('agEquipo').value = a.equipoId ? String(a.equipoId) : '';
     volcar(a);
-    $('aArchivoActual').textContent = a.archivoNombre ? 'Actual: ' + a.archivoNombre + ' (subí otro para reemplazar)' : '';
+    $('agArchivoActual').textContent = a.archivoNombre ? 'Actual: ' + a.archivoNombre + ' (subí otro para reemplazar)' : '';
     $('formAgua').scrollIntoView({ behavior: 'smooth' });
   }
   function verPdf(id) {
@@ -411,7 +535,7 @@
   function nombreFuente(a) { var f = a.fuente || '', n = a.fuenteNombre || ''; return n && norm(n).indexOf(norm(f)) === 0 ? n : [f, n].filter(Boolean).join(' · '); }
   function nombreLote(id) { var e = lotesDelCampo().find(function (x) { return String(x.id) === String(id); }); return e ? e.nombre : 'Toda la estancia'; }
   function pintar(mostrarId) {
-    var cont = $('listaAgua'), lect = $('lecturaAgua'), vacio = $('vacioAgua'); if (!cont) return;
+    var cont = $('listaAgua'), lect = $('lecturaAgua'), vacio = $('vacioCalidadAgua'); if (!cont) return;
     var l = lista();
     if (!l.length) { cont.innerHTML = ''; lect.innerHTML = ''; vacio.style.display = 'block'; return; }
     vacio.style.display = 'none';
@@ -441,6 +565,7 @@
     if (!B() || !$('panel-calidadAgua')) return;
     if (!iniciado) {
       iniciado = true;
+      $('agGrilla').innerHTML = grillaHTML('ag'); conectarGrilla('ag'); limpiarGrilla('ag');
       $('btnNuevoAgua').addEventListener('click', function () { cerrarForm(); abrirForm(); });
       $('btnCancelarAgua').addEventListener('click', cerrarForm);
       $('btnGuardarAgua').addEventListener('click', guardar);
@@ -451,5 +576,6 @@
   function alCambiarCampo() { if (iniciado) { cerrarForm(); if ($('panel-calidadAgua').classList.contains('on')) activar(); } }
   function ultimoDelCampo(campoId) { var l = B() ? B().leer('analisis_agua').filter(function (a) { return String(a.campoId) === String(campoId); }).sort(function (a, b) { return String(a.fecha || '').localeCompare(String(b.fecha || '')); }) : []; return l.length ? l[l.length - 1] : null; }
 
-  window.SafiaCalidadAgua = { activar: activar, alCambiarCampo: alCambiarCampo, calcular: calcular, interpretar: interpretar, claseUSSL: claseUSSL, svgDiagrama: svgDiagrama, tarjeta: tarjeta, CULTIVOS: CULTIVOS, IONES: IONES, ultimoDelCampo: ultimoDelCampo, lista: lista, desdeIA: desdeIA, opcionesDe: opcionesDe };
+  window.SafiaCalidadAgua = { activar: activar, alCambiarCampo: alCambiarCampo, calcular: calcular, interpretar: interpretar, claseUSSL: claseUSSL, svgDiagrama: svgDiagrama, tarjeta: tarjeta, CULTIVOS: CULTIVOS, IONES: IONES, ultimoDelCampo: ultimoDelCampo, lista: lista, desdeIA: desdeIA, opcionesDe: opcionesDe,
+    UNIDADES: UNIDADES, FILAS: FILAS, convertir: convertir, codigoUnidad: codigoUnidad, grillaHTML: grillaHTML, conectarGrilla: conectarGrilla, ponerGrilla: ponerGrilla, limpiarGrilla: limpiarGrilla, leerGrilla: leerGrilla };
 })();

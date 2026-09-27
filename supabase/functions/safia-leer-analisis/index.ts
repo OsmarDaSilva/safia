@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-leer-analisis (v9)
+// SAFIA · Edge Function: safia-leer-analisis (v10)
 // Lee una foto o PDF de un análisis de SUELO, FOLIAR (tejido vegetal) o de AGUA de riego, de CUALQUIER
 // laboratorio, y devuelve los valores normalizados (mismos nombres y unidades) en JSON, una entrada por muestra.
 // v4: varias muestras + parseo robusto + registro de fallas. v5: sinónimos y unidades por laboratorio.
@@ -6,6 +6,8 @@
 // v7: H+Al, índice SMP y extractor de P como campos propios (manual RS/SC: SMP para el calcáreo, chequeo SB/CTC/V%).
 // v8: modo `tipo: 'agua'` (análisis de agua para riego: iones en meq/L, CE en µS/cm, boro en mg/L).
 // v9: carbonatos/bicarbonatos informados como CaCO3 (alcalinidad, SM 2320 / SM 4500-CO2 D, o suman la alcalinidad total) → ÷ 50.
+// v10 (agua): la IA ya NO convierte: copia cada valor tal cual el informe con su unidad ({valor, unidad}); la conversión
+//      la hace la app con una regla fija y visible (safia-calidad-agua.js → convertir).
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -113,20 +115,20 @@ const ESQUEMA_AGUA = `{
   "laboratorio": "nombre del laboratorio si figura, o null",
   "informe": "número o código del informe del laboratorio (ej 'IE-EXT/2026/2548'), o null",
   "fecha": "fecha del muestreo o, si no figura, del informe, en formato AAAA-MM-DD, o null",
-  "sodio": "sodio Na+ en meq/L como número, o null",
-  "potasio": "potasio K+ en meq/L como número, o null",
-  "calcio": "calcio Ca2+ en meq/L como número, o null",
-  "magnesio": "magnesio Mg2+ en meq/L como número, o null",
-  "amonio": "amonio NH4+ en meq/L como número, o null",
-  "cloruros": "cloruros Cl- en meq/L como número, o null",
-  "sulfatos": "sulfatos SO4 2- en meq/L como número, o null",
-  "carbonatos": "carbonatos CO3 2- en meq/L como número, o null",
-  "bicarbonatos": "bicarbonatos HCO3- en meq/L como número, o null",
-  "nitratos": "nitratos NO3- en meq/L como número, o null",
-  "fosfatos": "fosfatos en meq/L como número SOLO si el informe los da en meq/L; si vienen en mg/L dejalo en null y anotalo en observaciones",
+  "sodio": {"valor": número de sodio Na+ TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "potasio": {"valor": número de potasio K+ TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "calcio": {"valor": número de calcio Ca2+ TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "magnesio": {"valor": número de magnesio Mg2+ TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "amonio": {"valor": número de amonio NH4+ (o nitrógeno amoniacal) TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "cloruros": {"valor": número de cloruros Cl- TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "sulfatos": {"valor": número de sulfatos SO4 2- TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "carbonatos": {"valor": número de carbonatos CO3 2- (o alcalinidad de carbonatos) TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "bicarbonatos": {"valor": número de bicarbonatos HCO3- (o alcalinidad de bicarbonatos) TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "nitratos": {"valor": número de nitratos NO3- (o nitrógeno de nitratos) TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "fosfatos": {"valor": número de fosfatos / ortofosfato TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
   "ph": "pH del agua como número, o null",
-  "ce": "conductividad eléctrica en µS/cm a 25 °C como número, o null",
-  "boro": "boro B en mg/L (= ppm) como número, o null",
+  "ce": {"valor": conductividad eléctrica TAL CUAL el informe, "unidad": "µS/cm" o "dS/m"} o null,
+  "boro": {"valor": boro TAL CUAL el informe, "unidad": "mg/L" o "µg/L"} o null,
   "tds": "sólidos disueltos totales (TDS / residuo seco) en mg/L como número si el informe los da, o null",
   "temperatura": "temperatura del agua en °C si figura, o null",
   "observaciones": "otros datos útiles en texto corto: dureza, hierro, manganeso, RAS o clase informada por el laboratorio, unidades originales y conversiones hechas. o null"
@@ -137,20 +139,22 @@ const SYSTEM_AGUA = `Sos un asistente agronómico que lee informes de ANÁLISIS 
 Devolvé SOLO un ARRAY JSON (lista) con UN objeto por cada muestra del informe (cada pozo, fuente o fecha es una muestra distinta), sin texto alrededor, sin explicaciones, sin markdown. Cada objeto tiene EXACTAMENTE este esquema:
 ${ESQUEMA_AGUA}
 
-UNIDADES (muy importante, los iones SIEMPRE en meq/L):
-- meq/L = mmolc/L = me/L. Si el informe da mmol/L: para Ca, Mg, SO4 y CO3 (dos cargas) multiplicá por 2; para Na, K, NH4, Cl, HCO3 y NO3 queda igual.
-- Si el informe da mg/L (= ppm), dividí por el peso equivalente: Na 22,99; K 39,10; Ca 20,04; Mg 12,15; NH4 18,04 (si está como N-NH4, dividí por 14,01); Cl 35,45; SO4 48,03 (si está como S-SO4, dividí por 16,03); CO3 30,00; HCO3 61,02; NO3 62,00 (si está como N-NO3, dividí por 14,01).
-- Si da alcalinidad o carbonatos/bicarbonatos como mg/L de CaCO3, dividí por 50 para obtener meq/L.
-- CARBONATOS Y BICARBONATOS, cuidado: muchos laboratorios los informan COMO CaCO3 aunque la unidad diga solo "mg/L". Tomalos como CaCO3 (dividí por 50) si se cumple cualquiera de estas: (a) el parámetro se llama "Alcalinidad de carbonatos" / "Alcalinidad de bicarbonatos"; (b) el método es SM 2320 o SM 4500-CO2 D; (c) carbonato + bicarbonato da igual (±3 %) a la alcalinidad total informada. Solo si el informe dice explícitamente "como CO3" / "como HCO3" o nada de lo anterior se cumple, dividí por 30,00 y 61,02. Anotá en observaciones qué criterio usaste.
-- Si informa alcalinidad total, anotala en observaciones (mg/L CaCO3 y meq/L).
-- CE: devolvela en µS/cm. 1 dS/m = 1 mS/cm = 1 mmho/cm = 1000 µS/cm; si viene en µmho/cm es igual a µS/cm.
-- Boro en mg/L (= ppm = g/m³).
-- Anotá en observaciones las unidades originales y cada conversión que hayas hecho.
+UNIDADES (muy importante): NO CONVIERTAS NADA. Copiá cada número exactamente como figura en el informe y decí en qué unidad está, eligiendo de la lista. La conversión la hace la app con una regla fija.
+- "meq/L": también cuando el informe dice mmolc/L, me/L, meq/l.
+- "mg/L": también ppm, mg/l, g/m³ (el ion como tal: Na, Ca, Cl, SO4, HCO3, NO3…).
+- "mmol/L": milimoles por litro (no mmolc).
+- "mg/L CaCO3": el valor está expresado como carbonato de calcio. Es el caso de la alcalinidad y, MUY a menudo, de carbonatos y bicarbonatos aunque la unidad diga solo "mg/L". Usá "mg/L CaCO3" para carbonatos y bicarbonatos si se cumple cualquiera: (a) el parámetro se llama "Alcalinidad de carbonatos" / "Alcalinidad de bicarbonatos"; (b) el método es SM 2320 o SM 4500-CO2 D; (c) carbonato + bicarbonato da igual (±3 %) a la alcalinidad total informada. Solo si el informe dice explícitamente "como CO3" / "como HCO3" o nada de eso se cumple, usá "mg/L". También para calcio o magnesio informados como dureza en CaCO3.
+- "mg/L N": cuando el parámetro se llama "Nitrógeno amoniacal", "N-NH4", "NH3-N", "Nitrógeno de nitratos", "N-NO3" o dice "como N", o el método es SM 4500-NH3 (esos métodos informan nitrógeno). Si dice solo "Amonio"/"NH4+" sin método de nitrógeno, o "Nitrato"/"NO3", usá "mg/L".
+- "mg/L S": azufre de sulfatos (S-SO4).
+- CE: "µS/cm" (también µmho/cm); "dS/m" (también mS/cm y mmho/cm). No la conviertas.
+- Boro: "mg/L" (también ppm) o "µg/L" (también ppb).
+- pH, TDS (mg/L) y temperatura (°C) van como número simple.
+- Anotá en observaciones la alcalinidad total si figura y qué criterio usaste para carbonatos y bicarbonatos.
 
 REGLAS:
 - Los números pueden venir con coma decimal: devolvelos con punto.
 - "NS", "ND", "N.I.", "<LQ", "< LD", "< X" (debajo del límite de detección) o vacío → null. No inventes valores.
-- Si un valor viene como "> X" o "mayor que X" (por encima del rango del método), devolvé X convertido (es un mínimo: el valor real es mayor) y anotá en observaciones "<ion> mayor que X: se usó X como mínimo". Para el riego es importante no perderlo.
+- Si un valor viene como "> X" o "mayor que X" (por encima del rango del método), devolvé X como valor (es un mínimo: el valor real es mayor) y anotá en observaciones "<ion> mayor que X: se usó X como mínimo". Para el riego es importante no perderlo.
 - Si el archivo es un análisis de SUELO o FOLIAR y no de agua, o no es un análisis, devolvé un array vacío [].`;
 
 function extraerLista(texto: string): unknown[] {
@@ -205,7 +209,7 @@ Deno.serve(async (req: Request) => {
         messages: [{
           role: 'user',
           content: [bloque, { type: 'text', text: agua
-            ? 'Extraé los valores de este análisis de agua para riego, normalizados al esquema (iones en meq/L, CE en µS/cm, boro en mg/L). Devolvé un array JSON con un objeto por muestra.'
+            ? 'Extraé los valores de este análisis de agua para riego tal cual figuran, cada uno con su unidad según el esquema (sin convertir). Devolvé un array JSON con un objeto por muestra.'
             : foliar
             ? 'Extraé los valores de este análisis foliar (tejido vegetal), normalizados al esquema (macros en g/kg, micros en mg/kg). Devolvé un array JSON con un objeto por muestra.'
             : 'Extraé los valores de este análisis de suelo, normalizados al esquema. Devolvé un array JSON con un objeto por muestra.' }],
