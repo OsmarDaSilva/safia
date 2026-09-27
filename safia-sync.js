@@ -273,6 +273,13 @@
     return { lista: salida, snap: nuevoSnap, cambio: cambio, pendiente: pendiente };
   }
 
+  // Si la persona ya empezó a escribir o elegir algo en la pantalla, la recarga
+  // del arranque le borraría el formulario a medias: en ese caso solo avisamos.
+  var tocoFormulario = false;
+  ['input', 'change'].forEach(function (t) {
+    document.addEventListener(t, function (ev) { if (ev.isTrusted) tocoFormulario = true; }, true);
+  });
+
   var sincronizando = null;
   function sincronizarTodo(esArranque) {
     if (sincronizando) return sincronizando;
@@ -320,8 +327,8 @@
     sincronizando = cadena.then(function () {
       sincronizando = null;
       marcarEstado(true);
-      if (huboCambios && !esArranque) {
-        // Refresco periódico: no recargamos la pantalla (puede haber un formulario a medias); avisamos
+      if (huboCambios && (!esArranque || tocoFormulario)) {
+        // Refresco periódico (o ya empezaron a llenar un formulario): no recargamos la pantalla; avisamos
         try { window.dispatchEvent(new CustomEvent('safia:datos')); } catch (e) {}
         avisarDatosNuevos();
         return;

@@ -280,11 +280,13 @@
         return;
       }
 
+      const camposCargados = JSON.parse(localStorage.getItem('campos') || '[]');
+      const sinCampo = id => !camposCargados.some(k => String(k.clienteId) === String(id));
       lista.innerHTML = clientes.map(c => {
         const ed = editandoId === c.id ? 'editando' : '';
         return `
           <tr class="${ed}">
-            <td><span class="num">${c.nombre || '—'}</span>${c.estado === 'prospecto' ? ' <span class="badge amber" title="Evaluado en Evaluar proyecto; todavía sin riego activo">Prospecto</span>' : ''} <a href="evaluar.html?cliente=${c.id}" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-left:4px;" title="Evaluaciones de proyecto de este cliente">Evaluar</a></td>
+            <td><span class="num">${c.nombre || '—'}</span>${c.estado === 'prospecto' ? ' <span class="badge amber" title="Evaluado en Evaluar proyecto; todavía sin riego activo">Prospecto</span>' : ''} <a href="evaluar.html?cliente=${c.id}" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-left:4px;" title="Evaluaciones de proyecto de este cliente">Evaluar</a>${sinCampo(c.id) ? ` <a href="mis-campos.html?cliente=${c.id}" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-left:4px;" title="Este cliente todavía no tiene campo: cargarlo">+ campo</a>` : ''}</td>
             <td>${c.tipo ? `<span class="badge muted">${c.tipo}</span>` : '—'}</td>
             <td>${c.documento || '—'}</td>
             <td>${c.telefono || '—'}</td>

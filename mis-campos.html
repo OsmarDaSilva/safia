@@ -313,6 +313,8 @@
       cargarSelectorClientes();
       cargarFiltroClientes();
       mostrarCampos();
+      // Llegaron datos nuevos de la nube (ej. un cliente recién creado): listas al día sin perder lo elegido
+      window.addEventListener('safia:datos', function () { verificarClientes(); cargarSelectorClientes(); cargarFiltroClientes(); mostrarCampos(); });
       // Listas para elegir departamento y localidad (base de referencia + campos cargados)
       if (window.SafiaCasos) {
         SafiaCasos.conectarListasUbicacion(document.getElementById('departamento'), document.getElementById('localidad'), document.getElementById('pais'));
@@ -321,14 +323,13 @@
 
     function verificarClientes() {
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
-      if (clientes.length === 0) {
-        document.getElementById('alertaSinClientes').classList.add('visible');
-        document.getElementById('tarjetaForm').style.display = 'none';
-      }
+      document.getElementById('alertaSinClientes').classList.toggle('visible', clientes.length === 0);
+      document.getElementById('tarjetaForm').style.display = clientes.length === 0 ? 'none' : '';
     }
 
     function cargarSelectorClientes() {
       const select = document.getElementById('cliente');
+      const elegido = select.value || new URLSearchParams(location.search).get('cliente') || '';
       while (select.options.length > 1) select.remove(1);
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
       clientes.forEach(cliente => {
@@ -337,10 +338,12 @@
         option.textContent = cliente.nombre;
         select.appendChild(option);
       });
+      if (elegido) select.value = elegido;
     }
 
     function cargarFiltroClientes() {
       const select = document.getElementById('filtroCliente');
+      const elegido = select.value;
       while (select.options.length > 1) select.remove(1);
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
@@ -353,6 +356,7 @@
         option.textContent = cliente.nombre;
         select.appendChild(option);
       });
+      if (elegido) select.value = elegido;
     }
 
     function parsearGPS() {
@@ -496,7 +500,15 @@
       const selEst = document.getElementById('estacionId');
       const estacionId = selEst.value || null, estacionNombre = selEst.value ? (selEst.options[selEst.selectedIndex].dataset.nombre || selEst.options[selEst.selectedIndex].textContent) : null;
 
-      if (!clienteId || !nombre) { alert('Por favor seleccioná un cliente y completá el nombre del campo.'); return; }
+      if (!clienteId || !nombre) {
+        const falta = !clienteId ? 'cliente' : 'nombre';
+        const el = document.getElementById(falta);
+        el.style.borderColor = '#c0392b'; el.style.boxShadow = '0 0 0 3px rgba(192,57,43,.15)';
+        el.addEventListener(falta === 'cliente' ? 'change' : 'input', function limpiar() { el.style.borderColor = ''; el.style.boxShadow = ''; el.removeEventListener(falta === 'cliente' ? 'change' : 'input', limpiar); });
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus();
+        alert(falta === 'cliente' ? 'Falta elegir el cliente / productor (arriba de todo en el formulario).' : 'Falta el nombre del campo / estancia.');
+        return;
+      }
 
       if (latitud && longitud) {
         if (!validarGPS(parseFloat(latitud), parseFloat(longitud))) {
