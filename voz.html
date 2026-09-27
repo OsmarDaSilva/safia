@@ -507,6 +507,27 @@
     .alerta{background:#FBECEA !important;border:1px solid #E8C4be !important;color:#7a241a !important;border-radius:8px !important;}
     .toast{background:#2E3236 !important;border-radius:100px !important;}
   </style>
+  <style>
+    /* Voz en una hoja: 3 columnas en escritorio (cada una con su scroll), apilado en celular */
+    .voz-top { margin-bottom: 10px; }
+    .voz-grid { display: grid; gap: 12px; grid-template-columns: minmax(0,1fr); }
+    @media (min-width: 1100px) { .voz-grid { grid-template-columns: minmax(0,1.05fr) minmax(0,1fr) minmax(0,.85fr); height: calc(100vh - 118px); min-height: 560px; } }
+    .cc { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: auto; min-height: 0; }
+    .cc-t { font-size: 12px; font-weight: 800; color: #178029; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .ic-t { width: 16px; height: 16px; }
+    .cc .config-row { background: #F7F8F9 !important; box-shadow: none !important; border: 0 !important; margin-bottom: 8px !important; padding: 8px 10px !important; }
+    .cc .micro-container { box-shadow: none !important; border: 1px solid #E1E4E7 !important; margin-top: 8px; }
+    .cc .ayuda { margin-top: 10px; }
+    .cc .transcripcion, .cc .interpretacion { margin-top: 0; margin-bottom: 10px; }
+    .cc .evento { margin-bottom: 8px; }
+    .evento-icono svg { width: 20px; height: 20px; }
+    .evento-icono.tipo-riego { color: #2E72C8; } .evento-icono.tipo-lluvia { color: #00838F; } .evento-icono.tipo-aplicacion { color: #7B1FA2; }
+    .micro-boton svg { width: 44px; height: 44px; }
+    .main { min-width: 0; }
+    .botones-accion { display: flex; gap: 8px; }
+    .botones-accion button { flex: 1; padding: 12px 10px; border: 0; border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .botones-accion .boton-confirmar { flex: 2; }
+  </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
 <script src="safia-cuenta.js"></script>
@@ -536,73 +557,67 @@
   </style>
 </head>
 <body>
-<div class="layout">
-  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
-        <path d="M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z" fill="#D4A24C" opacity="0.95"/>
-        <circle cx="50" cy="45" r="5" fill="#0F3D14"/><circle cx="50" cy="70" r="5" fill="#0F3D14"/>
-        <circle cx="35" cy="55" r="4" fill="#0F3D14"/><circle cx="65" cy="60" r="4" fill="#0F3D14"/>
-      </svg>
-      <div class="sidebar-logo-textos">
-        <div class="sidebar-logo-titulo">SAFIA</div>
-        <div class="sidebar-logo-tag">SMART · AGRO · INTELLIGENCE</div>
-      </div>
-    </div>
-    <div class="sidebar-grupo">Inicio</div>
-    <a href="index.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></span><span>Dashboard</span></a>
-    <div class="sidebar-grupo">Datos</div>
-    <a href="mis-clientes.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg></span><span>Clientes</span></a>
-    <a href="mis-campos.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span><span>Campos</span></a>
-    <a href="mis-equipos.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span><span>Equipos y lotes</span></a>
-    <a href="mis-cultivos.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg></span><span>Cultivos</span></a>
-    <a href="mis-campanas.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg></span><span>Campañas</span></a>
-      <a href="ficha.html" class="sidebar-link">
-        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg></span><span>Ficha de campaña</span>
-      </a>
-      <a href="precios.html" class="sidebar-link">
-        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></span><span>Precios</span>
-      </a>
-    <a href="banco.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg></span><span>Banco Agronómico</span></a>
-    <a href="referencia.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg></span><span>Referencia agrícola</span></a>
-      <a href="referencia-forraje.html" class="sidebar-link">
-        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg></span><span>Referencia forrajera</span>
-      </a>
-    <div class="sidebar-grupo">Inteligencia</div>
-    <a href="clima.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg></span><span>Clima · ETo/ETc</span></a>
-    <a href="prediccion.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg></span><span>Predicción 7d</span></a>
-    <a href="evaluar.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Evaluar proyecto</span></a>
-    <a href="rankings.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg></span><span>Rankings</span></a>
-    <div class="sidebar-grupo">Operación</div>
-    <a href="operador.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg></span><span>Operador</span></a>
-    <a href="eventos.html" class="sidebar-link "><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg></span><span>Eventos</span></a>
-    <a href="encargado.html" class="sidebar-link "><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg></span><span>Encargado</span></a>
-    <a href="propietario.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg></span><span>Propietario</span></a>
-    <a href="voz.html" class="sidebar-link activo"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span><span>Cargar por voz</span></a>
-    <div class="sidebar-grupo">Sistema</div>
-      <a href="usuarios.html" class="sidebar-link">
-        <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.5 0 4.5 2 4.5 4.5"/></svg></span><span>Usuarios</span>
-      </a>
-    <div class="sidebar-footer">SAFIA v1.0<br>Herramienta para productores</div>
-  </aside>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
 
-  <div style="overflow-x:hidden;">
-  <div class="contenedor" style="padding:24px 32px 40px;">
-    <div class="crumb">Operación · <b>Cargar por voz</b></div>
-    <div class="header-voz">
-      <div class="header-icono"><svg class="ic-hero" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></div>
-      <div class="header-textos">
-        <h1>CARGAR POR VOZ</h1>
-        <p>Hablá natural y SAFIA registra el evento</p>
-      </div>
-    </div>
+  <div class="app">
 
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos y lotes</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="ficha.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>Ficha de campaña</a>
+        <a href="precios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Precios</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Referencia agrícola</a>
+        <a href="referencia-forraje.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg>Referencia forrajera</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+        <a href="evaluar.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Evaluar proyecto</a>
+        <a href="rankings.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>Rankings</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="usuarios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.5 0 4.5 2 4.5 4.5"/></svg>Usuarios</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Operación · <b>Cargar por voz</b></div>
+      <div class="ptop voz-top">
+        <div>
+          <h2>Cargar por voz</h2>
+          <div class="sub">Hablá natural y SAFIA registra el riego, la lluvia o la aplicación en el pivot.</div>
+        </div>
+      </div>
+
+      <div class="voz-grid">
+        <section class="cc cc-donde">
+          <div class="cc-t"><svg class="ic-t" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> Dónde y cómo</div>
     <div class="config-row">
-      <label>🌎 Idioma:</label>
+      <label>Idioma</label>
       <select id="selectorIdioma" onchange="cambiarIdioma(this.value)">
-        <option value="es-MX">Español (México) ⭐</option>
+        <option value="es-MX">Español (México), el más preciso</option>
         <option value="pt-BR">Português (Brasil)</option>
         <option value="es-AR">Español (Argentina)</option>
         <option value="es-419">Español Latinoamérica</option>
@@ -613,14 +628,14 @@
     </div>
 
     <div class="config-row" id="filaCampo">
-      <label>Campo:</label>
+      <label>Campo</label>
       <select id="selectorCampo" onchange="cambiarCampo(this.value)" style="max-width:100%;">
         <option value="">— Todos (decí el cliente o el campo en la frase) —</option>
       </select>
     </div>
     <div class="ayuda-tip" id="tipCampo" style="margin:-4px 0 10px;font-size:12px;">Con varios clientes hay varios "pivote 1": elegí el campo acá, o decilo en la frase ("riego de 20 mm en pivote 1 de Anderson"). Si queda la duda, SAFIA te pregunta cuál.</div>
     <div class="config-row" id="filaPivot">
-      <label>Pivot / lote:</label>
+      <label>Pivot / lote</label>
       <select id="selectorPivot" onchange="cambiarPivot(this.value)" style="max-width:100%;">
         <option value="">— Decilo en la frase —</option>
       </select>
@@ -628,36 +643,21 @@
     <div class="ayuda-tip" id="tipPivot" style="margin:-4px 0 10px;font-size:12px;">Elegí el pivot acá y después decí solo "riego de 20 mm": SAFIA lo carga a ese pivot. Es el mismo pivot que queda elegido en el Operador. Si en la frase nombrás otro, vale la frase.</div>
 
     <div class="alerta" id="alertaSinSoporte">
-      ⚠️ Tu navegador no soporta voz. Probá con Chrome.
+      Este navegador no soporta la voz: probá con Chrome, o escribí o dictá con el teclado.
     </div>
 
     <div class="alerta" id="alertaSinEquipos">
-      ⚠️ No hay equipos cargados. <a href="mis-equipos.html">Cargar equipos</a>
-    </div>
-
-    <div class="ayuda">
-      💡 <strong>Tocá el micrófono y hablá natural.</strong>
-      <div class="ayuda-ejemplos">
-        <div id="ejemplosVoz">
-        <div>"Riego de 20 mm en pivote 1"</div>
-        <div>"Riego de 20 mm en pivote 1 de Anderson"</div>
-        <div>"Llovieron 25 mm en pivote 2"</div>
-        <div>"Apliqué glifosato 2.5 litros por hectárea en pivote 1"</div>
-        </div>
-      </div>
-      <div class="ayuda-tip">
-        <strong>Tip:</strong> Hablá claro y con la cantidad en milímetros. Sirven "riego", "regué", "llovió", "lluvia", "apliqué".
-      </div>
+      No hay equipos cargados. <a href="mis-equipos.html">Cargar equipos</a>
     </div>
 
     <div class="micro-container">
       <button class="micro-boton" id="microBoton" onclick="toggleEscucha()"><svg class="ic-mic" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></button>
       <div class="micro-status" id="microStatus">Tocá para empezar</div>
       <div>
-        <button class="boton-test" onclick="testMicrofono()">🧪 Probar micrófono</button>
+        <button class="boton-test" onclick="testMicrofono()">Probar micrófono</button>
       </div>
       <div>
-        <button class="boton-debug" onclick="toggleDebug()">🐛 Mostrar consola técnica</button>
+        <button class="boton-debug" onclick="toggleDebug()">Consola técnica</button>
       </div>
     </div>
 
@@ -671,37 +671,69 @@
       <div style="font-size:11.5px;color:#8C9196;margin-top:6px;">Lo que escribas o dictes pasa por la misma interpretación que la voz: tipo de evento, cantidad y pivot.</div>
     </div>
 
+        </section>
+
+        <section class="cc cc-resultado">
+          <div class="cc-t"><svg class="ic-t" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Lo que SAFIA entendió</div>
     <div class="debug-panel" id="debugPanel">
       <div class="debug-line info">[DEBUG] SAFIA Voz inicializado</div>
     </div>
 
     <div class="transcripcion" id="transcripcion">
-      <div class="transcripcion-label">📝 Lo que escuché</div>
+      <div class="transcripcion-label">Lo que escuché</div>
       <div class="transcripcion-texto" id="transcripcionTexto">—</div>
     </div>
 
     <div class="interpretacion" id="interpretacion">
       <div class="interp-titulo">
-        🤖 SAFIA entendió:
+        SAFIA entendió
         <span class="interp-confianza" id="confianzaBadge"></span>
       </div>
       <div id="camposDetectados"></div>
       <div class="botones-accion" style="margin-top: 16px;">
-        <button class="boton-repetir" onclick="repetir()">🎤 Repetir</button>
-        <button class="boton-confirmar" onclick="confirmar()">✓ Confirmar y guardar</button>
+        <button class="boton-repetir" onclick="repetir()">Repetir</button>
+        <button class="boton-confirmar" onclick="confirmar()">Confirmar y guardar</button>
       </div>
     </div>
 
-    <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg> Últimos cargados por voz</div>
-    <div id="listaEventosVoz">
-      <div class="vacio">Todavía no cargaste eventos por voz.</div>
+    <div class="ayuda">
+      <strong>Tocá el micrófono y hablá natural.</strong>
+      <div class="ayuda-ejemplos">
+        <div id="ejemplosVoz">
+        <div>"Riego de 20 mm en pivote 1"</div>
+        <div>"Riego de 20 mm en pivote 1 de Anderson"</div>
+        <div>"Llovieron 25 mm en pivote 2"</div>
+        <div>"Apliqué glifosato 2.5 litros por hectárea en pivote 1"</div>
+        </div>
+      </div>
+      <div class="ayuda-tip">
+        <strong>Tip:</strong> Hablá claro y con la cantidad en milímetros. Sirven "riego", "regué", "llovió", "lluvia", "apliqué".
+      </div>
     </div>
 
+        </section>
+
+        <section class="cc cc-lista">
+          <div class="cc-t"><svg class="ic-t" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg> Últimos cargados por voz</div>
+          <div id="listaEventosVoz">
+            <div class="vacio">Todavía no cargaste eventos por voz.</div>
+          </div>
+        </section>
+      </div>
+    </main>
   </div>
 
   <div class="toast" id="toast"></div>
 
   <script>
+    const ICO_MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>';
+    const ICO_STOP = '<svg viewBox="0 0 24 24" fill="#fff" stroke="none"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>';
+    const ICO_EVT = {
+      riego: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>',
+      lluvia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 14h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 7a3.5 3.5 0 0 0 1 7z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/></svg>',
+      aplicacion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L5 19a2 2 0 0 0 1.8 2.9h10.4A2 2 0 0 0 19 19l-5-10V3"/><path d="M7.5 15h9"/></svg>'
+    };
+    const SIN_EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{FE0F}]/gu;
     let recognition = null;
     let escuchando = false;
     let interpretacionActual = null;
@@ -714,6 +746,7 @@
       const linea = document.createElement('div');
       linea.className = 'debug-line ' + tipo;
       const tiempo = new Date().toLocaleTimeString();
+      mensaje = String(mensaje).replace(SIN_EMOJI, '').trim();
       linea.textContent = `[${tiempo}] ${mensaje}`;
       panel.appendChild(linea);
       panel.scrollTop = panel.scrollHeight;
@@ -905,10 +938,10 @@
           return;
         }
         const msgs = {
-          'network': '🌐 Error de red',
-          'not-allowed': '🔒 Permiso denegado',
-          'no-speech': '🤐 No escuché nada',
-          'audio-capture': '🎤 Sin micrófono'
+          'network': 'Error de red',
+          'not-allowed': 'Permiso del micrófono denegado',
+          'no-speech': 'No escuché nada: probá de nuevo',
+          'audio-capture': 'No se encontró el micrófono'
         };
         mostrarToast(msgs[event.error] || `❌ ${event.error}`);
       };
@@ -942,7 +975,7 @@
         recognition.start();
         escuchando = true;
         document.getElementById('microBoton').classList.add('escuchando');
-        document.getElementById('microBoton').textContent = '🔴';
+        document.getElementById('microBoton').innerHTML = ICO_STOP;
         document.getElementById('microStatus').textContent = 'Escuchando... hablá';
         document.getElementById('microStatus').classList.add('escuchando');
         document.getElementById('transcripcion').classList.remove('visible');
@@ -956,7 +989,7 @@
     function detenerEscucha() {
       escuchando = false;
       document.getElementById('microBoton').classList.remove('escuchando');
-      document.getElementById('microBoton').textContent = '🎤';
+      document.getElementById('microBoton').innerHTML = ICO_MIC;
       document.getElementById('microStatus').textContent = 'Tocá para empezar';
       document.getElementById('microStatus').classList.remove('escuchando');
     }
@@ -1133,9 +1166,9 @@
       const badge = document.getElementById('confianzaBadge');
 
       let nivel = 'baja', texto = '';
-      if (interp.confianza >= 70) { nivel = 'alta'; texto = '✓ Alta'; }
-      else if (interp.confianza >= 40) { nivel = 'media'; texto = '⚠️ Media'; }
-      else { nivel = 'baja'; texto = '❌ Baja'; }
+      if (interp.confianza >= 70) { nivel = 'alta'; texto = 'Confianza alta'; }
+      else if (interp.confianza >= 40) { nivel = 'media'; texto = 'Confianza media'; }
+      else { nivel = 'baja'; texto = 'Confianza baja'; }
       badge.textContent = texto;
       badge.className = 'interp-confianza confianza-' + nivel;
 
@@ -1146,9 +1179,9 @@
         <div class="campo-detectado-info"><div class="campo-detectado-label">Tipo</div></div>
         <select onchange="interpretacionActual.tipo=this.value">
           <option value="">— Elegir —</option>
-          <option value="riego" ${interp.tipo === 'riego' ? 'selected' : ''}>💧 Riego</option>
-          <option value="lluvia" ${interp.tipo === 'lluvia' ? 'selected' : ''}>🌧️ Lluvia</option>
-          <option value="aplicacion" ${interp.tipo === 'aplicacion' ? 'selected' : ''}>🧪 Aplicación</option>
+          <option value="riego" ${interp.tipo === 'riego' ? 'selected' : ''}>Riego</option>
+          <option value="lluvia" ${interp.tipo === 'lluvia' ? 'selected' : ''}>Lluvia</option>
+          <option value="aplicacion" ${interp.tipo === 'aplicacion' ? 'selected' : ''}>Aplicación</option>
         </select>
       </div>`;
 
@@ -1188,6 +1221,7 @@
 
       camposDiv.innerHTML = html;
       card.classList.add('visible');
+      if (window.innerWidth < 1100) setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     }
 
     function repetir() {
@@ -1208,7 +1242,7 @@
       const evento = {
         id: Date.now(), fecha: i.fecha, equipoId: i.equipoId,
         campanaId: ca ? ca.id : null, tipo: i.tipo,
-        observaciones: '🎤 Voz: "' + i.textoOriginal + '"',
+        observaciones: 'Cargado por voz: "' + i.textoOriginal + '"',
         cargadoPor: 'voz', fechaCreacion: new Date().toISOString()
       };
       if (i.tipo === 'aplicacion') {
@@ -1234,7 +1268,7 @@
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
       const ev = eventos.filter(e => e.cargadoPor === 'voz')
-        .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).slice(0, 5);
+        .sort((a, b) => new Date(b.fechaCreacion) - new Date(a.fechaCreacion)).slice(0, 15);
 
       if (ev.length === 0) { lista.innerHTML = `<div class="vacio">Todavía no cargaste eventos por voz.</div>`; return; }
 
@@ -1243,9 +1277,9 @@
         const eq = equipos.find(x => x.id === e.equipoId);
         const f = new Date(e.fecha + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' });
         let icono, titulo;
-        if (e.tipo === 'riego') { icono = '💧'; titulo = `Riego ${e.cantidad} mm`; }
-        else if (e.tipo === 'lluvia') { icono = '🌧️'; titulo = `Lluvia ${e.cantidad} mm`; }
-        else { icono = '🧪'; titulo = `${e.producto} ${e.dosis} ${e.unidad}`; }
+        if (e.tipo === 'riego') { icono = ICO_EVT.riego; titulo = `Riego ${e.cantidad} mm`; }
+        else if (e.tipo === 'lluvia') { icono = ICO_EVT.lluvia; titulo = `Lluvia ${e.cantidad} mm`; }
+        else { icono = ICO_EVT.aplicacion; titulo = `${e.producto} ${e.dosis} ${e.unidad}`; }
 
         lista.innerHTML += `<div class="evento">
           <div class="evento-icono tipo-${e.tipo}">${icono}</div>
@@ -1259,14 +1293,29 @@
 
     function mostrarToast(mensaje) {
       const t = document.getElementById('toast');
-      t.textContent = mensaje;
+      t.textContent = String(mensaje).replace(SIN_EMOJI, '').trim();
       t.classList.add('visible');
       setTimeout(() => t.classList.remove('visible'), 3500);
     }
   </script>
 
   <script>
-    /* SAFIA · control del menú móvil */
+    /* SAFIA · control del menú móvil (theme) */
+    (function () {
+      var btn = document.getElementById('menuToggle');
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
+      if (ov) ov.addEventListener('click', cerrar);
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
+    })();
+  </script>
+  <script>
+    /* SAFIA · control del menú móvil (viejo, sin efecto) */
     (function () {
       var btn = document.getElementById('menuToggle');
       var sb  = document.querySelector('.sidebar');
