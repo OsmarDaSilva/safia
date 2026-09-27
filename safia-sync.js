@@ -53,7 +53,8 @@
     analisis_foliar: 'safia_foliar',
     clima_estacion:  'safia_clima_estacion',
     precios:         'safia_precios',
-    evaluaciones:    'safia_evaluaciones'
+    evaluaciones:    'safia_evaluaciones',
+    analisis_agua:   'safia_analisis_agua'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);

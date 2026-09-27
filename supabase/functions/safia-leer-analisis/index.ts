@@ -1,9 +1,10 @@
-// SAFIA · Edge Function: safia-leer-analisis (v7)
-// Lee una foto o PDF de un análisis de SUELO o de un análisis FOLIAR (tejido vegetal), de CUALQUIER
+// SAFIA · Edge Function: safia-leer-analisis (v8)
+// Lee una foto o PDF de un análisis de SUELO, FOLIAR (tejido vegetal) o de AGUA de riego, de CUALQUIER
 // laboratorio, y devuelve los valores normalizados (mismos nombres y unidades) en JSON, una entrada por muestra.
 // v4: varias muestras + parseo robusto + registro de fallas. v5: sinónimos y unidades por laboratorio.
 // v6: modo `tipo: 'foliar'` (hoja) y Cu/Mn como campos propios en el suelo.
 // v7: H+Al, índice SMP y extractor de P como campos propios (manual RS/SC: SMP para el calcáreo, chequeo SB/CTC/V%).
+// v8: modo `tipo: 'agua'` (análisis de agua para riego: iones en meq/L, CE en µS/cm, boro en mg/L).
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -105,6 +106,50 @@ REGLAS:
 - "NS", "ND", "N.I.", "<LQ" o vacío → null. No inventes valores.
 - Si el archivo es un análisis de SUELO y no de hoja, o no es un análisis, devolvé un array vacío [].`;
 
+const ESQUEMA_AGUA = `{
+  "muestra": "identificación de la muestra o de la fuente tal cual figura (ej 'Pozo 1', 'Pozo', 'La Patricia'), o null",
+  "fuente": "tipo de fuente si figura: 'Pozo', 'Río', 'Arroyo', 'Tajamar', 'Represa', 'Laguna' u 'Otra'; o null",
+  "laboratorio": "nombre del laboratorio si figura, o null",
+  "informe": "número o código del informe del laboratorio (ej 'IE-EXT/2026/2548'), o null",
+  "fecha": "fecha del muestreo o, si no figura, del informe, en formato AAAA-MM-DD, o null",
+  "sodio": "sodio Na+ en meq/L como número, o null",
+  "potasio": "potasio K+ en meq/L como número, o null",
+  "calcio": "calcio Ca2+ en meq/L como número, o null",
+  "magnesio": "magnesio Mg2+ en meq/L como número, o null",
+  "amonio": "amonio NH4+ en meq/L como número, o null",
+  "cloruros": "cloruros Cl- en meq/L como número, o null",
+  "sulfatos": "sulfatos SO4 2- en meq/L como número, o null",
+  "carbonatos": "carbonatos CO3 2- en meq/L como número, o null",
+  "bicarbonatos": "bicarbonatos HCO3- en meq/L como número, o null",
+  "nitratos": "nitratos NO3- en meq/L como número, o null",
+  "fosfatos": "fosfatos en meq/L como número SOLO si el informe los da en meq/L; si vienen en mg/L dejalo en null y anotalo en observaciones",
+  "ph": "pH del agua como número, o null",
+  "ce": "conductividad eléctrica en µS/cm a 25 °C como número, o null",
+  "boro": "boro B en mg/L (= ppm) como número, o null",
+  "tds": "sólidos disueltos totales (TDS / residuo seco) en mg/L como número si el informe los da, o null",
+  "temperatura": "temperatura del agua en °C si figura, o null",
+  "observaciones": "otros datos útiles en texto corto: dureza, hierro, manganeso, RAS o clase informada por el laboratorio, unidades originales y conversiones hechas. o null"
+}`;
+
+const SYSTEM_AGUA = `Sos un asistente agronómico que lee informes de ANÁLISIS DE AGUA para riego de CUALQUIER laboratorio (Paraguay, Brasil, Argentina; en español o portugués) y devuelve los valores NORMALIZADOS al mismo esquema, sin importar el formato.
+
+Devolvé SOLO un ARRAY JSON (lista) con UN objeto por cada muestra del informe (cada pozo, fuente o fecha es una muestra distinta), sin texto alrededor, sin explicaciones, sin markdown. Cada objeto tiene EXACTAMENTE este esquema:
+${ESQUEMA_AGUA}
+
+UNIDADES (muy importante, los iones SIEMPRE en meq/L):
+- meq/L = mmolc/L = me/L. Si el informe da mmol/L: para Ca, Mg, SO4 y CO3 (dos cargas) multiplicá por 2; para Na, K, NH4, Cl, HCO3 y NO3 queda igual.
+- Si el informe da mg/L (= ppm), dividí por el peso equivalente: Na 22,99; K 39,10; Ca 20,04; Mg 12,15; NH4 18,04 (si está como N-NH4, dividí por 14,01); Cl 35,45; SO4 48,03 (si está como S-SO4, dividí por 16,03); CO3 30,00; HCO3 61,02; NO3 62,00 (si está como N-NO3, dividí por 14,01).
+- Si da alcalinidad o carbonatos/bicarbonatos como mg/L de CaCO3, dividí por 50 para obtener meq/L.
+- CE: devolvela en µS/cm. 1 dS/m = 1 mS/cm = 1 mmho/cm = 1000 µS/cm; si viene en µmho/cm es igual a µS/cm.
+- Boro en mg/L (= ppm = g/m³).
+- Anotá en observaciones las unidades originales y cada conversión que hayas hecho.
+
+REGLAS:
+- Los números pueden venir con coma decimal: devolvelos con punto.
+- "NS", "ND", "N.I.", "<LQ", "< LD", "< X" (debajo del límite de detección) o vacío → null. No inventes valores.
+- Si un valor viene como "> X" o "mayor que X" (por encima del rango del método), devolvé X convertido (es un mínimo: el valor real es mayor) y anotá en observaciones "<ion> mayor que X: se usó X como mínimo". Para el riego es importante no perderlo.
+- Si el archivo es un análisis de SUELO o FOLIAR y no de agua, o no es un análisis, devolvé un array vacío [].`;
+
 function extraerLista(texto: string): unknown[] {
   const t = texto.trim();
   const a = t.match(/\[[\s\S]*\]/);
@@ -130,6 +175,7 @@ Deno.serve(async (req: Request) => {
 
     const { mime, data_base64 } = cuerpo;
     const foliar = cuerpo.tipo === 'foliar';
+    const agua = cuerpo.tipo === 'agua';
     if (!data_base64) return json({ error: 'No se recibió el archivo' }, 400);
     const mb = Math.round(data_base64.length * 0.75 / 1048576 * 10) / 10;
     if (data_base64.length > 28 * 1024 * 1024) return json({ error: 'El archivo es muy grande (' + mb + ' MB). Exportá el PDF más liviano o sacá una foto.' }, 413);
@@ -140,7 +186,7 @@ Deno.serve(async (req: Request) => {
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: data_base64 } }
       : { type: 'image', source: { type: 'base64', media_type: tipo, data: data_base64 } };
 
-    console.log('leer-analisis: recibido', foliar ? 'FOLIAR' : 'SUELO', tipo, mb + ' MB');
+    console.log('leer-analisis: recibido', agua ? 'AGUA' : (foliar ? 'FOLIAR' : 'SUELO'), tipo, mb + ' MB');
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -152,10 +198,12 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 6000,
-        system: foliar ? SYSTEM_FOLIAR : SYSTEM,
+        system: agua ? SYSTEM_AGUA : (foliar ? SYSTEM_FOLIAR : SYSTEM),
         messages: [{
           role: 'user',
-          content: [bloque, { type: 'text', text: foliar
+          content: [bloque, { type: 'text', text: agua
+            ? 'Extraé los valores de este análisis de agua para riego, normalizados al esquema (iones en meq/L, CE en µS/cm, boro en mg/L). Devolvé un array JSON con un objeto por muestra.'
+            : foliar
             ? 'Extraé los valores de este análisis foliar (tejido vegetal), normalizados al esquema (macros en g/kg, micros en mg/kg). Devolvé un array JSON con un objeto por muestra.'
             : 'Extraé los valores de este análisis de suelo, normalizados al esquema. Devolvé un array JSON con un objeto por muestra.' }],
         }],
@@ -174,10 +222,10 @@ Deno.serve(async (req: Request) => {
     const lista = extraerLista(out).filter((x) => x && typeof x === 'object');
     if (!lista.length) {
       console.error('leer-analisis: sin JSON interpretable', out.slice(0, 300));
-      return json({ error: foliar ? 'La IA no encontró valores de análisis foliar en el archivo' : 'La IA no encontró valores de análisis de suelo en el archivo' }, 422);
+      return json({ error: agua ? 'La IA no encontró valores de análisis de agua en el archivo' : (foliar ? 'La IA no encontró valores de análisis foliar en el archivo' : 'La IA no encontró valores de análisis de suelo en el archivo') }, 422);
     }
     console.log('leer-analisis: ok', lista.length, 'muestra(s)');
-    return json({ ok: true, tipo: foliar ? 'foliar' : 'suelo', datos: lista[0], muestras: lista, n: lista.length });
+    return json({ ok: true, tipo: agua ? 'agua' : (foliar ? 'foliar' : 'suelo'), datos: lista[0], muestras: lista, n: lista.length });
 
   } catch (e) {
     console.error('leer-analisis: error inesperado', String((e as Error)?.message || e));

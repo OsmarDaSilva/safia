@@ -70,6 +70,7 @@
 <script src="safia-meta.js"></script>
 <script src="safia-precios.js"></script>
 <script src="safia-foliar.js"></script>
+<script src="safia-calidad-agua.js"></script>
 <script src="safia-sensores.js"></script>
 <script src="safia-balance.js"></script>
 <script src="safia-pasturas.js"></script>
@@ -166,6 +167,7 @@
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
           <button data-tab="rotacion">Plan de rotación</button>
           <button data-tab="analisis">Análisis de suelo</button>
+          <button data-tab="calidadAgua">Análisis de agua</button>
           <button data-tab="foliar">Análisis foliar</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="humedad">Humedad de suelo</button>
@@ -380,6 +382,64 @@
           <div id="lecturaFoliar"></div>
           <div class="empty" id="vacioFoliar" style="display:none;">
             <div class="etxt">Todavía no hay análisis foliares en este campo.<br>Muestreá la hoja índice en el estadio indicado (soja: 3er trifolio en plena floración) y cargá el resultado: SAFIA lo lee contra los rangos de Embrapa y lo cruza con el suelo.</div>
+          </div>
+        </section>
+
+        <!-- ================= TAB ANÁLISIS DE AGUA (calidad del agua de riego) ================= -->
+        <section class="panel" id="panel-calidadAgua">
+          <style>@media (max-width: 900px) { .ca-grid { grid-template-columns: 1fr !important; } }</style>
+          <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="btnNuevoAgua">+ Agregar análisis de agua</button><span class="muted" style="font-size:12px;">Subí el análisis del pozo, río o tajamar: SAFIA calcula RAS, salinidad y los índices de la planilla, lo ubica en el diagrama de Riverside y dice si se puede regar, con cuidados o no, y qué hacer.</span></div>
+
+          <div class="formcard" id="formAgua">
+            <h3 id="tituloFormAgua">Nuevo análisis de agua</h3>
+            <div class="formsub">Iones en meq/L (si el laboratorio da mg/L, cambiá la unidad y SAFIA convierte). CE en µS/cm a 25 °C (1 dS/m = 1 mS/cm = 1.000 µS/cm). Boro en mg/L.</div>
+            <div class="form-grid">
+              <div class="field"><label>Fecha del análisis *</label><input type="date" id="aFecha"></div>
+              <div class="field"><label>Fuente</label><select id="aFuente"><option>Pozo</option><option>Río</option><option>Arroyo</option><option>Tajamar</option><option>Represa</option><option>Laguna</option><option>Otra</option></select></div>
+              <div class="field"><label>Identificación de la fuente</label><input id="aFuenteNombre" placeholder="Ej.: Pozo 1, toma del río"></div>
+              <div class="field"><label>Lote / equipo que riega</label><select id="aEquipo"><option value="">Toda la estancia</option></select></div>
+              <div class="field"><label>Laboratorio</label><input id="aLab" placeholder="Ej.: INTN, Biosollo"></div>
+              <div class="field"><label>N.º de informe</label><input id="aInforme" placeholder="Ej.: IE-EXT/2026/2548"></div>
+              <div class="field"><label>Unidad de los iones</label><select id="aUnidad"><option value="meq">meq/L (= mmolc/L)</option><option value="mg">mg/L (= ppm): SAFIA convierte a meq/L</option></select></div>
+              <div class="field"><label>Sodio Na⁺</label><input type="number" id="aIon_na" step="0.01" min="0"></div>
+              <div class="field"><label>Potasio K⁺</label><input type="number" id="aIon_k" step="0.01" min="0"></div>
+              <div class="field"><label>Calcio Ca²⁺</label><input type="number" id="aIon_ca" step="0.01" min="0"></div>
+              <div class="field"><label>Magnesio Mg²⁺</label><input type="number" id="aIon_mg" step="0.01" min="0"></div>
+              <div class="field"><label>Amonio NH₄⁺</label><input type="number" id="aIon_nh4" step="0.01" min="0"></div>
+              <div class="field"><label>Cloruros Cl⁻</label><input type="number" id="aIon_cl" step="0.01" min="0"></div>
+              <div class="field"><label>Sulfatos SO₄²⁻</label><input type="number" id="aIon_so4" step="0.01" min="0"></div>
+              <div class="field"><label>Carbonatos CO₃²⁻</label><input type="number" id="aIon_co3" step="0.01" min="0"></div>
+              <div class="field"><label>Bicarbonatos HCO₃⁻</label><input type="number" id="aIon_hco3" step="0.01" min="0"></div>
+              <div class="field"><label>Nitratos NO₃⁻</label><input type="number" id="aIon_no3" step="0.01" min="0"></div>
+              <div class="field"><label>Fosfatos (meq/L)</label><input type="number" id="aIon_po4" step="0.01" min="0"></div>
+              <div class="field"><label>pH</label><input type="number" id="aPh" step="0.01" min="0" max="14"></div>
+              <div class="field"><label>CE (µS/cm) *</label><input type="number" id="aCe" step="1" min="0"></div>
+              <div class="field"><label>Boro (mg/L)</label><input type="number" id="aBoro" step="0.01" min="0"></div>
+              <div class="field"><label>Sólidos disueltos TDS (mg/L, si lo informa)</label><input type="number" id="aTds" step="1" min="0"></div>
+              <div class="field"><label>Temperatura del agua (°C, opcional)</label><input type="number" id="aTemp" step="0.1"><span class="hint">Para el índice de Langelier; sin dato se usa 25 °C.</span></div>
+              <div class="field full">
+                <label>Foto o PDF del laboratorio</label>
+                <input type="file" id="aArchivo" accept=".pdf,image/*">
+                <span class="hint" id="aArchivoActual"></span>
+                <div style="margin-top:8px;">
+                  <button type="button" class="btn green" id="btnLeerAguaIA">Leer análisis de agua con IA y completar solo</button>
+                  <span class="hint" id="leerAguaHint" style="display:block;margin-top:6px;">Subí la foto o PDF del laboratorio y tocá el botón: la IA completa los casilleros en meq/L (convierte mg/L y dS/m). Revisá antes de guardar.</span>
+                  <div id="muestrasAguaIA" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+                </div>
+              </div>
+              <div class="field full"><label>Observaciones</label><textarea id="aObs"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <span class="spacer" style="flex:1"></span>
+              <button class="btn" id="btnCancelarAgua">Cancelar</button>
+              <button class="btn green" id="btnGuardarAgua">Guardar análisis de agua</button>
+            </div>
+          </div>
+
+          <div id="listaAgua"></div>
+          <div id="lecturaAgua"></div>
+          <div class="empty" id="vacioAgua" style="display:none;">
+            <div class="etxt">Todavía no hay análisis de agua en esta estancia.<br>Antes de instalar el riego, analizá el agua del pozo, río o tajamar: CE, pH, sodio, calcio, magnesio, potasio, cloruros, sulfatos, carbonatos, bicarbonatos y boro.</div>
           </div>
         </section>
 
@@ -756,6 +816,7 @@
     if (window.SafiaNDVI) SafiaNDVI.alCambiarCampo();
     if (window.SafiaRotacion) SafiaRotacion.alCambiarCampo();
     if (window.SafiaFoliar) SafiaFoliar.alCambiarCampo();
+    if (window.SafiaCalidadAgua) SafiaCalidadAgua.alCambiarCampo();
     if (window.SafiaSensores) SafiaSensores.activarAgua();
     if (window.SafiaHumedad) SafiaHumedad.alCambiarCampo();
     if (window.SafiaAgua) SafiaAgua.alCambiarCampo();
@@ -876,6 +937,7 @@
       if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
       if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
+      if (b.dataset.tab === 'calidadAgua' && window.SafiaCalidadAgua) SafiaCalidadAgua.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaSensores) SafiaSensores.activarFoliar();
       if (b.dataset.tab === 'agua' && window.SafiaSensores) SafiaSensores.activarAgua();
       if (b.dataset.tab === 'agua' && window.SafiaAgua) SafiaAgua.activar();
