@@ -305,20 +305,29 @@
     // Construcción del suelo de alto rinde (6–7 t/ha): lo que falta entre "adecuado" y lo que tienen los campeones
     if (v != null && cic != null && v < ALTO_RINDE.v && ALTO_RINDE.v > cu.v) {
       var ncAlto = (ALTO_RINDE.v - v) * cic / 100, ncBase = Math.max(0, (cu.v - v) * cic / 100);
-      if (ncAlto - ncBase >= 0.2) r.push({ k: 'encalado_alto', titulo: 'Para 6–7 t/ha: llevar V% de ' + fmt(v, 1) + ' a ' + ALTO_RINDE.v + ' (' + fmt(ncAlto, 1) + ' t/ha de calcáreo' + ((mg != null && mg < ALTO_RINDE.mg) ? ' dolomítico' : '') + ' en total' + (ncBase > 0.3 ? ', ' + fmt(ncAlto - ncBase, 1) + ' más que la dosis básica' : '') + ')',
+      if (ncAlto - ncBase >= 0.2) r.push({ k: 'encalado_alto', titulo: 'Meta de rinde 6–7 t/ha de grano · llevar V% de ' + fmt(v, 1) + ' a ' + ALTO_RINDE.v + ' (' + fmt(ncAlto, 1) + ' t/ha de calcáreo' + ((mg != null && mg < ALTO_RINDE.mg) ? ' dolomítico' : '') + ' en total' + (ncBase > 0.3 ? ', ' + fmt(ncAlto - ncBase, 1) + ' más que la dosis básica' : '') + ')',
         detalle: (v >= cu.v ? 'V% ' + fmt(v, 1) + ' alcanza el objetivo normal (' + cu.v + '), pero l' : 'L') + 'os lotes de más de 4.200–6.000 kg/ha tienen 56–68 % de saturación de bases en 0–20 cm y 70 % en 0–10 cm, con aluminio cero. NC = (' + ALTO_RINDE.v + ' − ' + fmt(v, 1) + ') × ' + fmt(cic, 2) + ' / 100 = ' + fmt(ncAlto, 1) + ' t/ha (PRNT 100 %). Al voleo sobre el rastrojo, sin arar; repetir cada 2 años como hacen los campeones (62 % encaló en los últimos 3 años).', fuente: '[7][2]' });
     }
     if (pc && p != null && p >= pc.critico && p < pc.critico * ALTO_RINDE.pFactor) {
       var pAlto = Math.round(pc.critico * ALTO_RINDE.pFactor), corrAlto = Math.round((pAlto - p) * pc.kgPorMg);
-      if (corrAlto >= 10) r.push({ k: 'fosforo_alto', titulo: 'Para 6–7 t/ha: construir P de ' + fmt(p, 1) + ' a ' + pAlto + ' mg/dm³ (' + fmt(corrAlto, 0) + ' kg/ha de P₂O₅ extra)',
+      if (corrAlto >= 10) r.push({ k: 'fosforo_alto', titulo: 'Meta de rinde 6–7 t/ha de grano · construir P de ' + fmt(p, 1) + ' a ' + pAlto + ' mg/dm³ (' + fmt(corrAlto, 0) + ' kg/ha de P₂O₅ extra)',
         detalle: 'Con riego o alto valor, Embrapa recomienda el 90 % del potencial: crítico × 1,4 = ' + pAlto + '. Cada mg/dm³ cuesta ' + pc.kgPorMg + ' kg/ha de P₂O₅; se puede hacer en 2–3 cultivos sumándolo a la manutención.', fuente: '[11][1]' });
     }
     if (iK && kmg != null && kmg >= iK.critico && k < ALTO_RINDE.k) {
       var corrKAlto = Math.round((ALTO_RINDE.k - k) * K_MG_POR_CMOL * 2.4 * 1.2 / 10) * 10;   // 1 mg/dm³ ≈ 2 kg K/ha en 0–20 cm × 1,2 (K→K₂O) + 20 % de pérdidas
-      r.push({ k: 'potasio_alto', titulo: 'Para 6–7 t/ha: llevar K de ' + fmt(kmg, 0) + ' a ~117 mg/dm³ (0,30 cmolc) con ~' + fmt(corrKAlto, 0) + ' kg/ha de K₂O extra',
+      r.push({ k: 'potasio_alto', titulo: 'Meta de rinde 6–7 t/ha de grano · llevar K de ' + fmt(kmg, 0) + ' a ~117 mg/dm³ (0,30 cmolc) con ~' + fmt(corrKAlto, 0) + ' kg/ha de K₂O extra',
         detalle: 'Cubierto para rindes normales (crítico ' + iK.critico + '), pero los lotes de más de 4.200–6.000 kg/ha tienen 0,25–0,41 cmolc (98–160 mg/dm³) y el potasio fue uno de los 5 factores decisivos. Sumar a la manutención en 2–3 cultivos; el K se absorbe sobre todo entre V7 y R5.', fuente: '[7][1]' });
     }
-    if (mg != null && mg >= 1.0 && mg < ALTO_RINDE.mg) r.push({ k: 'mg_alto', titulo: 'Para 6–7 t/ha: magnesio ' + fmt(mg, 2) + ' → ≥ 1,3 cmolc con calcáreo dolomítico', detalle: 'Los campeones tienen 1,3–1,8 en 0–20 cm y 0,75–1,2 en 20–40. El Mg reduce 100 veces más que el Ca la toxicidad del aluminio y es el centro de la clorofila. Usar dolomítico en el próximo encalado.', fuente: '[7][3]' });
+    if (mg != null && mg >= 1.0 && mg < ALTO_RINDE.mg) {
+      // Si el suelo no necesita cal (pH y V% ya en el objetivo), el calcáreo no es el camino para el Mg: subiría el pH de más
+      var sinCal = (v != null && v >= ALTO_RINDE.v) || (ph != null && ph >= ALTO_RINDE.ph[1]);
+      var bk = k > 0 && ca != null ? (ca + mg) / k : null;
+      var hayAl = (num(s.aluminio) != null && num(s.aluminio) > 0.3) || (num(s.satAluminio) != null && num(s.satAluminio) > 5);
+      r.push({ k: 'mg_alto', titulo: 'Meta de rinde 6–7 t/ha de grano · magnesio ' + fmt(mg, 2) + ' → ≥ 1,3 cmolc' + (sinCal ? (ALTO_RINDE.mg - mg < 0.1 ? ' (ya casi: no encalar para esto)' : ' con una fuente de magnesio, sin cal') : ' con calcáreo dolomítico'),
+        detalle: 'Los campeones tienen 1,3–1,8 en 0–20 cm y 0,75–1,2 en 20–40; el Mg es el centro de la clorofila' + (hayAl ? ' y reduce la toxicidad del aluminio mucho más que el Ca' : '') + '. ' +
+          (sinCal ? 'Este suelo no pide cal (' + (ph != null ? 'pH ' + fmt(ph, 1) : '') + (ph != null && v != null ? ', ' : '') + (v != null ? 'V% ' + fmt(v, 1) : '') + '): encalar solo para subir el Mg llevaría el pH por encima de lo recomendado. ' + (ALTO_RINDE.mg - mg < 0.1 ? 'La diferencia es mínima (' + fmt(ALTO_RINDE.mg - mg, 2) + ' cmolc): no justifica aplicar nada; controlar en el próximo análisis.' : 'Si hace falta, usar una fuente de Mg que no cambie el pH (por ejemplo sulfato de magnesio) y definir la dosis con el agrónomo.') + (bk != null && bk < ALTO_RINDE.bk[0] ? ' Con potasio alto frente a Ca y Mg ((Ca+Mg)/K ' + fmt(bk, 1) + '), no agregar K: compite con el Mg.' : '')
+          : 'Usar dolomítico en el próximo encalado.'), fuente: '[7][3]' });
+    }
     // Aluminio
     var alR = num(s.aluminio), mR = num(s.satAluminio);
     if ((mR != null && mR > 5) || (alR != null && alR > 0.3)) r.push({ k: 'aluminio', titulo: 'Aluminio ' + (mR != null ? 'con saturación ' + fmt(mR, 1) + ' %' : fmt(alR, 2) + ' cmolc/dm³') + ': neutralizarlo con el encalado' + ((mR != null && mR > 20) ? ' (prioridad 1)' : ''),
