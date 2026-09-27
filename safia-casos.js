@@ -318,7 +318,13 @@
       };
     }).sort(function (a, b) { return b.similitud - a.similitud; });
 
-    var top = puntuados.slice(0, maxCasos);
+    // Solo cuentan los casos dentro del radio: un lote de otra región (otro clima, otro suelo)
+    // no puede dar el potencial. Si no hay ninguno cerca, se muestran los más parecidos solo
+    // como información y el potencial queda sin estimar.
+    var cerca = puntuados.filter(function (t) { return t.distanciaKm == null || t.distanciaKm <= radioKm; });
+    var fueraDeRadio = !cerca.length && puntuados.length > 0;
+    var masCercano = fueraDeRadio ? puntuados.slice().sort(function (a, b) { return a.distanciaKm - b.distanciaKm; })[0] : null;
+    var top = cerca.slice(0, maxCasos);
 
     // Potencial: promedio ponderado por similitud² de los casos más parecidos, y su rango.
     var potencial = null;
@@ -359,7 +365,9 @@
     });
 
     return {
-      similares: top,
+      similares: fueraDeRadio ? puntuados.slice(0, maxCasos) : top,
+      fueraDeRadio: fueraDeRadio, radioKm: radioKm,
+      masCercano: masCercano ? { km: masCercano.distanciaKm, localidad: masCercano.caso.localidad || '', campo: masCercano.caso.campo || '' } : null,
       totalCandidatos: candidatos.length,
       potencial: potencial,
       referenciaSuelo: referencia.map(function (t) { return t.caso; }),

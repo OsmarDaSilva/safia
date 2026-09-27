@@ -213,6 +213,7 @@
         <div id="resultados" style="display:none;">
           <div class="card" style="margin-bottom:14px;">
             <div class="card-h"><h3>Resumen del proyecto</h3><span class="muted" id="rResumenSub"></span></div>
+            <div id="rAguaAviso"></div>
             <div class="tablescroll">
               <table class="tbl">
                 <thead><tr><th>Cultivo</th><th class="r">Objetivo kg/ha</th><th class="r">Potencial estimado</th><th class="r">Zona con riego</th><th class="r">Zona secano</th><th>Lectura</th></tr></thead>
@@ -468,6 +469,8 @@
     if(r.potencial){
       var nota = r.potencial.nCasos<3 ? '⚠️ Basado en solo '+r.potencial.nCasos+' caso(s): es una orientación, no una predicción.' : 'Promedio ponderado por similitud de '+r.potencial.nCasos+' casos reales.';
       potHTML='<div class="potencial">'+fmt(r.potencial.estimado,0)+'</div><div class="rango">Entre '+fmt(r.potencial.min,0)+' y '+fmt(r.potencial.max,0)+' kg/ha en los casos parecidos</div><div class="kpi-sub" style="margin-top:8px;">'+nota+'</div>';
+    } else if(r.fueraDeRadio){
+      potHTML='<div class="potencial">—</div><div class="kpi-sub">No hay casos con riego de '+esc(p.cultivo)+' a menos de '+r.radioKm+' km'+(r.masCercano?' (el más cercano está a '+fmt(r.masCercano.km,0)+' km'+(r.masCercano.localidad?', en '+esc(r.masCercano.localidad):'')+')':'')+'. Un lote de otra región (otro clima y otro suelo) no sirve para estimar el potencial: guiate por la referencia regional.</div>';
     } else potHTML='<div class="potencial">—</div><div class="kpi-sub">Todavía no hay casos con riego cosechados de '+esc(p.cultivo)+' en el banco.</div>';
     if(r.secano) potHTML+='<div class="kpi-sub" style="margin-top:8px;">🌾 Casos reales de <b>secano</b> parecidos: <b>'+fmt(r.secano.estimado,0)+' kg/ha</b> ('+r.secano.nCasos+' caso(s))'+(r.potencial?' → el riego sumaría <b>'+(r.potencial.estimado-r.secano.estimado>=0?'+':'')+fmt(r.potencial.estimado-r.secano.estimado,0)+' kg/ha</b>':'')+'</div>';
 
@@ -486,7 +489,7 @@
     }).join('') : '<tr><td colspan="8" class="muted">No hay casos comparables de '+esc(p.cultivo)+' todavía.</td></tr>';
 
     var refSuelo=r.referenciaSuelo;
-    var sueloSub = refSuelo.length ? 'referencia: '+refSuelo.map(function(c){return c.cliente+' ('+fmt(c.rindeKgHa,0)+' kg/ha)';}).join(', ') : 'sin casos con análisis de suelo';
+    var sueloSub = refSuelo.length ? 'referencia: '+refSuelo.map(function(c){return c.cliente+' ('+fmt(c.rindeKgHa,0)+' kg/ha)';}).join(', ') : (r.fueraDeRadio ? 'los casos del banco son de otra región (más de '+r.radioKm+' km): no se compara el suelo' : 'sin casos con análisis de suelo');
     var sueloHTML = r.comparacionSuelo.map(function(x){
       var pp=x.param; var lect='—', cl='';
       if(x.senal==='bajo'){ lect='🔻 Por debajo de los que más rinden'; cl='senal-bajo'; }
@@ -500,7 +503,7 @@
     return titulo+
       '<div class="grid cols-2"><div class="card"><div class="kpi-l">Potencial estimado (kg/ha)</div>'+potHTML+'</div>'+
       '<div class="card"><div class="kpi-l">Referencia regional (con riego / secano)</div><div style="margin-top:6px;">'+refHTML+'</div></div></div>'+
-      '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Casos reales más parecidos</h3><span class="muted">'+r.totalCandidatos+' caso(s) de '+esc(p.cultivo)+' en el banco</span></div><div class="tablescroll"><table class="tbl"><thead><tr><th>Similitud</th><th>Cliente · campo</th><th class="r">Distancia</th><th class="r">Altitud</th><th>Campaña</th><th class="r">Rinde kg/ha</th><th class="r">Agua mm</th><th class="r">Temp. media</th></tr></thead><tbody>'+casosHTML+'</tbody></table></div></div>'+
+      '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Casos reales más parecidos</h3><span class="muted">'+r.totalCandidatos+' caso(s) de '+esc(p.cultivo)+' en el banco'+(r.fueraDeRadio?' · todos a más de '+r.radioKm+' km: solo como información, no entran en el potencial':'')+'</span></div><div class="tablescroll"><table class="tbl"><thead><tr><th>Similitud</th><th>Cliente · campo</th><th class="r">Distancia</th><th class="r">Altitud</th><th>Campaña</th><th class="r">Rinde kg/ha</th><th class="r">Agua mm</th><th class="r">Temp. media</th></tr></thead><tbody>'+casosHTML+'</tbody></table></div></div>'+
       '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Tu suelo vs el de los que más rinden en '+esc(p.cultivo)+'</h3><span class="muted">'+esc(sueloSub)+'</span></div><div class="tablescroll"><table class="tbl"><thead><tr><th>Parámetro</th><th class="r">Tu suelo</th><th class="r">Los que más rinden</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead><tbody>'+sueloHTML+'</tbody></table></div></div>'+
       lecturaAgronomicaHTML(p);
   }
@@ -544,6 +547,11 @@
     if(base.lat==null && !base.suelo){ toast('Cargá al menos la ubicación o el análisis de suelo',true); return; }
     var agua=aguaDelForm();
     var lecturaAgua=pintarAgua(agua, filas.map(function(x){ return x.cultivo; }), base.suelo);
+    // el potencial con riego supone agua apta: si el agua tiene problemas se avisa arriba de todo
+    var aviso=document.getElementById('rAguaAviso');
+    if(lecturaAgua && lecturaAgua.veredicto.k==='grave') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;border-left:4px solid #C0392B;"><b>El agua analizada no sirve para regar tal como está'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+(lecturaAgua.r.ras!=null?', RAS '+fmt(lecturaAgua.r.ras,1):'')+')':'')+'.</b> Los rindes con riego de esta tabla suponen agua apta: no se alcanzan hasta resolver el agua (otra fuente, mezcla o tratamiento). Detalle en <b>Agua de riego del proyecto</b>, más abajo.</div>';
+    else if(lecturaAgua && lecturaAgua.veredicto.k==='cuidado') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;">Los rindes con riego suponen manejar los cuidados que pide el agua analizada'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+')':'')+'. Detalle en <b>Agua de riego del proyecto</b>, más abajo.</div>';
+    else aviso.innerHTML=agua?'':'<div class="note" style="margin:0 0 10px;">Sin análisis de agua: los rindes con riego suponen agua apta. Cargalo en el paso 4.</div>';
 
     var localidad=document.getElementById('pLocalidad').value.trim(), depto=document.getElementById('pDepto').value.trim();
     var resumen=document.getElementById('rResumen'), bloques=document.getElementById('bloquesCultivo');

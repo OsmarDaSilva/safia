@@ -1,10 +1,11 @@
-// SAFIA · Edge Function: safia-leer-analisis (v8)
+// SAFIA · Edge Function: safia-leer-analisis (v9)
 // Lee una foto o PDF de un análisis de SUELO, FOLIAR (tejido vegetal) o de AGUA de riego, de CUALQUIER
 // laboratorio, y devuelve los valores normalizados (mismos nombres y unidades) en JSON, una entrada por muestra.
 // v4: varias muestras + parseo robusto + registro de fallas. v5: sinónimos y unidades por laboratorio.
 // v6: modo `tipo: 'foliar'` (hoja) y Cu/Mn como campos propios en el suelo.
 // v7: H+Al, índice SMP y extractor de P como campos propios (manual RS/SC: SMP para el calcáreo, chequeo SB/CTC/V%).
 // v8: modo `tipo: 'agua'` (análisis de agua para riego: iones en meq/L, CE en µS/cm, boro en mg/L).
+// v9: carbonatos/bicarbonatos informados como CaCO3 (alcalinidad, SM 2320 / SM 4500-CO2 D, o suman la alcalinidad total) → ÷ 50.
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -140,6 +141,8 @@ UNIDADES (muy importante, los iones SIEMPRE en meq/L):
 - meq/L = mmolc/L = me/L. Si el informe da mmol/L: para Ca, Mg, SO4 y CO3 (dos cargas) multiplicá por 2; para Na, K, NH4, Cl, HCO3 y NO3 queda igual.
 - Si el informe da mg/L (= ppm), dividí por el peso equivalente: Na 22,99; K 39,10; Ca 20,04; Mg 12,15; NH4 18,04 (si está como N-NH4, dividí por 14,01); Cl 35,45; SO4 48,03 (si está como S-SO4, dividí por 16,03); CO3 30,00; HCO3 61,02; NO3 62,00 (si está como N-NO3, dividí por 14,01).
 - Si da alcalinidad o carbonatos/bicarbonatos como mg/L de CaCO3, dividí por 50 para obtener meq/L.
+- CARBONATOS Y BICARBONATOS, cuidado: muchos laboratorios los informan COMO CaCO3 aunque la unidad diga solo "mg/L". Tomalos como CaCO3 (dividí por 50) si se cumple cualquiera de estas: (a) el parámetro se llama "Alcalinidad de carbonatos" / "Alcalinidad de bicarbonatos"; (b) el método es SM 2320 o SM 4500-CO2 D; (c) carbonato + bicarbonato da igual (±3 %) a la alcalinidad total informada. Solo si el informe dice explícitamente "como CO3" / "como HCO3" o nada de lo anterior se cumple, dividí por 30,00 y 61,02. Anotá en observaciones qué criterio usaste.
+- Si informa alcalinidad total, anotala en observaciones (mg/L CaCO3 y meq/L).
 - CE: devolvela en µS/cm. 1 dS/m = 1 mS/cm = 1 mmho/cm = 1000 µS/cm; si viene en µmho/cm es igual a µS/cm.
 - Boro en mg/L (= ppm = g/m³).
 - Anotá en observaciones las unidades originales y cada conversión que hayas hecho.
