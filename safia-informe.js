@@ -65,12 +65,11 @@
       if (porDep.length) { refZona = porDep; refAmbito = dep; }
     }, function () {});
   }
-  function refZonaPara(cultivo, riego) {
-    if (!refZona) return null;
-    var filas = refZona.filter(function (x) { return norm(x.cultivo) === norm(cultivo) && (!x.finalidad || /grano/i.test(x.finalidad)) && (!!x.riego === !!riego); });
-    if (!filas.length) filas = refZona.filter(function (x) { return norm(x.cultivo) === norm(cultivo); });
-    var v = filas.map(function (x) { return Number(x.prod_ton_ha); }).filter(function (n) { return !isNaN(n); });
-    return v.length ? v.reduce(function (a, b) { return a + b; }, 0) / v.length * 1000 : null;
+  // grano comercial y sin mezclar épocas (SafiaCasos.refRegional); riego o secano según el caso
+  function refZonaPara(cultivo, riego, epoca) {
+    if (!refZona || !window.SafiaCasos || !SafiaCasos.refRegional) return null;
+    var rr = SafiaCasos.refRegional(refZona, cultivo, epoca);
+    return rr ? (riego === false ? rr.secano : rr.riego) : null;
   }
 
   /* ---------- secciones ---------- */
@@ -78,7 +77,7 @@
     var lotes = lotesDelCampo(), ha = 0; lotes.forEach(function (l) { ha += (l.poligono && l.poligono.ha) || parseFloat(l.superficie) || 0; });
     var ult = cx.mios[cx.mios.length - 1];
     var mejorZona = ult ? cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(ult.cultivo) && ((campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad)) || (campoActual.departamento && norm(c.departamento) === norm(campoActual.departamento))); }).reduce(function (a, b) { return !a || b.rindeKgHa > a.rindeKgHa ? b : a; }, null) : null;
-    var refZ = ult ? refZonaPara(ult.cultivo, ult.riego) : null;
+    var refZ = ult ? refZonaPara(ult.cultivo, ult.riego, ult.epoca) : null;
     var ndviUlt = null; lotes.forEach(function (l) { var s = window.SafiaNDVI ? SafiaNDVI.serieDe(l.id) : []; if (s && s.length) { var p = s[s.length - 1]; if (!ndviUlt || p.fecha > ndviUlt.fecha) ndviUlt = p; } });
     var analisis = lotes.map(function (l) { return analisisDelLote(l.id).slice(-1)[0]; }).filter(Boolean);
     var limitantes = 0; analisis.forEach(function (a) { if (window.SafiaAgro) SafiaAgro.interpretarSuelo(a, ult ? ult.cultivo : 'Soja').forEach(function (i) { if (i.estado === 'limita') limitantes++; }); });
@@ -140,7 +139,7 @@
 
   function secCampanas(cx) {
     var filas = cx.mios.map(function (c) {
-      var refZ = refZonaPara(c.cultivo, c.riego);
+      var refZ = refZonaPara(c.cultivo, c.riego, c.epoca);
       var mejor = cx.todos.filter(function (x) { return String(x.campoId) !== String(campoActual.id) && norm(x.cultivo) === norm(c.cultivo) && campoActual.localidad && norm(x.localidad) === norm(campoActual.localidad); }).reduce(function (a, b) { return !a || b.rindeKgHa > a.rindeKgHa ? b : a; }, null);
       return '<tr>' + td('<b>' + esc(c.campana) + '</b><div class="sub">' + esc(c.equipo) + (c.riego ? '' : ' · secano') + '</div>') + td(esc(c.cultivo) + '<div class="sub">' + esc(c.variedad || '—') + '</div>') + td('<span style="white-space:nowrap;">' + fmtF(c.siembra) + '</span><div class="sub">' + (c.dias != null ? c.dias + ' días' : '') + '</div>') + td('<span style="white-space:nowrap;">' + fmtF(c.cosecha) + '</span>') +
         td(c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + '<div class="sub">' + fmt(c.lluviaMM || 0, 0) + ' lluvia · ' + fmt(c.riegoMM || 0, 0) + ' riego</div>' : '—', 1) +
@@ -266,7 +265,7 @@
       var mio = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
       var rp = SafiaAgro.referenciaPara(mio, cx.todos, campoActual), ref = rp.ref;
       var local = cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
-      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(cu) + ' · ' + esc(mio.campana) + ' · ' + fmt(mio.rindeKgHa, 0) + ' kg/ha' + (ref ? ' · comparado con el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (' + fmt(ref.rindeKgHa, 0) + ' kg/ha)' : (rp.esMejor ? ' · el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (siguiente: ' + fmt(rp.siguiente.rindeKgHa, 0) + ' kg/ha)' : ' · sin otro lote de la zona para comparar')) + '</h3></div>' + SafiaAgro.informeHTML(mio, ref, cu, { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito, propio: { mejor: mio.rindeKgHa, promedio: porCultivo[cu].reduce(function (t, c) { return t + c.rindeKgHa; }, 0) / porCultivo[cu].length, n: porCultivo[cu].length }, zona: { promedio: refZonaPara(cu, mio.riego), mejor: ref ? ref.rindeKgHa : null, ambito: local.length ? campoActual.localidad : campoActual.departamento } }) + '</div>';
+      html += '<div class="card seccion"><div class="card-h"><h3>' + esc(cu) + ' · ' + esc(mio.campana) + ' · ' + fmt(mio.rindeKgHa, 0) + ' kg/ha' + (ref ? ' · comparado con el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (' + fmt(ref.rindeKgHa, 0) + ' kg/ha)' : (rp.esMejor ? ' · el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (siguiente: ' + fmt(rp.siguiente.rindeKgHa, 0) + ' kg/ha)' : ' · sin otro lote de la zona para comparar')) + '</h3></div>' + SafiaAgro.informeHTML(mio, ref, cu, { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito, propio: { mejor: mio.rindeKgHa, promedio: porCultivo[cu].reduce(function (t, c) { return t + c.rindeKgHa; }, 0) / porCultivo[cu].length, n: porCultivo[cu].length }, zona: { promedio: refZonaPara(cu, mio.riego, mio.epoca), mejor: ref ? ref.rindeKgHa : null, ambito: local.length ? campoActual.localidad : campoActual.departamento } }) + '</div>';
     });
     return html;
   }

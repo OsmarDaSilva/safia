@@ -576,7 +576,32 @@
     return cargar();
   }
 
+  /* Referencia regional de un cultivo (tabla safia_ref_produccion ya filtrada por localidad o departamento).
+     Regla única para toda la app: solo grano COMERCIAL (el grano húmedo pesa más por el agua y la semilla es
+     otro negocio) y sin mezclar épocas (regla de Osmar: verano y zafriña no se promedian). Si se pide una época,
+     se usa esa; si no, la época que tenga dato con riego Y en secano (para comparar lo mismo con lo mismo),
+     prefiriendo Primavera/Verano; si ninguna tiene los dos, la que tenga riego. Devuelve la época usada. */
+  function refRegional(filas, cultivo, epoca) {
+    var f = (filas || []).filter(function (x) { return norm(x.cultivo) === norm(cultivo); });
+    var com = f.filter(function (x) { return /comercial/i.test(x.finalidad || ''); });
+    if (!com.length) com = f.filter(function (x) { return /grano/i.test(x.finalidad || '') && !/humed/i.test(norm(x.finalidad || '')); });
+    if (!com.length) return null;
+    var prom = function (l) { var v = l.map(function (x) { return Number(x.prod_ton_ha); }).filter(function (n) { return !isNaN(n) && n > 0; }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length * 1000) : null; };
+    var grupos = {}; com.forEach(function (x) { var k = x.epoca_siembra || '—'; (grupos[k] = grupos[k] || []).push(x); });
+    var claves = Object.keys(grupos);
+    if (epoca) { var pedida = claves.filter(function (k) { return norm(k) === norm(epoca); }); if (pedida.length) claves = pedida; }
+    var mejor = null;
+    claves.forEach(function (k) {
+      var g = grupos[k], r = prom(g.filter(function (x) { return x.riego; })), s = prom(g.filter(function (x) { return !x.riego; }));
+      var puntos = (r != null && s != null ? 4 : (r != null ? 2 : (s != null ? 1 : 0))) + (/primavera/i.test(k) ? 0.5 : 0);
+      if (!mejor || puntos > mejor.puntos) mejor = { riego: r, secano: s, epoca: k === '—' ? null : k, n: g.length, finalidad: g[0].finalidad || null, puntos: puntos };
+    });
+    if (!mejor || (mejor.riego == null && mejor.secano == null)) return null;
+    delete mejor.puntos; return mejor;
+  }
+
   window.SafiaCasos = {
+    refRegional: refRegional,
     armarCasos: armarCasos,
     listasUbicacion: listasUbicacion,
     conectarListasUbicacion: conectarListasUbicacion,

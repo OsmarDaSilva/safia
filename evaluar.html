@@ -221,7 +221,7 @@
           <div class="note warn" style="margin-bottom:14px;">
             SAFIA <b>compara</b> tu suelo con el de los casos reales que más rinden en cada cultivo. Cuánto encalar o fertilizar lo define el agrónomo: esto es la señal, no la receta.
           </div>
-          <div class="no-print" style="display:flex;gap:8px;"><button class="btn" onclick="window.print()">🖨️ Imprimir evaluación</button></div>
+          <div class="no-print" style="display:flex;gap:8px;"><button class="btn green" type="button" id="btnInformeEval">Informe de evaluación (PDF)</button><button class="btn" onclick="window.print()">Imprimir esta pantalla</button></div>
         </div>
       </section>
 
@@ -439,15 +439,14 @@
   }
   function referenciaRegional(localidad,depto,cultivo,epoca){
     return cargarRef().then(function(todas){
-      var filas=todas.filter(function(x){ return norm(x.cultivo)===norm(cultivo) && /grano/i.test(x.finalidad||''); });
+      var filas=todas.filter(function(x){ return norm(x.cultivo)===norm(cultivo); });
       var ambito='';
       var nl=(window.SafiaCasos&&SafiaCasos.normLoc)||norm; var porLoc=localidad?filas.filter(function(x){return nl(x.localidad)===nl(localidad);}):[];
       if(porLoc.length){ filas=porLoc; ambito=localidad; }
       else { var porDep=depto?filas.filter(function(x){return norm(x.departamento)===norm(depto);}):[]; if(porDep.length){ filas=porDep; ambito=depto+' (promedio del departamento)'; } else return null; }
-      if(epoca){ var pe=filas.filter(function(x){return norm(x.epoca_siembra)===norm(epoca);}); if(pe.length) filas=pe; }
-      function prom(l){ var v=l.map(function(x){return Number(x.prod_ton_ha);}).filter(function(n){return !isNaN(n);}); return v.length?v.reduce(function(a,b){return a+b;},0)/v.length:null; }
-      var pr=prom(filas.filter(function(x){return x.riego;})), ps=prom(filas.filter(function(x){return !x.riego;}));
-      return { riego: pr==null?null:Math.round(pr*1000), secano: ps==null?null:Math.round(ps*1000), ambito:ambito, n:filas.length };
+      // grano comercial y sin mezclar épocas (SafiaCasos.refRegional)
+      var rr=SafiaCasos.refRegional(filas,cultivo,epoca); if(!rr) return null;
+      return { riego: rr.riego, secano: rr.secano, ambito: ambito+(rr.epoca?' · '+rr.epoca:''), n: rr.n, epoca: rr.epoca };
     });
   }
 
@@ -730,6 +729,11 @@
     pintarGuardadas();
   }
 
+  document.getElementById('btnInformeEval').addEventListener('click',function(){
+    if(!evActual){ toast('Primero evaluá y guardá la estrategia (paso 0: el prospecto)',true); return; }
+    try{ sessionStorage.setItem('informe_evaluacion', String(evActual)); }catch(e){}
+    window.location.href='informe-evaluacion.html?evaluacion='+evActual;
+  });
   function pintarGuardadas(){
     var evs=L('evaluaciones').slice().sort(function(a,b){ return String(b.fechaModificacion||b.fecha).localeCompare(String(a.fechaModificacion||a.fecha)); });
     var clientes=L('clientes'), campos=L('campos'), t=$('tablaGuardadas');
@@ -743,7 +747,7 @@
           '<td>'+esc(p.nombre||'—')+'<div class="sub">'+esc([p.localidad,p.departamento].filter(Boolean).join(', '))+(e.superficieHa?' · '+fmt(e.superficieHa,0)+' ha':'')+'</div></td>'+
           '<td>'+esc(e.nombre||'')+(e.notas?'<div class="sub">'+esc(String(e.notas).slice(0,90))+'</div>':'')+'</td><td>'+cul+'</td>'+
           '<td>'+fmtFecha(String(e.fechaModificacion||e.fecha).slice(0,10))+(e.evaluadoPor?'<div class="sub">'+esc(e.evaluadoPor)+'</div>':'')+'</td>'+
-          '<td class="r" style="white-space:nowrap;"><button class="btn" data-abrir="'+e.id+'">Abrir</button> '+(esProspecto(c)?'<button class="btn" data-cliente="'+c.id+'" title="Cerró la venta: pasa a cliente activo">Pasar a cliente</button> ':'')+'<button class="btn danger" data-borrar="'+e.id+'">Borrar</button></td></tr>';
+          '<td class="r" style="white-space:nowrap;"><button class="btn" data-abrir="'+e.id+'">Abrir</button> <a class="btn" href="informe-evaluacion.html?evaluacion='+e.id+'">Informe</a> '+(esProspecto(c)?'<button class="btn" data-cliente="'+c.id+'" title="Cerró la venta: pasa a cliente activo">Pasar a cliente</button> ':'')+'<button class="btn danger" data-borrar="'+e.id+'">Borrar</button></td></tr>';
       }).join(''):'<tr><td colspan="6" class="muted">Sin evaluaciones guardadas.</td></tr>')+'</tbody>';
   }
   function abrirEvaluacion(id, evaluar){
