@@ -7,306 +7,97 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="safia-theme.css">
-  <title>SAFIA — Clima y ETo/ETc</title>
+  <title>SAFIA — Clima · ETo/ETc</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #F2F3F5;
-      color: #2E3236;
-      min-height: 100vh;
-      padding: 20px;
+    /* Clima en una hoja: grilla fija en escritorio (cada tarjeta con su propio scroll), apilada en celular */
+    .clima-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: nowrap; margin-bottom: 10px; }
+    .clima-top > div:first-child { min-width: 0; flex: 1 1 auto; }
+    .clima-top .actions { flex: 0 0 auto; }
+    @media (max-width: 900px) { .clima-top { flex-wrap: wrap; } .clima-top .actions { flex: 1 1 100%; } }
+    .clima-sel-l { display: block; font-size: 11px; font-weight: 700; color: #8C9196; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .clima-sel { min-width: 340px; max-width: 460px; padding: 9px 12px; border: 1.5px solid rgba(0,0,0,.12); border-radius: 10px; font: 600 14px inherit; font-family: inherit; background: #fff; color: #2E3236; }
+    .loading { text-align: center; padding: 40px 20px; color: #8C9196; }
+    .clima-grid { display: grid; gap: 12px; grid-template-columns: minmax(0,1fr); grid-template-areas: "cab" "hoy" "cul" "bal" "pro" "pas" "fue"; }
+    @media (min-width: 1100px) {
+      .clima-grid { grid-template-columns: minmax(0,1.1fr) minmax(0,1fr) minmax(0,.95fr); grid-template-rows: auto minmax(0,1.15fr) minmax(0,1fr) auto;
+        grid-template-areas: "cab cab cab" "hoy cul bal" "pro pro pas" "fue fue fue"; height: calc(100vh - 118px); min-height: 600px; }
     }
-
-    .volver {
-      display: inline-block;
-      color: #178029;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      padding: 8px 16px;
-      background: #fff;
-      border-radius: 100px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .volver:hover { background: #E8EAEC; }
-
-    .contenedor { max-width: 1000px; margin: 0 auto; }
-
-    .titulo-principal { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
-    .subtitulo-principal { font-size: 15px; color: #8C9196; margin-bottom: 32px; }
-
-    .modo-tabs {
-      display: flex; gap: 8px; margin-bottom: 16px;
-      background: #fff; padding: 6px;
-      border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-
-    .modo-tab {
-      flex: 1; padding: 12px 16px;
-      border: none; background: transparent;
-      border-radius: 10px; font-family: inherit;
-      font-size: 14px; font-weight: 600;
-      color: #8C9196; cursor: pointer;
-    }
-
-    .modo-tab.activo { background: #178029; color: #F2F3F5; }
-    .modo-tab:not(.activo):hover { background: rgba(15, 61, 20, 0.08); }
-
-    .modo-tab .badge-pro {
-      display: inline-block;
-      background: #B8731A; color: #fff;
-      font-size: 9px; padding: 2px 6px;
-      border-radius: 100px; margin-left: 4px; font-weight: 700;
-    }
-
-    .selector-campo {
-      background: #fff; border-radius: 18px; padding: 24px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px;
-    }
-
-    .selector-titulo {
-      font-size: 13px; text-transform: uppercase;
-      letter-spacing: 0.1em; color: #8C9196;
-      font-weight: 700; margin-bottom: 12px;
-    }
-
-    .selector-campo select {
-      width: 100%; padding: 16px 18px;
-      border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px;
-      font-size: 16px; font-family: inherit;
-      background: #F2F3F5; color: #2E3236;
-    }
-
-    .alerta {
-      background: rgba(181, 55, 28, 0.1);
-      border: 1.5px solid rgba(181, 55, 28, 0.3);
-      color: #C0392B; padding: 16px 20px;
-      border-radius: 12px; margin-bottom: 20px; font-size: 14px;
-    }
-    .alerta a { color: #C0392B; font-weight: 700; text-decoration: underline; }
-
-    .loading { text-align: center; padding: 60px 20px; color: #8C9196; }
-
-    .loading-icon {
-      font-size: 48px;
-      animation: spin 2s linear infinite;
-      display: inline-block; margin-bottom: 14px;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    .dashboard { display: none; }
-
-    .cabecera-par {
-      display: flex; gap: 12px; flex-wrap: wrap;
-      align-items: stretch; margin-bottom: 12px;
-    }
-    .dash-header {
-      flex: 1 1 300px;
-      background: linear-gradient(135deg, #178029, #22A93A);
-      color: #F2F3F5; padding: 18px 20px;
-      border-radius: 14px; margin-bottom: 0;
-      display: flex; flex-direction: column;
-      justify-content: center; align-items: flex-start;
-    }
-
-    .dash-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-
-    .dash-header .ubicacion {
-      font-size: 13px; opacity: 0.85;
-      display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px;
-    }
-
-    .dash-suelo {
-      margin-top: 8px;
-      padding: 7px 13px;
-      background: rgba(212, 162, 76, 0.25);
-      border-radius: 100px;
-      font-size: 13px;
-      display: inline-block;
-    }
+    .cc { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow: auto; min-height: 0; }
+    .cc-t { font-size: 12px; font-weight: 800; color: #178029; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .cc-t svg { width: 16px; height: 16px; }
+    .cc-cab { grid-area: cab; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: linear-gradient(135deg, #178029, #22A93A); color: #F2F3F5; padding: 10px 16px; overflow: visible; }
+    .cc-cab h3 { font-size: 19px; font-weight: 800; margin: 0; }
+    .cc-cab .ubicacion { font-size: 12.5px; opacity: .9; margin-top: 2px; }
+    .dash-suelo { padding: 6px 12px; background: rgba(255,255,255,.18); border-radius: 100px; font-size: 12.5px; }
     .dash-suelo strong { font-weight: 700; }
-
-    .campana-info {
-      flex: 1 1 300px;
-      background: #3A3E41;
-      color: #F2F3F5; padding: 18px 20px;
-      border-radius: 14px; margin-bottom: 0; display: none;
-    }
-
-    .campana-info h3 { font-size: 16px; font-weight: 600; opacity: 0.9; margin-bottom: 6px; }
-
-    .campana-cultivo { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-
-    .campana-detalles {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px; margin-top: 16px;
-    }
-
-    .campana-detalle {
-      background: rgba(255,255,255,0.2);
-      padding: 12px; border-radius: 10px;
-    }
-
-    .campana-detalle-label {
-      font-size: 11px; opacity: 0.85;
-      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
-    }
-
-    .campana-detalle-valor { font-size: 18px; font-weight: 700; }
-
-    .badge-fuente {
-      display: inline-block; font-size: 10px;
-      padding: 3px 8px; border-radius: 100px;
-      font-weight: 700; margin-left: 8px;
-      background: rgba(255,255,255,0.25);
-    }
-
-    .etapa-card {
-      background: #fff; border-radius: 14px; padding: 16px 18px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px;
-      display: none;
-    }
-
-    .etapa-titulo {
-      font-size: 13px; text-transform: uppercase;
-      letter-spacing: 0.1em; color: #8C9196;
-      font-weight: 700; margin-bottom: 8px;
-    }
-
-    .etapa-actual { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-    .etapa-icono { font-size: 28px; }
-    .etapa-nombre { font-size: 20px; font-weight: 700; color: #178029; }
-    .etapa-desc { font-size: 13px; color: #8C9196; margin-top: 2px; }
-
-    .kc-grafico {
-      width: 100%; height: 150px; margin-top: 12px;
-      background: #F2F3F5; border-radius: 12px;
-      padding: 10px; position: relative;
-    }
-    .kc-grafico svg { width: 100%; height: 100%; }
-
-    .kc-leyenda {
-      display: flex; gap: 12px; flex-wrap: wrap;
-      margin-top: 10px; font-size: 11px; color: #8C9196;
-    }
-    .kc-leyenda-item { display: flex; align-items: center; gap: 4px; }
-    .kc-leyenda-color { width: 12px; height: 12px; border-radius: 3px; }
-
-    .recomendacion {
-      background: #fff; border-radius: 14px; padding: 16px 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px;
-      border-left: 6px solid #178029;
-    }
+    .cc-hoy { grid-area: hoy; display: flex; flex-direction: column; gap: 10px; }
+    .cc-cultivo { grid-area: cul; }
+    .cc-balance { grid-area: bal; }
+    .cc-pron { grid-area: pro; }
+    .cc-pasado { grid-area: pas; }
+    .fuente-datos { grid-area: fue; text-align: center; font-size: 11px; color: #8C9196; }
+    .fuente-datos a { color: #178029; font-weight: 600; }
+    .recomendacion { display: flex; gap: 10px; align-items: flex-start; border-left: 5px solid #178029; background: #F7F8F9; border-radius: 10px; padding: 8px 10px; }
     .recomendacion.regar { border-left-color: #2E72C8; }
     .recomendacion.no-regar { border-left-color: #178029; }
     .recomendacion.urgente { border-left-color: #C0392B; }
-
-    .reco-icono { font-size: 34px; margin-bottom: 4px; }
-    .reco-titulo { font-size: 19px; font-weight: 700; color: #178029; margin-bottom: 3px; }
-    .reco-detalle { font-size: 13px; color: #8C9196; line-height: 1.4; }
-
-    .kpis {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px; margin-bottom: 12px;
-    }
-
-    .kpi {
-      background: #fff; border-radius: 12px; padding: 13px;
-      text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-
-    .kpi.kpi-destacado {
-      background: linear-gradient(135deg, #178029, #22A93A);
-      color: #F2F3F5;
-    }
-
-    .kpi-icono { font-size: 22px; margin-bottom: 3px; }
-
-    .kpi-valor { font-size: 21px; font-weight: 700; color: #178029; line-height: 1; }
-    .kpi.kpi-destacado .kpi-valor { color: #F2F3F5; }
-
-    .kpi-unidad { font-size: 14px; color: #8C9196; font-weight: 500; }
-    .kpi.kpi-destacado .kpi-unidad { color: #F2F3F5; opacity: 0.85; }
-
-    .kpi-label {
-      font-size: 11px; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #8C9196;
-      margin-top: 3px; font-weight: 600;
-    }
-    .kpi.kpi-destacado .kpi-label { color: #F2F3F5; opacity: 0.9; }
-
-    .kpi-formula {
-      font-size: 11px; color: #8C9196;
-      margin-top: 2px; font-style: italic;
-    }
-    .kpi.kpi-destacado .kpi-formula { color: #F2F3F5; opacity: 0.8; }
-
-    .seccion-pronostico {
-      background: #fff; border-radius: 14px; padding: 16px 18px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px;
-    }
-
-    .seccion-titulo { font-size: 15px; font-weight: 700; color: #178029; margin-bottom: 10px; }
-    .seccion-sub { font-size: 13px; color: #8C9196; margin-bottom: 10px; margin-top: -6px; }
-
-    .pronostico-dias {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;
-    }
-
-    .dia {
-      background: #F2F3F5; border-radius: 12px; padding: 10px 6px;
-      text-align: center; border: 1.5px solid transparent;
-    }
-    .dia.hoy { background: rgba(15, 61, 20, 0.08); border-color: #178029; }
-
-    .dia-fecha { font-size: 11px; color: #8C9196; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
-    .dia-icono { font-size: 24px; margin: 3px 0; }
-    .dia-temps { font-size: 13px; font-weight: 600; color: #2E3236; margin-bottom: 2px; }
-    .dia-temp-min { color: #8C9196; font-weight: 400; }
-    .dia-lluvia { font-size: 11px; color: #2E72C8; font-weight: 600; margin-top: 4px; }
-    .dia-eto { font-size: 11px; color: #B8731A; font-weight: 600; margin-top: 2px; }
-    .dia-etc { font-size: 11px; color: #178029; font-weight: 700; margin-top: 2px; }
-
-    .balance {
-      background: #fff; border-radius: 14px; padding: 16px 18px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 12px;
-    }
-
-    .balance-fila {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.06);
-    }
-    .balance-fila:last-of-type { border-bottom: none; }
-
-    .balance-label { font-size: 14px; color: #2E3236; font-weight: 500; }
-
-    .balance-valor { font-size: 16px; font-weight: 700; }
-    .balance-valor.entrada { color: #178029; }
-    .balance-valor.salida { color: #C0392B; }
-
-    .balance-resultado {
-      margin-top: 10px; padding: 11px 16px;
-      background: #F2F3F5; border-radius: 12px;
-      display: flex; justify-content: space-between; align-items: center;
-    }
-
-    .balance-resultado-label { font-size: 14px; font-weight: 700; color: #178029; }
-    .balance-resultado-valor { font-size: 24px; font-weight: 700; }
-    .balance-resultado-valor.deficit { color: #C0392B; }
-    .balance-resultado-valor.surplus { color: #178029; }
-
-    .fuente-datos {
-      text-align: center; padding: 16px;
-      font-size: 11px; color: #8C9196; opacity: 0.8;
-    }
-    .fuente-datos a { color: #178029; font-weight: 600; }
+    .reco-icono svg { width: 30px; height: 30px; }
+    .recomendacion.regar .reco-icono, .recomendacion.regar .reco-titulo { color: #2E72C8; }
+    .recomendacion.urgente .reco-icono, .recomendacion.urgente .reco-titulo { color: #C0392B; }
+    .reco-icono, .reco-titulo { color: #178029; }
+    .reco-titulo { font-size: 17px; font-weight: 800; margin-bottom: 2px; }
+    .reco-detalle { font-size: 12.5px; color: #5B6167; line-height: 1.4; }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .kpi { background: #F7F8F9; border-radius: 10px; padding: 6px 6px; text-align: center; }
+    .kpi.kpi-destacado { background: linear-gradient(135deg, #178029, #22A93A); color: #F2F3F5; grid-column: span 2; }
+    .kpi-icono { color: #8C9196; height: 18px; } .kpi-icono svg { width: 18px; height: 18px; }
+    .kpi.kpi-destacado .kpi-icono { color: #F2F3F5; }
+    .kpi-valor { font-size: 18px; font-weight: 800; color: #178029; line-height: 1.1; }
+    .kpi.kpi-destacado .kpi-valor, .kpi.kpi-destacado .kpi-unidad, .kpi.kpi-destacado .kpi-label, .kpi.kpi-destacado .kpi-formula { color: #F2F3F5; }
+    .kpi-unidad { font-size: 12px; color: #8C9196; font-weight: 600; margin-left: 2px; }
+    .kpi-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: #8C9196; margin-top: 2px; font-weight: 700; }
+    .kpi-formula { font-size: 11px; color: #8C9196; margin-top: 1px; }
+    .campana-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .campana-cultivo { font-size: 18px; font-weight: 800; color: #2E3236; }
+    .badge-fuente { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 100px; font-weight: 700; background: #E7F6EA; color: #178029; }
+    .campana-detalles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; margin-top: 8px; }
+    .campana-detalle { background: #F7F8F9; padding: 7px 8px; border-radius: 8px; }
+    .campana-detalle-label { font-size: 10px; color: #8C9196; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .campana-detalle-valor { font-size: 14px; font-weight: 800; color: #2E3236; }
+    .etapa-actual { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .etapa-icono { color: #178029; } .etapa-icono svg { width: 26px; height: 26px; }
+    .etapa-nombre { font-size: 16px; font-weight: 800; color: #178029; }
+    .etapa-desc { font-size: 12px; color: #8C9196; }
+    .kc-grafico { width: 100%; height: 118px; margin-top: 8px; background: #F7F8F9; border-radius: 10px; padding: 6px; }
+    .kc-grafico svg { width: 100%; height: 100%; }
+    .kc-leyenda { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; font-size: 10.5px; color: #8C9196; }
+    .kc-leyenda-item { display: flex; align-items: center; gap: 4px; }
+    .kc-leyenda-color { width: 10px; height: 10px; border-radius: 3px; }
+    .sin-campana { font-size: 13px; color: #5B6167; line-height: 1.5; }
+    .sin-campana a { color: #178029; font-weight: 700; cursor: pointer; }
+    .seccion-sub { font-size: 12px; color: #8C9196; margin: -2px 0 8px; }
+    .balance-fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,.06); }
+    .balance-label { font-size: 13px; color: #2E3236; font-weight: 600; }
+    .balance-valor { font-size: 15px; font-weight: 800; text-align: right; white-space: nowrap; }
+    .balance-valor.entrada { color: #178029; } .balance-valor.salida { color: #C0392B; }
+    .balance-resultado { margin-top: 10px; padding: 10px 12px; background: #F7F8F9; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .balance-resultado-label { font-size: 13px; font-weight: 800; color: #178029; }
+    .balance-resultado-valor { font-size: 22px; font-weight: 800; }
+    .balance-resultado-valor.deficit { color: #C0392B; } .balance-resultado-valor.surplus { color: #178029; }
+    .pronostico-dias { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 6px; }
+    @media (max-width: 760px) { .pronostico-dias { grid-template-columns: repeat(4, minmax(0,1fr)); } .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } .campana-detalles { grid-template-columns: repeat(2, minmax(0,1fr)); } .clima-sel { min-width: 0; width: 100%; } }
+    .dia { background: #F7F8F9; border-radius: 10px; padding: 8px 4px; text-align: center; border: 1.5px solid transparent; }
+    .dia.hoy { background: #E7F6EA; border-color: #178029; }
+    .dia-fecha { font-size: 11px; color: #5B6167; text-transform: capitalize; font-weight: 700; }
+    .dia-icono { color: #5B6167; margin: 4px 0 2px; } .dia-icono svg { width: 26px; height: 26px; }
+    .dia-temps { font-size: 13px; font-weight: 800; color: #2E3236; }
+    .dia-temp-min { color: #8C9196; font-weight: 600; }
+    .dia-lluvia { font-size: 11px; color: #2E72C8; font-weight: 700; margin-top: 3px; }
+    .dia-eto { font-size: 11px; color: #B8731A; font-weight: 700; }
+    .dia-etc { font-size: 11px; color: #178029; font-weight: 800; }
+    .dias-tabla { width: 100%; font-size: 12px; }
+    .dias-tabla td, .dias-tabla th { padding: 6px 6px !important; }
+    .ic-l { width: 14px; height: 14px; vertical-align: -2px; }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
@@ -322,179 +113,156 @@
 </head>
 <body>
 
-  <div class="contenedor">
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
 
-    <a href="index.html" class="volver">← Volver al menú</a>
-    
-    <a href="usuarios.html" class="volver" style="margin-left:8px;">Usuarios</a>
+  <div class="app">
 
-    <h1 class="titulo-principal"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1 .5-8 5 5 0 0 1 9.6 1.4A3.3 3.3 0 0 1 17 18z"/></svg> Inteligencia Climática</h1>
-    <p class="subtitulo-principal">Open-Meteo + cálculo de evapotranspiración (ETo/ETc) según FAO Penman-Monteith.</p>
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos y lotes</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="ficha.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>Ficha de campaña</a>
+        <a href="precios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Precios</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Referencia agrícola</a>
+        <a href="referencia-forraje.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg>Referencia forrajera</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+        <a href="evaluar.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Evaluar proyecto</a>
+        <a href="rankings.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>Rankings</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="usuarios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.5 0 4.5 2 4.5 4.5"/></svg>Usuarios</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
 
-    <div class="modo-tabs">
-      <button class="modo-tab activo" id="tabCampo" onclick="cambiarModo('campo')">
-        🛰️ Por Campo (ETo)
-      </button>
-      <button class="modo-tab" id="tabCampana" onclick="cambiarModo('campana')">
-        🌱 Por Campaña (ETc) <span class="badge-pro">Pro</span>
-      </button>
-    </div>
-
-    <div class="alerta" id="alertaSinGPS" style="display:none;">
-      ⚠️ No tenés ningún campo con coordenadas GPS cargadas.
-      <br><br>
-      <a href="mis-campos.html">→ Ir a cargar GPS en mis campos</a>
-    </div>
-
-    <div class="alerta" id="alertaSinCampanas" style="display:none;">
-      ⚠️ No tenés campañas activas con cultivos válidos. Cargá una campaña con un cultivo del catálogo.
-      <br><br>
-      <a href="mis-campanas.html">→ Ir a cargar campañas</a>
-    </div>
-
-    <div class="selector-campo" id="selectorContainer">
-      <div class="selector-titulo" id="selectorLabel">📍 Elegí un campo para ver su clima</div>
-      <select id="selector" onchange="cargarClima()">
-        <option value="">Seleccionar...</option>
-      </select>
-    </div>
-
-    <div class="loading" id="loading" style="display:none;">
-      <div class="loading-icon">🌡️</div>
-      <div>Consultando datos meteorológicos...</div>
-    </div>
-
-    <div class="dashboard" id="dashboard">
-
-      <div class="cabecera-par">
-      <div class="dash-header">
-        <h2 id="dashCampoNombre">—</h2>
-        <div class="ubicacion">
-          <div>👤 <span id="dashCliente">—</span></div>
-          <div>🛰️ <span id="dashGPS">—</span></div>
-          <div>📅 <span id="dashFecha">—</span></div>
+    <main class="main">
+      <div class="crumb">Inteligencia · <b>Clima · ETo/ETc</b></div>
+      <div class="ptop clima-top">
+        <div>
+          <h2>Inteligencia climática</h2>
+          <div class="sub">Open-Meteo · ETo por FAO Penman-Monteith · consumo del cultivo (ETc) por FAO-56.</div>
         </div>
-        <div class="dash-suelo" id="dashSuelo" style="display:none;"></div>
+        <div class="actions" id="selectorContainer">
+          <div><label class="clima-sel-l" id="selectorLabel" for="selector">Campo o campaña</label>
+          <select id="selector" class="clima-sel" onchange="cargarClima()"><option value="">Seleccionar...</option></select></div>
+        </div>
       </div>
 
-      <div class="campana-info" id="campanaInfo">
-        <h3><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg> Campaña activa <span class="badge-fuente" id="badgeFuente"></span></h3>
-        <div class="campana-cultivo" id="campanaCultivo">—</div>
-        <div class="campana-detalles">
-          <div class="campana-detalle">
-            <div class="campana-detalle-label">Variedad</div>
-            <div class="campana-detalle-valor" id="campanaVariedad">—</div>
+      <div class="note danger" id="alertaSinGPS" style="display:none;">No hay campos con coordenadas GPS cargadas. <a href="mis-campos.html" style="font-weight:700;text-decoration:underline;">Cargar el GPS en Campos</a></div>
+      <div class="note danger" id="errorClima" style="display:none;"></div>
+      <div class="loading" id="loading" style="display:none;">Consultando datos meteorológicos…</div>
+
+      <div class="clima-grid" id="dashboard" style="display:none;">
+        <section class="cc cc-cab">
+          <div><h3 id="dashCampoNombre">—</h3><div class="ubicacion"><span id="dashCliente">—</span> · <span id="dashGPS">—</span> · <span id="dashFecha">—</span></div></div>
+          <div class="dash-suelo" id="dashSuelo" style="display:none;"></div>
+        </section>
+
+        <section class="cc cc-hoy">
+          <div class="recomendacion" id="recomendacion">
+            <div class="reco-icono" id="recoIcono"></div>
+            <div><div class="reco-titulo" id="recoTitulo">—</div><div class="reco-detalle" id="recoDetalle">—</div></div>
           </div>
-          <div class="campana-detalle">
-            <div class="campana-detalle-label">Sembrado</div>
-            <div class="campana-detalle-valor" id="campanaFecha">—</div>
+          <div class="kpis">
+            <div class="kpi"><div class="kpi-icono"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg></div><div><span class="kpi-valor" id="kpiTemp">—</span><span class="kpi-unidad">°C</span></div><div class="kpi-label">Temperatura</div></div>
+            <div class="kpi"><div class="kpi-icono"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></div><div><span class="kpi-valor" id="kpiHumedad">—</span><span class="kpi-unidad">%</span></div><div class="kpi-label">Humedad</div></div>
+            <div class="kpi"><div class="kpi-icono"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/></svg></div><div><span class="kpi-valor" id="kpiViento">—</span><span class="kpi-unidad">km/h</span></div><div class="kpi-label">Viento</div></div>
+            <div class="kpi"><div class="kpi-icono"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div><div><span class="kpi-valor" id="kpiETo">—</span><span class="kpi-unidad">mm</span></div><div class="kpi-label">ETo hoy</div></div>
+            <div class="kpi kpi-destacado" id="kpiETcCard"><div class="kpi-icono" id="kpiETcIcono"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg></div><div><span class="kpi-valor" id="kpiETc">—</span><span class="kpi-unidad">mm</span></div><div class="kpi-label">ETc hoy (consumo del cultivo)</div><div class="kpi-formula" id="kpiETcFormula">ETo × Kc</div></div>
           </div>
-          <div class="campana-detalle">
-            <div class="campana-detalle-label">Días desde siembra</div>
-            <div class="campana-detalle-valor" id="campanaDias">—</div>
+        </section>
+
+        <section class="cc cc-cultivo">
+          <div class="cc-t"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg> Cultivo y etapa</div>
+          <div class="sin-campana" id="sinCampana" style="display:none;"></div>
+          <div class="campana-info" id="campanaInfo" style="display:none;">
+            <div class="campana-cab"><div class="campana-cultivo" id="campanaCultivo">—</div><span class="badge-fuente" id="badgeFuente"></span></div>
+            <div class="campana-detalles">
+              <div class="campana-detalle"><div class="campana-detalle-label">Variedad</div><div class="campana-detalle-valor" id="campanaVariedad">—</div></div>
+              <div class="campana-detalle"><div class="campana-detalle-label">Siembra</div><div class="campana-detalle-valor" id="campanaFecha">—</div></div>
+              <div class="campana-detalle"><div class="campana-detalle-label">Días</div><div class="campana-detalle-valor" id="campanaDias">—</div></div>
+              <div class="campana-detalle"><div class="campana-detalle-label">Superficie</div><div class="campana-detalle-valor" id="campanaSup">—</div></div>
+            </div>
           </div>
-          <div class="campana-detalle">
-            <div class="campana-detalle-label">Superficie</div>
-            <div class="campana-detalle-valor" id="campanaSup">—</div>
+          <div class="etapa-card" id="etapaCard" style="display:none;">
+            <div class="etapa-actual"><div class="etapa-icono" id="etapaIcono"></div><div><div class="etapa-nombre" id="etapaNombre">—</div><div class="etapa-desc" id="etapaDesc">—</div></div></div>
+            <div class="kc-grafico" id="kcGrafico"></div>
+            <div class="kc-leyenda" id="kcLeyenda"></div>
           </div>
-        </div>
+        </section>
+
+        <section class="cc cc-balance">
+          <div class="cc-t"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg> Balance hídrico · últimos 7 días</div>
+          <div class="seccion-sub" id="balanceSub">—</div>
+          <div class="balance-fila"><div class="balance-label">Lluvia aprovechada y riego (entrada)</div><div class="balance-valor entrada" id="balanceLluvia">— mm</div></div>
+          <div class="balance-fila"><div class="balance-label" id="balanceETLabel">ETo acumulada</div><div class="balance-valor salida" id="balanceET">— mm</div></div>
+          <div class="balance-resultado"><div class="balance-resultado-label">Balance</div><div class="balance-resultado-valor" id="balanceResultado">— mm</div></div>
+        </section>
+
+        <section class="cc cc-pron">
+          <div class="cc-t"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Pronóstico 7 días</div>
+          <div class="seccion-sub" id="pronosticoSub">Lluvia esperada y evapotranspiración estimada</div>
+          <div class="pronostico-dias" id="pronosticoFuturo"></div>
+        </section>
+
+        <section class="cc cc-pasado">
+          <div class="cc-t"><svg class="ic-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Últimos 7 días</div>
+          <table class="tbl dias-tabla"><thead><tr><th>Día</th><th class="r">Máx / mín</th><th class="r">Lluvia</th><th class="r">ETo</th><th class="r" id="thEtcPasado" style="display:none;">ETc</th></tr></thead><tbody id="pronosticoPasado"></tbody></table>
+        </section>
+
+        <div class="fuente-datos">Fuente: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (modelos ECMWF/GFS) · ETo: FAO Penman-Monteith · Kc: FAO-56 · balance: motor SAFIA (mismo que Operador y Encargado)</div>
       </div>
-      </div>
-
-      <div class="etapa-card" id="etapaCard">
-        <div class="etapa-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="7"/><rect x="10.5" y="6" width="3" height="12"/><rect x="16" y="13" width="3" height="5"/></svg> Etapa fenológica actual</div>
-        <div class="etapa-actual">
-          <div class="etapa-icono" id="etapaIcono">🌱</div>
-          <div>
-            <div class="etapa-nombre" id="etapaNombre">—</div>
-            <div class="etapa-desc" id="etapaDesc">—</div>
-          </div>
-        </div>
-
-        <div class="kc-grafico" id="kcGrafico"></div>
-
-        <div class="kc-leyenda" id="kcLeyenda"></div>
-      </div>
-
-      <div class="recomendacion" id="recomendacion">
-        <div class="reco-icono" id="recoIcono">💧</div>
-        <div class="reco-titulo" id="recoTitulo">—</div>
-        <div class="reco-detalle" id="recoDetalle">—</div>
-      </div>
-
-      <div class="kpis">
-        <div class="kpi">
-          <div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg></div>
-          <div><span class="kpi-valor" id="kpiTemp">—</span><span class="kpi-unidad">°C</span></div>
-          <div class="kpi-label">Temperatura</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#2E72C8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></div>
-          <div><span class="kpi-valor" id="kpiHumedad">—</span><span class="kpi-unidad">%</span></div>
-          <div class="kpi-label">Humedad</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-icono"><svg class="ic-kpi" viewBox="0 0 24 24" fill="none" stroke="#8C9196" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7a2.5 2.5 0 1 1-2.5 2.5"/></svg></div>
-          <div><span class="kpi-valor" id="kpiViento">—</span><span class="kpi-unidad">km/h</span></div>
-          <div class="kpi-label">Viento</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-icono">☀️</div>
-          <div><span class="kpi-valor" id="kpiETo">—</span><span class="kpi-unidad">mm</span></div>
-          <div class="kpi-label">ETo Hoy</div>
-        </div>
-        <div class="kpi kpi-destacado" id="kpiETcCard" style="display:none;">
-          <div class="kpi-icono" id="kpiETcIcono">🌽</div>
-          <div><span class="kpi-valor" id="kpiETc">—</span><span class="kpi-unidad">mm</span></div>
-          <div class="kpi-label">ETc Hoy</div>
-          <div class="kpi-formula" id="kpiETcFormula">ETo × Kc</div>
-        </div>
-      </div>
-
-      <div class="seccion-pronostico">
-        <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg> Pronóstico próximos 7 días</div>
-        <div class="seccion-sub" id="pronosticoSub">Lluvia esperada y evapotranspiración estimada</div>
-        <div class="pronostico-dias" id="pronosticoFuturo"></div>
-      </div>
-
-      <div class="seccion-pronostico">
-        <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="11" width="3" height="7"/><rect x="10.5" y="6" width="3" height="12"/><rect x="16" y="13" width="3" height="5"/></svg> Últimos 7 días</div>
-        <div class="seccion-sub">Lluvia caída y evapotranspiración registrada</div>
-        <div class="pronostico-dias" id="pronosticoPasado"></div>
-      </div>
-
-      <div class="balance">
-        <div class="seccion-titulo"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg> Balance hídrico semanal</div>
-        <div class="seccion-sub" id="balanceSub">Últimos 7 días</div>
-
-        <div class="balance-fila">
-          <div class="balance-label">🌧️ Lluvia aprovechada (entrada)</div>
-          <div class="balance-valor entrada" id="balanceLluvia">— mm</div>
-        </div>
-        <div class="balance-fila">
-          <div class="balance-label" id="balanceETLabel">☀️ ETo acumulada</div>
-          <div class="balance-valor salida" id="balanceET">— mm</div>
-        </div>
-
-        <div class="balance-resultado">
-          <div class="balance-resultado-label">Balance hídrico</div>
-          <div class="balance-resultado-valor" id="balanceResultado">— mm</div>
-        </div>
-      </div>
-
-      <div class="fuente-datos">
-        Fuente: <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> · Modelo ECMWF/GFS · ETo: FAO Penman-Monteith · Kc: FAO 56
-      </div>
-
-    </div>
-
+    </main>
   </div>
-
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
   <script src="safia-clima.js"></script>
   <script>
-    let modoActual = 'campo';
+    // Fecha AAAA-MM-DD como fecha LOCAL (new Date('2026-09-27') es UTC y en Paraguay cae el día anterior)
+    function fechaLocal(s) { if (s instanceof Date) return s; const t = String(s || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(t) ? new Date(t + 'T12:00:00') : new Date(s); }
+    const SVG = (d, w) => '<svg viewBox="0 0 24 24" width="' + (w || 24) + '" height="' + (w || 24) + '" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>';
+    const NUBE = '<path d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/>';
+    const ICO = {
+      sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+      solNube: '<path d="M12 3v1.5M5.6 5.6l1 1M3 12h1.5M17.4 5.6l-1 1"/><path d="M15.5 10.5A4 4 0 0 0 8 10"/><path d="M8 20h9a3.5 3.5 0 0 0 .4-6.98A5 5 0 0 0 8.3 13.5 3.25 3.25 0 0 0 8 20z"/>',
+      nube: NUBE,
+      niebla: '<path d="M4 9h16M3 13h18M5 17h14"/>',
+      llovizna: NUBE.replace('M7 18', 'M7 15') + '<path d="M9 19v1M13 19v1M17 19v1"/>',
+      lluvia: '<path d="M7 14h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 7a3.5 3.5 0 0 0 1 7z"/><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/>',
+      nieve: '<path d="M7 14h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 7a3.5 3.5 0 0 0 1 7z"/><path d="M8 18h.01M12 20h.01M16 18h.01"/>',
+      tormenta: '<path d="M7 14h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6 7a3.5 3.5 0 0 0 1 7z"/><path d="M12 14l-2 4h4l-2 4"/>',
+      termo: '<path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/>',
+      gota: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+      alerta: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+      check: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+      ojo: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+      pausa: '<circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/>',
+      hoja: '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
+      espiga: '<path d="M12 22V8"/><path d="M12 8c-2-1-3-3-3-5 2 0 3 2 3 5zM12 8c2-1 3-3 3-5-2 0-3 2-3 5zM12 13c-2-1-3-3-3-5 2 0 3 2 3 5zM12 13c2-1 3-3 3-5-2 0-3 2-3 5zM12 18c-2-1-3-3-3-5 2 0 3 2 3 5zM12 18c2-1 3-3 3-5-2 0-3 2-3 5z"/>'
+    };
 
     // Suelos delegados al motor compartido (safia-balance.js).
     const TIPOS_SUELO = SafiaBalance.TIPOS_SUELO;
@@ -506,6 +274,11 @@
 
     window.onload = function() {
       cargarSelector();
+      const sel = document.getElementById('selector');
+      let previo = null; try { previo = localStorage.getItem('clima_seleccion'); } catch (e) {}
+      const opciones = [].slice.call(sel.options).map(o => o.value).filter(Boolean);
+      const elegir = previo && opciones.indexOf(previo) >= 0 ? previo : (opciones.find(v => v.indexOf('campana:') === 0) || opciones[0]);
+      if (elegir) { sel.value = elegir; cargarClima(); }
     };
 
     // ============ CARGAR TABLA Kc COMPLETA (FAO + CUSTOM) ============
@@ -524,92 +297,46 @@
       return null;
     }
 
-    function cambiarModo(modo) {
-      modoActual = modo;
-      document.getElementById('tabCampo').classList.toggle('activo', modo === 'campo');
-      document.getElementById('tabCampana').classList.toggle('activo', modo === 'campana');
-      document.getElementById('alertaSinGPS').style.display = 'none';
-      document.getElementById('alertaSinCampanas').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'none';
-      cargarSelector();
-    }
-
     function cargarSelector() {
       const selector = document.getElementById('selector');
-      const label = document.getElementById('selectorLabel');
       const container = document.getElementById('selectorContainer');
-
       selector.innerHTML = '<option value="">Seleccionar...</option>';
-
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
       const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
-
-      if (modoActual === 'campo') {
-        label.textContent = '📍 Elegí un campo para ver su clima (ETo genérica)';
-        const camposConGPS = campos.filter(c => c.latitud && c.longitud);
-
-        if (camposConGPS.length === 0) {
-          document.getElementById('alertaSinGPS').style.display = 'block';
-          container.style.display = 'none';
-          return;
-        }
-
-        container.style.display = 'block';
-
-        camposConGPS.forEach(campo => {
-          const cliente = clientes.find(c => c.id === campo.clienteId);
-          const option = document.createElement('option');
-          option.value = 'campo:' + campo.id;
-          option.textContent = `${campo.nombre} (${cliente ? cliente.nombre : '?'})`;
-          selector.appendChild(option);
+      const camposConGPS = campos.filter(c => c.latitud && c.longitud);
+      if (camposConGPS.length === 0) { document.getElementById('alertaSinGPS').style.display = 'block'; container.style.display = 'none'; return; }
+      container.style.display = '';
+      // campañas activas con cultivo del catálogo y fecha de siembra
+      const campanasValidas = [];
+      campanas.forEach(c => {
+        if (c.estado !== 'Activa' || !c.cultivos || !c.cultivos.length) return;
+        const equipo = equipos.find(e => e.id === c.equipoId); if (!equipo) return;
+        const campo = camposConGPS.find(f => f.id === equipo.campoId); if (!campo) return;
+        c.cultivos.forEach((cul, idx) => {
+          const kcInfo = obtenerCultivoKc(cul.cultivo);
+          if (kcInfo && cul.fechaSiembra) campanasValidas.push({ campanaId: c.id, cultivoIdx: idx, cultivo: cul, campana: c, equipo, campo, cliente: clientes.find(cl => cl.id === campo.clienteId), kcDef: kcInfo });
         });
-
-      } else {
-        label.textContent = '🌱 Elegí una campaña para ver el consumo real del cultivo (ETc)';
-
-        const campanasValidas = [];
-        campanas.forEach(c => {
-          if (c.estado !== 'Activa') return;
-          if (!c.cultivos || c.cultivos.length === 0) return;
-
-          const equipo = equipos.find(e => e.id === c.equipoId);
-          if (!equipo) return;
-
-          const campo = campos.find(f => f.id === equipo.campoId);
-          if (!campo || !campo.latitud || !campo.longitud) return;
-
-          c.cultivos.forEach((cul, idx) => {
-            const kcInfo = obtenerCultivoKc(cul.cultivo);
-            if (kcInfo && cul.fechaSiembra) {
-              const cliente = clientes.find(cl => cl.id === campo.clienteId);
-              campanasValidas.push({
-                campanaId: c.id, cultivoIdx: idx, cultivo: cul,
-                campana: c, equipo, campo, cliente,
-                kcDef: kcInfo
-              });
-            }
-          });
-        });
-
-        if (campanasValidas.length === 0) {
-          document.getElementById('alertaSinCampanas').style.display = 'block';
-          container.style.display = 'none';
-          return;
-        }
-
-        container.style.display = 'block';
-
+      });
+      window.__campanasValidas = campanasValidas;
+      camposConGPS.forEach(campo => {
+        const cliente = clientes.find(c => c.id === campo.clienteId);
+        const g = document.createElement('optgroup');
+        g.label = campo.nombre + (cliente ? ' · ' + cliente.nombre : '');
         campanasValidas.forEach((cv, i) => {
-          const option = document.createElement('option');
-          option.value = 'campana:' + i;
-          option.textContent = `${cv.kcDef.emoji || '🌱'} ${cv.cultivo.cultivo} ${cv.cultivo.variedad ? '(' + cv.cultivo.variedad + ')' : ''} → ${cv.equipo.nombre} → ${cv.campo.nombre}`;
-          selector.appendChild(option);
+          if (cv.campo.id !== campo.id) return;
+          const o = document.createElement('option');
+          o.value = 'campana:' + i;
+          o.textContent = cv.cultivo.cultivo + (cv.cultivo.variedad ? ' ' + cv.cultivo.variedad : '') + ' · ' + cv.equipo.nombre + ' (consumo del cultivo)';
+          g.appendChild(o);
         });
-
-        window.__campanasValidas = campanasValidas;
-      }
+        const oc = document.createElement('option');
+        oc.value = 'campo:' + campo.id;
+        oc.textContent = 'Clima del campo (referencia ETo)';
+        g.appendChild(oc);
+        selector.appendChild(g);
+      });
     }
 
     async function cargarClima() {
@@ -619,6 +346,8 @@
         return;
       }
 
+      try { localStorage.setItem('clima_seleccion', valor); } catch (e) {}
+      document.getElementById('errorClima').style.display = 'none';
       document.getElementById('loading').style.display = 'block';
       document.getElementById('dashboard').style.display = 'none';
 
@@ -658,7 +387,7 @@
         mostrarDashboard(contexto, r.datos);
       } else {
         document.getElementById('loading').style.display = 'none';
-        alert('No se pudo cargar el clima.\n\n' + SafiaClima.mensajeError(r.error));
+        const ec = document.getElementById('errorClima'); ec.textContent = 'No se pudo cargar el clima: ' + SafiaClima.mensajeError(r.error); ec.style.display = 'block';
       }
     }
 
@@ -669,7 +398,7 @@
 
       // Cultivos PERENNES → Kc por estación del año
       if (kcDef.tipo === 'perenne') {
-        const mes = new Date(fechaCalculo).getMonth() + 1; // 1-12
+        const mes = fechaLocal(fechaCalculo).getMonth() + 1; // 1-12
         // Hemisferio Sur (Paraguay, Argentina, Brasil, Uruguay, Chile, sur de Bolivia)
         // Primavera: Sep-Nov | Verano: Dic-Feb | Otoño: Mar-May | Invierno: Jun-Ago
         let kc, etapa, etapaIdx;
@@ -686,8 +415,8 @@
       }
 
       // Cultivos ANUALES → Kc por etapa fenológica
-      const fechaSi = new Date(fechaSiembra);
-      const fechaCalc = new Date(fechaCalculo);
+      const fechaSi = fechaLocal(fechaSiembra);
+      const fechaCalc = fechaLocal(fechaCalculo);
       const dias = Math.floor((fechaCalc - fechaSi) / (1000 * 60 * 60 * 24));
       const { kc_ini, kc_med, kc_fin, L_ini, L_des, L_med, L_fin } = kcDef;
       const totalDias = L_ini + L_des + L_med + L_fin;
@@ -748,8 +477,8 @@
 
       // Mostrar tipo de suelo del campo
       const dashSuelo = document.getElementById('dashSuelo');
-      dashSuelo.innerHTML = `${suelo.emoji} <strong>Suelo ${suelo.nombre}</strong> · CC ${suelo.cc} % vol · PMP ${suelo.pmp} % vol · ${suelo.AAU} mm de agua útil en 60 cm` + SafiaBalance.notaFallbackSuelo(suelo);
-      dashSuelo.style.display = 'inline-block';
+      dashSuelo.innerHTML = `<strong>Suelo ${suelo.nombre}</strong> · CC ${suelo.cc} % vol · PMP ${suelo.pmp} % vol · ${suelo.AAU} mm de agua útil en 60 cm` + SafiaBalance.notaFallbackSuelo(suelo);
+      dashSuelo.style.display = '';
 
       const actual = datos.current;
       document.getElementById('kpiTemp').textContent = Math.round(actual.temperature_2m);
@@ -771,37 +500,37 @@
         kcInfo = calcularKc(kcDef, hoy, cultivo.fechaSiembra);
 
         document.getElementById('campanaInfo').style.display = 'block';
-        document.getElementById('campanaCultivo').textContent = `${kcDef.emoji || '🌱'} ${cultivo.cultivo}`;
+        document.getElementById('campanaCultivo').textContent = cultivo.cultivo + ' · ' + contexto.equipo.nombre;
 
         // Badge fuente
         const badge = document.getElementById('badgeFuente');
-        badge.textContent = kcDef.fuente === 'FAO' ? '📚 FAO 56' : '✏️ Personalizado';
+        badge.textContent = kcDef.fuente === 'FAO' ? 'Kc FAO-56' : 'Kc personalizado';
 
         document.getElementById('campanaVariedad').textContent = cultivo.variedad || '—';
 
-        const fechaSiembraDate = new Date(cultivo.fechaSiembra);
-        document.getElementById('campanaFecha').textContent = fechaSiembraDate.toLocaleDateString('es-PY');
+        const fechaSiembraDate = fechaLocal(cultivo.fechaSiembra);
+        document.getElementById('campanaFecha').textContent = fechaSiembraDate.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
-        const dias = Math.floor((new Date() - fechaSiembraDate) / (1000 * 60 * 60 * 24));
+        const dias = Math.round((fechaLocal(SafiaBalance.hoyLocal()) - fechaSiembraDate) / (1000 * 60 * 60 * 24));
         document.getElementById('campanaDias').textContent = kcDef.tipo === 'perenne' ? 'Perenne' : dias + ' días';
         document.getElementById('campanaSup').textContent = (cultivo.superficie || '—') + ' ha';
 
         document.getElementById('etapaCard').style.display = 'block';
+        document.getElementById('sinCampana').style.display = 'none';
+        document.getElementById('thEtcPasado').style.display = '';
 
         // Iconos y descripciones según tipo
         if (kcDef.tipo === 'perenne') {
-          const iconosPerenne = ['🌸', '☀️', '🍂', '❄️'];
           const descPerenne = [
             'Primavera: brotación, despertar del cultivo',
             'Verano: máxima demanda hídrica',
             'Otoño: post-fructificación',
             'Invierno: reposo vegetativo'
           ];
-          document.getElementById('etapaIcono').textContent = iconosPerenne[kcInfo.etapaIdx];
+          document.getElementById('etapaIcono').innerHTML = SVG(ICO.hoja, 26);
           document.getElementById('etapaNombre').textContent = kcInfo.etapa;
           document.getElementById('etapaDesc').textContent = descPerenne[kcInfo.etapaIdx];
         } else {
-          const iconosAnual = ['🌱', '🌿', '🌾', '🍂', '✂️'];
           const descAnual = [
             'Cobertura del suelo creciendo (germinación, primeras hojas)',
             'Expansión vegetativa, cubriendo el suelo',
@@ -809,7 +538,7 @@
             'Madurez, secado, próximo a cosecha',
             'Cultivo cosechado'
           ];
-          document.getElementById('etapaIcono').textContent = iconosAnual[kcInfo.etapaIdx] || '🌱';
+          document.getElementById('etapaIcono').innerHTML = SVG(kcInfo.etapaIdx === 2 || kcInfo.etapaIdx === 3 ? ICO.espiga : ICO.hoja, 26);
           document.getElementById('etapaNombre').textContent = kcInfo.etapa;
           document.getElementById('etapaDesc').textContent = descAnual[kcInfo.etapaIdx] || '—';
         }
@@ -817,15 +546,22 @@
         dibujarCurvaKc(kcInfo, kcDef, cultivo.fechaSiembra);
 
         const etcHoy = etoHoy * kcInfo.kc;
-        document.getElementById('kpiETcCard').style.display = 'block';
-        document.getElementById('kpiETcIcono').textContent = kcDef.emoji || '🌽';
+        document.getElementById('kpiETcCard').style.display = '';
         document.getElementById('kpiETc').textContent = etcHoy.toFixed(1);
         document.getElementById('kpiETcFormula').textContent = `ETo ${etoHoy.toFixed(1)} × Kc ${kcInfo.kc.toFixed(2)}`;
 
       } else {
         document.getElementById('campanaInfo').style.display = 'none';
         document.getElementById('etapaCard').style.display = 'none';
-        document.getElementById('kpiETcCard').style.display = 'none';
+        document.getElementById('thEtcPasado').style.display = 'none';
+        document.getElementById('kpiETc').textContent = '—';
+        document.getElementById('kpiETcFormula').textContent = 'elegí una campaña del campo';
+        const propias = (window.__campanasValidas || []).map((cv, i) => ({ cv, i })).filter(x => x.cv.campo.id === campo.id);
+        const sc = document.getElementById('sinCampana');
+        sc.innerHTML = 'Mostrando el clima del campo con la evapotranspiración de referencia (ETo), sin cultivo. ' +
+          (propias.length ? 'Para ver el consumo real del cultivo (ETc), su etapa y su curva, elegí la campaña: ' + propias.map(x => '<a data-camp="campana:' + x.i + '">' + x.cv.cultivo.cultivo + ' · ' + x.cv.equipo.nombre + '</a>').join(' · ') + '.' : 'Este campo no tiene campañas activas con cultivo y fecha de siembra: cargalas en <a href="mis-campanas.html">Campañas</a> para ver el consumo del cultivo.');
+        sc.querySelectorAll('a[data-camp]').forEach(a => a.addEventListener('click', () => { const s = document.getElementById('selector'); s.value = a.dataset.camp; cargarClima(); }));
+        sc.style.display = '';
       }
 
       // Pronóstico futuro
@@ -838,8 +574,8 @@
       // Histórico
       const pronosticoPasado = document.getElementById('pronosticoPasado');
       pronosticoPasado.innerHTML = '';
-      for (let i = Math.max(0, H0 - 7); i < H0; i++) {
-        pronosticoPasado.innerHTML += generarDiaCard(datos.daily, i, false, contexto);
+      for (let i = H0 - 1; i >= Math.max(0, H0 - 7); i--) {
+        pronosticoPasado.innerHTML += generarDiaFila(datos.daily, i, contexto);
       }
 
       // Balance hídrico — vía motor compartido (safia-balance.js).
@@ -897,13 +633,13 @@
         ? ` <small style="opacity:0.7;font-weight:400;">(de ${lluviaTotal.toFixed(1)} mm caídos, ${perdidoEscorrentia.toFixed(1)} mm se escurren)</small>`
         : '';
       const riegoLabel = riegoEfectivo > 0
-        ? ` + 💧 ${riegoEfectivo.toFixed(1)} mm riego (ef. ${Math.round(eficienciaRiego*100)}%)`
+        ? ` + ${riegoEfectivo.toFixed(1)} mm de riego (ef. ${Math.round(eficienciaRiego*100)} %)`
         : '';
       document.getElementById('balanceLluvia').innerHTML = `+${lluviaEfectiva.toFixed(1)} mm${detalleEscorrentia}${riegoLabel}`;
       document.getElementById('balanceET').textContent = `-${etTotal.toFixed(1)} mm`;
       document.getElementById('balanceETLabel').textContent = usaETc
-        ? `${(kcDefBal && kcDefBal.emoji) || '🌽'} ETc acumulada (consumo del cultivo)`
-        : `☀️ ETo acumulada (referencia)`;
+        ? 'ETc acumulada (consumo del cultivo)'
+        : 'ETo acumulada (referencia)';
 
       const balance = lluviaEfectiva + riegoEfectivo - etTotal;
       const balanceEl = document.getElementById('balanceResultado');
@@ -911,57 +647,41 @@
       balanceEl.className = 'balance-resultado-valor ' + (balance >= 0 ? 'surplus' : 'deficit');
 
       document.getElementById('balanceSub').textContent = mostrarPro
-        ? `Personalizado para ${contexto.cultivo.cultivo}${kcInfo ? ' en etapa ' + kcInfo.etapa : ''}`
-        : 'Últimos 7 días';
+        ? `${contexto.cultivo.cultivo}${kcInfo ? ' en etapa ' + kcInfo.etapa : ''}: lluvia, riego y consumo del cultivo`
+        : (usaETc ? 'Con la campaña activa del campo (' + (kcDefBal.nombre || 'cultivo') + '), igual que Operador y Encargado' : 'Lluvia y evapotranspiración de referencia (el campo no tiene campaña activa)');
 
       generarRecomendacion(datos, rBal, contexto, kcInfo);
 
       document.getElementById('loading').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
+      document.getElementById('dashboard').style.display = '';
     }
 
+    function etcDelDia(daily, index, contexto) {
+      if (contexto.tipo !== 'campana' || !contexto.kcDef) return null;
+      const kcDia = calcularKc(contexto.kcDef, fechaLocal(daily.time[index]), contexto.cultivo.fechaSiembra);
+      return (daily.et0_fao_evapotranspiration[index] || 0) * kcDia.kc;
+    }
     function generarDiaCard(daily, index, esHoy, contexto) {
-      const fecha = new Date(daily.time[index]);
-      const opciones = { weekday: 'short', day: '2-digit', month: '2-digit' };
-      const fechaStr = fecha.toLocaleDateString('es-PY', opciones);
-
-      const tMax = Math.round(daily.temperature_2m_max[index]);
-      const tMin = Math.round(daily.temperature_2m_min[index]);
-      const lluvia = (daily.precipitation_sum[index] || 0).toFixed(1);
-      const eto = (daily.et0_fao_evapotranspiration[index] || 0).toFixed(1);
-      const wmoCode = daily.weather_code[index];
-      const icono = iconoClima(wmoCode);
-
-      let etcLine = '';
-      if (contexto.tipo === 'campana' && contexto.kcDef) {
-        const fechaDia = new Date(daily.time[index]);
-        const kcDia = calcularKc(contexto.kcDef, fechaDia, contexto.cultivo.fechaSiembra);
-        const etcDia = (parseFloat(eto) * kcDia.kc).toFixed(1);
-        etcLine = `<div class="dia-etc">${contexto.kcDef.emoji || '🌽'} ${etcDia} mm</div>`;
-      }
-
-      return `
-        <div class="dia ${esHoy ? 'hoy' : ''}">
-          <div class="dia-fecha">${esHoy ? 'HOY' : fechaStr}</div>
-          <div class="dia-icono">${icono}</div>
-          <div class="dia-temps">${tMax}° <span class="dia-temp-min">${tMin}°</span></div>
-          <div class="dia-lluvia">🌧️ ${lluvia} mm</div>
-          <div class="dia-eto">☀️ ${eto} mm</div>
-          ${etcLine}
-        </div>
-      `;
+      const fechaStr = fechaLocal(daily.time[index]).toLocaleDateString('es-PY', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const tMax = Math.round(daily.temperature_2m_max[index]), tMin = Math.round(daily.temperature_2m_min[index]);
+      const lluvia = (daily.precipitation_sum[index] || 0).toFixed(1), eto = (daily.et0_fao_evapotranspiration[index] || 0).toFixed(1);
+      const etc = etcDelDia(daily, index, contexto);
+      return '<div class="dia ' + (esHoy ? 'hoy' : '') + '"><div class="dia-fecha">' + (esHoy ? 'Hoy' : fechaStr) + '</div><div class="dia-icono">' + iconoClima(daily.weather_code[index]) + '</div>' +
+        '<div class="dia-temps">' + tMax + '° <span class="dia-temp-min">' + tMin + '°</span></div><div class="dia-lluvia">Lluvia ' + lluvia + ' mm</div><div class="dia-eto">ETo ' + eto + ' mm</div>' +
+        (etc != null ? '<div class="dia-etc">ETc ' + etc.toFixed(1) + ' mm</div>' : '') + '</div>';
+    }
+    function generarDiaFila(daily, index, contexto) {
+      const f = fechaLocal(daily.time[index]).toLocaleDateString('es-PY', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      const etc = etcDelDia(daily, index, contexto), ll = daily.precipitation_sum[index] || 0;
+      return '<tr><td style="text-transform:capitalize;">' + f + '</td><td class="r">' + Math.round(daily.temperature_2m_max[index]) + '° / ' + Math.round(daily.temperature_2m_min[index]) + '°</td>' +
+        '<td class="r" style="color:#2E72C8;font-weight:' + (ll > 0 ? 700 : 400) + ';">' + ll.toFixed(1) + '</td><td class="r">' + (daily.et0_fao_evapotranspiration[index] || 0).toFixed(1) + '</td>' +
+        (etc != null ? '<td class="r" style="color:#178029;font-weight:700;">' + etc.toFixed(1) + '</td>' : '') + '</tr>';
     }
 
+    // Código WMO de Open-Meteo → icono de línea
     function iconoClima(code) {
-      if (code === 0) return '☀️';
-      if (code <= 3) return '⛅';
-      if (code <= 48) return '☁️';
-      if (code <= 57) return '🌦️';
-      if (code <= 67) return '🌧️';
-      if (code <= 77) return '❄️';
-      if (code <= 82) return '🌧️';
-      if (code <= 99) return '⛈️';
-      return '🌡️';
+      const k = code === 0 ? 'sol' : (code <= 2 ? 'solNube' : (code === 3 ? 'nube' : (code <= 48 ? 'niebla' : (code <= 57 ? 'llovizna' : (code <= 67 ? 'lluvia' : (code <= 77 ? 'nieve' : (code <= 82 ? 'lluvia' : (code <= 86 ? 'nieve' : 'tormenta'))))))));
+      return SVG(ICO[k], 26);
     }
 
     function dibujarCurvaKc(kcInfo, kcDef, fechaSiembra) {
@@ -1016,7 +736,7 @@
           <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#178029" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
 
           <circle cx="${xActual}" cy="${yActual}" r="7" fill="#B8731A" stroke="#178029" stroke-width="2"/>
-          <text x="${xActual}" y="${yActual - 12}" font-size="12" font-weight="700" fill="#178029" text-anchor="middle">★ Hoy (Kc ${kcInfo.kc.toFixed(2)})</text>
+          <text x="${xActual}" y="${yActual - 12}" font-size="12" font-weight="700" fill="#178029" text-anchor="middle">Hoy (Kc ${kcInfo.kc.toFixed(2)})</text>
 
           <text x="${xPos(0)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">0d</text>
           <text x="${xPos(L_ini)}" y="${H - 4}" font-size="9" fill="#666" text-anchor="middle">${L_ini}d</text>
@@ -1033,7 +753,7 @@
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B8731A;"></div> Desarrollo</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#C0392B;"></div> Media (máx)</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#2E72C8;"></div> Final</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> ★ Hoy</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> Hoy</div>
       `;
     }
 
@@ -1084,7 +804,7 @@
 
           <line x1="${xActual}" y1="${padY}" x2="${xActual}" y2="${H - padY}" stroke="#178029" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
           <circle cx="${xActual}" cy="${yActual}" r="8" fill="#B8731A" stroke="#178029" stroke-width="2"/>
-          <text x="${xActual}" y="${yActual - 14}" font-size="12" font-weight="700" fill="#178029" text-anchor="middle">★ Hoy</text>
+          <text x="${xActual}" y="${yActual - 14}" font-size="12" font-weight="700" fill="#178029" text-anchor="middle">Hoy</text>
         </svg>
       `;
 
@@ -1095,7 +815,7 @@
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#C0392B;"></div> Verano</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#B8731A;"></div> Otoño</div>
         <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#2E72C8;"></div> Invierno</div>
-        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> ★ Hoy</div>
+        <div class="kc-leyenda-item"><div class="kc-leyenda-color" style="background:#178029;"></div> Hoy</div>
       `;
     }
 
@@ -1113,13 +833,14 @@
       }
 
       reco.className = 'recomendacion';
+      icono.innerHTML = '';
 
       const esCampana = contexto.tipo === 'campana' && kcInfo;
       const cultivoNombre = esCampana ? contexto.cultivo.cultivo : '';
       const etapa = esCampana ? kcInfo.etapa : '';
 
       if (esCampana && (kcInfo.etapa === 'Pre-siembra' || kcInfo.etapa === 'Post-cosecha')) {
-        icono.textContent = '⏸️';
+        icono.innerHTML = SVG(ICO.pausa, 34);
         titulo.textContent = 'Cultivo fuera de ciclo activo';
         detalle.innerHTML = kcInfo.etapa === 'Pre-siembra'
           ? `La fecha de siembra cargada es <strong>en el futuro</strong>. Verificá la fecha.`
@@ -1134,27 +855,27 @@
       const mmRegar = (rBal.recomendacion.mm || 0);
 
       if (lluviaProxima >= 15) {
-        icono.textContent = '🌧️';
+        icono.innerHTML = SVG(ICO.lluvia, 34);
         titulo.textContent = 'No regar — viene lluvia';
         detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(1)} mm</strong> en los próximos 3 días.${esCampana ? ` Tu ${cultivoNombre} en <strong>${etapa}</strong> tendrá agua suficiente.` : ''}`;
         reco.classList.add('no-regar');
       } else if (pct < U.URGENTE) {
-        icono.textContent = '⚠️';
+        icono.innerHTML = SVG(ICO.alerta, 34);
         titulo.textContent = 'Riego URGENTE recomendado';
         detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico).${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está bajo estrés hídrico fuerte. ` : ' '}Regar al menos <strong>${mmRegar.toFixed(0)} mm</strong> hoy o mañana.`;
         reco.classList.add('urgente');
       } else if (pct < U.CRITICO) {
-        icono.textContent = '💧';
+        icono.innerHTML = SVG(ICO.gota, 34);
         titulo.textContent = 'Programar riego pronto';
         detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil.${esCampana ? ` ${cultivoNombre} en <strong>${etapa}</strong>. ` : ' '}Regar <strong>${mmRegar.toFixed(0)} mm</strong> en 24-48 hs.`;
         reco.classList.add('regar');
       } else if (pct >= U.ATENCION) {
-        icono.textContent = '✅';
+        icono.innerHTML = SVG(ICO.check, 34);
         titulo.textContent = 'Sin necesidad de riego';
         detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil.${esCampana ? ` ${cultivoNombre} con agua suficiente.` : ''}`;
         reco.classList.add('no-regar');
       } else {
-        icono.textContent = '👀';
+        icono.innerHTML = SVG(ICO.ojo, 34);
         titulo.textContent = 'Monitorear de cerca';
         detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Por ahora no regar.`;
         reco.classList.add('regar');
@@ -1162,5 +883,20 @@
     }
   </script>
 
+  <script>
+    /* SAFIA · control del menú móvil (theme) */
+    (function () {
+      var btn = document.getElementById('menuToggle');
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
+      if (ov) ov.addEventListener('click', cerrar);
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
+    })();
+  </script>
 </body>
 </html>
