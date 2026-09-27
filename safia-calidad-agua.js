@@ -274,10 +274,15 @@
     var yEtiq = function (c, s) {
       if (!(cl && cl.c === c && cl.s === s && ce != null && ras != null)) return sy(c, s);
       var cc = { 1: 160, 2: 430, 3: 1300, 4: 3400 }[c], l = limitesS(cc), bajo = { 1: 0, 2: l.s12, 3: l.s23, 4: l.s34 }[s], alto = Math.min({ 1: l.s12, 2: l.s23, 3: l.s34, 4: sMax }[s], sMax);
-      var yPunto = Y(ras), yA = Y(alto) + 16, yB = Y(bajo) - 6;
+      var yPunto = Y(ras), yA = Y(alto) + 18, yB = Y(bajo) - 16;
       return Math.abs(yPunto - yA) > Math.abs(yPunto - yB) ? yA : yB;
     };
-    for (var c = 1; c <= 4; c++) for (var s = 1; s <= 4; s++) { var es = cl && cl.c === c && cl.s === s; h += '<text x="' + cx[c] + '" y="' + yEtiq(c, s) + '" font-size="' + (es ? 13 : 10) + '"' + (es ? ' font-weight="800"' : '') + ' text-anchor="middle" fill="' + (es ? colorZona : '#9AA0A6') + '">C' + c + '-S' + s + '</text>'; }
+    var xEtiq = function (c, s) {
+      if (!(cl && cl.c === c && cl.s === s && ce != null && ras != null)) return cx[c];
+      var pxv = X(Math.max(cMin, Math.min(cMax, ce)));
+      return Math.abs(cx[c] - pxv) < 34 ? (pxv >= cx[c] ? cx[c] - 30 : cx[c] + 30) : cx[c];
+    };
+    for (var c = 1; c <= 4; c++) for (var s = 1; s <= 4; s++) { var es = cl && cl.c === c && cl.s === s; h += '<text x="' + xEtiq(c, s) + '" y="' + yEtiq(c, s) + '" font-size="' + (es ? 13 : 10) + '"' + (es ? ' font-weight="800"' : '') + ' text-anchor="middle" fill="' + (es ? colorZona : '#9AA0A6') + '">C' + c + '-S' + s + '</text>'; }
     h += '<text x="' + ((x0 + x1) / 2) + '" y="' + (H - 12) + '" font-size="11" text-anchor="middle" fill="#2E3236">Conductividad eléctrica (µS/cm a 25 °C) · peligro de salinidad</text>';
     h += '<text x="14" y="' + ((y0 + y1) / 2) + '" font-size="11" text-anchor="middle" fill="#2E3236" transform="rotate(-90 14 ' + ((y0 + y1) / 2) + ')">RAS · peligro de sodio</text>';
     if (ce != null && ras != null) {
@@ -415,7 +420,7 @@
     h += '<div style="display:grid;grid-template-columns:minmax(0,520px) minmax(0,1fr);gap:18px;align-items:start;margin-top:14px;" class="ca-grid">';
     h += '<div><div style="font-weight:700;font-size:13px;margin-bottom:4px;">Diagrama de clasificación (Riverside) · ' + (r.clase ? esc(r.clase.txt) : 'sin datos') + '</div>' + svgDiagrama(r.ce, r.ras) + '<div class="muted" style="font-size:11px;">USDA Handbook 60, Figura 25 [2]</div></div>';
     h += '<div>';
-    if (L.cultivos.length) h += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">Cultivos con esta agua</div><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo</th><th class="r">Aguanta sin perder</th><th class="r">Rinde por sales</th><th class="r">Lavado</th></tr></thead><tbody>' + L.cultivos.map(function (c) {
+    if (L.cultivos.length) h += '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">Cultivos con esta agua</div><div class="tablescroll"><style>.ca-cult th,.ca-cult td{padding:8px 10px !important;}</style><table class="tbl ca-cult" style="font-size:12.5px;"><thead><tr><th>Cultivo</th><th class="r" style="padding:8px 10px;white-space:normal;line-height:1.2;">Aguanta sin perder</th><th class="r" style="padding:8px 10px;white-space:normal;line-height:1.2;">Rinde por sales</th><th class="r" style="padding:8px 10px;white-space:normal;line-height:1.2;">Agua extra</th></tr></thead><tbody>' + L.cultivos.map(function (c) {
       var s = SEM[c.estado]; return '<tr><td><b>' + esc(c.n) + '</b></td><td class="r">' + fmt(c.umbralEcw, 1) + ' dS/m<div class="sub">agua · suelo ' + fmt(c.umbralEce, 1) + '</div></td><td class="r" style="color:' + s.c + ';font-weight:700;">' + esc(c.potencial) + '</td><td class="r">' + (c.lr != null ? fmt(c.lr * 100, 1) + ' %' : '—') + '</td></tr>';
     }).join('') + '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px;">FAO 29, Tabla 4 y ecuación 9 [1]. Agua extra = % sobre la lámina que pide el cultivo, para llevar las sales debajo de las raíces.</div>' +
       (L.items.some(function (i) { return i.k === 'inf' && i.estado === 'grave'; }) ? '<div style="font-size:12px;color:#C0392B;margin-top:4px;"><b>Ojo:</b> esta tabla mide solo el efecto de las sales. Con este sodio el suelo se sella y el agua no infiltra: el rinde no llega hasta corregir el sodio.</div>' : '');
