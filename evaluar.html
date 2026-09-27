@@ -43,6 +43,7 @@
 <script src="safia-casos.js"></script>
 <script src="safia-fertilidad.js"></script>
 <script src="safia-agronomia.js"></script>
+<script src="safia-precios.js"></script>
 <script src="safia-calidad-agua.js"></script>
 </head>
 <body>
@@ -188,6 +189,7 @@
             <div class="field full"><label>Valores del laboratorio</label><div id="wGrilla"></div></div>
             <div class="field"><label>pH</label><input type="number" id="w_ph" step="0.01" min="0" max="14"></div>
             <div class="field"><label>Temperatura del agua (°C)</label><input type="number" id="w_temperatura" step="0.1"></div>
+            <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="w_laminaAnualMm" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato, 500 mm.</span></div>
           </div>
           <div class="form-actions">
             <span style="flex:1"></span>
@@ -326,7 +328,7 @@
   });
 
   /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
-  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura'];
+  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura','laminaAnualMm'];
   document.getElementById('wGrilla').innerHTML=SafiaCalidadAgua.grillaHTML('w'); SafiaCalidadAgua.conectarGrilla('w'); SafiaCalidadAgua.limpiarGrilla('w');
   var aguaCargada=null, aguaArchivo=null;
   function ponerAgua(a){
@@ -372,7 +374,7 @@
   });
   function opcionesAgua(cultivos, suelo){
     // proyecto de riego por pivot: se evalúa para aspersión (lo más exigente para la hoja)
-    return { aspersion:true, cultivos:cultivos.length?cultivos:['Soja','Maíz'], sueloFino:!!(suelo&&num(suelo.arcilla)!=null&&num(suelo.arcilla)>=35) };
+    return { aspersion:true, cultivos:cultivos.length?cultivos:['Soja','Maíz'], sueloFino:!!(suelo&&num(suelo.arcilla)!=null&&num(suelo.arcilla)>=35), textura:SafiaCalidadAgua.texturaDoneen(suelo) };
   }
   function pintarAgua(agua, cultivos, suelo){
     var card=document.getElementById('rAguaCard');

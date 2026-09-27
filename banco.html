@@ -404,6 +404,7 @@
               <div class="field"><label>pH</label><input type="number" id="agPh" step="0.01" min="0" max="14"></div>
               <div class="field"><label>Sólidos disueltos TDS (mg/L, si lo informa)</label><input type="number" id="agTds" step="1" min="0"></div>
               <div class="field"><label>Temperatura del agua (°C, opcional)</label><input type="number" id="agTemp" step="0.1"><span class="hint">Para el índice de Langelier; sin dato se usa 25 °C.</span></div>
+              <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="agLamina" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato se supone 500 mm.</span></div>
               <div class="field full">
                 <label>Foto o PDF del laboratorio</label>
                 <input type="file" id="agArchivo" accept=".pdf,image/*">
@@ -830,7 +831,7 @@
 
   /* ---------- Meta de rinde (Motor 8) ---------- */
   var metaCasos = [];
-  var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['nivelacionUSDha', 'Nivelación / sistematización US$/ha'], ['aplicacionVoleoUSDha', 'Aplicación al voleo US$/ha (pasada)'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
+  var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['acidoSulfuricoUSDt', 'Ácido sulfúrico 98 % US$/t (para agua de riego)'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['nivelacionUSDha', 'Nivelación / sistematización US$/ha'], ['aplicacionVoleoUSDha', 'Aplicación al voleo US$/ha (pasada)'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
   function pintarPreciosMeta() {
     var pr = SafiaMeta.precios(), cont = document.getElementById('metaPrecios');
     var granos = Object.keys(pr.granoUSDt).map(function (k) { return '<div class="field"><label>Grano ' + k + ' US$/t</label><input type="number" step="1" data-grano="' + k + '" value="' + pr.granoUSDt[k] + '"></div>'; }).join('');
