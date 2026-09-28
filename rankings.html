@@ -133,7 +133,7 @@
   var filas=[]; // {fuente, pais, departamento, localidad, cultivo, finalidad, epoca, riego, variedad, rindeKgHa, cliente, campo, campana, anio}
   function cargarDatos(){
     var casos=SafiaCasos.armarCasos().map(function(c){ return {
-      fuente:'caso', pais:c.pais||'Paraguay', departamento:c.departamento||'', localidad:c.localidad||'', cultivo:c.cultivo||'',
+      fuente:'caso', id:c.id, pais:c.pais||'Paraguay', departamento:c.departamento||'', localidad:c.localidad||'', cultivo:c.cultivo||'',
       finalidad:c.finalidad||'Granos Comercial', epoca:c.epoca||'', riego:c.riego!==false, variedad:c.variedad||'', rindeKgHa:c.rindeKgHa,
       cliente:c.cliente, campo:c.campo, campana:c.campana, anio:c.cosecha?parseInt(c.cosecha.slice(0,4),10):null,
       aguaTotalMM:c.aguaTotalMM, altitud:c.altitud
@@ -242,9 +242,12 @@
     var max=items.length?items[0].mejor.rindeKgHa:0;
     var ambos=document.getElementById('fRiego').value==='ambos';
     return tabla([{t:'#'},{t:'Productor · campo'},{t:'Localidad'},{t:'Mejor campaña'},{t:'Mejor rinde',r:1}].concat(ambos?[{t:'Prom. con riego',r:1},{t:'Prom. secano',r:1}]:[{t:'Promedio',r:1}]).concat([{t:'Agua mm',r:1},{t:'Campañas',r:1}]),
-      items.map(function(it,i){ return '<tr>'+td(pos(i))+td('<span class="fecha">'+esc(it.k)+'</span>')+td(esc(it.mejor.localidad||it.mejor.departamento||''))+td(esc(nombreCultivo(it.mejor.cultivo))+(it.mejor.variedad?' '+esc(it.mejor.variedad):'')+'<div class="sub">'+esc(it.mejor.campana)+(it.mejor.riego?'':' · secano')+'</div>')+td('<span class="num">'+fmt(it.mejor.rindeKgHa)+'</span>'+barra(it.mejor.rindeKgHa,max),1)+(ambos?td(fmt(it.st.promRiego),1)+td(fmt(it.st.promSecano),1):td(fmt(it.st.prom),1))+td(fmt(it.mejor.aguaTotalMM),1)+td(it.st.n,1)+'</tr>'; }));
+      items.map(function(it,i){ return '<tr>'+td(pos(i))+td('<span class="fecha">'+esc(it.k)+'</span>')+td(esc(it.mejor.localidad||it.mejor.departamento||''))+td(esc(nombreCultivo(it.mejor.cultivo))+(it.mejor.variedad?' '+esc(it.mejor.variedad):'')+'<div class="sub">'+esc(it.mejor.campana)+(it.mejor.riego?'':' · secano')+'</div>')+td('<span class="num">'+fmt(it.mejor.rindeKgHa)+'</span>'+barra(it.mejor.rindeKgHa,max)+btnIgualar(it.mejor),1)+(ambos?td(fmt(it.st.promRiego),1)+td(fmt(it.st.promSecano),1):td(fmt(it.st.prom),1))+td(fmt(it.mejor.aguaTotalMM),1)+td(it.st.n,1)+'</tr>'; }));
   }
 
+  // Igualar a un lote del ranking: el Banco abre la Meta de rinde con ese lote como referencia
+  window.igualarLote=function(id){ try{ sessionStorage.setItem('banco_tab','meta'); sessionStorage.setItem('banco_meta_ref',String(id)); sessionStorage.setItem('banco_meta_ref_ts',String(Date.now())); sessionStorage.removeItem('banco_meta_caso'); }catch(e){} location.href='banco.html'; return false; };
+  function btnIgualar(f){ return f && f.fuente==='caso' && f.id ? ' <a href="#" class="btn" style="padding:2px 8px;font-size:11px;" onclick="return igualarLote(\''+String(f.id).replace(/'/g,'')+'\')" title="Abrir la Meta de rinde de tu lote con este como referencia">Igualar</a>' : ''; }
   function render(){
     var l=filtradas(), out=document.getElementById('salida');
     var pais=document.getElementById('fPais').value||'todos los países', cul=document.getElementById('fCultivo').value;
@@ -278,7 +281,7 @@
       var max=top.length?top[0].rindeKgHa:0;
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Los 25 registros de mayor rinde con estos filtros (base histórica y cargados en SAFIA).</div>'+
         tabla([{t:'#'},{t:'Cultivo'},{t:'Dónde'},{t:'Época'},{t:'Riego'},{t:'Fuente'},{t:'Rinde kg/ha',r:1}],
-          top.map(function(f,i){ return '<tr>'+td(pos(i))+td(esc(nombreCultivo(f.cultivo))+(f.variedad?'<div class="sub">'+esc(f.variedad)+'</div>':''))+td(esc(f.localidad||'')+(f.departamento?'<div class="sub">'+esc(f.departamento)+(f.pais&&f.pais!=='Paraguay'?' · '+esc(f.pais):'')+'</div>':''))+td(esc(f.epoca||'—'))+td(f.riego?'<span class="badge green">riego</span>':'<span class="badge amber">secano</span>')+td(f.fuente==='caso'?'<span class="fuente caso">real · '+esc(f.cliente)+'</span>':'<span class="fuente ref">referencia'+(f.anio?' '+f.anio:'')+'</span>')+td('<span class="num">'+fmt(f.rindeKgHa)+'</span>'+barra(f.rindeKgHa,max,f.riego?'':'secano'),1)+'</tr>'; }));
+          top.map(function(f,i){ return '<tr>'+td(pos(i))+td(esc(nombreCultivo(f.cultivo))+(f.variedad?'<div class="sub">'+esc(f.variedad)+'</div>':''))+td(esc(f.localidad||'')+(f.departamento?'<div class="sub">'+esc(f.departamento)+(f.pais&&f.pais!=='Paraguay'?' · '+esc(f.pais):'')+'</div>':''))+td(esc(f.epoca||'—'))+td(f.riego?'<span class="badge green">riego</span>':'<span class="badge amber">secano</span>')+td(f.fuente==='caso'?'<span class="fuente caso">real'+(f.cliente?' · '+esc(f.cliente):'')+'</span>':'<span class="fuente ref">referencia'+(f.anio?' '+f.anio:'')+'</span>')+td('<span class="num">'+fmt(f.rindeKgHa)+'</span>'+barra(f.rindeKgHa,max,f.riego?'':'secano')+btnIgualar(f),1)+'</tr>'; }));
     }
   }
 

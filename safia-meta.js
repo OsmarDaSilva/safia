@@ -105,7 +105,7 @@
   function prom(a) { var v = a.filter(function (x) { return x != null && !isNaN(x); }); return v.length ? v.reduce(function (s, x) { return s + x; }, 0) / v.length : null; }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
   /* Ventana de cada ítem del plan (hasta cuándo se puede hacer). La comparten el plan (campaña en curso) y la meta viva del seguimiento. */
-  var VENTANA = { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], semilla: ['inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], siembra: ['fosforo', 'potasio', 'azufre'], veg: ['nitrogeno', 'k_cobertura', 'p_cobertura'], repro: ['fungicidas', 'foliar', 'foliar_micro', 'agua'] };
+  var VENTANA = { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'epoca', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], semilla: ['inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], siembra: ['fosforo', 'potasio', 'azufre'], veg: ['nitrogeno', 'k_cobertura', 'p_cobertura'], repro: ['fungicidas', 'foliar', 'foliar_micro', 'agua'] };
   var NOMBRE_VENTANA = { pre: 'antes de sembrar', semilla: 'con la semilla', siembra: 'a la siembra', veg: 'en vegetativo', repro: 'en floración y llenado' };
   function ventanaDe(k) { for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
   function hoyLocal() { return window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
@@ -127,15 +127,23 @@
   function guardarPrecios(p) { if (window.SafiaPrecios) SafiaPrecios.actualizar(p); }
 
   /* ---------- los que ya cosechan la meta (o los mejores) en la zona ---------- */
-  function benchmark(caso, meta, casos) {
-    var mismos = casos.filter(function (c) { return c !== caso && claveCultivo(c.cultivo) === claveCultivo(caso.cultivo) && c.rindeKgHa; });
+  function benchmark(caso, meta, casos, referencia) {
+    var grupo = function (c) { return window.SafiaCasos && SafiaCasos.grupoFinalidad ? SafiaCasos.grupoFinalidad(c.cultivo, c.finalidad) : ''; };
+    var mismos = casos.filter(function (c) { return c !== caso && claveCultivo(c.cultivo) === claveCultivo(caso.cultivo) && c.rindeKgHa && grupo(c) === grupo(caso); });
+    // mismo régimen de agua (regado con regado, secano con secano) si hay con quién
+    var mismoRiego = mismos.filter(function (c) { return (c.riego !== false) === (caso.riego !== false); });
+    if (mismoRiego.length) mismos = mismoRiego;
+    // el productor eligió un lote para igualar: la referencia es ese lote solo
+    if (referencia) mismos = [referencia];
     function nivel(f, nombre) { var l = mismos.filter(f); return l.length ? { ambito: nombre, casos: l } : null; }
     var local = nivel(function (c) { return caso.localidad && norm(c.localidad) === norm(caso.localidad); }, 'tu localidad');
     var depto = nivel(function (c) { return caso.departamento && norm(c.departamento) === norm(caso.departamento); }, 'tu departamento');
     var pais = nivel(function (c) { return true; }, 'todo el banco de SAFIA');
     var niveles = [local, depto, pais].filter(Boolean);
     var elegido = null;
-    for (var i = 0; i < niveles.length; i++) { var top = niveles[i].casos.filter(function (c) { return c.rindeKgHa >= meta; }); if (top.length >= 2) { elegido = { ambito: niveles[i].ambito, casos: top, criterio: 'ya cosechan ' + fmt(meta, 0) + ' kg/ha o más' }; break; } }
+    if (referencia) niveles = [{ ambito: 'el lote elegido', casos: [referencia] }];
+    for (var i = 0; i < niveles.length; i++) { var top = niveles[i].casos.filter(function (c) { return c.rindeKgHa >= meta; }); if (referencia && top.length) { elegido = { ambito: 'el lote elegido', casos: top, criterio: 'rindió ' + fmt(referencia.rindeKgHa, 0) + ' kg/ha' }; break; } if (top.length >= 2) { elegido = { ambito: niveles[i].ambito, casos: top, criterio: 'ya cosechan ' + fmt(meta, 0) + ' kg/ha o más' }; break; } }
+    if (!elegido && referencia) elegido = { ambito: 'el lote elegido', casos: [referencia], criterio: 'rindió ' + fmt(referencia.rindeKgHa, 0) + ' kg/ha' };
     if (!elegido && pais) { var ord = pais.casos.slice().sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; }); var n = Math.max(1, Math.ceil(ord.length / 4)); elegido = { ambito: 'todo el banco de SAFIA', casos: ord.slice(0, n), criterio: 'son el 25 % que más rinde' }; }
     if (!elegido) return null;
     var cs = elegido.casos;
@@ -155,7 +163,7 @@
     pr = pr || precios(); opciones = opciones || {};
     var cu = claveCultivo(caso.cultivo), perfil = window.SafiaAgro ? SafiaAgro.perfilCultivo(caso.cultivo) : { v: 65, mP: 12, mK: 12, expP: 10, expK: 10 };
     var s = caso.suelo || {}, actual = caso.rindeKgHa, metaT = meta / 1000;
-    var bm = benchmark(caso, meta, casos || []);
+    var bm = benchmark(caso, meta, casos || [], opciones.referencia || null), refElegido = opciones.referencia || null;
     var items = [];
     function item(o) {
       o.inversion = o.inversion || 0; o.recurrente = o.recurrente || 0; o.vidaUtil = o.vidaUtil || 4;
@@ -310,7 +318,14 @@
     /* 8b. Semilla, población y stand (CESB) — informativo */
     item({ k: 'stand', tipo: 'manejo', nombre: 'Calidad de semilla, población y stand', hoy: caso.densidad ? fmt(caso.densidad, 0) + ' plantas/ha' : 'densidad sin dato', objetivo: 'semilla de alto vigor, población recomendada para el material y stand parejo (plantabilidad)', accion: 'Revisar vigor y germinación de la semilla, regular la sembradora (velocidad ≤ 6 km/h, profundidad uniforme) y ajustar la población a la variedad; los lotes de más de 6.000 kg/ha del CESB lo tienen como base', costo: 0, fuente: '[13]' });
     /* 9. Genética (informativo) */
-    if (bm && bm.variedades.length) { var vs = {}; bm.variedades.forEach(function (x) { vs[x] = (vs[x] || 0) + 1; }); var topV = Object.keys(vs).sort(function (a, b) { return vs[b] - vs[a]; }).slice(0, 3); item({ k: 'variedad', tipo: 'manejo', nombre: 'Material genético', hoy: caso.variedad || 'sin dato', objetivo: 'los que rinden ≥ meta usan: ' + topV.join(', '), accion: 'Comparar en el ranking de variedades y probar en una franja', costo: 0, fuente: 'banco de casos SAFIA' }); }
+    if (refElegido) {
+      var fechaRef = refElegido.siembra ? String(refElegido.siembra).slice(8, 10) + '/' + String(refElegido.siembra).slice(5, 7) : null;
+      var mismaVar = refElegido.variedad && caso.variedad && norm(refElegido.variedad) === norm(caso.variedad);
+      if (refElegido.variedad) item({ k: 'variedad', tipo: 'manejo', nombre: 'Material genético', hoy: caso.variedad || 'sin dato', objetivo: 'el lote elegido sembró ' + refElegido.variedad, accion: mismaVar ? 'Es el mismo material: la diferencia no está en la genética' : 'Sembrar ' + refElegido.variedad + ' (o probarlo primero en una franja del lote)', costo: 0, fuente: 'banco de casos SAFIA' });
+      var doy = function (f) { var d = new Date(String(f).slice(0, 10) + 'T12:00:00'); return Math.round((d - new Date(d.getFullYear(), 0, 1)) / 86400000); };
+      var dd = (refElegido.siembra && caso.siembra) ? doy(caso.siembra) - doy(refElegido.siembra) : null; if (dd != null && dd > 182) dd -= 365; if (dd != null && dd < -182) dd += 365;
+      if (fechaRef || refElegido.epoca) item({ k: 'epoca', tipo: 'manejo', nombre: 'Época y fecha de siembra', hoy: (caso.epoca || 'sin dato') + (caso.siembra ? ' · sembrado el ' + String(caso.siembra).slice(8, 10) + '/' + String(caso.siembra).slice(5, 7) : ''), objetivo: 'el lote elegido: ' + (refElegido.epoca || '') + (fechaRef ? ', sembrado el ' + fechaRef : ''), accion: dd != null && Math.abs(dd) >= 15 ? 'Sembrar en la misma ventana que el lote elegido (' + Math.abs(dd) + ' días ' + (dd > 0 ? 'antes' : 'después') + ' que tu última siembra): la fecha cambia la radiación y el calor en floración' : 'Misma ventana de siembra: la fecha no explica la diferencia', costo: 0, fuente: 'banco de casos SAFIA' });
+    } else if (bm && bm.variedades.length) { var vs = {}; bm.variedades.forEach(function (x) { vs[x] = (vs[x] || 0) + 1; }); var topV = Object.keys(vs).sort(function (a, b) { return vs[b] - vs[a]; }).slice(0, 3); item({ k: 'variedad', tipo: 'manejo', nombre: 'Material genético', hoy: caso.variedad || 'sin dato', objetivo: 'los que rinden ≥ meta usan: ' + topV.join(', '), accion: 'Comparar en el ranking de variedades y probar en una franja', costo: 0, fuente: 'banco de casos SAFIA' }); }
 
     /* Campaña ya sembrada: solo entra lo que todavía se puede hacer; lo que va antes de sembrar o a la siembra queda para la próxima campaña */
     var ddsHoy = caso.esNueva && caso.siembra ? diasDesde(caso.siembra) : null, enCurso = null, tarde = [];
@@ -357,13 +372,14 @@
     var costoTotal = items.reduce(function (a, i) { return a + i.costo; }, 0), costoCampana = items.reduce(function (a, i) { return a + i.costoCampana; }, 0);
     var inversionTotal = items.reduce(function (a, i) { return a + i.inversion; }, 0), recurrenteCultivo = items.reduce(function (a, i) { return a + (i.alcance === 'cultivo' ? i.recurrente : 0); }, 0), recurrenteLote = items.reduce(function (a, i) { return a + (i.alcance === 'lote' ? i.recurrente : 0); }, 0);
     var precio = pr.granoUSDt[cu] || pr.granoUSDt.otro;
-    var kgExtra = meta - actual, ingresoExtra = kgExtra / 1000 * precio;
+    // la economía se hace con lo que el plan puede dar: si la meta supera el potencial máximo, se cuentan solo los kilos alcanzables
+    var metaEconomica = Math.min(meta, potMax), kgExtra = Math.max(0, metaEconomica - actual), ingresoExtra = kgExtra / 1000 * precio;
     var margen = ingresoExtra - costoCampana, costoPorKg = kgExtra > 0 ? costoCampana / kgExtra : null;
     var pctTierra = pr.tierraUSDha ? costoTotal / pr.tierraUSDha * 100 : null;
     var haEquivalentes = actual > 0 ? kgExtra / actual : null; // cuánta tierra más haría falta para producir lo mismo sin mejorar
     var valorTierraEquiv = haEquivalentes != null ? haEquivalentes * pr.tierraUSDha : null;
     var veredicto = meta <= potMin ? 'alcanzable' : (meta <= potMax ? 'posible' : 'ambiciosa');
-    return { cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, kgExtra: kgExtra, suelo: s, opciones: opciones, gapPct: actual ? kgExtra / actual * 100 : null, items: items, omitidos: omitidos, enCurso: enCurso, tarde: tarde, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo, techoReferencia: techoRef, techoAgua: techoAgua, mmNecesarios: necesita, mmMeta: necesitaMeta }, veredicto: veredicto,
+    return { referencia: refElegido, caso: caso, cultivo: caso.cultivo, cu: cu, actual: actual, meta: meta, metaEconomica: metaEconomica, kgExtra: kgExtra, suelo: s, opciones: opciones, gapPct: actual ? kgExtra / actual * 100 : null, items: items, omitidos: omitidos, enCurso: enCurso, tarde: tarde, benchmark: bm, potencial: { min: potMin, max: potMax, techoZona: techo, techoReferencia: techoRef, techoAgua: techoAgua, mmNecesarios: necesita, mmMeta: necesitaMeta }, veredicto: veredicto,
       economia: { precio: precio, costoTotal: costoTotal, costoCampana: costoCampana, inversionTotal: inversionTotal, recurrenteCultivo: recurrenteCultivo, recurrenteLote: recurrenteLote, ingresoExtra: ingresoExtra, margen: margen, costoPorKg: costoPorKg, pctTierra: pctTierra, haEquivalentes: haEquivalentes, valorTierraEquiv: valorTierraEquiv, tierra: pr.tierraUSDha, retornoSobreTierra: pr.tierraUSDha ? margen / pr.tierraUSDha * 100 : null } };
   }
 
@@ -376,7 +392,8 @@
     var suelo = pl.items.filter(function (i) { return i.alcance === 'lote' && !i.condicional; }), manejo = pl.items.filter(function (i) { return i.alcance === 'cultivo' && !i.condicional; });
     var mid = function (l) { return l.reduce(function (a, i) { return a + (i.aporteMin + i.aporteMax) / 2; }, 0); };
     var apSuelo = Math.min(mid(suelo), 0.35), apManejo = Math.min(mid(manejo), 0.30);
-    var extraPleno = Math.min(pl.meta - actual, Math.round(actual * (apSuelo + apManejo)));   // kg/ha del cultivo del plan en régimen
+    // kg/ha del cultivo del plan en régimen: nunca más que la meta ni que el potencial máximo del plan (mismo techo que muestra el informe)
+    var extraPleno = Math.min(pl.meta - actual, Math.max(0, ((pl.potencial && pl.potencial.max) || Infinity) - actual), Math.round(actual * (apSuelo + apManejo)));
     var partSuelo = (apSuelo + apManejo) > 0 ? apSuelo / (apSuelo + apManejo) : 0;
     // Los otros cultivos del lote (ej. el maíz en un lote de soja) también rinden más con el suelo mejorado.
     // Sin meta propia: extra = rinde actual × aporte del suelo (máx. 25 %). Con meta propia (metaOtro): extra = meta − actual,
@@ -505,7 +522,8 @@
 
     html += '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>¿Vale la pena?</h3><span class="muted">grano a US$ ' + fmt(e.precio, 0) + '/t · tierra a US$ ' + fmt(e.tierra, 0) + '/ha</span></div>' +
       '<div style="font-size:13px;line-height:1.6;">' +
-      '<div>Pasar de <b>' + fmt(pl.actual, 0) + '</b> a <b>' + fmt(pl.meta, 0) + ' kg/ha</b> son <b>' + fmt(pl.kgExtra, 0) + ' kg/ha más</b> (' + fmt(pl.gapPct, 0) + ' %) = <b>US$ ' + fmt(e.ingresoExtra, 0) + '/ha por campaña</b>.</div>' +
+      (pl.metaEconomica != null && pl.metaEconomica < pl.meta ? '<div class="note warn" style="margin:0 0 6px;">La meta de ' + fmt(pl.meta, 0) + ' kg/ha supera lo que este plan puede dar (' + fmt(pl.potencial.max, 0) + ' kg/ha): las cuentas de abajo usan solo los kilos alcanzables, para no contar ingresos que el plan no produce.</div>' : '') +
+      '<div>Pasar de <b>' + fmt(pl.actual, 0) + '</b> a <b>' + fmt(pl.metaEconomica != null ? pl.metaEconomica : pl.meta, 0) + ' kg/ha</b> son <b>' + fmt(pl.kgExtra, 0) + ' kg/ha más</b> (' + fmt(pl.gapPct, 0) + ' %) = <b>US$ ' + fmt(e.ingresoExtra, 0) + '/ha por campaña</b>.</div>' +
       '<div>El plan tiene <b>US$ ' + fmt(e.inversionTotal, 0) + '/ha de inversión</b> (una vez; calcáreo, yeso, subsolado y corrección de P/K duran 3–5 años) y <b>US$ ' + fmt(e.recurrenteCultivo + e.recurrenteLote, 0) + '/ha de gasto adicional por campaña</b> para sostener el rinde (reponer lo que se llevan los kilos extra y las prácticas nuevas); prorrateando la inversión son <b>US$ ' + fmt(e.costoCampana, 0) + '/ha por campaña</b>' + (e.costoPorKg != null ? ' → <b>US$ ' + fmt(e.costoPorKg * 1000, 0) + ' por tonelada adicional</b>' : '') + (e.costoPorKg != null && e.precio ? (e.costoPorKg * 1000 < e.precio ? ', más barato que el precio del grano: <b>conviene</b>.' : ', más caro que el precio del grano: <b>no cierra</b> con estos precios.') : '.') + '</div>' +
       (e.pctTierra != null ? '<div>El costo total del plan equivale al <b>' + fmt(e.pctTierra, 1) + ' %</b> del valor de una hectárea' + (e.retornoSobreTierra != null ? '; el margen extra por campaña es un <b>' + fmt(e.retornoSobreTierra, 1) + ' %</b> anual sobre el valor de la tierra' : '') + '.</div>' : '') +
       (e.haEquivalentes != null ? '<div>Producir esos ' + fmt(pl.kgExtra, 0) + ' kg comprando tierra en vez de mejorar el lote exigiría <b>' + fmt(e.haEquivalentes * 100, 0) + ' % más de superficie</b> (US$ ' + fmt(e.valorTierraEquiv, 0) + ' por cada hectárea actual): mejorar el lote es casi siempre más barato que comprar tierra.</div>' : '') +

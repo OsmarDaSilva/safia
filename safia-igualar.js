@@ -1,0 +1,202 @@
+/* SAFIA — Igualar al mejor (Banco → Meta de rinde)
+   -------------------------------------------------------------------
+   Un solo camino para el productor:
+     1. elegir con quién compararse: el mejor lote de su localidad, departamento o de todo el banco
+        (o uno que eligió en el Ranking), del mismo cultivo, la misma finalidad y el mismo régimen de agua;
+     2. ver su tierra y su manejo frente a los de ese lote (suelo, variedad, época, agua, prácticas) y por qué rinde más;
+     3. el plan con costos para igualarlo (SafiaMeta.plan con opciones.referencia);
+     4. si con lo que se puede corregir no se llega: hasta dónde llega este lote, qué no se corrige con insumos,
+        y el plan por etapas (correctivos una vez, manejo cada campaña, rotación y cobertura, control).
+   Los lotes de otros productores se muestran siempre sin nombre ("Lote de <localidad>"): regla de SAFIA.
+   Uso: SafiaIgualar.pintar(contenedor, casoBase, casos, { elegido, alElegir(ref), alIgualar(ref) })
+        SafiaIgualar.comparacionHTML(pl) · SafiaIgualar.alcanceHTML(pl, py) · SafiaIgualar.etapasHTML(pl, py) */
+(function () {
+  'use strict';
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmt(n, d) { return n == null || n === '' || isNaN(n) ? '—' : Number(n).toLocaleString('es-PY', { maximumFractionDigits: d == null ? 0 : d, minimumFractionDigits: 0 }); }
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
+  function num(v) { if (v == null || v === '') return null; var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  function clave(c) { return window.SafiaMeta && SafiaMeta.claveCultivo ? SafiaMeta.claveCultivo(c) : norm(c); }
+  function grupo(c) { return window.SafiaCasos && SafiaCasos.grupoFinalidad ? SafiaCasos.grupoFinalidad(c.cultivo, c.finalidad) : ''; }
+  function fechaCorta(f) { return f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) : '—'; }
+  function riegoTxt(c) { return c.riego === false ? 'secano' : 'con riego'; }
+
+  // Zafra genérica a partir de la siembra (nunca el nombre que le puso otro productor a su campaña)
+  function zafra(c) {
+    var f = String(c.siembra || c.cosecha || ''); var y = parseInt(f.slice(0, 4), 10), m = parseInt(f.slice(5, 7), 10);
+    if (!y) return c.campana || '—';
+    if (m >= 9) return 'Zafra ' + y + '/' + String(y + 1).slice(2);
+    if (m <= 3) return 'Zafriña ' + y;
+    if (m <= 8) return 'Invierno ' + y;
+    return 'Zafra ' + y;
+  }
+  // Nombre para mostrar: lo propio con su nombre; lo de otros productores, sin nombre
+  function etiqueta(c, base) {
+    if (base && c.campoId != null && String(c.campoId) === String(base.campoId)) return 'Tu lote' + (c.equipo ? ' ' + c.equipo : '') + (c.riego === false ? ' (secano)' : '');
+    if (base && c.clienteId != null && base.clienteId != null && String(c.clienteId) === String(base.clienteId)) return 'Tu campo ' + (c.campo || '');
+    if (/^Lote \d+ de /.test(c.campo || '')) return c.campo;   // ya viene anónimo de la nube (datos de la zona)
+    return 'Lote de ' + (c.localidad || c.departamento || 'la zona');
+  }
+
+  /* ---------- candidatos: mismo cultivo, misma finalidad, otro campo, cosechados ---------- */
+  function candidatos(base, casos, f) {
+    f = f || {};
+    var l = (casos || []).filter(function (c) {
+      // otro lote (del mismo campo también vale: el secano propio se compara con el pivot propio)
+      var mismoLote = (c.equipoId != null && base.equipoId != null) ? String(c.equipoId) === String(base.equipoId) : String(c.campoId) === String(base.campoId);
+      return c && !c.esNueva && num(c.rindeKgHa) > 0 && !mismoLote && clave(c.cultivo) === clave(base.cultivo) && grupo(c) === grupo(base);
+    });
+    if (f.riego !== 'todos') l = l.filter(function (c) { return (c.riego !== false) === (base.riego !== false); });
+    if (f.ambito === 'localidad') l = l.filter(function (c) { return base.localidad && norm(c.localidad) === norm(base.localidad); });
+    else if (f.ambito === 'departamento') l = l.filter(function (c) { return base.departamento && norm(c.departamento) === norm(base.departamento); });
+    return l.sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
+  }
+  function ambitoInicial(base, casos, riego) {
+    if (candidatos(base, casos, { ambito: 'localidad', riego: riego }).length) return 'localidad';
+    if (candidatos(base, casos, { ambito: 'departamento', riego: riego }).length) return 'departamento';
+    return 'todo';
+  }
+
+  /* ---------- selector "¿A quién querés igualar?" ---------- */
+  var estado = { filtros: null, baseId: null };
+  function pintar(cont, base, casos, op) {
+    op = op || {};
+    if (!cont) return;
+    if (!base) { cont.innerHTML = ''; return; }
+    if (!estado.filtros || estado.baseId !== base.id) { var r0 = 'igual'; estado.filtros = { riego: r0, ambito: ambitoInicial(base, casos, r0) }; estado.baseId = base.id; }
+    // si el lote pedido (Ranking o Evolución) no entra en los filtros, se abren los filtros
+    if (op.elegido) { var enLista = candidatos(base, casos, estado.filtros).some(function (c) { return String(c.id) === String(op.elegido); }); if (!enLista) estado.filtros = { riego: 'todos', ambito: 'todo' }; }
+    var f = estado.filtros, lista = candidatos(base, casos, f);
+    var n = function (a, r) { return candidatos(base, casos, { ambito: a, riego: r || f.riego }).length; };
+    var regimen = base.riego === false ? 'secano' : 'riego';
+    var h = '<div class="card"><div class="card-h"><h3>¿A quién querés igualar?</h3><span class="muted">' + esc(base.cultivo) + ' · ' + esc(window.SafiaCasos ? SafiaCasos.finalidadTexto(base.finalidad).toLowerCase() : '') + ' · tu campaña base: ' + fmt(base.rindeKgHa, 0) + ' kg/ha ' + riegoTxt(base) + '</span></div>' +
+      '<div class="muted" style="font-size:12px;margin-bottom:8px;">Lotes reales del banco de SAFIA, del mismo cultivo y la misma finalidad, ordenados por rinde. Elegí uno para copiar su material y su época y ver qué le falta a tu tierra para rendir lo mismo. Los lotes de otros productores se muestran sin nombre.</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:8px;">' +
+      '<div class="field" style="min-width:220px;"><label>Dónde buscar</label><select data-ig="ambito">' +
+      [['localidad', 'Tu localidad' + (base.localidad ? ' (' + base.localidad + ')' : '')], ['departamento', 'Tu departamento' + (base.departamento ? ' (' + base.departamento + ')' : '')], ['todo', 'Todo el banco de SAFIA']].map(function (o) { return '<option value="' + o[0] + '"' + (f.ambito === o[0] ? ' selected' : '') + '>' + esc(o[1]) + ' · ' + n(o[0]) + ' lote(s)</option>'; }).join('') + '</select></div>' +
+      '<div class="field" style="min-width:220px;"><label>Riego</label><select data-ig="riego"><option value="igual"' + (f.riego === 'igual' ? ' selected' : '') + '>Solo lotes ' + (regimen === 'secano' ? 'de secano' : 'con riego') + ', como el tuyo</option><option value="todos"' + (f.riego === 'todos' ? ' selected' : '') + '>Con riego y de secano</option></select></div>' +
+      (lista.length ? '<button type="button" class="btn green" data-ig="mejor">Igualar al mejor (' + fmt(lista[0].rindeKgHa, 0) + ' kg/ha)</button>' : '') + '</div>';
+    if (!lista.length) {
+      h += '<div class="note">No hay lotes de ' + esc(base.cultivo).toLowerCase() + ' para esta finalidad con estos filtros. ' + (f.ambito !== 'todo' ? 'Probá buscar en todo el banco' + (f.riego === 'igual' ? ' o incluir riego y secano' : '') + '.' : (f.riego === 'igual' ? 'Probá incluir lotes con riego y de secano.' : 'A medida que se cierren campañas en SAFIA van a aparecer acá.')) + '</div></div>';
+      cont.innerHTML = h; conectar(cont, base, casos, op, []); return;
+    }
+    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th>#</th><th>Lote</th><th>Campaña</th><th>Material</th><th>Época · siembra</th><th>Riego</th><th class="r">Agua mm</th><th>Suelo</th><th class="r">Rinde kg/ha</th><th class="r">Frente al tuyo</th></tr></thead><tbody>' +
+      '<tr><td><input type="radio" name="igRef" value=""' + (!op.elegido ? ' checked' : '') + '></td><td colspan="10" class="muted">Ninguno en particular: el plan se compara con los que ya cosechan la meta en la zona</td></tr>' +
+      lista.slice(0, 15).map(function (c, i) {
+        var d = c.rindeKgHa - base.rindeKgHa;
+        return '<tr><td><input type="radio" name="igRef" value="' + esc(c.id) + '"' + (String(op.elegido) === String(c.id) ? ' checked' : '') + '></td><td>' + (i + 1) + '</td><td><b>' + esc(etiqueta(c, base)) + '</b>' + (c.localidad && f.ambito !== 'localidad' ? '<div class="sub">' + esc(c.localidad) + (c.departamento ? ', ' + esc(c.departamento) : '') + '</div>' : '') + '</td>' +
+          '<td>' + esc(zafra(c)) + '</td><td>' + esc(c.variedad || '—') + '</td><td>' + esc(c.epoca || '—') + '<div class="sub">' + fechaCorta(c.siembra) + '</div></td><td>' + riegoTxt(c) + '</td>' +
+          '<td class="r">' + fmt(c.aguaTotalMM, 0) + '</td><td>' + (c.suelo ? 'con análisis' : '<span class="muted">sin análisis</span>') + '</td>' +
+          '<td class="r"><span class="num">' + fmt(c.rindeKgHa, 0) + '</span></td><td class="r">' + (d > 0 ? '<b style="color:#178029;">+' + fmt(d, 0) + '</b>' : '<span class="muted">' + (d === 0 ? 'igual' : fmt(d, 0)) + '</span>') + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>' +
+      (lista.length > 15 ? '<div class="muted" style="font-size:12px;margin-top:4px;">Se muestran los 15 que más rinden de ' + lista.length + '.</div>' : '') +
+      '<div class="muted" style="font-size:12px;margin-top:6px;">Al elegir un lote, la meta pasa a ser su rinde y el plan usa su suelo, su material y su época como referencia. Sin análisis de suelo del lote elegido, la comparación de tierra no se puede hacer (el resto sí).</div></div>';
+    cont.innerHTML = h;
+    conectar(cont, base, casos, op, lista);
+  }
+  function conectar(cont, base, casos, op, lista) {
+    var sa = cont.querySelector('[data-ig="ambito"]'), sr = cont.querySelector('[data-ig="riego"]'), bm = cont.querySelector('[data-ig="mejor"]');
+    if (sa) sa.addEventListener('change', function () { estado.filtros.ambito = sa.value; pintar(cont, base, casos, Object.assign({}, op, { elegido: null })); if (op.alElegir) op.alElegir(null); });
+    if (sr) sr.addEventListener('change', function () { estado.filtros.riego = sr.value; pintar(cont, base, casos, Object.assign({}, op, { elegido: null })); if (op.alElegir) op.alElegir(null); });
+    if (bm) bm.addEventListener('click', function () { if (op.alIgualar) op.alIgualar(lista[0]); });
+    cont.querySelectorAll('input[name="igRef"]').forEach(function (r) {
+      r.addEventListener('change', function () { var ref = lista.find(function (c) { return String(c.id) === r.value; }) || null; if (op.alElegir) op.alElegir(ref); });
+    });
+  }
+
+  /* ---------- tu lote frente al lote elegido ---------- */
+  function comparacionHTML(pl) {
+    var mio = pl.caso, ref = pl.referencia; if (!mio || !ref) return '';
+    var filas = [];
+    function fila(n, a, b, lect) { filas.push('<tr><td>' + n + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td><td>' + (lect || '') + '</td></tr>'); }
+    var peor = function (t) { return '<span style="color:#B3261E;font-weight:600;">' + t + '</span>'; }, ok = '<span class="muted">ok</span>';
+    fila('<b>Rinde</b>', '<b>' + fmt(mio.rindeKgHa, 0) + '</b> kg/ha', '<b>' + fmt(ref.rindeKgHa, 0) + '</b> kg/ha', ref.rindeKgHa > mio.rindeKgHa ? peor('faltan ' + fmt(ref.rindeKgHa - mio.rindeKgHa, 0) + ' kg/ha') : 'ya rendís lo mismo o más');
+    fila('Riego', riegoTxt(mio), riegoTxt(ref), (mio.riego === false) !== (ref.riego === false) ? peor(mio.riego === false ? 'el lote elegido riega y el tuyo no' : 'el lote elegido es de secano') : ok);
+    fila('Agua del ciclo (lluvia + riego)', fmt(mio.aguaTotalMM, 0) + ' mm', fmt(ref.aguaTotalMM, 0) + ' mm', mio.aguaTotalMM != null && ref.aguaTotalMM != null && mio.aguaTotalMM < ref.aguaTotalMM * 0.9 ? peor(fmt(ref.aguaTotalMM - mio.aguaTotalMM, 0) + ' mm menos') : (mio.aguaTotalMM == null || ref.aguaTotalMM == null ? '<span class="muted">sin dato en uno de los dos</span>' : ok));
+    fila('Material', esc(mio.variedad || '—'), esc(ref.variedad || '—'), mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad) ? peor('otro material') : (mio.variedad && ref.variedad ? 'mismo material' : '<span class="muted">sin dato</span>'));
+    fila('Época · fecha de siembra', esc(mio.epoca || '—') + ' · ' + fechaCorta(mio.siembra), esc(ref.epoca || '—') + ' · ' + fechaCorta(ref.siembra), mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca) ? peor('otra época') : ok);
+    if (mio.densidad || ref.densidad) fila('Densidad (plantas/ha)', fmt(mio.densidad, 0), fmt(ref.densidad, 0), !(mio.densidad && ref.densidad) ? '<span class="muted">sin dato en uno de los dos</span>' : (Math.abs(mio.densidad - ref.densidad) / ref.densidad > 0.15 ? peor('diferencia de más de 15 %') : ok));
+    var ra = mio.rotacion || {}, rb = ref.rotacion || {};
+    if (ra.cargada || rb.cargada) fila('Antecesor · cobertura', esc((ra.anterior || '—') + (ra.conCobertura ? ' · con cobertura' : '')), esc((rb.anterior || '—') + (rb.conCobertura ? ' · con cobertura' : '')), rb.conCobertura && !ra.conCobertura ? peor('el lote elegido venía de cobertura') : ok);
+    if (mio.suelo && ref.suelo && window.SafiaCasos) {
+      SafiaCasos.PARAMS_SUELO.forEach(function (p) {
+        var a = num(mio.suelo[p.k]), b = num(ref.suelo[p.k]); if (a == null || b == null) return;
+        var d = a - b, rel = b ? d / Math.abs(b) : 0, falta = p.k === 'ph' ? d < -0.3 : rel < -0.15;
+        // la arcilla no es mejor ni peor: es la textura, que no se corrige (se explica en ¿Llega este lote?)
+        var lect = p.k === 'arcilla' ? (Math.abs(d) >= 10 ? '<span style="color:#8B6F00;font-weight:600;">' + (d < 0 ? 'suelo más liviano' : 'suelo más arcilloso') + ' (textura: no se corrige)</span>' : ok) : (falta ? peor('menos que el lote elegido') : ok);
+        fila(esc(p.n) + (p.unidad ? ' <span class="sub">' + esc(p.unidad) + '</span>' : ''), fmt(a, p.dec), fmt(b, p.dec), lect);
+      });
+    } else filas.push('<tr><td>Suelo</td><td colspan="3" class="muted">' + (!mio.suelo ? 'Tu lote no tiene análisis de suelo cargado.' : 'El lote elegido no tiene análisis de suelo: la tierra no se puede comparar; el plan usa las tablas de alto rinde.') + '</td></tr>');
+    // prácticas que hizo el otro lote y el tuyo no (solo si los dos tienen el manejo cargado)
+    var prac = [];
+    if (window.SafiaInsumos && mio.manejo && ref.manejo && mio.manejo.cargado && ref.manejo.cargado) SafiaInsumos.PRACTICAS.forEach(function (p) { if (SafiaInsumos.tiene(ref.manejo, p.k) && !SafiaInsumos.tiene(mio.manejo, p.k)) prac.push(p.n); });
+    var d = window.SafiaAgro ? SafiaAgro.diagnosticarDiferencia(mio, ref, mio.cultivo) : null;
+    var fac = d && d.factores ? d.factores.slice(0, 5) : [];
+    return '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>Tu lote frente a ' + esc(etiqueta(ref, mio)) + '</h3><span class="muted">' + esc(zafra(ref)) + ' · ' + esc(ref.variedad || 'material sin dato') + ' · ' + fmt(ref.rindeKgHa, 0) + ' kg/ha ' + riegoTxt(ref) + '</span></div>' +
+      '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th class="r">Tu lote (' + esc(mio.campana || '') + ')</th><th class="r">Lote elegido</th><th>Lectura</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div></div>' +
+      (prac.length ? '<div class="note warn" style="margin-top:8px;">El lote elegido hizo y el tuyo no registró: <b>' + prac.map(esc).join(', ') + '</b>.</div>' : '') +
+      (fac.length ? '<div style="font-weight:700;margin-top:12px;">Lo que más explica la diferencia, en orden</div><ol style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5;">' + fac.map(function (x) { var t = String(x.texto || ''), n = String(x.nombre || ''); if (t.indexOf(n + ':') === 0) t = t.slice(n.length + 1).trim(); return '<li style="margin-bottom:4px;"><b>' + esc(n) + ':</b> ' + esc(t) + '</li>'; }).join('') + '</ol>' : '') +
+      '</div>';
+  }
+
+  /* ---------- hasta dónde llega este lote ---------- */
+  function alcanceHTML(pl, py) {
+    var mio = pl.caso || {}, ref = pl.referencia, pot = pl.potencial || {};
+    var llega = pl.meta <= pot.max;
+    var h = '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>¿Llega este lote a ' + fmt(pl.meta, 0) + ' kg/ha?</h3><span class="muted">' + (ref ? 'el rinde del lote elegido' : 'la meta') + ' · hoy ' + fmt(pl.actual, 0) + ' kg/ha</span></div>';
+    if (llega) {
+      h += '<div class="note ok">Sí: con el plan, este lote puede llegar a <b>' + fmt(pot.min, 0) + '–' + fmt(pot.max, 0) + ' kg/ha</b>, y la meta entra en ese rango. ' + (pl.meta > pot.min ? 'Está en la parte alta: depende de que respondan varios ítems del plan a la vez.' : 'Incluso con la respuesta mínima de cada ítem se llega.') + '</div>';
+    } else {
+      h += '<div class="note warn">Con todo lo que se puede corregir, este lote llega a <b>' + fmt(pot.min, 0) + '–' + fmt(pot.max, 0) + ' kg/ha</b>. Para ' + fmt(pl.meta, 0) + ' kg/ha faltan <b>' + fmt(pl.meta - pot.max, 0) + ' kg/ha</b> que no se cierran con correctivos ni fertilizantes.</div>';
+      var causas = [];
+      if (ref && mio.riego === false && ref.riego !== false) causas.push('<b>Riego.</b> El lote elegido riega y el tuyo es de secano' + (mio.aguaTotalMM != null && ref.aguaTotalMM != null ? ' (' + fmt(mio.aguaTotalMM, 0) + ' contra ' + fmt(ref.aguaTotalMM, 0) + ' mm en el ciclo)' : '') + '. Esa diferencia solo se cierra regando: se evalúa en <a href="evaluar.html">Evaluar proyecto</a> con el análisis de agua de la fuente.');
+      if (pot.techoAgua != null && pot.techoAgua < pl.meta) causas.push('<b>Agua del ciclo.</b> Con el agua que tuvo esta campaña, el techo es <b>' + fmt(pot.techoAgua, 0) + ' kg/ha</b> (productividad del agua de Grassini). ' + (mio.riego === false ? 'En secano, un año más lluvioso o el riego lo suben.' : 'El plan ya suma los milímetros que faltan; si el equipo no llega a esa lámina en floración y llenado, ese es el límite.'));
+      if (ref && mio.suelo && ref.suelo && num(mio.suelo.arcilla) != null && num(ref.suelo.arcilla) != null && num(ref.suelo.arcilla) - num(mio.suelo.arcilla) >= 10) causas.push('<b>Textura del suelo.</b> El lote elegido tiene ' + fmt(ref.suelo.arcilla, 0) + ' % de arcilla y el tuyo ' + fmt(mio.suelo.arcilla, 0) + ' %. Un suelo más liviano guarda menos agua y menos nutrientes, y la textura no se cambia: se compensa con riego frecuente, más materia orgánica (cobertura y rastrojo) y fertilización repartida.');
+      if (ref && mio.clima && ref.clima) {
+        var d35 = (num(mio.clima.diasMayor35) || 0) - (num(ref.clima.diasMayor35) || 0), dT = (num(mio.clima.tempMedia) || 0) - (num(ref.clima.tempMedia) || 0);
+        if (d35 >= 3 || Math.abs(dT) >= 1.5) causas.push('<b>Clima del lugar.</b> ' + (d35 >= 3 ? 'Tu ciclo tuvo ' + fmt(mio.clima.diasMayor35, 0) + ' días de 35 °C o más contra ' + fmt(ref.clima.diasMayor35, 0) + ' del lote elegido. ' : '') + (Math.abs(dT) >= 1.5 ? 'Temperatura media ' + fmt(mio.clima.tempMedia, 1) + ' °C contra ' + fmt(ref.clima.tempMedia, 1) + ' °C. ' : '') + 'El clima no se corrige; la fecha de siembra sí puede correr la floración fuera de los días más calurosos.');
+      }
+      if (pot.techoReferencia && pl.meta > pot.techoReferencia) causas.push('<b>Techo del cultivo.</b> La meta supera el techo climático de referencia (' + fmt(pot.techoReferencia, 0) + ' kg/ha con agua sin límite).');
+      if (!causas.length) causas.push('Con los datos cargados no aparece una causa fija (riego, textura o clima). La diferencia puede estar en manejo fino que no está registrado: densidad y stand, sanidad, fecha exacta, fertilización en cobertura. Cargar el manejo de la campaña en Campañas permite compararlo.');
+      var gratis = [];
+      if (ref && ref.variedad && norm(ref.variedad) !== norm(mio.variedad || '')) gratis.push('sembrar el mismo material (' + esc(ref.variedad) + ')');
+      if (ref && ref.epoca && norm(ref.epoca) !== norm(mio.epoca || '')) gratis.push('sembrar en la misma época (' + esc(ref.epoca) + ')');
+      h += '<div style="font-weight:700;margin-top:10px;">Lo que no se corrige con insumos</div><ul style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.55;">' + causas.map(function (c) { return '<li style="margin-bottom:5px;">' + c + '</li>'; }).join('') + '</ul>';
+      if (gratis.length) h += '<div class="note" style="margin-top:8px;">El cálculo de arriba no cuenta la genética ni la fecha: además del plan, <b>' + gratis.join(' y ') + '</b> no cuesta más y puede cerrar parte de la diferencia. Conviene probarlo primero en una franja del lote.</div>';
+      h += '<div class="note info" style="margin-top:8px;"><b>Meta por etapas:</b> primero llevar el lote a <b>' + fmt(pot.max, 0) + ' kg/ha</b> con el plan de abajo; con el análisis de suelo de control (a los 2 años) y las campañas nuevas, SAFIA vuelve a medir la distancia al lote elegido.</div>';
+    }
+    return h + '</div>';
+  }
+
+  /* ---------- plan por etapas ---------- */
+  function etapasHTML(pl, py) {
+    var mio = pl.caso || {}, items = pl.items || [];
+    var inv = items.filter(function (i) { return i.inversion > 0; }), gas = items.filter(function (i) { return i.recurrente > 0; });
+    var gratis = items.filter(function (i) { return !i.inversion && !i.recurrente && (i.k === 'variedad' || i.k === 'epoca' || i.k === 'stand' || i.k === 'rotacion'); });
+    var li = function (i, costo, texto) { return '<li style="margin-bottom:4px;"><b>' + esc(i.nombre) + '</b>' + (costo ? ' · <span style="white-space:nowrap;">' + costo + '</span>' : '') + '<div class="muted" style="font-size:12px;">' + (texto || i.accion) + '</div></li>'; };
+    var usd = function (v) { return v > 0 && v < 1 ? 'menos de US$ 1' : 'US$ ' + fmt(v, 0); };
+    var h = '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>Plan por etapas</h3><span class="muted">qué se hace primero, qué cada campaña y cómo sigue el lote</span></div>';
+    // rinde esperado año a año (misma proyección de la tabla de inversión: el primer año los correctivos rinden a la mitad)
+    if (py && py.filas && py.filas.length) {
+      h += '<div class="statbar" style="margin:0 0 10px;">' + py.filas.slice(0, 3).map(function (f) { return '<div class="stat"><div class="sl">Año ' + f.anio + '</div><div class="sv">' + fmt(pl.actual + f.extraPlan, 0) + '</div><div class="ss">kg/ha esperados</div></div>'; }).join('') +
+        '<div class="stat"><div class="sl">Meta</div><div class="sv green">' + fmt(pl.meta, 0) + '</div><div class="ss">' + (pl.referencia ? 'rinde del lote elegido' : 'la que fijaste') + '</div></div></div>' +
+        '<div class="muted" style="font-size:12px;margin-bottom:8px;">El primer año los correctivos rinden a la mitad (el calcáreo tarda 6–12 meses en reaccionar); desde el segundo, pleno. Son estimaciones del plan, no una promesa.</div>';
+    }
+    h += '<ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.55;">';
+    h += '<li style="margin-bottom:10px;"><b>Etapa 1 · Antes de la próxima siembra (una sola vez)</b>' + (inv.length ? '<ul style="margin:4px 0 0 16px;padding:0;">' + inv.map(function (i) { return li(i, usd(i.inversion) + '/ha · dura ' + i.vidaUtil + ' año' + (i.vidaUtil === 1 ? '' : 's')); }).join('') + '</ul>' : '<div class="muted">El suelo no necesita correcciones de fondo.</div>') + '</li>';
+    h += '<li style="margin-bottom:10px;"><b>Etapa 2 · En cada campaña</b>' + (gas.length || gratis.length ? '<ul style="margin:4px 0 0 16px;padding:0;">' + gratis.map(function (i) { return li(i, 'sin costo'); }).join('') + gas.map(function (i) { return li(i, usd(i.recurrente) + '/ha por campaña', i.inversion > 0 ? 'Reponer cada campaña lo que se lleva el rinde más alto (manutención); la corrección de fondo está en la etapa 1.' : null); }).join('') + '</ul>' : '<div class="muted">Sin prácticas nuevas: seguir con el manejo actual.</div>') + '</li>';
+    // rotación: el plan guardado del lote o la sugerencia de 3 años (Plan de rotación)
+    var rot = null, guardado = false;
+    if (window.SafiaRotacion && mio.equipoId) {
+      var p = SafiaRotacion.planDelLote ? SafiaRotacion.planDelLote(mio.equipoId) : null;
+      if (p && p.temporadas && p.temporadas.length) { rot = p.temporadas; guardado = true; }
+      else if (SafiaRotacion.sugerirPlan) { try { rot = SafiaRotacion.sugerirPlan(mio.equipoId, 3); } catch (e) { rot = null; } }
+    }
+    var tRot = rot && rot.length ? rot.filter(function (t) { return t.cultivo; }).slice(0, 9).map(function (t) { return '<span style="white-space:nowrap;">' + esc(SafiaRotacion.etiqueta ? SafiaRotacion.etiqueta(t) : '') + ': <b>' + esc(t.cultivo) + '</b></span>'; }).join(' · ') : '';
+    h += '<li style="margin-bottom:10px;"><b>Etapa 3 · Rotación y cobertura (próximos 3 años)</b><div>' + (tRot ? (guardado ? 'Plan de rotación guardado del lote: ' : 'Sugerencia (Embrapa / CAPECO, en <a href="#" data-tab-ir="rotacion">Plan de rotación</a> se puede ajustar y guardar): ') + tRot : 'Armá la rotación del lote en <a href="#" data-tab-ir="rotacion">Plan de rotación</a>: gramíneas entre sojas y cobertura en invierno sostienen la materia orgánica y cortan enfermedades.') + '</div></li>';
+    h += '<li style="margin-bottom:4px;"><b>Etapa 4 · Control</b><div>Repetir el análisis de suelo a los 2 años (0–20 y 20–40 cm), reponer el calcáreo cuando venza y cerrar cada campaña con su rinde: SAFIA vuelve a comparar el lote con el elegido y ajusta el plan.</div></li>';
+    return h + '</ol></div>';
+  }
+
+  window.SafiaIgualar = { candidatos: candidatos, etiqueta: etiqueta, zafra: zafra, pintar: pintar, comparacionHTML: comparacionHTML, alcanceHTML: alcanceHTML, etapasHTML: etapasHTML };
+})();

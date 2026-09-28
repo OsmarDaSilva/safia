@@ -68,6 +68,7 @@
 <script src="safia-ndvi.js"></script>
 <script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
+<script src="safia-igualar.js"></script>
 <script src="safia-precios.js"></script>
 <script src="safia-foliar.js"></script>
 <script src="safia-calidad-agua.js"></script>
@@ -495,7 +496,7 @@
 
         <!-- ================= TAB META DE RINDE ================= -->
         <section class="panel" id="panel-meta">
-          <div class="note info">Elegí el cultivo y la <b>meta</b> (por ejemplo, pasar de 5.000 a 6.000 kg/ha). SAFIA toma el análisis de suelo, el agua, el manejo y el rinde real de este lote, mira a los que <b>ya cosechan esa meta</b> en tu localidad, departamento o país, y arma un <b>recetario tentativo</b> ítem por ítem: qué corregir, dosis, costo aproximado, aporte esperado y si vale la pena frente al precio del grano y al valor de la tierra.</div>
+          <div class="note info"><b>¿Cuánto puede producir esta tierra y qué hace falta para rendir como el mejor?</b> Elegí la campaña base y, abajo, <b>a quién querés igualar</b> (el mejor de tu localidad, de tu departamento o del banco, con su material y su época), o poné una meta propia (por ejemplo, pasar de 5.000 a 6.000 kg/ha). SAFIA toma el análisis de suelo, el agua, el manejo y el rinde real de este lote, mira a los que <b>ya cosechan esa meta</b> en tu localidad, departamento o país, y arma un <b>recetario tentativo</b> ítem por ítem: qué corregir, dosis, costo aproximado, aporte esperado y si vale la pena frente al precio del grano y al valor de la tierra.</div>
           <div class="formcard visible sinlinea" style="display:block;background:#fff;border:1px solid var(--bd);">
             <div class="form-grid">
               <div class="field"><label>Cultivo y campaña base</label><select id="metaCaso"></select><span class="hint" id="metaCasoInfo"></span></div>
@@ -520,6 +521,7 @@
               <div class="form-actions"><span class="spacer" style="flex:1"></span><button class="btn" id="btnMetaPreciosDefault">Volver a los precios vigentes</button><a class="btn green" id="btnMetaPreciosGuardar" href="precios.html" style="text-decoration:none;">Actualizar precios vigentes (Datos → Precios)</a></div>
             </details>
           </div>
+          <div id="metaRef" style="margin-top:12px;"></div>
           <div id="metaSeguimiento"></div>
           <div id="metaResultado" style="margin-top:14px;"></div>
         </section>
@@ -831,6 +833,7 @@
 
   /* ---------- Meta de rinde (Motor 8) ---------- */
   var metaCasos = [];
+  var metaRefId = null, metaRefCalcular = false, metaRefSinBase = null;   // lote elegido para igualar (SafiaIgualar)
   var CAMPOS_PRECIO = [['calcareoUSDt', 'Calcáreo US$/t (puesto y aplicado)'], ['yesoUSDt', 'Yeso US$/t'], ['acidoSulfuricoUSDt', 'Ácido sulfúrico 98 % US$/t (para agua de riego)'], ['p2o5USDkg', 'P₂O₅ US$/kg'], ['k2oUSDkg', 'K₂O US$/kg'], ['nUSDkg', 'N US$/kg'], ['sUSDkg', 'S US$/kg'], ['tratamientoSemillaUSDha', 'Tratamiento de semilla US$/ha'], ['inoculanteUSDha', 'Inoculante US$/ha'], ['coinoculanteUSDha', 'Co-inoculante US$/ha'], ['comoUSDha', 'CoMo US$/ha'], ['znUSDha', 'Zinc US$/ha'], ['coberturaUSDha', 'Cobertura de invierno US$/ha'], ['fungicidaUSDapl', 'Fungicida US$/aplicación'], ['insecticidaUSDapl', 'Insecticida US$/aplicación'], ['foliarUSDapl', 'Foliar US$/aplicación'], ['riegoUSDmm', 'Riego US$ por mm'], ['subsoladoUSDha', 'Subsolado US$/ha'], ['nivelacionUSDha', 'Nivelación / sistematización US$/ha'], ['aplicacionVoleoUSDha', 'Aplicación al voleo US$/ha (pasada)'], ['analisisPerfilUSD', 'Análisis de perfil US$'], ['tierraUSDha', 'Valor de la tierra US$/ha']];
   function pintarPreciosMeta() {
     var pr = SafiaMeta.precios(), cont = document.getElementById('metaPrecios');
@@ -865,6 +868,23 @@
     if (!document.getElementById('metaPrecios').children.length) pintarPreciosMeta();
     // La Ficha de campaña puede pedir que la Meta abra con una campaña recién guardada
     // (se conserva hasta que aparezca en la lista, porque el selector se llena varias veces mientras carga; vence a los 60 s)
+    // Pedido de "igualar a este lote" (Ranking o Evolución): se elige la campaña base del mismo cultivo y finalidad y se arma el plan
+    metaRefSinBase = null;
+    try {
+      var pedidoRef = sessionStorage.getItem('banco_meta_ref'), tsRef = parseInt(sessionStorage.getItem('banco_meta_ref_ts') || '0', 10);
+      if (pedidoRef && (Date.now() - tsRef) > 120000) { sessionStorage.removeItem('banco_meta_ref'); pedidoRef = null; }
+      var refPedido = pedidoRef ? metaCasos.find(function (x) { return String(x.id) === String(pedidoRef); }) : null;
+      if (refPedido) {
+        sessionStorage.removeItem('banco_meta_ref');
+        var baseId = sessionStorage.getItem('banco_meta_caso');
+        if (!baseId) {
+          var grp = function (x) { return SafiaCasos.grupoFinalidad(x.cultivo, x.finalidad); };
+          var baseRef = mios.filter(function (x) { return SafiaMeta.claveCultivo(x.cultivo) === SafiaMeta.claveCultivo(refPedido.cultivo) && grp(x) === grp(refPedido); })[0];
+          if (baseRef) sel.value = baseRef.id; else metaRefSinBase = refPedido;
+        }
+        metaRefId = refPedido.id; metaRefCalcular = !metaRefSinBase;
+      }
+    } catch (e) {}
     try { var pedidoMeta = sessionStorage.getItem('banco_meta_caso'), tsMeta = parseInt(sessionStorage.getItem('banco_meta_caso_ts') || '0', 10); if (pedidoMeta && (Date.now() - tsMeta) > 60000) { sessionStorage.removeItem('banco_meta_caso'); pedidoMeta = null; } if (pedidoMeta && Array.prototype.some.call(sel.options, function (o) { return o.value === pedidoMeta; })) { sel.value = pedidoMeta; sessionStorage.removeItem('banco_meta_caso'); } } catch (e) {}
     alCambiarCasoMeta();
   }
@@ -875,9 +895,42 @@
     info.textContent = (c.esNueva ? 'Campaña nueva: el plan parte del rinde de ' + c.baseCultivo + ' ' + c.baseCampana + ' (' + fmt(c.rindeKgHa, 0) + ' kg/ha) en este lote, con el análisis de suelo más reciente. ' : '') + 'Suelo: ' + (c.suelo ? 'análisis del ' + fmtFecha(c.suelo.fecha) : 'sin análisis') + ' · agua ' + (c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + ' mm' : 'sin dato') + ' · manejo ' + (c.manejo && c.manejo.cargado ? 'cargado' : 'sin cargar');
     var m = document.getElementById('metaKg'); if (!m.value) m.value = Math.round(c.rindeKgHa * 1.2 / 100) * 100;
     if (window.SafiaSeguimiento) { var pm = SafiaSeguimiento.planDe(c); if (pm && pm.plan.kgHa && !m.value) m.value = pm.plan.kgHa; SafiaSeguimiento.html(c, document.getElementById('metaSeguimiento')); }
+    pintarRefMeta();
+    if (metaRefCalcular) { metaRefCalcular = false; var rp = refMeta(); if (rp && rp.rindeKgHa > c.rindeKgHa) { m.value = Math.round(rp.rindeKgHa); setTimeout(function () { document.getElementById('btnMetaCalcular').click(); }, 50); } }
   }
+  function refMeta() { return metaRefId ? metaCasos.find(function (x) { return String(x.id) === String(metaRefId); }) || null : null; }
+  // "¿A quién querés igualar?": lotes del mismo cultivo, finalidad y riego, ordenados por rinde (sin nombres de otros productores)
+  function pintarRefMeta() {
+    var c = casoMeta(), cont = document.getElementById('metaRef');
+    if (!cont || !window.SafiaIgualar) return;
+    if (metaRefSinBase) { cont.innerHTML = '<div class="note warn">Elegiste igualar a un lote de <b>' + esc(metaRefSinBase.cultivo) + '</b> (' + fmt(metaRefSinBase.rindeKgHa, 0) + ' kg/ha), pero este campo no tiene campañas cosechadas de ' + esc(metaRefSinBase.cultivo).toLowerCase() + ' con la misma finalidad. Elegí arriba el campo donde lo vas a sembrar.</div>'; return; }
+    if (!c) { cont.innerHTML = ''; return; }
+    SafiaIgualar.pintar(cont, c, metaCasos, {
+      elegido: metaRefId,
+      alElegir: function (r) {
+        metaRefId = r ? r.id : null;
+        if (r && r.rindeKgHa > c.rindeKgHa) document.getElementById('metaKg').value = Math.round(r.rindeKgHa);
+        else if (r) toast('Ese lote rindió ' + fmt(r.rindeKgHa, 0) + ' kg/ha, no más que tu campaña base: elegí uno que rinda más', true);
+      },
+      alIgualar: function (r) {
+        if (!r || !(r.rindeKgHa > c.rindeKgHa)) { toast('Tu campaña base ya rinde lo mismo o más que el mejor de esta lista', true); return; }
+        metaRefId = r.id; document.getElementById('metaKg').value = Math.round(r.rindeKgHa);
+        pintarRefMeta(); document.getElementById('btnMetaCalcular').click();
+      }
+    });
+  }
+  // Evolución → "Armar el plan para igualar a este lote"; en el plan, enlaces a otras pestañas (Plan de rotación)
+  document.getElementById('evoContenido').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-igualar-ref]'); if (!b) return;
+    try { sessionStorage.setItem('banco_meta_ref', b.getAttribute('data-igualar-ref')); sessionStorage.setItem('banco_meta_ref_ts', String(Date.now())); sessionStorage.setItem('banco_meta_caso', b.getAttribute('data-igualar-base')); sessionStorage.setItem('banco_meta_caso_ts', String(Date.now())); } catch (er) {}
+    var t = document.querySelector('.tabs button[data-tab="meta"]'); if (t) { t.click(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  });
+  document.getElementById('metaResultado').addEventListener('click', function (e) {
+    var a = e.target.closest('[data-tab-ir]'); if (!a) return; e.preventDefault();
+    var t = document.querySelector('.tabs button[data-tab="' + a.getAttribute('data-tab-ir') + '"]'); if (t) { t.click(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  });
   window.metaAtajo = function (pct) { var c = casoMeta(); if (c) document.getElementById('metaKg').value = Math.round(c.rindeKgHa * (1 + pct / 100) / 100) * 100; return false; };
-  document.getElementById('metaCaso').addEventListener('change', function () { document.getElementById('metaKg').value = ''; document.getElementById('metaResultado').innerHTML = ''; alCambiarCasoMeta(); });
+  document.getElementById('metaCaso').addEventListener('change', function () { metaRefId = null; metaRefSinBase = null; document.getElementById('metaKg').value = ''; document.getElementById('metaResultado').innerHTML = ''; alCambiarCasoMeta(); });
   document.getElementById('btnMetaPreciosDefault').addEventListener('click', function () { pintarPreciosMeta(); toast('Precios vigentes cargados'); });
   document.getElementById('btnMetaCalcular').addEventListener('click', function () {
     var c = casoMeta(), meta = num(document.getElementById('metaKg').value), out = document.getElementById('metaResultado');
@@ -893,6 +946,8 @@
     var ultimo = recientes.slice(-1)[0];
     if (ultimo && !ultimo.esPromedio) { var mismos = recientes.filter(function (a) { return String(a.fecha) === String(ultimo.fecha); }); if (mismos.length > 1) ultimo = Object.assign({}, ultimo, promediarAnalisis(mismos), { esPromedio: true, nMuestras: mismos.length, muestra: '' }); }
     if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
+    var refSel = refMeta(); if (refSel && !(refSel.rindeKgHa > c.rindeKgHa)) refSel = null;
+    opciones.referencia = refSel;
     if (window.SafiaFoliar) opciones.foliar = SafiaFoliar.ultimoDelLote(c.equipoId);   // último análisis foliar del lote: deficiencias en hoja que el plan tiene que mirar
     var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
     // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo
@@ -900,7 +955,8 @@
     metaCasos.filter(function (x) { return String(x.campoId) === String(campoActual.id) && String(x.equipoId || '') === String(c.equipoId || '') && x.rindeKgHa && SafiaMeta.claveCultivo(x.cultivo) !== SafiaMeta.claveCultivo(c.cultivo); })
       .forEach(function (x) { var k = SafiaMeta.claveCultivo(x.cultivo); if (!otros[k] || x.rindeKgHa > otros[k].rindeKgHa) otros[k] = x; });
     var py = SafiaMeta.proyeccion(pl, Object.keys(otros).map(function (k) { return otros[k]; }), pr, 5, opciones.metaOtro);
-    out.innerHTML = '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + (c.esNueva ? ' ' + esc(c.campana) : '') + ' de ' + fmt(c.rindeKgHa, 0) + (c.esNueva ? ' (base ' + esc(c.baseCampana) + ')' : '') + ' a ' + fmt(meta, 0) + ' kg/ha</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) +
+    var IG = window.SafiaIgualar;
+    out.innerHTML = (IG && pl.referencia ? IG.comparacionHTML(pl) : '') + '<div class="card"><div class="card-h"><h3>Plan tentativo: ' + esc(c.cultivo) + (c.esNueva ? ' ' + esc(c.campana) : '') + ' de ' + fmt(c.rindeKgHa, 0) + (c.esNueva ? ' (base ' + esc(c.baseCampana) + ')' : '') + ' a ' + fmt(meta, 0) + ' kg/ha' + (IG && pl.referencia ? ' · para igualar a ' + esc(IG.etiqueta(pl.referencia, c)) : '') + '</h3><span class="muted">' + esc(nombreCliente(campoActual.clienteId) || '') + ' · ' + esc(campoActual.nombre) + (c.equipo ? ' · ' + esc(c.equipo) : '') + '</span></div>' + SafiaMeta.informeHTML(pl) + '</div>' + SafiaMeta.proyeccionHTML(py, pl) + (IG ? IG.alcanceHTML(pl, py) + IG.etapasHTML(pl, py) : '') +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"><button class="btn" onclick="window.print()">Imprimir plan</button>' + (window.SafiaSeguimiento && SafiaSeguimiento.ubicar(c) && !c.rindeKgHaReal && (c.esNueva || !c.cosecha) ? '<button class="btn green" id="btnMetaGuardar">Guardar esta meta para la campaña y seguirla</button>' : '') + '</div>';
     var bg = document.getElementById('btnMetaGuardar');
     if (bg) bg.addEventListener('click', function () { if (SafiaSeguimiento.guardarMeta(c, meta, pl)) { toast('Meta guardada en la campaña: ' + fmt(meta, 0) + ' kg/ha'); SafiaSeguimiento.html(c, document.getElementById('metaSeguimiento')); document.getElementById('metaSeguimiento').scrollIntoView({ behavior: 'smooth' }); } });
@@ -2114,7 +2170,7 @@
       var difR = mioMejor.rindeKgHa - top.rindeKgHa;
       // Si este lote es el que más rinde, el de la columna pasa a ser "el siguiente" de la zona.
       var otro = difR >= 0 ? 'el siguiente' : 'el mejor';
-      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + (difR >= 0 ? 'el siguiente de la zona' : 'el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">🏆 Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
+      filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + (rp.riegoDistinto ? ' · no hay lotes ' + (mioMejor.riego === false ? 'de secano' : 'con riego') + ' para comparar: se compara con ' + (mioMejor.riego === false ? 'lotes regados' : 'lotes de secano') : '') + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + (difR >= 0 ? 'el siguiente de la zona' : 'el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0), 1) + td(difR >= 0 ? '<span class="evo-mejor">🏆 Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
       filasB.push('<tr>' + td('') + td('Agua total mm') + td(fmt(mioMejor.aguaTotalMM, 0), 1) + td(fmt(top.aguaTotalMM, 0), 1) + td(flecha(mioMejor.aguaTotalMM != null && top.aguaTotalMM != null ? mioMejor.aguaTotalMM - top.aguaTotalMM : null, 0), 1) + td('') + '</tr>');
       filasB.push('<tr>' + td('') + td('Variedad · época') + td(esc(mioMejor.variedad || '—') + ' · ' + esc(mioMejor.epoca || '—')) + td(esc(top.variedad || '—') + ' · ' + esc(top.epoca || '—')) + td('') + td('') + '</tr>');
       if (mioMejor.suelo && top.suelo) {
@@ -2136,7 +2192,8 @@
     if (window.SafiaAgro) {
       diagnosticos.forEach(function (dg) {
         html += '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>🌱 ' + esc(dg.cu) + '</h3><span class="muted">' + esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs el mejor lote de ' + esc(dg.opciones.ambito || 'la zona') + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha' : (dg.opciones && dg.opciones.esMejor ? ' · el mejor lote de ' + esc(dg.opciones.ambito || 'la zona') : '')) + '</span></div>' +
-          SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu, dg.opciones || {}) + '</div>';
+          SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu, dg.opciones || {}) +
+          (dg.ref ? '<div style="margin-top:12px;"><button type="button" class="btn green" data-igualar-ref="' + esc(dg.ref.id) + '" data-igualar-base="' + esc(dg.mio.id) + '">Armar el plan para igualar a este lote (con costos)</button></div>' : '') + '</div>';
       });
     } else {
       html += '<div class="note">Falta el motor agronómico (safia-agronomia.js).</div>';

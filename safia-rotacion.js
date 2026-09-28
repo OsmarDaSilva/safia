@@ -312,5 +312,7 @@
   }
   function alCambiarCampo() { planActual = null; if (iniciado && $('panel-rotacion').classList.contains('on')) activar(); }
 
-  window.SafiaRotacion = { activar: activar, alCambiarCampo: alCambiarCampo, temporadaDe: temporadaDe, etiqueta: etiqueta, avisos: avisos, especie: especie, historialDelLote: historialDelLote, planDelLote: planDelLote, indiceRotacion: indiceRotacion, esCobertura: esCobertura, DESCANSO: DESCANSO, _plan: function () { return planActual; } };
+  // sugerencia de rotación para los próximos N años (la usa el plan por etapas de la Meta de rinde)
+  function sugerirPlan(equipoId, anios) { return sugerir(equipoId, temporadasNuevas(equipoId, anios || 3)); }
+  window.SafiaRotacion = { sugerirPlan: sugerirPlan, activar: activar, alCambiarCampo: alCambiarCampo, temporadaDe: temporadaDe, etiqueta: etiqueta, avisos: avisos, especie: especie, historialDelLote: historialDelLote, planDelLote: planDelLote, indiceRotacion: indiceRotacion, esCobertura: esCobertura, DESCANSO: DESCANSO, _plan: function () { return planActual; } };
 })();
