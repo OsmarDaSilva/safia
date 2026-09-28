@@ -116,7 +116,7 @@
       if (Math.abs(d) < Math.pow(10, -(dec || 0)) / 2) return '<span class="muted">igual</span>';
       return '<b>' + s(d, dec) + '</b>' + (p != null ? '<div class="sub">' + s(p, Math.abs(p) < 10 ? 1 : 0) + ' %</div>' : '');
     }
-    function fila(n, a, b, lect, d) { filas.push('<tr><td>' + n + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td><td class="r" style="white-space:nowrap;">' + (d || '') + '</td><td>' + (lect || '') + '</td></tr>'); }
+    function fila(n, a, b, lect, d) { filas.push('<tr><td>' + n + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td><td class="r" style="white-space:nowrap;">' + (d || '') + '</td><td style="white-space:normal;min-width:170px;">' + (lect || '') + '</td></tr>'); }
     var peor = function (t) { return '<span style="color:#B3261E;font-weight:600;">' + t + '</span>'; }, ok = '<span class="muted">ok</span>';
     fila('<b>Rinde</b>', '<b>' + fmt(mio.rindeKgHa, 0) + '</b> kg/ha', '<b>' + fmt(ref.rindeKgHa, 0) + '</b> kg/ha', ref.rindeKgHa > mio.rindeKgHa ? peor('faltan ' + fmt(ref.rindeKgHa - mio.rindeKgHa, 0) + ' kg/ha') : 'ya rendís lo mismo o más', dif(mio.rindeKgHa, ref.rindeKgHa, 0));
     fila('Riego', riegoTxt(mio), riegoTxt(ref), (mio.riego === false) !== (ref.riego === false) ? peor(mio.riego === false ? 'el lote elegido riega y el tuyo no' : 'el lote elegido es de secano') : ok);
@@ -125,7 +125,7 @@
     var LM = window.SafiaMateriales ? SafiaMateriales.lectura(mio, ref) : null;
     var lectMat = LM ? (/^mismo/.test(LM.corta) || /^<span/.test(LM.corta) ? LM.corta : peor(LM.corta)) : (mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad) ? peor('otro material') : (mio.variedad && ref.variedad ? 'mismo material' : '<span class="muted">sin dato</span>'));
     fila('Material', esc(mio.variedad || '—'), esc(ref.variedad || '—'), lectMat);
-    if (LM && LM.detalle) filas.push('<tr><td></td><td colspan="4" style="font-size:12px;line-height:1.55;background:#FAFBFC;">' + LM.detalle + '</td></tr>');
+    if (LM && LM.detalle) filas.push('<tr><td></td><td colspan="4" style="font-size:12px;line-height:1.55;background:#FAFBFC;white-space:normal;">' + LM.detalle + '</td></tr>');
     fila('Época · fecha de siembra', esc(mio.epoca || '—') + ' · ' + fechaCorta(mio.siembra), esc(ref.epoca || '—') + ' · ' + fechaCorta(ref.siembra), mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca) ? peor('otra época') : ok);
     if (mio.densidad || ref.densidad) fila('Densidad (plantas/ha)', fmt(mio.densidad, 0), fmt(ref.densidad, 0), !(mio.densidad && ref.densidad) ? '<span class="muted">sin dato en uno de los dos</span>' : (Math.abs(mio.densidad - ref.densidad) / ref.densidad > 0.15 ? peor('diferencia de más de 15 %') : ok), dif(mio.densidad, ref.densidad, 0));
     var ra = mio.rotacion || {}, rb = ref.rotacion || {};
@@ -138,7 +138,7 @@
         var lect = p.k === 'arcilla' ? (Math.abs(d) >= 10 ? '<span style="color:#8B6F00;font-weight:600;">' + (d < 0 ? 'suelo más liviano' : 'suelo más arcilloso') + ' (textura: no se corrige)</span>' : ok) : (falta ? peor('menos que el lote elegido') : ok);
         fila(esc(p.n) + (p.unidad ? ' <span class="sub">' + esc(p.unidad) + '</span>' : ''), fmt(a, p.dec), fmt(b, p.dec), lect, dif(a, b, p.dec));
       });
-    } else filas.push('<tr><td>Suelo</td><td colspan="4" class="muted">' + (!mio.suelo ? 'Tu lote no tiene análisis de suelo cargado.' : 'El lote elegido no tiene análisis de suelo: la tierra no se puede comparar; el plan usa las tablas de alto rinde.') + '</td></tr>');
+    } else filas.push('<tr><td>Suelo</td><td colspan="4" class="muted" style="white-space:normal;">' + (!mio.suelo ? 'Tu lote no tiene análisis de suelo cargado.' : 'El lote elegido no tiene análisis de suelo: la tierra no se puede comparar; el plan usa las tablas de alto rinde.') + '</td></tr>');
     // prácticas que hizo el otro lote y el tuyo no (solo si los dos tienen el manejo cargado)
     var prac = [];
     if (window.SafiaInsumos && mio.manejo && ref.manejo && mio.manejo.cargado && ref.manejo.cargado) SafiaInsumos.PRACTICAS.forEach(function (p) { if (SafiaInsumos.tiene(ref.manejo, p.k) && !SafiaInsumos.tiene(mio.manejo, p.k)) prac.push(p.n); });
