@@ -111,6 +111,7 @@
     // diferencia = tu lote menos el lote elegido, en la unidad del dato y en % sobre el valor del lote elegido
     function dif(x, y, dec) {
       x = num(x); y = num(y); if (x == null || y == null) return '<span class="muted">—</span>';
+      var rd = function (v) { return Number(v.toLocaleString('en-US', { maximumFractionDigits: dec || 0, useGrouping: false })); }; x = rd(x); y = rd(y);   // resta de lo que se ve en pantalla
       var d = x - y, p = y ? d / Math.abs(y) * 100 : null, s = function (v, k) { return (v > 0 ? '+' : '') + fmt(v, k); };
       if (Math.abs(d) < Math.pow(10, -(dec || 0)) / 2) return '<span class="muted">igual</span>';
       return '<b>' + s(d, dec) + '</b>' + (p != null ? '<div class="sub">' + s(p, Math.abs(p) < 10 ? 1 : 0) + ' %</div>' : '');
