@@ -203,7 +203,7 @@
   /* ---------- 4. mapa de lluvias y déficit de Paraguay (grilla ERA5 guardada en safia-clima-py.js) ----------
      Dibujo propio (SVG con la imagen interpolada adentro): se ve igual en pantalla y en el PDF. Entre los puntos
      de la grilla (cada ~100 km) el color se interpola por distancia (IDW); el campo muestra su valor exacto. */
-  var CIUDADES = [['Asunción', -25.28, -57.63], ['Ciudad del Este', -25.51, -54.61], ['Encarnación', -27.33, -55.87], ['Concepción', -23.41, -57.43], ['Pedro Juan Caballero', -22.55, -55.73], ['Filadelfia', -22.35, -60.03], ['Salto del Guairá', -24.06, -54.31], ['Coronel Oviedo', -25.45, -56.44], ['Fuerte Olimpo', -21.04, -57.87]];
+  var CIUDADES = [['Asunción', -25.28, -57.63], ['Ciudad del Este', -25.51, -54.61, 'izq-abajo'], ['Encarnación', -27.33, -55.87], ['Concepción', -23.41, -57.43], ['Pedro Juan Caballero', -22.55, -55.73], ['Filadelfia', -22.35, -60.03], ['Salto del Guairá', -24.06, -54.31, 'izq-arriba'], ['Coronel Oviedo', -25.45, -56.44], ['Fuerte Olimpo', -21.04, -57.87]];
   var ESCALAS = {
     lluvia: { titulo: 'Lluvia anual (mm)', cortes: [700, 900, 1100, 1300, 1500, 1700], colores: ['#C9A26B', '#E3CF94', '#EEF0C2', '#BFE3C8', '#7FC4D6', '#3F8FC4', '#1F5E9E'] },
     deficit: { titulo: 'Déficit: agua que falta por año (mm)', cortes: [200, 400, 600, 800, 1000], colores: ['#DCEFD6', '#F4EDB0', '#F2CF87', '#EBA565', '#D96F4B', '#B23A2E'] }
@@ -238,10 +238,11 @@
       (img ? '<image href="' + img + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none" clip-path="url(#' + id + ')" style="image-rendering:auto;"/>' : '') +
       '<polygon points="' + poly + '" fill="none" stroke="#3A3F44" stroke-width="1.4"/>' +
       '<line x1="' + X(-62.8) + '" y1="' + Y(-25) + '" x2="' + X(-54.1) + '" y2="' + Y(-25) + '" stroke="#C0392B" stroke-width="1.6" stroke-dasharray="7 5"/><text x="' + (X(-62.6)) + '" y="' + (Y(-25) - 5) + '" font-size="11" fill="#C0392B" font-weight="700">Paralelo 25</text>';
-    CIUDADES.forEach(function (c) { s += '<circle cx="' + X(c[2]).toFixed(1) + '" cy="' + Y(c[1]).toFixed(1) + '" r="2.6" fill="#1B1F23"/><text x="' + (X(c[2]) + 4).toFixed(1) + '" y="' + (Y(c[1]) + 3.5).toFixed(1) + '" font-size="10" fill="#1B1F23" stroke="#fff" stroke-width="2.5" paint-order="stroke">' + esc(c[0]) + '</text>'; });
+    // cerca del borde derecho el nombre va a la izquierda del punto, para que no se corte
+    CIUDADES.forEach(function (c) { var xc = X(c[2]), iz = /izq/.test(c[3] || ''), dy = c[3] === 'izq-abajo' ? 13 : (c[3] === 'izq-arriba' ? -5 : 3.5); s += '<circle cx="' + xc.toFixed(1) + '" cy="' + Y(c[1]).toFixed(1) + '" r="2.6" fill="#1B1F23"/><text x="' + (iz ? xc - 4 : xc + 4).toFixed(1) + '" y="' + (Y(c[1]) + dy).toFixed(1) + '" text-anchor="' + (iz ? 'end' : 'start') + '" font-size="10" fill="#1B1F23" stroke="#fff" stroke-width="2.5" paint-order="stroke">' + esc(c[0]) + '</text>'; });
     if (campo && campo.lat != null && campo.lon != null) {
       var cx = X(campo.lon), cy = Y(campo.lat);
-      s += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="7" fill="#22A93A" stroke="#fff" stroke-width="2.5"/><text x="' + (cx + 10).toFixed(1) + '" y="' + (cy + 4).toFixed(1) + '" font-size="12" font-weight="700" fill="#0F3D14" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(campo[capa] != null ? 'Tu campo · ' + fmt(campo[capa], 0) + ' mm' : 'Tu campo') + '</text>';
+      s += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="7" fill="#22A93A" stroke="#fff" stroke-width="2.5"/><text x="' + (cx > W - 150 ? cx + 4 : cx + 10).toFixed(1) + '" y="' + (cx > W - 150 ? cy + 22 : cy + 4).toFixed(1) + '" text-anchor="' + (cx > W - 150 ? 'end' : 'start') + '" font-size="12" font-weight="700" fill="#0F3D14" stroke="#fff" stroke-width="3" paint-order="stroke">' + esc(campo[capa] != null ? 'Tu campo · ' + fmt(campo[capa], 0) + ' mm' : 'Tu campo') + '</text>';
     }
     // leyenda
     var lx = 12, ly = H - 16 - 18 * E.colores.length;
