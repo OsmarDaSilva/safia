@@ -600,7 +600,12 @@
     claves.forEach(function (k) {
       var g = grupos[k], r = prom(g.filter(function (x) { return x.riego; })), s = prom(g.filter(function (x) { return !x.riego; }));
       var puntos = (r != null && s != null ? 4 : (r != null ? 2 : (s != null ? 1 : 0))) + (/primavera/i.test(k) ? 0.5 : 0);
-      if (!mejor || puntos > mejor.puntos) mejor = { riego: r, secano: s, epoca: k === '—' ? null : k, n: g.length, finalidad: g[0].finalidad || null, puntos: puntos };
+      // costos por ha de la misma base (solo de las filas con rinde, para que costo y rinde sean de los mismos registros);
+      // la base guarda energía y mantenimiento con signo negativo: se usa el valor absoluto
+      var costo = function (l, campo) { var v = l.filter(function (x) { return Number(x.prod_ton_ha) > 0 && x[campo] != null && x[campo] !== ''; }).map(function (x) { return Math.abs(Number(x[campo])); }).filter(function (n) { return !isNaN(n); }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null; };
+      var gr = g.filter(function (x) { return x.riego; }), gs = g.filter(function (x) { return !x.riego; });
+      if (!mejor || puntos > mejor.puntos) mejor = { riego: r, secano: s, epoca: k === '—' ? null : k, n: g.length, finalidad: g[0].finalidad || null, puntos: puntos,
+        costoRiego: costo(gr, 'costo_final_ha'), costoSecano: costo(gs, 'costo_final_ha'), energiaRiego: costo(gr, 'energia_ha'), mantRiego: costo(gr, 'mantenimiento_ha') };
     });
     if (!mejor || (mejor.riego == null && mejor.secano == null)) return null;
     delete mejor.puntos; return mejor;
