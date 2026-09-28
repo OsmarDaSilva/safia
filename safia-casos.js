@@ -604,8 +604,11 @@
       // la base guarda energía y mantenimiento con signo negativo: se usa el valor absoluto
       var costo = function (l, campo) { var v = l.filter(function (x) { return Number(x.prod_ton_ha) > 0 && x[campo] != null && x[campo] !== ''; }).map(function (x) { return Math.abs(Number(x[campo])); }).filter(function (n) { return !isNaN(n); }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null; };
       var gr = g.filter(function (x) { return x.riego; }), gs = g.filter(function (x) { return !x.riego; });
+      // cada costo por separado (suman el costo final de la base)
+      var costos = function (l) { if (!l.some(function (x) { return Number(x.prod_ton_ha) > 0; })) return null; var c = { insumos: costo(l, 'costo_insumos_ha'), maquinas: costo(l, 'costo_maquinas_ha'), fletes: costo(l, 'costo_fletes_ha'), alquiler: costo(l, 'alquiler_ha'), energia: costo(l, 'energia_ha'), mant: costo(l, 'mantenimiento_ha'), final: costo(l, 'costo_final_ha') }; return (c.insumos == null && c.maquinas == null && c.final == null) ? null : c; };
       if (!mejor || puntos > mejor.puntos) mejor = { riego: r, secano: s, epoca: k === '—' ? null : k, n: g.length, finalidad: g[0].finalidad || null, puntos: puntos,
-        costoRiego: costo(gr, 'costo_final_ha'), costoSecano: costo(gs, 'costo_final_ha'), energiaRiego: costo(gr, 'energia_ha'), mantRiego: costo(gr, 'mantenimiento_ha') };
+        costoRiego: costo(gr, 'costo_final_ha'), costoSecano: costo(gs, 'costo_final_ha'), energiaRiego: costo(gr, 'energia_ha'), mantRiego: costo(gr, 'mantenimiento_ha'),
+        costosRiego: costos(gr), costosSecano: costos(gs) };
     });
     if (!mejor || (mejor.riego == null && mejor.secano == null)) return null;
     delete mejor.puntos; return mejor;

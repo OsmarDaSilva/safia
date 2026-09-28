@@ -204,6 +204,7 @@
             <div style="font-weight:700;font-size:14px;margin-bottom:2px;">5 · Inversión del proyecto de riego</div>
             <div class="muted" style="font-size:12px;margin-bottom:8px;">Para la economía: en cuántos años se recupera y cuánto deja. La carga cada proyecto (equipo, pozos, reservorio, energía, obras).</div>
             <div class="form-grid">
+              <div class="field"><label>El campo hoy</label><select id="pSituacion"><option value="secano">Produce en secano</option><option value="nuevo">No produce todavía (campo nuevo)</option></select><span class="hint">En secano, la inversión se paga con lo que agrega el riego; en un campo nuevo, con el margen completo con riego.</span></div>
               <div class="field"><label>Inversión total (US$)</label><input type="number" id="pInversion" step="1000" min="0" placeholder="Ej: 250000"></div>
               <div class="field"><label>Vida útil (años)</label><input type="number" id="pVidaUtil" step="1" min="1" placeholder="Opcional"><span class="hint">Para amortizar la inversión; sin dato, el horizonte es de 10 años.</span></div>
               <div class="field"><label>Energía y operación (US$ por mm)</label><input type="number" id="pEnergiaMm" step="0.01" min="0" placeholder="Opcional"><span class="hint">Vacío = el costo con riego de la base de Irrigar. Con dato, la energía sale de los mm que pide cada cultivo en este campo.</span></div>
@@ -485,7 +486,7 @@
   function cargarRef(){
     if(_refCache) return Promise.resolve(_refCache);
     if(!window.safiaSupabase) return Promise.resolve([]);
-    return window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha,costo_final_ha,energia_ha,mantenimiento_ha')
+    return window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha,costo_final_ha,costo_insumos_ha,costo_maquinas_ha,costo_fletes_ha,alquiler_ha,energia_ha,mantenimiento_ha')
       .then(function(r){ _refCache=(r.data||[]); return _refCache; }).catch(function(){ return []; });
   }
   var _forrajeCache=null;
@@ -511,17 +512,18 @@
       else { var porDep=depto?filas.filter(function(x){return norm(x.departamento)===norm(depto);}):[]; if(porDep.length){ filas=porDep; ambito=depto+' (promedio del departamento)'; } else return null; }
       // grano comercial y sin mezclar épocas (SafiaCasos.refRegional)
       var rr=SafiaCasos.refRegional(filas,cultivo,epoca,finalidad); if(!rr) return { riego:null, secano:null, sinRef:'La referencia agrícola de '+ambito+' no tiene '+cultivo+' para '+SafiaCasos.finalidadTexto(finalidad).toLowerCase()+'.' };
-      return { riego: rr.riego, secano: rr.secano, ambito: ambito+(rr.epoca?' · '+rr.epoca:''), n: rr.n, epoca: rr.epoca, costoRiego: rr.costoRiego, costoSecano: rr.costoSecano, energiaRiego: rr.energiaRiego, mantRiego: rr.mantRiego };
+      return { riego: rr.riego, secano: rr.secano, ambito: ambito+(rr.epoca?' · '+rr.epoca:''), n: rr.n, epoca: rr.epoca, costoRiego: rr.costoRiego, costoSecano: rr.costoSecano, energiaRiego: rr.energiaRiego, mantRiego: rr.mantRiego, costosRiego: rr.costosRiego, costosSecano: rr.costosSecano };
     });
   }
 
   /* ---------- clima del campo y riego por cultivo (SafiaClimaProyecto) ---------- */
   var ultimoRiego=[], riegoListo=false, ultimasRefs=[], refsListas=false, ultimasFilas=[];
+  ['pInversion','pVidaUtil','pEnergiaMm','pSituacion'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ pintarEconomia(); }); });
   function pintarEconomia(){
     var out=document.getElementById('rEconomia'); if(!out||!window.SafiaEconomiaRiego) return;
     if(!refsListas||!riegoListo) return;
     var r=SafiaEconomiaRiego.calcular({ cultivos: ultimasFilas.map(function(f,i){ var sim=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(f.cultivo) && (l.epoca||null)===(f.epoca||null); })||null; return { cultivo:f.cultivo, finalidad:f.finalidad, epoca:f.epoca, ref:ultimasRefs[i]||null, riego:sim }; }),
-      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:num(document.getElementById('pEnergiaMm').value) });
+      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:num(document.getElementById('pEnergiaMm').value), situacion:document.getElementById('pSituacion').value });
     out.innerHTML=SafiaEconomiaRiego.html(r);
   }
   function llenarPotAgua(){ document.querySelectorAll('.pot-agua').forEach(function(el){ var x=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(el.getAttribute('data-cultivo')); }); el.textContent = x ? Math.round(x.rindeRelSecano*100)+' %' : (ultimoRiego.length ? '—' : '…'); }); }
@@ -726,7 +728,7 @@
   function cargarEvaluacion(ev){
     evActual=ev.id;
     $('evNombre').value=ev.nombre||''; $('evNotas').value=ev.notas||'';
-    $('pInversion').value=ev.inversionUSD!=null?ev.inversionUSD:''; $('pVidaUtil').value=ev.vidaUtil!=null?ev.vidaUtil:''; $('pEnergiaMm').value=ev.energiaUSDmm!=null?ev.energiaUSDmm:'';
+    $('pInversion').value=ev.inversionUSD!=null?ev.inversionUSD:''; $('pVidaUtil').value=ev.vidaUtil!=null?ev.vidaUtil:''; $('pEnergiaMm').value=ev.energiaUSDmm!=null?ev.energiaUSDmm:''; $('pSituacion').value=ev.situacion==='nuevo'?'nuevo':'secano';
     var u=ev.ubicacion||{};
     if(u.departamento) $('pDepto').value=u.departamento; if(u.localidad) $('pLocalidad').value=u.localidad; if(u.pais) $('pPais').value=u.pais;
     if(u.lat!=null){ $('pLat').value=u.lat; $('pLon').value=u.lon; $('pGps').value=u.lat+', '+u.lon; } if(u.altitud!=null) $('pAlt').value=u.altitud;
@@ -817,7 +819,7 @@
     // nombre automático (cultivos y objetivos) mientras no se escriba uno propio
     var escrito=$('evNombre').value.trim(), auto=!escrito || (evPrev && evPrev.nombreAuto && escrito===evPrev.nombre);
     var datos={ clienteId:cliente.id, campoId:campo.id, analisisId:analisisId, nombre:auto?(nombreDef||'Estrategia'):escrito, nombreAuto:auto, notas:$('evNotas').value.trim(),
-      superficieHa:sup, inversionUSD:num($('pInversion').value), vidaUtil:num($('pVidaUtil').value), energiaUSDmm:num($('pEnergiaMm').value), ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
+      superficieHa:sup, inversionUSD:num($('pInversion').value), vidaUtil:num($('pVidaUtil').value), energiaUSDmm:num($('pEnergiaMm').value), situacion:$('pSituacion').value, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
       cultivos:d.cultivos, suelo:d.suelo, resultados:d.resultados, aguaId:aguaId, agua:d.agua||null, aguaLectura:d.aguaLectura||null, casosEnBanco:casos.length, evaluadoPor:u.nombre||null, fechaModificacion:ahora };
     var ev=evPrev;
     if(ev) Object.assign(ev,datos); else { ev=Object.assign({ id:t0+3, fecha:ahora },datos); evs.push(ev); }
