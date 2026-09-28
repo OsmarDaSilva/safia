@@ -29,17 +29,40 @@
     if (lat == null || lon == null) return Promise.reject(new Error('sin coordenadas'));
     var hasta = new Date().getFullYear() - 1, desde = hasta - 9, k = lat.toFixed(3) + ',' + lon.toFixed(3) + ',' + desde;
     if (cache[k]) return cache[k];
-    try { var s = sessionStorage.getItem('clima10_' + k); if (s) { var h0 = JSON.parse(s); cache[k] = Promise.resolve(h0); return cache[k]; } } catch (e) {}
+    try { var s = sessionStorage.getItem('clima10b_' + k); if (s) { var h0 = JSON.parse(s); cache[k] = Promise.resolve(h0); return cache[k]; } } catch (e) {}
     var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon + '&start_date=' + desde + '-01-01&end_date=' + hasta + '-12-31&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&timezone=America%2FAsuncion';
-    cache[k] = fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+    cache[k] = Promise.all([fetch(url).then(function (r) { return r.json(); }), chirps(lat, lon, desde, hasta).catch(function () { return null; })]).then(function (res) {
+      var j = res[0], ch = res[1];
       var d = j && j.daily; if (!d || !d.time) throw new Error('sin datos');
-      var h = { lat: lat, lon: lon, desde: desde, hasta: hasta, fuente: 'Open-Meteo, reanálisis ERA5', time: d.time, lluvia: d.precipitation_sum, et0: d.et0_fao_evapotranspiration, tmax: d.temperature_2m_max, tmin: d.temperature_2m_min };
+      var h = { lat: lat, lon: lon, desde: desde, hasta: hasta, time: d.time, lluvia: d.precipitation_sum, et0: d.et0_fao_evapotranspiration, tmax: d.temperature_2m_max, tmin: d.temperature_2m_min };
+      // Lluvia: CHIRPS (satélite + estaciones). Validado contra las normales de la DMH en 10 estaciones de Paraguay;
+      // ERA5 sobrestima la lluvia en el Chaco oeste (Mcal. Estigarribia ~1.050 mm contra ~770 de CHIRPS y ~800 del mapa de la DMH).
+      var cub = 0;
+      if (ch) { h.lluvia = d.time.map(function (t, i) { if (ch[t] != null) { cub++; return ch[t]; } return d.precipitation_sum[i]; }); }
+      h.lluviaFuente = ch && cub >= 0.95 * d.time.length ? 'chirps' : 'era5';
+      h.fuente = h.lluviaFuente === 'chirps' ? 'lluvia CHIRPS (satélite + estaciones); evapotranspiración y temperaturas Open-Meteo, reanálisis ERA5' : 'Open-Meteo, reanálisis ERA5 (CHIRPS no respondió: en el Chaco ERA5 puede sobrestimar la lluvia)';
       h.resumen = resumir(h);
-      try { sessionStorage.setItem('clima10_' + k, JSON.stringify(h)); } catch (e) {}
+      try { if (h.lluviaFuente === 'chirps') sessionStorage.setItem('clima10b_' + k, JSON.stringify(h)); } catch (e) {}
       return h;
     });
     cache[k].catch(function () { delete cache[k]; });
     return cache[k];
+  }
+  // Lluvia diaria CHIRPS (0,05°) por ClimateSERV (NASA/USAID SERVIR): pedido asíncrono, se consulta el avance y se baja la serie
+  var CS = 'https://climateserv.servirglobal.net/api/';
+  function chirps(lat, lon, desde, hasta) {
+    var dd = 0.025, geo = JSON.stringify({ type: 'Polygon', coordinates: [[[lon - dd, lat - dd], [lon + dd, lat - dd], [lon + dd, lat + dd], [lon - dd, lat + dd], [lon - dd, lat - dd]]] });
+    var q = 'datatype=0&begintime=01/01/' + desde + '&endtime=12/31/' + hasta + '&intervaltype=0&operationtype=5&geometry=' + encodeURIComponent(geo);
+    var espera = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+    return fetch(CS + 'submitDataRequest/?' + q).then(function (r) { return r.json(); }).then(function (a) {
+      var id = a && a[0]; if (!id) throw new Error('chirps sin id');
+      var intentos = 0;
+      var mirar = function () { return fetch(CS + 'getDataRequestProgress/?id=' + id).then(function (r) { return r.json(); }).then(function (p) { if ((p && p[0]) >= 100) return true; if (++intentos > 40) throw new Error('chirps tardó demasiado'); return espera(2500).then(mirar); }); };
+      return mirar().then(function () { return fetch(CS + 'getDataFromRequest/?id=' + id).then(function (r) { return r.json(); }); });
+    }).then(function (j) {
+      var out = {}; (j && j.data || []).forEach(function (x) { var v = x.value && x.value.avg; if (v == null || v < 0) return; var p = String(x.date).split('/'); out[p[2] + '-' + p[0] + '-' + p[1]] = v; });
+      return out;
+    });
   }
   function resumir(h) {
     var porAnio = {}, mes = MESES.map(function () { return { p: 0, e: 0, tx: 0, tn: 0, n: 0 }; });

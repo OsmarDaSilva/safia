@@ -533,7 +533,7 @@
     if(!window.SafiaClimaProyecto){ out.innerHTML=''; return; }
     if(base.lat==null||base.lon==null){ sub.textContent=''; out.innerHTML='<div class="note">Cargá las coordenadas del campo (paso 1) para ver la lluvia de los últimos 10 años y cuánto riego lleva cada cultivo.</div>'; riegoListo=true; return; }
     sub.textContent='coordenada '+base.lat+', '+base.lon;
-    out.innerHTML='<div class="muted" style="padding:10px 0;">Trayendo el clima diario de los últimos 10 años de la coordenada y simulando cada zafra…</div>';
+    out.innerHTML='<div class="muted" style="padding:10px 0;">Trayendo la lluvia diaria de los últimos 10 años (CHIRPS, tarda unos segundos) y el clima de la coordenada, y simulando cada zafra…</div>';
     SafiaClimaProyecto.historico(base.lat, base.lon).then(function(h){
       var lista=filas.map(function(f){ return SafiaClimaProyecto.riego(h,{ cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }); });
       ultimoRiego=lista; riegoListo=true; setTimeout(llenarPotAgua,0); pintarEconomia();
