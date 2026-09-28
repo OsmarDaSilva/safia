@@ -42,6 +42,7 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-balance.js"></script>
+<script src="safia-clima-py.js"></script>
 <script src="safia-clima-proyecto.js"></script>
 <script src="safia-insumos.js"></script>
 <script src="safia-casos.js"></script>
@@ -194,7 +195,6 @@
             <div class="field"><label>pH</label><input type="number" id="w_ph" step="0.01" min="0" max="14"></div>
             <div class="field"><label>Temperatura del agua (°C)</label><input type="number" id="w_temperatura" step="0.1"></div>
             <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="w_laminaAnualMm" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato, 500 mm. Al evaluar, SAFIA calcula el riego de cada cultivo con el clima del campo.</span></div>
-            <div class="field"><label>Caudal de la fuente (m³/h)</label><input type="number" id="w_caudalM3h" step="1" min="0" placeholder="Ej: 300"><span class="hint">Lo que da el pozo o la bomba. SAFIA dice si alcanza para la semana de más consumo.</span></div>
           </div>
           <div class="form-actions">
             <span style="flex:1"></span>
@@ -338,7 +338,7 @@
   });
 
   /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
-  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura','laminaAnualMm','caudalM3h'];
+  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura','laminaAnualMm'];
   document.getElementById('wGrilla').innerHTML=SafiaCalidadAgua.grillaHTML('w'); SafiaCalidadAgua.conectarGrilla('w'); SafiaCalidadAgua.limpiarGrilla('w');
   var aguaCargada=null, aguaArchivo=null;
   function ponerAgua(a){
@@ -507,8 +507,8 @@
     SafiaClimaProyecto.historico(base.lat, base.lon).then(function(h){
       var lista=filas.map(function(f){ return SafiaClimaProyecto.riego(h,{ cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }); });
       sub.textContent=h.resumen.desde+'–'+h.resumen.hasta+' · '+h.fuente;
-      out.innerHTML=SafiaClimaProyecto.climaHTML(h)+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>'+
-        SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value), caudalM3h:num(document.getElementById('w_caudalM3h').value) });
+      out.innerHTML=SafiaClimaProyecto.climaHTML(h)+SafiaClimaProyecto.mapaHTML({ lat:base.lat, lon:base.lon, lluvia:h.resumen.lluviaAnual, deficit:h.resumen.deficit })+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>'+
+        SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) });
     }).catch(function(){ out.innerHTML='<div class="note warn">No se pudo traer el clima de la coordenada (revisá la conexión). El resto de la evaluación no depende de esto.</div>'; });
   }
 

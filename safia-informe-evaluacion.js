@@ -201,8 +201,8 @@
       '<tr>' + td('<b>T máx / mín</b>') + clima.meses.map(function (m) { return td(fmt(m.tmax, 0) + '/' + fmt(m.tmin, 0), 1); }).join('') + '</tr>']);
     var riegoH = '';
     if (hist && window.SafiaClimaProyecto) {
-      var ag = agua(), lista = cultivos().map(function (c) { return SafiaClimaProyecto.riego(hist, { cultivo: c.cultivo, epoca: c.epoca, siembra: c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null }); });
-      riegoH = '<h3>Riego que lleva cada cultivo en este campo</h3>' + SafiaClimaProyecto.riegoHTML(lista, { superficieHa: ev.superficieHa, caudalM3h: ag && ag.caudalM3h });
+      var lista = cultivos().map(function (c) { return SafiaClimaProyecto.riego(hist, { cultivo: c.cultivo, epoca: c.epoca, siembra: c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null }); });
+      riegoH = SafiaClimaProyecto.mapaHTML({ lat: hist.lat, lon: hist.lon, lluvia: clima.lluviaAnual, deficit: clima.deficit }).replace(/<button[^>]*>[^<]*<\/button>/g, '') + '<h3>Riego que lleva cada cultivo en este campo</h3>' + SafiaClimaProyecto.riegoHTML(lista, { superficieHa: ev.superficieHa });
     }
     return h + '<div class="sub" style="margin-top:4px;">Promedio ' + clima.desde + '–' + clima.hasta + ' (' + clima.anios + ' años) con datos diarios de Open-Meteo (reanálisis ERA5). Déficit = suma de los meses en que la evapotranspiración de referencia supera a la lluvia: es el agua que el riego tiene que aportar en un cultivo de cobertura completa; la necesidad de cada cultivo depende de su ciclo y su coeficiente (FAO-56).</div>' + riegoH;
   }
