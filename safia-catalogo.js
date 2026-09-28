@@ -29,7 +29,7 @@
       // Credenz (BASF)
       'CZ 15B21', 'CZ 26B42 IPRO', 'CZ 37B43 IPRO', 'CZ 48B32 IPRO',
       // Pioneer (Corteva)
-      'P95R51', 'P95R96', 'P96R29', 'P97R21', 'P95Y72',
+      'P95R51', 'P96Y90', 'P96R29', 'P97R21', 'P95Y72',
       // HO Genética / Neogen (GDM) — usadas por clientes brasileños en Canindeyú
       'HO Pirapó IPRO', 'HO Maracaí IPRO', 'NEO 610 I2X', 'NEO 590 IPRO', 'NEO 760 CE'
     ],

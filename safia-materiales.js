@@ -63,6 +63,7 @@
     ['TMG 7067 IPRO', 6.5, 'semideterminado', 'resistente a roya asiática (Inox)', 'https://www.tmg.agr.br/cultivar/tmg-7067-ipro/', 'obtentor', '6.5 en el sur de Brasil, 7.0 en el Cerrado'],
     ['TMG 2378 IPRO', 7.8, 'semideterminado', 'resistente a nematodo de quiste (razas 1 y 3)', 'https://www.tmg.agr.br/cultivar/tmg-2378-ipro/', 'obtentor'],
     ['P95R51', 5.1, 'indeterminado', '', 'https://www.pioneer.com/content/dam/dpagco/pioneer/la/br/pt/files/Doc-%20Guia_Soja_Pioneer-LA-BR-v1.pdf', 'obtentor'],
+    ['P96Y90', 6.9, 'indeterminado', 'moderadamente tolerante a nematodo de quiste (razas 3 y 14); buena tolerancia a nematodo de agallas', 'https://www.pioneer.com/br/portfolio-de-produtos/soja/96Y90.html', 'obtentor'],
     ['P96R29 IPRO', 6.2, 'indeterminado', '', 'https://www.pioneer.com/br/portfolio-de-produtos/soja/96R29IPRO.html', 'obtentor'],
     ['HO Pirapó IPRO', 6.4, 'indeterminado', 'susceptible a nematodo de quiste y de agallas', 'https://hogenetica.com/main/uploads/2026_01/images/original/ho-pirapo.png', 'obtentor'],
     ['HO Maracaí IPRO', 7.7, 'indeterminado', 'resistente a nematodo de quiste (razas 3, 6, 9, 10 y 14)', 'https://agrosolsementes.com.br/ho-maracai/', 'distribuidor'],
@@ -107,7 +108,7 @@
     var b = base(nombre); if (cu === 'soja' && ALIAS_SOJA[b]) b = ALIAS_SOJA[b];
     var d = t[b] || null;
     if (!d && cu === 'maiz' && /^[0-9]/.test(b)) d = t['p' + b] || null;         // "3282" = "P3282"
-    if (!d && cu === 'soja' && /^p?9[0-9]r[0-9]/.test(b)) d = t[b.replace(/^p?/, 'p')] || null;   // "96R29" = "P96R29"
+    if (!d && cu === 'soja' && /^p?9[0-9][a-z][0-9]/.test(b)) d = t[b.replace(/^p?/, 'p')] || null;   // "96R29" = "P96R29", "96Y90" = "P96Y90"
     if (!d) return null;
     return Object.assign({ exacto: clave(d.nombre) === clave(nombre) }, d);
   }
