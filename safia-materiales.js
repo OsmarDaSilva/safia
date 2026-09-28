@@ -131,6 +131,52 @@
   }
   function dentro(z, gm) { if (!z || gm == null || z.min == null) return null; return gm >= z.min && (z.max == null || gm <= z.max); }
 
+  /* ---------- dónde queda el paralelo 25: en palabras y en un mapa ---------- */
+  function coord(v) { var n = v == null || v === '' ? NaN : Number(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  function ubicacionTexto(caso) {
+    var lat = coord(caso && caso.lat), ref = 'esa línea imaginaria cruza Paraguay de oeste a este y pasa apenas al norte de Asunción, Coronel Oviedo y Ciudad del Este';
+    if (lat == null) return 'El paralelo 25: ' + ref + '.';
+    var km = Math.round(Math.abs(Math.abs(lat) - 25) * 111);   // 1 grado de latitud ≈ 111 km
+    return km < 10 ? 'Tu campo está prácticamente sobre el paralelo 25 (' + ref + ').' : 'Tu campo está a unos ' + fmt(km, 0) + ' km al ' + (Math.abs(lat) < 25 ? 'norte' : 'sur') + ' del paralelo 25 (' + ref + ').';
+  }
+  function botonMapa(caso) {
+    var lat = coord(caso && caso.lat), lon = coord(caso && caso.lon);
+    return ' <button type="button" class="btn" style="padding:3px 10px;font-size:12px;" data-mapa-zona data-lat="' + (lat == null ? '' : lat) + '" data-lon="' + (lon == null ? '' : lon) + '">Ver en el mapa</button><div class="mapa-zona" style="display:none;height:380px;margin-top:8px;border-radius:10px;overflow:hidden;border:1px solid #E1E4E7;"></div>';
+  }
+  var LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  function cargarLeaflet() {
+    if (window.L && window.L.map) return Promise.resolve();
+    return new Promise(function (ok, mal) {
+      if (!document.querySelector('link[href="' + LEAFLET_CSS + '"]')) { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = LEAFLET_CSS; document.head.appendChild(l); }
+      var s = document.createElement('script'); s.src = LEAFLET_JS; s.onload = ok; s.onerror = mal; document.head.appendChild(s);
+    });
+  }
+  function etiquetaMapa(L, mapa, latlng, html, color) {
+    return L.marker(latlng, { interactive: false, icon: L.divIcon({ className: '', iconSize: null, html: '<div style="background:rgba(255,255,255,.92);border-left:4px solid ' + color + ';border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.3);padding:4px 8px;font:600 11.5px/1.35 system-ui,sans-serif;color:#1B1F23;white-space:nowrap;">' + html + '</div>' }) }).addTo(mapa);
+  }
+  function dibujarMapa(div, lat, lon) {
+    var L = window.L, mapa = L.map(div, { scrollWheelZoom: false, zoomSnap: 0.25 }).fitBounds([[-27.5, -62.5], [-19.4, -54.3]], { padding: [6, 6] });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 12, attribution: '© OpenStreetMap' }).addTo(mapa);
+    L.polyline([[-25, -63.5], [-25, -53.5]], { color: '#C0392B', weight: 3, dashArray: '10 7' }).addTo(mapa);
+    etiquetaMapa(L, mapa, [-25.08, -61.9], 'Paralelo 25 Sur', '#C0392B');
+    etiquetaMapa(L, mapa, [-22.6, -58.4], 'Norte del paralelo 25 (Región Oriental)<br><span style="font-weight:500;">INBIO: GM 6.2 en adelante en suelos arenosos;<br>en suelos arcillosos, variedades de alto rendimiento</span>', '#B8731A');
+    etiquetaMapa(L, mapa, [-26.1, -58.1], 'Sur del paralelo 25<br><span style="font-weight:500;">INBIO: GM 5.8 a 6.4</span>', '#178029');
+    etiquetaMapa(L, mapa, [-20.6, -61.6], 'Chaco<br><span style="font-weight:500;">sin guía oficial publicada</span>', '#5B6167');
+    if (lat != null && lon != null) L.marker([lat, lon]).addTo(mapa).bindTooltip('Tu campo', { permanent: true, direction: 'right' });
+    return mapa;
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-mapa-zona]') : null; if (!b) return;
+    var div = b.nextElementSibling; if (!div) return;
+    if (div.style.display === 'none') {
+      div.style.display = 'block'; b.textContent = 'Ocultar el mapa';
+      if (div._mapa) { div._mapa.invalidateSize(); return; }
+      div.innerHTML = '<div class="muted" style="padding:14px;">Cargando el mapa…</div>';
+      cargarLeaflet().then(function () { div.innerHTML = ''; div._mapa = dibujarMapa(div, coord(b.getAttribute('data-lat')), coord(b.getAttribute('data-lon'))); })
+        .catch(function () { div.innerHTML = '<div class="muted" style="padding:14px;">No se pudo cargar el mapa (revisá la conexión).</div>'; });
+    } else { div.style.display = 'none'; b.textContent = 'Ver en el mapa'; }
+  });
+
   /* ---------- lectura para la fila "Material" ---------- */
   function linkF(u, t) { return '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t || 'fuente') + '</a>'; }
   function descSoja(nombre, d) {
@@ -167,6 +213,8 @@
         zonaHTML = esc(z.texto.charAt(0).toUpperCase() + z.texto.slice(1)) + (ia === false ? fuera('tu material', da.gm) : '') + (ib === false && !mismo ? fuera('el del lote elegido', db.gm) : '') + ' <span class="muted" style="font-size:11px;">(' + linkF(z.fuentes[0].url, 'INBIO') + ')</span>.';
       } else if (z && z.chaco) zonaHTML = esc(z.texto);
       if (zonaHTML) det += (det ? '<br>' : '') + 'Para tu zona: ' + zonaHTML;
+      // en palabras simples dónde queda el paralelo 25, y el mapa
+      if (zonaHTML) zonaHTML = (z.chaco ? '' : esc(ubicacionTexto(mio)) + '<br>') + zonaHTML + botonMapa(mio);
       return { corta: corta, detalle: det, cu: 'soja', mismo: mismo, a: da, b: db, difGM: (da && db && da.gm != null && db.gm != null) ? Math.round((da.gm - db.gm) * 10) / 10 : null, zonaHTML: zonaHTML };
     }
     if (cu === 'maiz') {
@@ -248,5 +296,7 @@
       items.map(function (i) { return '<li style="margin-bottom:4px;"><b>' + i[0] + '</b> ' + i[1] + ' <span class="muted" style="font-size:11px;">(' + linkF(i[2].url, i[2].n) + ')</span></li>'; }).join('') + '</ul></details>';
   }
 
-  window.SafiaMateriales = { buscar: buscar, base: base, zonaGM: zonaGM, lectura: lectura, corto: corto, ensayosDe: ensayosDe, ensayosHTML: ensayosHTML, notaHTML: notaHTML, FUENTES: F };
+  // mapa del paralelo 25 en un contenedor cualquiera (lat/lon del campo opcionales)
+  function mapaZona(div, lat, lon) { return cargarLeaflet().then(function () { return dibujarMapa(div, coord(lat), coord(lon)); }); }
+  window.SafiaMateriales = { mapaZona: mapaZona, buscar: buscar, base: base, zonaGM: zonaGM, lectura: lectura, corto: corto, ensayosDe: ensayosDe, ensayosHTML: ensayosHTML, notaHTML: notaHTML, FUENTES: F };
 })();
