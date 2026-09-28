@@ -46,8 +46,11 @@
     ]);
   }
   // Clima de los últimos 10 años completos (Open-Meteo, reanálisis ERA5): lluvia y ETo por mes y por año
+  var hist = null;
   function cargarClima() {
     var u = ubic(); if (u.lat == null || u.lon == null) { climaEstado = 'sin coordenadas'; return Promise.resolve(); }
+    // el mismo módulo que la pantalla Evaluar: mismos datos, mismos números
+    if (window.SafiaClimaProyecto) { climaEstado = 'cargando'; return SafiaClimaProyecto.historico(u.lat, u.lon).then(function (h) { hist = h; clima = h.resumen; climaEstado = 'ok'; }).catch(function () { climaEstado = 'sin conexión'; }); }
     var hasta = new Date().getFullYear() - 1, desde = hasta - 9;
     var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + u.lat + '&longitude=' + u.lon + '&start_date=' + desde + '-01-01&end_date=' + hasta + '-12-31&daily=precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min&timezone=auto';
     climaEstado = 'cargando';
@@ -196,7 +199,12 @@
       '<tr>' + td('<b>ETo</b>') + clima.meses.map(function (m) { return td(fmt(m.eto, 0), 1); }).join('') + '</tr>',
       '<tr>' + td('<b>Falta</b>') + clima.meses.map(function (m) { var d = m.eto - m.lluvia; return td(d > 0 ? '<span style="color:#C0392B;font-weight:700;">' + fmt(d, 0) + '</span>' : '—', 1); }).join('') + '</tr>',
       '<tr>' + td('<b>T máx / mín</b>') + clima.meses.map(function (m) { return td(fmt(m.tmax, 0) + '/' + fmt(m.tmin, 0), 1); }).join('') + '</tr>']);
-    return h + '<div class="sub" style="margin-top:4px;">Promedio ' + clima.desde + '–' + clima.hasta + ' (' + clima.anios + ' años) con datos diarios de Open-Meteo (reanálisis ERA5). Déficit = suma de los meses en que la evapotranspiración de referencia supera a la lluvia: es el agua que el riego tiene que aportar en un cultivo de cobertura completa; la necesidad de cada cultivo depende de su ciclo y su coeficiente (FAO-56).</div>';
+    var riegoH = '';
+    if (hist && window.SafiaClimaProyecto) {
+      var ag = agua(), lista = cultivos().map(function (c) { return SafiaClimaProyecto.riego(hist, { cultivo: c.cultivo, epoca: c.epoca, siembra: c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null }); });
+      riegoH = '<h3>Riego que lleva cada cultivo en este campo</h3>' + SafiaClimaProyecto.riegoHTML(lista, { superficieHa: ev.superficieHa, caudalM3h: ag && ag.caudalM3h });
+    }
+    return h + '<div class="sub" style="margin-top:4px;">Promedio ' + clima.desde + '–' + clima.hasta + ' (' + clima.anios + ' años) con datos diarios de Open-Meteo (reanálisis ERA5). Déficit = suma de los meses en que la evapotranspiración de referencia supera a la lluvia: es el agua que el riego tiene que aportar en un cultivo de cobertura completa; la necesidad de cada cultivo depende de su ciclo y su coeficiente (FAO-56).</div>' + riegoH;
   }
   function secSuelo(LS) {
     if (!LS) return '<h2>Suelo</h2><div class="note warn">Falta el análisis de suelo del área del proyecto. Sin él no se puede decir qué le falta al suelo ni cuánto corregir antes de la primera campaña.</div>';

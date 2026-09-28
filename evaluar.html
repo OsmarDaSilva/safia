@@ -33,7 +33,7 @@
       table.tbl thead th{background:#eee !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     }
     /* fila de cultivo: cultivo, finalidad, época, producción y quitar en una sola línea en pantallas anchas */
-  @media (min-width:1100px){ .fila-cultivo{grid-template-columns:1.3fr 1.1fr 1fr 1.3fr auto !important;align-items:start !important;} }
+  @media (min-width:1100px){ .fila-cultivo{grid-template-columns:1.3fr 1.1fr 1fr .75fr 1.3fr auto !important;align-items:start !important;} }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
@@ -41,6 +41,8 @@
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
+<script src="safia-balance.js"></script>
+<script src="safia-clima-proyecto.js"></script>
 <script src="safia-insumos.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-fertilidad.js"></script>
@@ -191,7 +193,8 @@
             <div class="field full"><label>Valores del laboratorio</label><div id="wGrilla"></div></div>
             <div class="field"><label>pH</label><input type="number" id="w_ph" step="0.01" min="0" max="14"></div>
             <div class="field"><label>Temperatura del agua (°C)</label><input type="number" id="w_temperatura" step="0.1"></div>
-            <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="w_laminaAnualMm" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato, 500 mm.</span></div>
+            <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="w_laminaAnualMm" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato, 500 mm. Al evaluar, SAFIA calcula el riego de cada cultivo con el clima del campo.</span></div>
+            <div class="field"><label>Caudal de la fuente (m³/h)</label><input type="number" id="w_caudalM3h" step="1" min="0" placeholder="Ej: 300"><span class="hint">Lo que da el pozo o la bomba. SAFIA dice si alcanza para la semana de más consumo.</span></div>
           </div>
           <div class="form-actions">
             <span style="flex:1"></span>
@@ -211,6 +214,11 @@
                 <tbody id="rResumen"></tbody>
               </table>
             </div>
+          </div>
+
+          <div class="card" id="rClimaCard" style="margin-bottom:14px;">
+            <div class="card-h"><h3>Clima del campo y riego que lleva cada cultivo</h3><span class="muted" id="rClimaSub"></span></div>
+            <div id="rClima"></div>
           </div>
 
           <div class="card" id="rAguaCard" style="margin-bottom:14px;display:none;">
@@ -330,7 +338,7 @@
   });
 
   /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
-  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura','laminaAnualMm'];
+  var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura','laminaAnualMm','caudalM3h'];
   document.getElementById('wGrilla').innerHTML=SafiaCalidadAgua.grillaHTML('w'); SafiaCalidadAgua.conectarGrilla('w'); SafiaCalidadAgua.limpiarGrilla('w');
   var aguaCargada=null, aguaArchivo=null;
   function ponerAgua(a){
@@ -421,7 +429,7 @@
     fila.querySelector('.fc-objetivo').placeholder=u.k==='mv'?'Ej: 45':(u.k==='ms'?'Ej: 30000':'Ej: 6000');
     fila.querySelector('.fc-ayuda').textContent=u.largo;
   }
-  function agregarFilaCultivo(cultivo, epoca, objetivo, finalidad){
+  function agregarFilaCultivo(cultivo, epoca, objetivo, finalidad, siembra){
     var cont=document.getElementById('filasCultivos');
     var fila=document.createElement('div');
     fila.className='form-grid fila-cultivo';
@@ -431,10 +439,14 @@
       '<div class="field"><label>Cultivo</label><select class="fc-cultivo">'+opcionesCultivo(cultivo)+'</select></div>'+
       '<div class="field"><label>Finalidad</label><select class="fc-finalidad">'+opcionesFinalidad(cultivo, finalidad)+'</select></div>'+
       '<div class="field"><label>Época de siembra</label><select class="fc-epoca"><option value="">Cualquiera</option><option'+(epoca==='Primavera/Verano'?' selected':'')+'>Primavera/Verano</option><option'+(epoca==='Verano/Otoño'?' selected':'')+'>Verano/Otoño</option><option'+(epoca==='Otoño/Invierno'?' selected':'')+'>Otoño/Invierno</option></select></div>'+
+      '<div class="field"><label>Siembra (día/mes)</label><input type="text" class="fc-siembra" inputmode="numeric" maxlength="5" value="'+esc(siembra||'')+'"><div class="fc-siembra-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;">para calcular el riego</div></div>'+
       '<div class="field"><label>Producción esperada (<span class="fc-unidad" style="text-transform:none;"></span>)</label><input type="number" step="any" class="fc-objetivo" value="'+obj0+'"><div class="fc-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;"></div></div>'+
       '<div class="field"><label>&nbsp;</label><button type="button" class="btn danger fc-quitar" title="Quitar este cultivo">Quitar</button></div>';
     fila.querySelector('.fc-cultivo').addEventListener('change',function(){ fila.querySelector('.fc-finalidad').innerHTML=opcionesFinalidad(this.value, fila.querySelector('.fc-finalidad').value); rotularFila(fila); });
     fila.querySelector('.fc-finalidad').addEventListener('change',function(){ rotularFila(fila); });
+    // fecha de siembra sugerida por la época (se usa si no se escribe otra)
+    var ponerSiembraSug=function(){ if(!window.SafiaClimaProyecto) return; var cv=fila.querySelector('.fc-cultivo').value, pasto=SafiaCasos.esPasto(cv); fila.querySelector('.fc-siembra').placeholder=pasto?'todo el año':SafiaClimaProyecto.siembraPorDefecto(cv, fila.querySelector('.fc-epoca').value); fila.querySelector('.fc-siembra').disabled=pasto; };
+    fila.querySelector('.fc-epoca').addEventListener('change',ponerSiembraSug); fila.querySelector('.fc-cultivo').addEventListener('change',ponerSiembraSug); ponerSiembraSug();
     rotularFila(fila);
     fila.querySelector('.fc-quitar').addEventListener('click',function(){
       if(document.querySelectorAll('.fila-cultivo').length<=1){ toast('Dejá al menos un cultivo',true); return; }
@@ -445,7 +457,7 @@
   function leerFilasCultivo(){
     return [...document.querySelectorAll('.fila-cultivo')].map(function(f){
       var u=unidadFila(f), o=num(f.querySelector('.fc-objetivo').value);
-      return { cultivo:f.querySelector('.fc-cultivo').value.trim(), finalidad:f.querySelector('.fc-finalidad').value||SafiaCasos.finalidadNombre(SafiaCasos.finalidadesPara(f.querySelector('.fc-cultivo').value)[0]), epoca:f.querySelector('.fc-epoca').value||null, objetivoKgHa:o==null?null:Math.round(o*u.factor), unidad:u.corto };
+      return { cultivo:f.querySelector('.fc-cultivo').value.trim(), finalidad:f.querySelector('.fc-finalidad').value||SafiaCasos.finalidadNombre(SafiaCasos.finalidadesPara(f.querySelector('.fc-cultivo').value)[0]), epoca:f.querySelector('.fc-epoca').value||null, siembra:f.querySelector('.fc-siembra').value.trim()||null, objetivoKgHa:o==null?null:Math.round(o*u.factor), unidad:u.corto };
     }).filter(function(x){ return x.cultivo; });
   }
   document.getElementById('btnAgregarCultivo').addEventListener('click',function(){ agregarFilaCultivo('', '', '', ''); });
@@ -483,6 +495,21 @@
       var rr=SafiaCasos.refRegional(filas,cultivo,epoca,finalidad); if(!rr) return { riego:null, secano:null, sinRef:'La referencia agrícola de '+ambito+' no tiene '+cultivo+' para '+SafiaCasos.finalidadTexto(finalidad).toLowerCase()+'.' };
       return { riego: rr.riego, secano: rr.secano, ambito: ambito+(rr.epoca?' · '+rr.epoca:''), n: rr.n, epoca: rr.epoca };
     });
+  }
+
+  /* ---------- clima del campo y riego por cultivo (SafiaClimaProyecto) ---------- */
+  function pintarClimaRiego(base, filas){
+    var out=document.getElementById('rClima'), sub=document.getElementById('rClimaSub');
+    if(!window.SafiaClimaProyecto){ out.innerHTML=''; return; }
+    if(base.lat==null||base.lon==null){ sub.textContent=''; out.innerHTML='<div class="note">Cargá las coordenadas del campo (paso 1) para ver la lluvia de los últimos 10 años y cuánto riego lleva cada cultivo.</div>'; return; }
+    sub.textContent='coordenada '+base.lat+', '+base.lon;
+    out.innerHTML='<div class="muted" style="padding:10px 0;">Trayendo el clima diario de los últimos 10 años de la coordenada y simulando cada zafra…</div>';
+    SafiaClimaProyecto.historico(base.lat, base.lon).then(function(h){
+      var lista=filas.map(function(f){ return SafiaClimaProyecto.riego(h,{ cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }); });
+      sub.textContent=h.resumen.desde+'–'+h.resumen.hasta+' · '+h.fuente;
+      out.innerHTML=SafiaClimaProyecto.climaHTML(h)+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>'+
+        SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value), caudalM3h:num(document.getElementById('w_caudalM3h').value) });
+    }).catch(function(){ out.innerHTML='<div class="note warn">No se pudo traer el clima de la coordenada (revisá la conexión). El resto de la evaluación no depende de esto.</div>'; });
   }
 
   /* ---------- evaluar (todos los cultivos del proyecto) ---------- */
@@ -579,6 +606,7 @@
     else if(lecturaAgua && lecturaAgua.veredicto.k==='cuidado') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;">Los rindes con riego suponen manejar los cuidados que pide el agua analizada'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+')':'')+'. Detalle en <b>Agua de riego del proyecto</b>, más abajo.</div>';
     else aviso.innerHTML=agua?'':'<div class="note" style="margin:0 0 10px;">Sin análisis de agua: los rindes con riego suponen agua apta. Cargalo en el paso 4.</div>';
 
+    pintarClimaRiego(base, filas);
     var localidad=document.getElementById('pLocalidad').value.trim(), depto=document.getElementById('pDepto').value.trim();
     var resumen=document.getElementById('rResumen'), bloques=document.getElementById('bloquesCultivo');
     resumen.innerHTML=''; bloques.innerHTML='';
@@ -671,7 +699,7 @@
     if(ev.suelo){ ponerSuelo(ev.suelo); var an=L('analisis_suelo').find(function(a){ return String(a.id)===String(ev.analisisId); }); sueloCargado=an||null; }
     if(ev.agua){ ponerAgua(ev.agua); aguaCargada=L('analisis_agua').find(function(a){ return String(a.id)===String(ev.aguaId); })||null; }
     $('filasCultivos').innerHTML='';
-    (ev.cultivos&&ev.cultivos.length?ev.cultivos:[{cultivo:'',epoca:'',objetivoKgHa:''}]).forEach(function(c){ agregarFilaCultivo(c.cultivo||'', c.epoca||'', c.objetivoKgHa||'', c.finalidad||''); });
+    (ev.cultivos&&ev.cultivos.length?ev.cultivos:[{cultivo:'',epoca:'',objetivoKgHa:''}]).forEach(function(c){ agregarFilaCultivo(c.cultivo||'', c.epoca||'', c.objetivoKgHa||'', c.finalidad||'', c.siembra||''); });
     $('evEstado').innerHTML='Estrategia abierta: <b>'+esc(ev.nombre||'')+'</b>, guardada el '+fmtFecha(String(ev.fechaModificacion||ev.fecha).slice(0,10))+'. Tocá Evaluar para ver el resultado con el banco de hoy.';
   }
   $('evCliente').addEventListener('change',function(){ evActual=null; pintarCamposEv(); mostrarNuevos(); $('evCampo').dispatchEvent(new Event('change')); });
