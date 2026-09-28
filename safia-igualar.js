@@ -108,14 +108,21 @@
   function comparacionHTML(pl) {
     var mio = pl.caso, ref = pl.referencia; if (!mio || !ref) return '';
     var filas = [];
-    function fila(n, a, b, lect) { filas.push('<tr><td>' + n + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td><td>' + (lect || '') + '</td></tr>'); }
+    // diferencia = tu lote menos el lote elegido, en la unidad del dato y en % sobre el valor del lote elegido
+    function dif(x, y, dec) {
+      x = num(x); y = num(y); if (x == null || y == null) return '<span class="muted">—</span>';
+      var d = x - y, p = y ? d / Math.abs(y) * 100 : null, s = function (v, k) { return (v > 0 ? '+' : '') + fmt(v, k); };
+      if (Math.abs(d) < Math.pow(10, -(dec || 0)) / 2) return '<span class="muted">igual</span>';
+      return '<b>' + s(d, dec) + '</b>' + (p != null ? '<div class="sub">' + s(p, Math.abs(p) < 10 ? 1 : 0) + ' %</div>' : '');
+    }
+    function fila(n, a, b, lect, d) { filas.push('<tr><td>' + n + '</td><td class="r">' + a + '</td><td class="r">' + b + '</td><td class="r" style="white-space:nowrap;">' + (d || '') + '</td><td>' + (lect || '') + '</td></tr>'); }
     var peor = function (t) { return '<span style="color:#B3261E;font-weight:600;">' + t + '</span>'; }, ok = '<span class="muted">ok</span>';
-    fila('<b>Rinde</b>', '<b>' + fmt(mio.rindeKgHa, 0) + '</b> kg/ha', '<b>' + fmt(ref.rindeKgHa, 0) + '</b> kg/ha', ref.rindeKgHa > mio.rindeKgHa ? peor('faltan ' + fmt(ref.rindeKgHa - mio.rindeKgHa, 0) + ' kg/ha') : 'ya rendís lo mismo o más');
+    fila('<b>Rinde</b>', '<b>' + fmt(mio.rindeKgHa, 0) + '</b> kg/ha', '<b>' + fmt(ref.rindeKgHa, 0) + '</b> kg/ha', ref.rindeKgHa > mio.rindeKgHa ? peor('faltan ' + fmt(ref.rindeKgHa - mio.rindeKgHa, 0) + ' kg/ha') : 'ya rendís lo mismo o más', dif(mio.rindeKgHa, ref.rindeKgHa, 0));
     fila('Riego', riegoTxt(mio), riegoTxt(ref), (mio.riego === false) !== (ref.riego === false) ? peor(mio.riego === false ? 'el lote elegido riega y el tuyo no' : 'el lote elegido es de secano') : ok);
-    fila('Agua del ciclo (lluvia + riego)', fmt(mio.aguaTotalMM, 0) + ' mm', fmt(ref.aguaTotalMM, 0) + ' mm', mio.aguaTotalMM != null && ref.aguaTotalMM != null && mio.aguaTotalMM < ref.aguaTotalMM * 0.9 ? peor(fmt(ref.aguaTotalMM - mio.aguaTotalMM, 0) + ' mm menos') : (mio.aguaTotalMM == null || ref.aguaTotalMM == null ? '<span class="muted">sin dato en uno de los dos</span>' : ok));
+    fila('Agua del ciclo (lluvia + riego)', fmt(mio.aguaTotalMM, 0) + ' mm', fmt(ref.aguaTotalMM, 0) + ' mm', mio.aguaTotalMM != null && ref.aguaTotalMM != null && mio.aguaTotalMM < ref.aguaTotalMM * 0.9 ? peor(fmt(ref.aguaTotalMM - mio.aguaTotalMM, 0) + ' mm menos') : (mio.aguaTotalMM == null || ref.aguaTotalMM == null ? '<span class="muted">sin dato en uno de los dos</span>' : ok), dif(mio.aguaTotalMM, ref.aguaTotalMM, 0));
     fila('Material', esc(mio.variedad || '—'), esc(ref.variedad || '—'), mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad) ? peor('otro material') : (mio.variedad && ref.variedad ? 'mismo material' : '<span class="muted">sin dato</span>'));
     fila('Época · fecha de siembra', esc(mio.epoca || '—') + ' · ' + fechaCorta(mio.siembra), esc(ref.epoca || '—') + ' · ' + fechaCorta(ref.siembra), mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca) ? peor('otra época') : ok);
-    if (mio.densidad || ref.densidad) fila('Densidad (plantas/ha)', fmt(mio.densidad, 0), fmt(ref.densidad, 0), !(mio.densidad && ref.densidad) ? '<span class="muted">sin dato en uno de los dos</span>' : (Math.abs(mio.densidad - ref.densidad) / ref.densidad > 0.15 ? peor('diferencia de más de 15 %') : ok));
+    if (mio.densidad || ref.densidad) fila('Densidad (plantas/ha)', fmt(mio.densidad, 0), fmt(ref.densidad, 0), !(mio.densidad && ref.densidad) ? '<span class="muted">sin dato en uno de los dos</span>' : (Math.abs(mio.densidad - ref.densidad) / ref.densidad > 0.15 ? peor('diferencia de más de 15 %') : ok), dif(mio.densidad, ref.densidad, 0));
     var ra = mio.rotacion || {}, rb = ref.rotacion || {};
     if (ra.cargada || rb.cargada) fila('Antecesor · cobertura', esc((ra.anterior || '—') + (ra.conCobertura ? ' · con cobertura' : '')), esc((rb.anterior || '—') + (rb.conCobertura ? ' · con cobertura' : '')), rb.conCobertura && !ra.conCobertura ? peor('el lote elegido venía de cobertura') : ok);
     if (mio.suelo && ref.suelo && window.SafiaCasos) {
@@ -124,16 +131,16 @@
         var d = a - b, rel = b ? d / Math.abs(b) : 0, falta = p.k === 'ph' ? d < -0.3 : rel < -0.15;
         // la arcilla no es mejor ni peor: es la textura, que no se corrige (se explica en ¿Llega este lote?)
         var lect = p.k === 'arcilla' ? (Math.abs(d) >= 10 ? '<span style="color:#8B6F00;font-weight:600;">' + (d < 0 ? 'suelo más liviano' : 'suelo más arcilloso') + ' (textura: no se corrige)</span>' : ok) : (falta ? peor('menos que el lote elegido') : ok);
-        fila(esc(p.n) + (p.unidad ? ' <span class="sub">' + esc(p.unidad) + '</span>' : ''), fmt(a, p.dec), fmt(b, p.dec), lect);
+        fila(esc(p.n) + (p.unidad ? ' <span class="sub">' + esc(p.unidad) + '</span>' : ''), fmt(a, p.dec), fmt(b, p.dec), lect, dif(a, b, p.dec));
       });
-    } else filas.push('<tr><td>Suelo</td><td colspan="3" class="muted">' + (!mio.suelo ? 'Tu lote no tiene análisis de suelo cargado.' : 'El lote elegido no tiene análisis de suelo: la tierra no se puede comparar; el plan usa las tablas de alto rinde.') + '</td></tr>');
+    } else filas.push('<tr><td>Suelo</td><td colspan="4" class="muted">' + (!mio.suelo ? 'Tu lote no tiene análisis de suelo cargado.' : 'El lote elegido no tiene análisis de suelo: la tierra no se puede comparar; el plan usa las tablas de alto rinde.') + '</td></tr>');
     // prácticas que hizo el otro lote y el tuyo no (solo si los dos tienen el manejo cargado)
     var prac = [];
     if (window.SafiaInsumos && mio.manejo && ref.manejo && mio.manejo.cargado && ref.manejo.cargado) SafiaInsumos.PRACTICAS.forEach(function (p) { if (SafiaInsumos.tiene(ref.manejo, p.k) && !SafiaInsumos.tiene(mio.manejo, p.k)) prac.push(p.n); });
     var d = window.SafiaAgro ? SafiaAgro.diagnosticarDiferencia(mio, ref, mio.cultivo) : null;
     var fac = d && d.factores ? d.factores.slice(0, 5) : [];
     return '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>Tu lote frente a ' + esc(etiqueta(ref, mio)) + '</h3><span class="muted">' + esc(zafra(ref)) + ' · ' + esc(ref.variedad || 'material sin dato') + ' · ' + fmt(ref.rindeKgHa, 0) + ' kg/ha ' + riegoTxt(ref) + '</span></div>' +
-      '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th class="r">Tu lote (' + esc(mio.campana || '') + ')</th><th class="r">Lote elegido</th><th>Lectura</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div></div>' +
+      '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th class="r">Tu lote (' + esc(mio.campana || '') + ')</th><th class="r">Lote elegido</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div></div>' +
       (prac.length ? '<div class="note warn" style="margin-top:8px;">El lote elegido hizo y el tuyo no registró: <b>' + prac.map(esc).join(', ') + '</b>.</div>' : '') +
       (fac.length ? '<div style="font-weight:700;margin-top:12px;">Lo que más explica la diferencia, en orden</div><ol style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5;">' + fac.map(function (x) { var t = String(x.texto || ''), n = String(x.nombre || ''); if (t.indexOf(n + ':') === 0) t = t.slice(n.length + 1).trim(); return '<li style="margin-bottom:4px;"><b>' + esc(n) + ':</b> ' + esc(t) + '</li>'; }).join('') + '</ol>' : '') +
       '</div>';
