@@ -157,21 +157,23 @@
       var corta;
       if (mismo) corta = 'mismo material';
       else if (da && db && da.gm != null && db.gm != null) {
-        var dif = Math.round((db.gm - da.gm) * 10) / 10;
-        corta = Math.abs(dif) < 0.15 ? 'otro material, mismo ciclo (GM ' + fmt(da.gm, 1) + ')' : 'otro material: el elegido es de ciclo ' + (dif > 0 ? 'más largo' : 'más corto') + ' (GM ' + fmt(db.gm, 1) + ' contra ' + fmt(da.gm, 1) + ')';
+        var dif = Math.round((da.gm - db.gm) * 10) / 10;   // tu material menos el del lote elegido (mismo sentido que la columna Diferencia)
+        corta = Math.abs(dif) < 0.15 ? 'otro material, mismo ciclo (GM ' + fmt(da.gm, 1) + ')' : 'otro material: el tuyo es de ciclo ' + (dif > 0 ? 'más largo' : 'más corto');
       } else corta = 'otro material';
-      var det = mismo ? '' : descSoja(a, da) + '<br>' + descSoja(b, db);
+      var det = mismo ? '' : descSoja(a, da) + '<br>' + descSoja(b, db), zonaHTML = '';
       if (z && !z.chaco) {
         var ia = dentro(z, da && da.gm), ib = dentro(z, db && db.gm);
         var fuera = function (quien, gm) { return z.blando ? '; ' + quien + ' (GM ' + fmt(gm, 1) + ') queda por debajo de esa guía general' : '; <b>' + quien + ' (GM ' + fmt(gm, 1) + ') queda fuera de lo que recomienda INBIO para tu zona</b>'; };
-        det += (det ? '<br>' : '') + 'Para tu zona: ' + esc(z.texto) + (ia === false ? fuera('tu material', da.gm) : '') + (ib === false && !mismo ? fuera('el del lote elegido', db.gm) : '') + ' <span class="muted" style="font-size:11px;">(' + linkF(z.fuentes[0].url, 'INBIO') + ')</span>.';
-      } else if (z && z.chaco) det += (det ? '<br>' : '') + esc(z.texto);
-      return { corta: corta, detalle: det };
+        zonaHTML = esc(z.texto.charAt(0).toUpperCase() + z.texto.slice(1)) + (ia === false ? fuera('tu material', da.gm) : '') + (ib === false && !mismo ? fuera('el del lote elegido', db.gm) : '') + ' <span class="muted" style="font-size:11px;">(' + linkF(z.fuentes[0].url, 'INBIO') + ')</span>.';
+      } else if (z && z.chaco) zonaHTML = esc(z.texto);
+      if (zonaHTML) det += (det ? '<br>' : '') + 'Para tu zona: ' + zonaHTML;
+      return { corta: corta, detalle: det, cu: 'soja', mismo: mismo, a: da, b: db, difGM: (da && db && da.gm != null && db.gm != null) ? Math.round((da.gm - db.gm) * 10) / 10 : null, zonaHTML: zonaHTML };
     }
     if (cu === 'maiz') {
       var ma = buscar('maiz', a), mb = buscar('maiz', b);
-      var c2 = mismo ? 'mismo material' : ((ma && mb && ma.ciclo && mb.ciclo && ma.ciclo !== mb.ciclo) ? 'otro material, otro ciclo (' + mb.ciclo + ' contra ' + ma.ciclo + ')' : 'otro material');
-      return { corta: c2, detalle: mismo ? '' : descMaiz(a, ma) + '<br>' + descMaiz(b, mb) + ((ma && mb && ma.gduFlor && mb.gduFlor && ma.url.split('/')[2] !== mb.url.split('/')[2]) ? '<br><span class="muted">Los grados-día de empresas distintas no se comparan entre sí: cada una los calcula a su manera.</span>' : '') };
+      var c2 = mismo ? 'mismo material' : ((ma && mb && ma.ciclo && mb.ciclo && ma.ciclo !== mb.ciclo) ? 'otro material, otro ciclo (el tuyo ' + ma.ciclo + ', el elegido ' + mb.ciclo + ')' : 'otro material');
+      var otraEmpresa = ma && mb && ma.gduFlor && mb.gduFlor && ma.url.split('/')[2] !== mb.url.split('/')[2];
+      return { corta: c2, detalle: mismo ? '' : descMaiz(a, ma) + '<br>' + descMaiz(b, mb) + (otraEmpresa ? '<br><span class="muted">Los grados-día de empresas distintas no se comparan entre sí: cada una los calcula a su manera.</span>' : ''), cu: 'maiz', mismo: mismo, a: ma, b: mb, difGDU: (ma && mb && ma.gduFlor && mb.gduFlor && !otraEmpresa) ? ma.gduFlor - mb.gduFlor : null, otraEmpresa: !!otraEmpresa };
     }
     return { corta: mismo ? 'mismo material' : 'otro material', detalle: '' };
   }

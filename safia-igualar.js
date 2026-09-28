@@ -124,8 +124,26 @@
     // material: grupo de madurez / ciclo de cada uno y guía de la zona (SafiaMateriales, con fuente)
     var LM = window.SafiaMateriales ? SafiaMateriales.lectura(mio, ref) : null;
     var lectMat = LM ? (/^mismo/.test(LM.corta) || /^<span/.test(LM.corta) ? LM.corta : peor(LM.corta)) : (mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad) ? peor('otro material') : (mio.variedad && ref.variedad ? 'mismo material' : '<span class="muted">sin dato</span>'));
-    fila('Material', esc(mio.variedad || '—'), esc(ref.variedad || '—'), lectMat);
-    if (LM && LM.detalle) filas.push('<tr><td></td><td colspan="4" style="font-size:12px;line-height:1.55;background:#FAFBFC;white-space:normal;">' + LM.detalle + '</td></tr>');
+    // cada dato debajo de su columna: tu material | el del lote elegido | diferencia de grupo de madurez | lectura
+    var linkNivel = function (d) { return d && d.url ? ' · <a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.nivel || 'fuente') + '</a>' : ''; };
+    var celdaMat = function (nombre, d) {
+      if (!nombre) return '—';
+      var sub = '';
+      if (LM && LM.cu === 'soja') sub = d ? (d.gm != null ? 'GM ' + fmt(d.gm, 1) : 'GM sin dato') + (d.habito ? ' · ' + d.habito : '') + linkNivel(d) : 'sin dato verificado';
+      else if (LM && LM.cu === 'maiz') sub = d ? [d.ciclo, d.gduFlor ? fmt(d.gduFlor, 0) + ' GDU a floración' : ''].filter(Boolean).join(' · ') + linkNivel(d) + (d.senave ? '<div class="sub" style="white-space:normal;">SENAVE PY: ' + esc(d.senave) + '</div>' : '') : 'sin dato verificado';
+      return esc(nombre) + (sub ? '<div class="sub" style="white-space:normal;">' + sub + '</div>' : '');
+    };
+    var difMat = '';
+    if (LM && LM.difGM != null && !LM.mismo) difMat = Math.abs(LM.difGM) < 0.05 ? '<span class="muted">igual</span>' : '<b>' + (LM.difGM > 0 ? '+' : '') + Number(LM.difGM).toLocaleString('es-PY', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '</b><div class="sub">grupo de madurez</div>';
+    else if (LM && LM.difGDU != null && !LM.mismo) difMat = '<b>' + (LM.difGDU > 0 ? '+' : '') + fmt(LM.difGDU, 0) + '</b><div class="sub">GDU a floración</div>';
+    fila('Material', celdaMat(mio.variedad, LM && LM.a), celdaMat(ref.variedad, LM && LM.b), lectMat + (LM && LM.otraEmpresa ? '<div class="sub">los grados-día de empresas distintas no se comparan</div>' : ''), difMat);
+    // sanidad del material (soja), solo si alguno de los dos tiene dato
+    if (LM && LM.cu === 'soja' && ((LM.a && LM.a.sanidad) || (LM.b && LM.b.sanidad)) && !LM.mismo) {
+      var san = function (d) { return d && d.sanidad ? esc(d.sanidad.charAt(0).toUpperCase() + d.sanidad.slice(1)) : '<span class="muted">sin dato</span>'; };
+      filas.push('<tr><td>Sanidad del material</td><td class="r" style="white-space:normal;font-size:12.5px;">' + san(LM.a) + '</td><td class="r" style="white-space:normal;font-size:12.5px;">' + san(LM.b) + '</td><td></td><td style="white-space:normal;"><span class="muted">según la ficha de cada material</span></td></tr>');
+    }
+    // guía de la zona (INBIO): título en la primera columna y el texto a lo ancho, de izquierda a derecha
+    if (LM && LM.zonaHTML) filas.push('<tr><td style="white-space:normal;">Grupo de madurez para tu zona</td><td colspan="4" style="white-space:normal;font-size:12.5px;line-height:1.5;">' + LM.zonaHTML + '</td></tr>');
     fila('Época · fecha de siembra', esc(mio.epoca || '—') + ' · ' + fechaCorta(mio.siembra), esc(ref.epoca || '—') + ' · ' + fechaCorta(ref.siembra), mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca) ? peor('otra época') : ok);
     if (mio.densidad || ref.densidad) fila('Densidad (plantas/ha)', fmt(mio.densidad, 0), fmt(ref.densidad, 0), !(mio.densidad && ref.densidad) ? '<span class="muted">sin dato en uno de los dos</span>' : (Math.abs(mio.densidad - ref.densidad) / ref.densidad > 0.15 ? peor('diferencia de más de 15 %') : ok), dif(mio.densidad, ref.densidad, 0));
     var ra = mio.rotacion || {}, rb = ref.rotacion || {};
