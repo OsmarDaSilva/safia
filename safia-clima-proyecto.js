@@ -223,33 +223,51 @@
     return ok.length ? Math.round(ok.reduce(function (a, x) { return a + x.riegoBruto; }, 0)) : null;
   }
 
-  /* ---------- 4. mapa de lluvias y déficit de Paraguay (grilla ERA5 guardada en safia-clima-py.js) ----------
+  /* ---------- 4. mapa de lluvias y déficit de Paraguay (grilla CHIRPS guardada en safia-clima-py.js) ----------
      Dibujo propio (SVG con la imagen interpolada adentro): se ve igual en pantalla y en el PDF. Entre los puntos
-     de la grilla (cada ~100 km) el color se interpola por distancia (IDW); el campo muestra su valor exacto. */
+     de la grilla (cada ~50 km) el color se interpola (bilineal); el campo muestra su valor exacto. */
   var CIUDADES = [['Asunción', -25.28, -57.63], ['Ciudad del Este', -25.51, -54.61, 'izq-abajo'], ['Encarnación', -27.33, -55.87], ['Concepción', -23.41, -57.43], ['Pedro Juan Caballero', -22.55, -55.73], ['Filadelfia', -22.35, -60.03], ['Salto del Guairá', -24.06, -54.31, 'izq-arriba'], ['Coronel Oviedo', -25.45, -56.44], ['Fuerte Olimpo', -21.04, -57.87]];
   var ESCALAS = {
-    lluvia: { titulo: 'Lluvia anual (mm)', cortes: [700, 900, 1100, 1300, 1500, 1700], colores: ['#C9A26B', '#E3CF94', '#EEF0C2', '#BFE3C8', '#7FC4D6', '#3F8FC4', '#1F5E9E'] },
+    lluvia: { titulo: 'Lluvia anual (mm)', cortes: [500, 700, 900, 1100, 1300, 1500, 1700], colores: ['#B08050', '#C9A26B', '#E3CF94', '#EEF0C2', '#BFE3C8', '#7FC4D6', '#3F8FC4', '#1F5E9E'] },
     deficit: { titulo: 'Déficit: agua que falta por año (mm)', cortes: [200, 400, 600, 800, 1000], colores: ['#DCEFD6', '#F4EDB0', '#F2CF87', '#EBA565', '#D96F4B', '#B23A2E'] }
   };
   function colorDe(esc, v) { var i = 0; while (i < esc.cortes.length && v >= esc.cortes[i]) i++; return esc.colores[i]; }
   function hexRGB(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
-  function idw(puntos, capa, lat, lon) {
-    var s = 0, w = 0;
-    for (var i = 0; i < puntos.length; i++) { var p = puntos[i], d2 = (p.lat - lat) * (p.lat - lat) + (p.lon - lon) * (p.lon - lon); if (d2 < 1e-6) return p[capa]; var wi = 1 / d2; s += wi * p[capa]; w += wi; }
-    return s / w;
+  // Interpolación bilineal sobre la grilla regular (sin "manchas" alrededor de cada punto). Los nudos que caen
+  // fuera de Paraguay se completan con el promedio (IDW) de los 3 puntos reales más cercanos, solo para el borde.
+  function rejilla(G, capa) {
+    G._rej = G._rej || {}; if (G._rej[capa]) return G._rej[capa];
+    var P = G.puntos, lats = [], lons = [];
+    P.forEach(function (p) { if (lats.indexOf(p.lat) < 0) lats.push(p.lat); if (lons.indexOf(p.lon) < 0) lons.push(p.lon); });
+    lats.sort(function (a, b) { return a - b; }); lons.sort(function (a, b) { return a - b; });
+    var paso = Infinity; for (var i = 1; i < lats.length; i++) paso = Math.min(paso, lats[i] - lats[i - 1]); for (i = 1; i < lons.length; i++) paso = Math.min(paso, lons[i] - lons[i - 1]);
+    var la0 = lats[0] - paso, lo0 = lons[0] - paso, nl = Math.round((lats[lats.length - 1] - lats[0]) / paso) + 3, nm = Math.round((lons[lons.length - 1] - lons[0]) / paso) + 3, v = [];
+    var real = {}; P.forEach(function (p) { real[Math.round((p.lat - la0) / paso) + ',' + Math.round((p.lon - lo0) / paso)] = p[capa]; });
+    for (var a = 0; a < nl; a++) { v.push([]); for (var b = 0; b < nm; b++) {
+      var k = a + ',' + b; if (real[k] != null) { v[a].push(real[k]); continue; }
+      var la = la0 + a * paso, lo = lo0 + b * paso, cerca = P.map(function (p) { return [(p.lat - la) * (p.lat - la) + (p.lon - lo) * (p.lon - lo), p[capa]]; }).sort(function (x, y) { return x[0] - y[0]; }).slice(0, 3), s = 0, w = 0;
+      cerca.forEach(function (c) { var wi = 1 / Math.max(c[0], 1e-6); s += wi * c[1]; w += wi; }); v[a].push(s / w);
+    } }
+    return (G._rej[capa] = { la0: la0, lo0: lo0, paso: paso, nl: nl, nm: nm, v: v });
+  }
+  function valorEn(R, lat, lon) {
+    var y = (lat - R.la0) / R.paso, x = (lon - R.lo0) / R.paso;
+    y = Math.max(0, Math.min(R.nl - 1.0001, y)); x = Math.max(0, Math.min(R.nm - 1.0001, x));
+    var a = Math.floor(y), b = Math.floor(x), fy = y - a, fx = x - b, v = R.v;
+    return v[a][b] * (1 - fy) * (1 - fx) + v[a][b + 1] * (1 - fy) * fx + v[a + 1][b] * fy * (1 - fx) + v[a + 1][b + 1] * fy * fx;
   }
   function mapaSVG(capa, campo) {
     var G = window.SAFIA_CLIMA_PY; if (!G || !G.puntos || !G.puntos.length) return '<div class="note">El mapa de lluvias todavía no está cargado.</div>';
-    capa = ESCALAS[capa] ? capa : 'lluvia'; var E = ESCALAS[capa];
+    capa = ESCALAS[capa] && (capa === 'lluvia' || conDeficit(G)) ? capa : 'lluvia'; var E = ESCALAS[capa];
     var lon0 = -62.8, lon1 = -54.1, lat0 = -27.75, lat1 = -19.15, k = Math.cos(23.5 * Math.PI / 180), W = 560, H = Math.round(W * (lat1 - lat0) / ((lon1 - lon0) * k));
     var X = function (lo) { return (lo - lon0) / (lon1 - lon0) * W; }, Y = function (la) { return (lat1 - la) / (lat1 - lat0) * H; };
     // imagen interpolada (canvas → PNG) recortada al contorno de Paraguay
     var img = '';
     try {
-      var cw = 280, ch = Math.round(cw * H / W), cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      var RJ = rejilla(G, capa), cw = 280, ch = Math.round(cw * H / W), cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
       var ctx = cv.getContext('2d'), data = ctx.createImageData(cw, ch);
       for (var py = 0; py < ch; py++) for (var px = 0; px < cw; px++) {
-        var lo = lon0 + (px + 0.5) / cw * (lon1 - lon0), la = lat1 - (py + 0.5) / ch * (lat1 - lat0), rgb = hexRGB(colorDe(E, idw(G.puntos, capa, la, lo))), o = (py * cw + px) * 4;
+        var lo = lon0 + (px + 0.5) / cw * (lon1 - lon0), la = lat1 - (py + 0.5) / ch * (lat1 - lat0), rgb = hexRGB(colorDe(E, valorEn(RJ, la, lo))), o = (py * cw + px) * 4;
         data.data[o] = rgb[0]; data.data[o + 1] = rgb[1]; data.data[o + 2] = rgb[2]; data.data[o + 3] = 255;
       }
       ctx.putImageData(data, 0, 0); img = cv.toDataURL('image/png');
@@ -276,13 +294,14 @@
     });
     return s + '</svg>';
   }
+  function conDeficit(G) { return !!(G && G.puntos && G.puntos.length && G.puntos.every(function (p) { return p.deficit != null; })); }
   function mapaHTML(campo) {
-    var G = window.SAFIA_CLIMA_PY; if (!G) return '';
-    var uid = 'mpy' + Math.floor(Math.random() * 1e6);
-    return '<div class="mapa-py" id="' + uid + '" style="margin-top:12px;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><b style="font-size:14px;">Lluvia y déficit en Paraguay</b>' +
-      '<button type="button" class="btn" style="padding:3px 10px;font-size:12px;" data-mapa-capa="lluvia" data-mapa-id="' + uid + '">Lluvia anual</button><button type="button" class="btn" style="padding:3px 10px;font-size:12px;" data-mapa-capa="deficit" data-mapa-id="' + uid + '">Déficit</button></div>' +
+    var G = window.SAFIA_CLIMA_PY; if (!G || !G.puntos || !G.puntos.length) return '';
+    var uid = 'mpy' + Math.floor(Math.random() * 1e6), def = conDeficit(G);
+    return '<div class="mapa-py" id="' + uid + '" style="margin-top:12px;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><b style="font-size:14px;">' + (def ? 'Lluvia y déficit en Paraguay' : 'Lluvia en Paraguay') + '</b>' +
+      (def ? '<button type="button" class="btn" style="padding:3px 10px;font-size:12px;" data-mapa-capa="lluvia" data-mapa-id="' + uid + '">Lluvia anual</button><button type="button" class="btn" style="padding:3px 10px;font-size:12px;" data-mapa-capa="deficit" data-mapa-id="' + uid + '">Déficit</button>' : '') + '</div>' +
       '<div class="mapa-py-svg" data-lat="' + (campo && campo.lat != null ? campo.lat : '') + '" data-lon="' + (campo && campo.lon != null ? campo.lon : '') + '" data-lluvia="' + (campo && campo.lluvia != null ? Math.round(campo.lluvia) : '') + '" data-deficit="' + (campo && campo.deficit != null ? Math.round(campo.deficit) : '') + '">' + mapaSVG('lluvia', campo) + '</div>' +
-      '<div class="muted" style="font-size:11px;margin-top:4px;">Promedio ' + esc(G.periodo) + ' en ' + G.puntos.length + ' puntos de Paraguay (uno cada ~100 km), ' + esc(G.fuente) + ', la misma fuente que el clima de cada campo. Entre los puntos el color se interpola: sirve para ver la franja, el número exacto del campo es el de arriba. Déficit = suma de los meses en que la evapotranspiración supera a la lluvia.</div></div>';
+      '<div class="muted" style="font-size:11px;margin-top:4px;">Promedio ' + esc(G.periodo) + ' en ' + G.puntos.length + ' puntos de Paraguay (uno cada ' + esc(G.grilla || '~50 km') + '). Lluvia: ' + esc(G.fuente) + ', la misma fuente que la lluvia de cada campo; comparada con las estaciones de la Dirección de Meteorología (DMH). Entre los puntos el color se interpola: sirve para ver la franja, el número exacto del campo es el de arriba.' + (def ? ' Déficit = suma de los meses en que la evapotranspiración (' + esc(G.fuenteEto || 'ERA5') + ') supera a la lluvia.' : '') + '</div></div>';
   }
   if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('click', function (e) {
     var b = e.target && e.target.closest ? e.target.closest('[data-mapa-capa]') : null; if (!b) return;
