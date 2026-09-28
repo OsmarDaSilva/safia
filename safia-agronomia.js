@@ -391,7 +391,11 @@
     }
     // Manejo
     if (mio && ref) {
-      if (mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad)) factores.push({ tipo: 'manejo', k: 'variedad', nombre: 'Material', peso: 0.25, texto: 'Variedades distintas (' + mio.variedad + ' vs ' + ref.variedad + '): parte de la diferencia puede ser genética. Comparar en el ranking de variedades.' });
+      if (mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad)) factores.push({ tipo: 'manejo', k: 'variedad', nombre: 'Material', peso: 0.25, texto: (function () {
+        // con el grupo de madurez / ciclo de cada material cuando SAFIA lo tiene verificado (safia-materiales.js)
+        var lm = window.SafiaMateriales ? SafiaMateriales.lectura(mio, ref) : null, extra = lm && /ciclo/.test(lm.corta) ? String(lm.corta).replace(/<[^>]+>/g, '').replace(/^otro material,?:?\s*/, '') : '';
+        return 'Variedades distintas (' + mio.variedad + ' vs ' + ref.variedad + ')' + (extra ? '; ' + extra : '') + ': parte de la diferencia puede ser genética' + (extra ? ' o de ciclo' : '') + '. Comparar en el ranking de variedades.';
+      })() });
       if (mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca)) factores.push({ tipo: 'manejo', k: 'epoca', nombre: 'Época de siembra', peso: 0.3, texto: 'Épocas distintas (' + mio.epoca + ' vs ' + ref.epoca + '): la fecha cambia la radiación y el calor que recibe el cultivo en floración.' });
       if (mio.siembra && ref.siembra) {
         // diferencia de fecha dentro del calendario de la zafra (sin el año): dos campañas de años distintos se comparan por día del año

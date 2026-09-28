@@ -35,6 +35,7 @@
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-insumos.js"></script>
 <script src="safia-casos.js"></script>
+<script src="safia-materiales.js"></script>
 </head>
 <body>
   <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
@@ -266,7 +267,7 @@
     } else if(tabActual==='variedades'){
       var conVar=l.filter(function(f){return f.variedad;});
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué variedad / material rinde más. <b>Solo campañas cargadas en SAFIA</b>: la base histórica no registra variedades.</div>'+
-        porCultivo(conVar, cul, function(sub){ return rankingPor(sub, function(f){return f.variedad;}, 'Variedad / material', {enc:[{t:'Dónde'}], celdas:function(m){return td(esc(m.localidad||m.departamento||''));}}); })+
+        porCultivo(conVar, cul, function(sub){ return rankingPor(sub, function(f){return f.variedad;}, 'Variedad / material', {enc:[{t:'GM / ciclo'},{t:'Dónde'}], celdas:function(m){ var c=window.SafiaMateriales?SafiaMateriales.corto(m.cultivo,m.variedad):''; return td(c?esc(c):'<span class="muted">sin dato verificado</span>')+td(esc(m.localidad||m.departamento||'')); }}); })+
         (conVar.length?'':'<div class="note" style="margin-top:10px;">Todavía no hay campañas cosechadas con variedad cargada. Cada campaña que cierres con su variedad entra acá.</div>');
     } else if(tabActual==='epocas'){
       out.innerHTML='<div class="kpi-sub" style="margin-bottom:8px;">Qué época de siembra rinde más'+(cul?' en '+esc(cul):', por cultivo')+'.</div>'+

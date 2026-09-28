@@ -121,7 +121,11 @@
     fila('<b>Rinde</b>', '<b>' + fmt(mio.rindeKgHa, 0) + '</b> kg/ha', '<b>' + fmt(ref.rindeKgHa, 0) + '</b> kg/ha', ref.rindeKgHa > mio.rindeKgHa ? peor('faltan ' + fmt(ref.rindeKgHa - mio.rindeKgHa, 0) + ' kg/ha') : 'ya rendís lo mismo o más', dif(mio.rindeKgHa, ref.rindeKgHa, 0));
     fila('Riego', riegoTxt(mio), riegoTxt(ref), (mio.riego === false) !== (ref.riego === false) ? peor(mio.riego === false ? 'el lote elegido riega y el tuyo no' : 'el lote elegido es de secano') : ok);
     fila('Agua del ciclo (lluvia + riego)', fmt(mio.aguaTotalMM, 0) + ' mm', fmt(ref.aguaTotalMM, 0) + ' mm', mio.aguaTotalMM != null && ref.aguaTotalMM != null && mio.aguaTotalMM < ref.aguaTotalMM * 0.9 ? peor(fmt(ref.aguaTotalMM - mio.aguaTotalMM, 0) + ' mm menos') : (mio.aguaTotalMM == null || ref.aguaTotalMM == null ? '<span class="muted">sin dato en uno de los dos</span>' : ok), dif(mio.aguaTotalMM, ref.aguaTotalMM, 0));
-    fila('Material', esc(mio.variedad || '—'), esc(ref.variedad || '—'), mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad) ? peor('otro material') : (mio.variedad && ref.variedad ? 'mismo material' : '<span class="muted">sin dato</span>'));
+    // material: grupo de madurez / ciclo de cada uno y guía de la zona (SafiaMateriales, con fuente)
+    var LM = window.SafiaMateriales ? SafiaMateriales.lectura(mio, ref) : null;
+    var lectMat = LM ? (/^mismo/.test(LM.corta) || /^<span/.test(LM.corta) ? LM.corta : peor(LM.corta)) : (mio.variedad && ref.variedad && norm(mio.variedad) !== norm(ref.variedad) ? peor('otro material') : (mio.variedad && ref.variedad ? 'mismo material' : '<span class="muted">sin dato</span>'));
+    fila('Material', esc(mio.variedad || '—'), esc(ref.variedad || '—'), lectMat);
+    if (LM && LM.detalle) filas.push('<tr><td></td><td colspan="4" style="font-size:12px;line-height:1.55;background:#FAFBFC;">' + LM.detalle + '</td></tr>');
     fila('Época · fecha de siembra', esc(mio.epoca || '—') + ' · ' + fechaCorta(mio.siembra), esc(ref.epoca || '—') + ' · ' + fechaCorta(ref.siembra), mio.epoca && ref.epoca && norm(mio.epoca) !== norm(ref.epoca) ? peor('otra época') : ok);
     if (mio.densidad || ref.densidad) fila('Densidad (plantas/ha)', fmt(mio.densidad, 0), fmt(ref.densidad, 0), !(mio.densidad && ref.densidad) ? '<span class="muted">sin dato en uno de los dos</span>' : (Math.abs(mio.densidad - ref.densidad) / ref.densidad > 0.15 ? peor('diferencia de más de 15 %') : ok), dif(mio.densidad, ref.densidad, 0));
     var ra = mio.rotacion || {}, rb = ref.rotacion || {};
@@ -144,6 +148,7 @@
       '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th class="r">Tu lote (' + esc(mio.campana || '') + ')</th><th class="r">Lote elegido</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div></div>' +
       (prac.length ? '<div class="note warn" style="margin-top:8px;">El lote elegido hizo y el tuyo no registró: <b>' + prac.map(esc).join(', ') + '</b>.</div>' : '') +
       (fac.length ? '<div style="font-weight:700;margin-top:12px;">Lo que más explica la diferencia, en orden</div><ol style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5;">' + fac.map(function (x) { var t = String(x.texto || ''), n = String(x.nombre || ''); if (t.indexOf(n + ':') === 0) t = t.slice(n.length + 1).trim(); return '<li style="margin-bottom:4px;"><b>' + esc(n) + ':</b> ' + esc(t) + '</li>'; }).join('') + '</ol>' : '') +
+      (window.SafiaMateriales ? SafiaMateriales.ensayosHTML(mio, ref) + SafiaMateriales.notaHTML(mio.cultivo) : '') +
       '</div>';
   }
 
