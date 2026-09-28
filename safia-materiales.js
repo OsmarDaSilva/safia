@@ -270,6 +270,45 @@
       '<div class="muted" style="font-size:11px;margin-top:4px;">Ensayos con el mismo manejo para todos los materiales de cada localidad. ' + (cu === 'soja' ? 'Lo que mejor compara es el % frente al promedio del ensayo: el rinde absoluto cambia mucho de un año a otro.' : 'Promedio del grupo calculado por SAFIA con los híbridos del mismo grupo de ciclo del ensayo.') + ' Fuente: ' + linkF(fuente.url, fuente.n) + '. Copia del 28-sep-2026.</div>';
   }
 
+  /* ---------- qué material conviene para una zona (prospecto sin historia) ---------- */
+  // Los que mejor anduvieron en los ensayos públicos frente al promedio de cada ensayo (DIF), en su departamento si hay
+  function mejoresEnsayos(caso, cuantos) {
+    var cu = cultivoClave(caso && caso.cultivo), out = [];
+    if (!ENSAYOS) return { filas: [], ambito: '' };
+    // los ensayos publicados son de la Región Oriental y de Mato Grosso do Sul: no representan al Chaco
+    if (CHACO.test(norm(caso.departamento))) return { filas: [], ambito: 'chaco' };
+    if (cu === 'soja') {
+      var dep = norm(caso.departamento), sitios = (ENSAYOS.soja || []).filter(function (s) { return norm(s.departamento) === dep; }), ambito = caso.departamento;
+      if (!sitios.length) { sitios = ENSAYOS.soja || []; ambito = 'las 6 localidades del IPTA'; }
+      var acc = {};
+      sitios.forEach(function (s) { s.filas.forEach(function (f) { var k = base(f.cultivar); if (ALIAS_SOJA[k]) k = ALIAS_SOJA[k]; (acc[k] = acc[k] || { nombre: f.cultivar, difs: [], sitios: [] }); acc[k].difs.push(f.dif); if (acc[k].sitios.indexOf(s.loc) < 0) acc[k].sitios.push(s.loc); }); });
+      out = Object.keys(acc).map(function (k) { var a = acc[k]; return { nombre: a.nombre, dif: a.difs.reduce(function (x, y) { return x + y; }, 0) / a.difs.length, n: a.difs.length, sitios: a.sitios, dato: buscar('soja', a.nombre) }; });
+      return { filas: out.sort(function (a, b) { return b.dif - a.dif; }).slice(0, cuantos || 5), ambito: ambito, fuente: F.ipta };
+    }
+    if (cu === 'maiz') {
+      var acm = {};
+      (ENSAYOS.maiz || []).forEach(function (s) { s.filas.forEach(function (f) { var k = base(f.hibrido); (acm[k] = acm[k] || { nombre: f.hibrido, difs: [], sitios: [], grupo: f.grupo }); acm[k].difs.push(f.dif); if (acm[k].sitios.indexOf(s.loc) < 0) acm[k].sitios.push(s.loc); }); });
+      out = Object.keys(acm).map(function (k) { var a = acm[k]; return { nombre: a.nombre, grupo: a.grupo, dif: a.difs.reduce(function (x, y) { return x + y; }, 0) / a.difs.length, n: a.difs.length, sitios: a.sitios, dato: buscar('maiz', a.nombre) }; });
+      return { filas: out.filter(function (x) { return x.n >= 2; }).sort(function (a, b) { return b.dif - a.dif; }).slice(0, cuantos || 5), ambito: 'Ponta Porã, Rio Brilhante y Anaurilândia (MS, safrinha 2026), en al menos 2 de las 3', fuente: F.fmsMilho };
+    }
+    return { filas: [], ambito: '' };
+  }
+  function recomendacionHTML(caso, lider) {
+    var cu = cultivoClave(caso && caso.cultivo); if (cu !== 'soja' && cu !== 'maiz') return '';
+    var h = '<div style="font-weight:700;margin-top:14px;">Qué material conviene para este campo</div><ul style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.55;">';
+    if (cu === 'soja') { var z = zonaGM(caso); if (z) h += '<li><b>Grupo de madurez:</b> ' + esc(ubicacionTexto(caso)) + ' ' + esc(z.texto.charAt(0).toUpperCase() + z.texto.slice(1)) + '. <span class="muted" style="font-size:11px;">(' + linkF((z.fuentes[0] || F.inbio).url, 'INBIO') + ')</span></li>'; }
+    if (cu === 'maiz') h += '<li><b>Ciclo:</b> en zafriña (siembra desde mediados de febrero) conviene un híbrido más precoz para escapar de la helada al final del ciclo; cuanto más tarde la siembra, menor el potencial. <span class="muted" style="font-size:11px;">(' + linkF(F.embrapaMilhoPasso.url, 'Embrapa') + ')</span></li>';
+    if (lider && lider.variedad) { var dl = buscar(caso.cultivo, lider.variedad); h += '<li><b>El líder de la zona sembró ' + esc(lider.variedad) + '</b>' + (dl ? (cu === 'soja' ? (dl.gm != null ? ' (GM ' + fmt(dl.gm, 1) + (dl.habito ? ', ' + dl.habito : '') + ')' : '') : (dl.ciclo ? ' (' + dl.ciclo + ')' : '')) : ' (sin ficha verificada)') + (lider.epoca ? ', en ' + esc(lider.epoca).toLowerCase() : '') + (lider.siembra ? ', sembrado el ' + esc(String(lider.siembra).slice(8, 10) + '/' + String(lider.siembra).slice(5, 7)) : '') + '.</li>'; }
+    h += '</ul>';
+    var me = mejoresEnsayos(caso, 5);
+    if (me.filas.length) h += '<div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Los que mejor anduvieron en ensayos</th><th>' + (cu === 'soja' ? 'GM' : 'Ciclo') + '</th><th class="r">Frente al promedio del ensayo</th><th>Dónde</th></tr></thead><tbody>' +
+      me.filas.map(function (x) { var d = x.dato; return '<tr><td><b>' + esc(x.nombre) + '</b></td><td>' + (d ? (cu === 'soja' ? (d.gm != null ? fmt(d.gm, 1) : '—') : esc(d.ciclo || d.senave || '—')) : (x.grupo ? esc(x.grupo) : '<span class="muted">sin ficha</span>')) + '</td><td class="r"><b style="color:' + (x.dif >= 0 ? '#178029' : '#B3261E') + ';">' + (x.dif > 0 ? '+' : '') + fmt(x.dif, 1) + ' %</b><div class="sub">' + x.n + ' ensayo' + (x.n > 1 ? 's' : '') + '</div></td><td style="white-space:normal;">' + esc(x.sitios.join(', ')) + '</td></tr>'; }).join('') +
+      '</tbody></table></div></div><div class="muted" style="font-size:11px;margin-top:4px;">Ensayos públicos en ' + esc(me.ambito) + ', misma forma de manejo para todos los materiales de cada ensayo. Fuente: ' + linkF(me.fuente.url, me.fuente.n) + '. Probar primero en una franja del lote.</div>';
+    else if (me.ambito === 'chaco') h += '<div class="muted" style="font-size:12px;margin-top:4px;">Los ensayos públicos que tiene SAFIA (IPTA en la Región Oriental y Fundação MS en Mato Grosso do Sul) no representan al Chaco. Para el Chaco la referencia es la red de ensayos de IDEAGRO, que publica sus resultados solo en PDF: ' + linkF(F.ideagro.url, F.ideagro.n) + '.</div>';
+    else if (cu === 'soja') h += '<div class="muted" style="font-size:12px;margin-top:4px;">No hay ensayos públicos de variedades de soja con rinde para esta zona.</div>';
+    return h;
+  }
+
   /* ---------- por qué el material importa ---------- */
   function notaHTML(cultivo) {
     var cu = cultivoClave(cultivo), items;
@@ -298,5 +337,5 @@
 
   // mapa del paralelo 25 en un contenedor cualquiera (lat/lon del campo opcionales)
   function mapaZona(div, lat, lon) { return cargarLeaflet().then(function () { return dibujarMapa(div, coord(lat), coord(lon)); }); }
-  window.SafiaMateriales = { mapaZona: mapaZona, buscar: buscar, base: base, zonaGM: zonaGM, lectura: lectura, corto: corto, ensayosDe: ensayosDe, ensayosHTML: ensayosHTML, notaHTML: notaHTML, FUENTES: F };
+  window.SafiaMateriales = { recomendacionHTML: recomendacionHTML, mejoresEnsayos: mejoresEnsayos, mapaZona: mapaZona, buscar: buscar, base: base, zonaGM: zonaGM, lectura: lectura, corto: corto, ensayosDe: ensayosDe, ensayosHTML: ensayosHTML, notaHTML: notaHTML, FUENTES: F };
 })();

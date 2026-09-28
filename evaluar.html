@@ -49,6 +49,9 @@
 <script src="safia-fertilidad.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-precios.js"></script>
+<script src="safia-meta.js"></script>
+<script src="safia-materiales.js"></script>
+<script src="safia-igualar.js"></script>
 <script src="safia-calidad-agua.js"></script>
 </head>
 <body>
@@ -498,7 +501,10 @@
   }
 
   /* ---------- clima del campo y riego por cultivo (SafiaClimaProyecto) ---------- */
+  var ultimoRiego=[];
+  function llenarPotAgua(){ document.querySelectorAll('.pot-agua').forEach(function(el){ var x=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(el.getAttribute('data-cultivo')); }); el.textContent = x ? Math.round(x.rindeRelSecano*100)+' %' : (ultimoRiego.length ? '—' : '…'); }); }
   function pintarClimaRiego(base, filas){
+    ultimoRiego=[];
     var out=document.getElementById('rClima'), sub=document.getElementById('rClimaSub');
     if(!window.SafiaClimaProyecto){ out.innerHTML=''; return; }
     if(base.lat==null||base.lon==null){ sub.textContent=''; out.innerHTML='<div class="note">Cargá las coordenadas del campo (paso 1) para ver la lluvia de los últimos 10 años y cuánto riego lleva cada cultivo.</div>'; return; }
@@ -506,6 +512,7 @@
     out.innerHTML='<div class="muted" style="padding:10px 0;">Trayendo el clima diario de los últimos 10 años de la coordenada y simulando cada zafra…</div>';
     SafiaClimaProyecto.historico(base.lat, base.lon).then(function(h){
       var lista=filas.map(function(f){ return SafiaClimaProyecto.riego(h,{ cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }); });
+      ultimoRiego=lista; setTimeout(llenarPotAgua,0);
       sub.textContent=h.resumen.desde+'–'+h.resumen.hasta+' · '+h.fuente;
       out.innerHTML=SafiaClimaProyecto.climaHTML(h)+SafiaClimaProyecto.mapaHTML({ lat:base.lat, lon:base.lon, lluvia:h.resumen.lluviaAnual, deficit:h.resumen.deficit })+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>'+
         SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) });
@@ -615,7 +622,7 @@
 
     var cadena=Promise.resolve(), paraGuardar=[];
     filas.forEach(function(f, idx){
-      var p={ lat:base.lat, lon:base.lon, altitud:base.altitud, suelo:base.suelo, cultivo:f.cultivo, finalidad:f.finalidad, epoca:f.epoca, objetivoKgHa:f.objetivoKgHa };
+      var p={ lat:base.lat, lon:base.lon, altitud:base.altitud, suelo:base.suelo, cultivo:f.cultivo, finalidad:f.finalidad, epoca:f.epoca, siembra:f.siembra, objetivoKgHa:f.objetivoKgHa, localidad:localidad, departamento:depto, pais:document.getElementById('pPais').value };
       var u=SafiaCasos.unidadDe(p.cultivo,p.finalidad), F=function(v){ return SafiaCasos.enUnidad(v,u); };
       // Potencial con riego (casos con riego) y, aparte, qué dan los casos de secano parecidos
       var r=SafiaCasos.evaluar(p,casos,{maxCasos:5,radioKm:300,riego:true});
@@ -628,6 +635,7 @@
           '<td class="r">'+(ref?F(ref.riego):'—')+'</td><td class="r">'+(ref?F(ref.secano):'—')+(!ref||ref.sinRef?'<div class="sub">sin referencia</div>':'')+'</td>'+
           '<td>'+lecturaResumen(p,r,ref)+'</td></tr>';
         bloques.innerHTML+=bloqueCultivoHTML(idx,p,r,ref);
+        if(window.SafiaIgualar){ var sel=document.getElementById('evCampo'); bloques.insertAdjacentHTML('beforeend', SafiaIgualar.prospectoHTML(Object.assign({}, p, { ref:ref, pot:r.potencial, casos:casos, campoId: sel && sel.value && sel.value!=='nuevo' ? sel.value : null }))); llenarPotAgua(); }
         paraGuardar.push({ cultivo:p.cultivo, finalidad:p.finalidad, unidad:u.corto, epoca:p.epoca||null, objetivoKgHa:p.objetivoKgHa,
           potencial: r.potencial?{ estimado:Math.round(r.potencial.estimado), min:Math.round(r.potencial.min), max:Math.round(r.potencial.max), nCasos:r.potencial.nCasos }:null,
           secano: r.secano?{ estimado:Math.round(r.secano.estimado), nCasos:r.secano.nCasos }:null,
