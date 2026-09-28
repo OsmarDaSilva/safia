@@ -310,5 +310,54 @@
     box.innerHTML = mapaSVG(b.getAttribute('data-mapa-capa'), lat != null && lon != null ? { lat: lat, lon: lon, lluvia: num(box.getAttribute('data-lluvia')), deficit: num(box.getAttribute('data-deficit')) } : null);
   });
 
-  window.SafiaClimaProyecto = { mapaSVG: mapaSVG, mapaHTML: mapaHTML, historico: historico, resumir: resumir, graficoSVG: graficoSVG, riego: riego, caudal: caudal, haConCaudal: haConCaudal, siembraPorDefecto: siembraPorDefecto, climaHTML: climaHTML, riegoHTML: riegoHTML, laminaAnualProyecto: laminaAnualProyecto };
+  /* ---------- 5. comparación de métodos de evapotranspiración (Penman-Monteith vs Thornthwaite) ----------
+     SAFIA calcula todo con Penman-Monteith FAO-56 (el método estándar de la FAO). Muchos balances hídricos clásicos
+     (p. ej. la planilla BHnorm de Rolim, Sentelhas y Barbieri 1998) usan Thornthwaite (1948), que solo mira la temperatura.
+     Esto muestra cuánto cambia la evaporación, el déficit y el riego de cada cultivo con uno y otro, para que un balance
+     hecho con Thornthwaite se pueda comparar. Thornthwaite como la planilla BHnorm: índice térmico I y exponente a de las
+     medias mensuales del período; T ≥ 26,5 °C → −415,85 + 32,24 T − 0,43 T²; corrección por horas de luz (N/12)·(días/30). */
+  function etoThornthwaite(hist) {
+    var ym = {}, porMes = MESES.map(function () { return { s: 0, n: 0 }; });
+    hist.time.forEach(function (t, i) {
+      var k = t.slice(0, 7); if (!ym[k]) ym[k] = { s: 0, n: 0 };
+      if (hist.tmax[i] != null && hist.tmin[i] != null) { var tm = (hist.tmax[i] + hist.tmin[i]) / 2; ym[k].s += tm; ym[k].n++; porMes[+t.slice(5, 7) - 1].s += tm; porMes[+t.slice(5, 7) - 1].n++; }
+    });
+    var I = porMes.reduce(function (s, x) { var T = x.n ? x.s / x.n : 0; return s + (T > 0 ? Math.pow(T / 5, 1.514) : 0); }, 0);
+    var a = 6.75e-7 * I * I * I - 7.71e-5 * I * I + 1.7912e-2 * I + 0.49239, phi = hist.lat * Math.PI / 180;
+    return hist.time.map(function (t) {
+      var x = ym[t.slice(0, 7)]; if (!x || !x.n) return null;
+      var T = x.s / x.n, e = T <= 0 ? 0 : (T < 26.5 ? 16 * Math.pow(10 * T / I, a) : -415.85 + 32.24 * T - 0.43 * T * T);
+      var dt = new Date(t + 'T12:00:00'), j = Math.round((dt - new Date(dt.getFullYear(), 0, 0)) / 864e5);
+      var dec = 0.409 * Math.sin(2 * Math.PI * j / 365 - 1.39), ws = Math.acos(Math.max(-1, Math.min(1, -Math.tan(phi) * Math.tan(dec)))), N = 24 / Math.PI * ws;
+      return e * N / 12 / 30;   // mm por día
+    });
+  }
+  function comparacionMetodos(hist, cultivos) {
+    if (!hist || !hist.tmax) return null;
+    var h2 = {}; Object.keys(hist).forEach(function (k) { h2[k] = hist[k]; }); h2.et0 = etoThornthwaite(hist);
+    var r2 = resumir(h2);
+    var filas = (cultivos || []).map(function (o) {
+      var a = riego(hist, o), b = riego(h2, o);
+      return a && !a.error && b && !b.error ? { cultivo: o.cultivo, epoca: o.epoca || null, pm: a.riegoNeto, th: b.riegoNeto } : null;
+    }).filter(Boolean);
+    return { pm: { eto: hist.resumen.etoAnual, deficit: hist.resumen.deficit }, th: { eto: r2.etoAnual, deficit: r2.deficit }, cultivos: filas };
+  }
+  function metodosHTML(hist, cultivos) {
+    var c = comparacionMetodos(hist, cultivos); if (!c) return '';
+    var dif = function (pm, th) { return pm > 0 ? fmt((th / pm - 1) * 100, 0) + ' %' : '—'; };
+    var fila = function (nombre, sub, pm, th) { return '<tr><td><b>' + esc(nombre) + '</b>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</td><td class="r"><b>' + fmt(pm, 0) + ' mm</b></td><td class="r">' + fmt(th, 0) + ' mm</td><td class="r">' + dif(pm, th) + '</td></tr>'; };
+    return '<h3 style="font-size:15px;margin:16px 0 6px;">Evaporación según el método de cálculo</h3>' +
+      '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>En este campo, por año</th><th class="r">Penman-Monteith<div class="sub">FAO-56 · el que usa SAFIA</div></th><th class="r">Thornthwaite<div class="sub">1948 · solo temperatura</div></th><th class="r">Thornthwaite da</th></tr></thead><tbody>' +
+      fila('Demanda del ambiente (ETo)', 'evapotranspiración de referencia', c.pm.eto, c.th.eto) +
+      fila('Déficit hídrico', 'meses en que la evaporación supera a la lluvia', c.pm.deficit, c.th.deficit) +
+      c.cultivos.map(function (x) { return fila('Riego neto · ' + x.cultivo, x.epoca ? x.epoca : 'promedio por zafra', x.pm, x.th); }).join('') +
+      '</tbody></table></div></div>' +
+      '<div class="note info" style="font-size:12px;margin-top:8px;"><b>Por qué dan distinto.</b> Thornthwaite calcula la evaporación solo con la temperatura. Penman-Monteith usa además el sol, la sequedad del aire y el viento. ' +
+      'En el Chaco el invierno es fresco pero muy seco, con sol y viento norte: Thornthwaite ve el fresco y no ve la sequedad, por eso queda corto, sobre todo de mayo a septiembre. ' +
+      'La FAO (Riego y Drenaje 56) recomienda Penman-Monteith como el único método estándar; los métodos de temperatura necesitan calibración local. ' +
+      'Comprobado con los anuarios de la Dirección de Meteorología (DMH) en Mariscal Estigarribia, 2021–2025: con los mismos datos de la estación, Thornthwaite da entre 1.380 y 1.570 mm por año y Penman-Monteith entre 1.700 y 2.020 mm. ' +
+      '<b>El riego, los volúmenes de agua y la economía de este proyecto se calculan con Penman-Monteith</b>; la columna de Thornthwaite sirve para comparar con un balance hídrico hecho con ese método.</div>';
+  }
+
+  window.SafiaClimaProyecto = { mapaSVG: mapaSVG, mapaHTML: mapaHTML, historico: historico, resumir: resumir, graficoSVG: graficoSVG, riego: riego, caudal: caudal, haConCaudal: haConCaudal, siembraPorDefecto: siembraPorDefecto, climaHTML: climaHTML, riegoHTML: riegoHTML, laminaAnualProyecto: laminaAnualProyecto, etoThornthwaite: etoThornthwaite, comparacionMetodos: comparacionMetodos, metodosHTML: metodosHTML };
 })();

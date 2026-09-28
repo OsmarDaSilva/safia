@@ -535,11 +535,12 @@
     sub.textContent='coordenada '+base.lat+', '+base.lon;
     out.innerHTML='<div class="muted" style="padding:10px 0;">Trayendo la lluvia diaria de los últimos 10 años (CHIRPS, tarda unos segundos) y el clima de la coordenada, y simulando cada zafra…</div>';
     SafiaClimaProyecto.historico(base.lat, base.lon).then(function(h){
-      var lista=filas.map(function(f){ return SafiaClimaProyecto.riego(h,{ cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }); });
+      var opcs=filas.map(function(f){ return { cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }; });
+      var lista=opcs.map(function(o){ return SafiaClimaProyecto.riego(h,o); });
       ultimoRiego=lista; riegoListo=true; setTimeout(llenarPotAgua,0); pintarEconomia();
       sub.textContent=h.resumen.desde+'–'+h.resumen.hasta+' · '+h.fuente;
       out.innerHTML=SafiaClimaProyecto.climaHTML(h)+SafiaClimaProyecto.mapaHTML({ lat:base.lat, lon:base.lon, lluvia:h.resumen.lluviaAnual, deficit:h.resumen.deficit })+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>'+
-        SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) });
+        SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) })+(SafiaClimaProyecto.metodosHTML?SafiaClimaProyecto.metodosHTML(h,opcs):'');
     }).catch(function(){ out.innerHTML='<div class="note warn">No se pudo traer el clima de la coordenada (revisá la conexión). El resto de la evaluación no depende de esto.</div>'; riegoListo=true; pintarEconomia(); });
   }
 
