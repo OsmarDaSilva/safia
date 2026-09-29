@@ -71,7 +71,9 @@
   }
   function proximoRiego(r, equipo) {
     var U = umbrales(r), hoyK = (r.dias || []).filter(function (d) { return d.esHoy; })[0], rec = r.recomendacion || {};
-    var lluviaProx = (r.dias || []).reduce(function (s, d) { return s + (d.esFuturo ? (d.lluviaBruta || 0) : 0); }, 0);
+    // lluvia prevista de hoy al último día del aviso (mismo período que usa la tarjeta de recomendación)
+    var lluviaProx = (r.dias || []).reduce(function (s, d) { return s + (d.lluviaBruta || 0); }, 0), ultDia = (r.dias || [])[(r.dias || []).length - 1];
+    var periodoLluvia = ultDia ? 'entre hoy y el ' + fmtF(ultDia.fecha) : 'en los próximos días';
     var out = { tipo: 'ok', titulo: '', detalle: '' };
     if (window.SafiaBalance && SafiaBalance.esSecano && equipo && SafiaBalance.esSecano(equipo)) { out.tipo = 'secano'; out.titulo = 'Lote de secano'; out.detalle = 'No se riega: el agua es la que llueve.'; return out; }
     var pv = piv(r), hk = hoyK ? hoyK.fecha : (r.dias && r.dias[0] ? r.dias[0].fecha : '');
@@ -80,7 +82,7 @@
     var vence = pv ? (pv.venceEl ? 'Sin riego entra en estrés ' + (pv.diasHastaEstres === 0 ? 'hoy' : cuando(pv.venceEl) + ' (en ' + diasTxt(pv.diasHastaEstres) + ')') + '. ' : 'Sin riego no entra en estrés en los próximos ' + diasTxt(pv.horizonteDias) + '. ') : '';
     var vuelta = pv && pv.vueltaDias ? 'La vuelta tarda ' + diasTxt(pv.vueltaDias) + (pv.vueltaSupuesta ? ' (supuesto: cargá la capacidad del equipo en Equipos y lotes)' : '') + '. ' : '';
     var noAlc = pv && pv.noAlcanza ? 'El equipo no alcanza la demanda del cultivo (' + fmt(pv.consumoMax7, 1) + ' mm/día contra ' + fmt(pv.capacidadNeta, 1) + ' mm/día netos del pivot): mantenerlo girando para no quedar atrás. ' : '';
-    if (lluviaProx >= 15 && !rec.enEstres) { out.tipo = 'lluvia'; out.titulo = 'No regar: viene lluvia'; out.detalle = 'Se esperan ' + fmt(lluviaProx, 0) + ' mm en los próximos días. ' + vence + 'Volver a mirar después de la lluvia.'; return out; }
+    if (lluviaProx >= 15 && !rec.enEstres) { out.tipo = 'lluvia'; out.titulo = 'No regar: viene lluvia'; out.detalle = 'Se esperan ' + fmt(lluviaProx, 0) + ' mm ' + periodoLluvia + '. ' + vence + 'Volver a mirar después de la lluvia.'; return out; }
     if (rec.regar) {
       var mm = rec.mm || 0, v = vueltas(mm, equipo);
       out.tipo = rec.enEstres || r.porcentajeHoy < U.URGENTE ? 'urgente' : 'regar';

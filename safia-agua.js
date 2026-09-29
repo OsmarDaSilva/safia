@@ -173,7 +173,7 @@
         // Punto de arranque del pivot (mismo cálculo que Operación: SafiaBalance.arranquePivot): antes del estrés, según lo que tarda la vuelta
         var ef = res.eficiencia == null ? 1 : res.eficiencia, capB = ef > 0 && SB().capacidadBruta ? SB().capacidadBruta(lote) : null;
         var etcs = res.dias.map(function (x) { return x.etc; }), lls = res.dias.map(function (x) { return x.pronostico ? x.lluvia : 0; });
-        var arrEn = function (x, i) { return ef > 0 && SB().arranquePivot ? SB().arranquePivot(x.raw, ef, capB, etcs, lls, i + 1) : { dr: x.raw, dias: null }; };
+        var arrEn = function (x, i) { return ef > 0 && SB().arranquePivot ? SB().arranquePivot(x.raw, ef, capB, etcs, [], i + 1) : { dr: x.raw, dias: null }; };
         var iUlt = res.dias.indexOf(ult), arrU = ult ? arrEn(ult, iUlt) : null;
         var futuros = res.dias.filter(function (x) { return x.pronostico; }), cruce = futuros.find(function (x) { return x.dr > arrEn(x, res.dias.indexOf(x)).dr; });
         res.hoy = ult ? { fecha: ult.fecha, dds: ult.dds, etapa: ult.etapa, disponible: ult.disponible, dr: ult.dr, raw: ult.raw, taw: ult.taw, ks: ult.ks, faltaParaRecarga: Math.round(arrU.dr - ult.dr), faltaParaEstres: Math.round(ult.raw - ult.dr), vueltaDias: arrU.dias != null ? Math.round(arrU.dias * 10) / 10 : null } : null;

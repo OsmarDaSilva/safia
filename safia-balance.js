@@ -125,8 +125,10 @@
   /* ---------- Punto de arranque del pivot (margen de seguridad) ----------
      Un pivot tarda días en dar la vuelta. Si se prende recién cuando el suelo llega al punto de estrés (RAW),
      el último sector queda en estrés hasta que le llega el agua. Por eso se arranca cuando lo que falta para el
-     estrés es igual a lo que el cultivo va a gastar mientras el pivot da la vuelta (menos la lluvia prevista):
-       arranque (agotamiento) = RAW − (ETc de los días de la vuelta − lluvia prevista en esos días)
+     estrés es igual a lo que el cultivo va a gastar mientras el pivot da la vuelta:
+       arranque (agotamiento) = RAW − ETc de los días de la vuelta
+       (la lluvia prevista NO se resta del margen: ya entra en la proyección del suelo y corre la fecha de arranque;
+        restarla dos veces dejaría al cultivo sin margen si la lluvia no llega)
        días de vuelta = lámina bruta de la vuelta ÷ capacidad del equipo (mm/24 h, ficha del equipo).
      Fuentes: Rhoads & Yonts, National Corn Handbook NCH-20 (Iowa State Univ./USDA, 1991): con pivots, si el agua
      llega al agotamiento permitido, parte del lote sufre estrés antes de terminar el ciclo de riego; arrancar antes
@@ -485,7 +487,10 @@
       var pq = prmDe(q); prmF.push(pq); etcF.push(pq.etc);
       llF.push(resolverLluviaDia(claves[q], daily.precipitation_sum && daily.precipitation_sum[q], idx.lluvia, estacion).mm);
     }
-    function arranqueEn(i2, prm2) { return eficiencia > 0 ? arranquePivot(prm2.raw, eficiencia, capB, etcF, llF, i2) : { dr: prm2.raw, dias: null, lamina: null, gasto: 0, supuesto: false }; }
+    // El margen es el consumo durante la vuelta, SIN restar la lluvia prevista: la lluvia ya entra en la proyección del suelo
+    // (corre la fecha de arranque); restarla también del margen la contaría dos veces y dejaría sin margen si no llueve.
+    var sinLluvia = etcF.map(function () { return 0; });
+    function arranqueEn(i2, prm2) { return eficiencia > 0 ? arranquePivot(prm2.raw, eficiencia, capB, etcF, sinLluvia, i2) : { dr: prm2.raw, dias: null, lamina: null, gasto: 0, supuesto: false }; }
 
     for (var i = inicio; i < claves.length && i < indiceHoy + diasFuturo; i++) {
       var k = claves[i], prm = prmDe(i), esPasado = i < indiceHoy, esHoy = i === indiceHoy;

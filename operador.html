@@ -1293,7 +1293,7 @@
         if (lluviaProxima >= 15 && !r.recomendacion.enEstres) {
           icono.textContent = "🌧️";
           titulo.textContent = "No regar — viene lluvia";
-          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en los próximos días.${venceTxt}`;
+          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> entre hoy y el ${fechaCorta(r.dias.length ? r.dias[r.dias.length - 1].fecha : '')}.${venceTxt}`;
           card.className = "reco-card visible no-regar";
         } else if (r.recomendacion.enEstres || pct < (U.URGENTE || 35)) {
           icono.textContent = "⚠️";
