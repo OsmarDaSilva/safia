@@ -131,7 +131,7 @@
             <div class="field ev-nuevo-cli" style="display:none;"><label>WhatsApp</label><input id="evCliTel" placeholder="0981 123456"></div>
             <div class="field ev-nuevo-cli" style="display:none;"><label>Correo (opcional)</label><input id="evCliEmail" placeholder="correo@ejemplo.com"></div>
             <div class="field ev-nuevo-campo" style="display:none;"><label>Nombre del proyecto</label><input id="evCampoNombre" placeholder="Ej: Estancia San José"></div>
-            <div class="field ev-nuevo-campo" style="display:none;"><label>Superficie a regar (ha)</label><input type="number" id="evCampoSup" step="any" placeholder="Ej: 200"></div>
+            <div class="field"><label>Hectáreas a regar</label><input type="number" id="evCampoSup" step="any" min="0" placeholder="Ej: 100"><span class="hint" id="evSupHint">De esta estrategia: puede ser solo una parte del campo</span></div>
             <div class="field full"><label>Notas de la conversación</label><textarea id="evNotas" rows="2" placeholder="Qué pidió, qué le preocupa, próximos pasos…"></textarea></div>
           </div>
           <div class="hint" id="evEstado" style="margin-top:6px;"></div>
@@ -521,7 +521,8 @@
   }
 
   /* ---------- clima del campo y riego por cultivo (SafiaClimaProyecto) ---------- */
-  var ultimoRiego=[], riegoListo=false, ultimasRefs=[], refsListas=false, ultimasFilas=[];
+  var ultimoRiego=[], riegoListo=false, ultimasRefs=[], refsListas=false, ultimasFilas=[], pintarRiegoOtraVez=null;
+  document.getElementById('evCampoSup').addEventListener('input',function(){ if(pintarRiegoOtraVez) pintarRiegoOtraVez(); pintarEconomia(); });
   ['pInversion','pVidaUtil','pEnergiaMm','pSituacion'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ pintarEconomia(); }); });
   function pintarEconomia(){
     var out=document.getElementById('rEconomia'); if(!out||!window.SafiaEconomiaRiego) return;
@@ -532,7 +533,7 @@
   }
   function llenarPotAgua(){ document.querySelectorAll('.pot-agua').forEach(function(el){ var x=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(el.getAttribute('data-cultivo')); }); el.textContent = x ? Math.round(x.rindeRelSecano*100)+' %' : (ultimoRiego.length ? '—' : '…'); }); }
   function pintarClimaRiego(base, filas){
-    ultimoRiego=[]; riegoListo=false;
+    ultimoRiego=[]; riegoListo=false; pintarRiegoOtraVez=null;
     var out=document.getElementById('rClima'), sub=document.getElementById('rClimaSub');
     if(!window.SafiaClimaProyecto){ out.innerHTML=''; return; }
     if(base.lat==null||base.lon==null){ sub.textContent=''; out.innerHTML='<div class="note">Cargá las coordenadas del campo (paso 1) para ver la lluvia de los últimos 10 años y cuánto riego lleva cada cultivo.</div>'; riegoListo=true; return; }
@@ -543,8 +544,10 @@
       var lista=opcs.map(function(o){ return SafiaClimaProyecto.riego(h,o); });
       ultimoRiego=lista; riegoListo=true; setTimeout(llenarPotAgua,0); pintarEconomia();
       sub.textContent=h.resumen.desde+'–'+h.resumen.hasta+' · '+h.fuente;
-      out.innerHTML=SafiaClimaProyecto.climaHTML(h)+SafiaClimaProyecto.mapaHTML({ lat:base.lat, lon:base.lon, lluvia:h.resumen.lluviaAnual, deficit:h.resumen.deficit })+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>'+
-        SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) })+(SafiaClimaProyecto.metodosHTML?SafiaClimaProyecto.metodosHTML(h,opcs):'');
+      var arriba=SafiaClimaProyecto.climaHTML(h)+SafiaClimaProyecto.mapaHTML({ lat:base.lat, lon:base.lon, lluvia:h.resumen.lluviaAnual, deficit:h.resumen.deficit })+'<h3 style="font-size:15px;margin:16px 0 6px;">Riego que lleva cada cultivo en este campo</h3>';
+      var abajo=SafiaClimaProyecto.metodosHTML?SafiaClimaProyecto.metodosHTML(h,opcs):'';
+      out.innerHTML=arriba+'<div id="rRiegoVol">'+SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) })+'</div>'+abajo;
+      pintarRiegoOtraVez=function(){ var el=document.getElementById('rRiegoVol'); if(el) el.innerHTML=SafiaClimaProyecto.riegoHTML(lista,{ superficieHa:num(document.getElementById('evCampoSup').value) }); };
     }).catch(function(){ out.innerHTML='<div class="note warn">No se pudo traer el clima de la coordenada (revisá la conexión). El resto de la evaluación no depende de esto.</div>'; riegoListo=true; pintarEconomia(); });
   }
 
@@ -729,10 +732,12 @@
     var ag=L('analisis_agua').filter(function(a){ return String(a.campoId)===String(campo.id); }).sort(function(a,b){ return String(b.fecha||'').localeCompare(String(a.fecha||'')); })[0]||null;
     aguaCargada=ag; ponerAgua(ag); aguaArchivo=null; $('wArchivo').value=''; $('wHint').textContent=ag?'Análisis de agua del '+fmtFecha(ag.fecha)+' cargado del proyecto.':'';
     $('evCampoSup').value=campo.superficie||'';
+    $('evSupHint').textContent=campo.superficie?'El campo tiene '+fmt(num(campo.superficie),0)+' ha; poné solo lo que se va a regar':'De esta estrategia: puede ser solo una parte del campo';
   }
   function cargarEvaluacion(ev){
     evActual=ev.id;
     $('evNombre').value=ev.nombre||''; $('evNotas').value=ev.notas||'';
+    if(ev.superficieHa!=null) $('evCampoSup').value=ev.superficieHa;
     $('pInversion').value=ev.inversionUSD!=null?ev.inversionUSD:''; $('pVidaUtil').value=ev.vidaUtil!=null?ev.vidaUtil:''; $('pEnergiaMm').value=ev.energiaUSDmm!=null?ev.energiaUSDmm:''; $('pSituacion').value=ev.situacion==='nuevo'?'nuevo':'secano';
     var u=ev.ubicacion||{};
     if(u.departamento) $('pDepto').value=u.departamento; if(u.localidad) $('pLocalidad').value=u.localidad; if(u.pais) $('pPais').value=u.pais;
@@ -780,7 +785,7 @@
       // la ubicación que se afinó en la evaluación queda en el campo
       if(d.depto) campo.departamento=d.depto; if(d.localidad) campo.localidad=d.localidad; campo.pais=pais;
       if(d.lat!=null){ campo.latitud=String(d.lat); campo.longitud=String(d.lon); } if(d.altitud!=null) campo.altitud=String(d.altitud);
-      if(sup!=null) campo.superficie=String(sup); campo.fechaModificacion=ahora;
+      if(sup!=null && !campo.superficie) campo.superficie=String(sup); campo.fechaModificacion=ahora;
     }
     G('campos',campos);
     // suelo: si es el mismo análisis que ya tenía el campo, se usa ese; si cambió, queda como análisis del proyecto
