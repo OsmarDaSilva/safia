@@ -749,7 +749,7 @@
       const rClima = await SafiaClima.obtenerClima({
         lat: campo.latitud, lon: campo.longitud,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
-        pastDays: 92, forecastDays: 5,   // 92 días de historia: el balance arranca en la siembra
+        pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra; 7 de pronóstico para "arrancar el / vence el"
         cacheKey: 'campo:' + campo.id
       });
       if (!rClima.datos) {
@@ -798,9 +798,10 @@
       const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 
       let badge, tipo;
-      if (lluviaProxima >= 15)  { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
-      else if (pct < (U.URGENTE || 35)) { badge = '<span class="badge badge-rojo">🔴 Urgente</span>';  tipo = 'urgente'; }
-      else if (pct < U.CRITICO) { badge = '<span class="badge badge-amarillo">🟡 Monitorear</span>'; tipo = 'atencion'; }
+      const enEstres = !!(r.recomendacion && r.recomendacion.enEstres);
+      if (lluviaProxima >= 15 && !enEstres)  { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
+      else if (enEstres || pct < (U.URGENTE || 35)) { badge = '<span class="badge badge-rojo">🔴 En estrés</span>';  tipo = 'urgente'; }
+      else if (pct < U.CRITICO) { badge = '<span class="badge badge-amarillo">🟡 Arrancar pivot</span>'; tipo = 'atencion'; }
       else                      { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
 
       // Actualizar celda en tabla

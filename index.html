@@ -569,11 +569,14 @@
       const U = r.umbrales || UMBRALES, pct = r.porcentajeHoy, lluviaProx = r.dias.slice(0, 3).reduce((s, d) => s + d.lluviaBruta, 0);
       let tipo, titulo, detalle;
       if (ctx.secano) { tipo = 'secano'; titulo = 'Secano'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · sin riego`; }
-      else if (lluviaProx >= 15) { tipo = 'lluvia'; titulo = 'Viene lluvia'; detalle = `Se esperan ${lluviaProx.toFixed(0)} mm en 3 días · humedad ${pct.toFixed(0)} %`; }
-      else if (pct < U.URGENTE) { tipo = 'urgente'; titulo = 'Riego urgente'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · regar ${r.recomendacion.mm} mm hoy`; }
-      else if (pct < U.CRITICO) { tipo = 'regar'; titulo = 'Programar riego'; detalle = `Humedad ${pct.toFixed(0)} % · regar ${r.recomendacion.mm} mm en 24–48 h`; }
-      else if (pct < U.ATENCION) { tipo = 'atencion'; titulo = 'Monitorear'; detalle = `Humedad ${pct.toFixed(0)} % · reevaluar en 2–3 días`; }
-      else { tipo = 'ok'; titulo = 'Bien'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil`; }
+      const pv = r.recomendacion.pivot, enEstres = !!r.recomendacion.enEstres, fc = f => f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) : '';
+      const vueltaTxt = pv && pv.vueltaDias ? ` · vuelta ${pv.vueltaDias.toLocaleString('es-PY')} días` : '', noAlc = pv && pv.noAlcanza ? ' · el equipo no alcanza: mantenerlo girando' : '';
+      if (ctx.secano) { tipo = 'secano'; titulo = 'Secano'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · sin riego`; }
+      else if (lluviaProx >= 15 && !enEstres) { tipo = 'lluvia'; titulo = 'Viene lluvia'; detalle = `Se esperan ${lluviaProx.toFixed(0)} mm en 3 días · humedad ${pct.toFixed(0)} %`; }
+      else if (enEstres || pct < U.URGENTE) { tipo = 'urgente'; titulo = 'Regar ya: en estrés'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · regar ${r.recomendacion.mm} mm hoy${noAlc}`; }
+      else if (pct < U.CRITICO) { tipo = 'regar'; titulo = pv && pv.noAlcanza ? 'Mantener el pivot girando' : 'Arrancar el pivot'; detalle = `Humedad ${pct.toFixed(0)} % · arrancar hoy con ${r.recomendacion.mm} mm${vueltaTxt}${pv && pv.venceEl ? ' · sin riego entra en estrés el ' + fc(pv.venceEl) : ''}`; }
+      else if (pct < U.ATENCION) { tipo = 'atencion'; titulo = pv && pv.arrancarEl ? 'Arrancar el pivot el ' + fc(pv.arrancarEl) : 'Monitorear'; detalle = `Humedad ${pct.toFixed(0)} % · cerca del punto de arranque (${U.CRITICO} %)${vueltaTxt}`; }
+      else { tipo = 'ok'; titulo = 'Bien'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil${pv && pv.arrancarEl ? ' · arrancar el pivot el ' + fc(pv.arrancarEl) : ''}`; }
       const fuente = r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda' : (r.fuentes.estacion ? 'estación' : 'modelo');
       return { r, tipo, titulo, detalle, pct, fuente, U };
     }
@@ -650,7 +653,7 @@
     function renderPrediccion7Dias(lote) {
       const r = lote.ev.r, ctx = lote.ctx, U = lote.ev.U;
       const barras = r.dias.map(d => {
-        const p = Math.round(d.porcentajeAAU), sem = p < U.CRITICO ? 'rojo' : (p < U.ATENCION ? 'amarillo' : 'verde');
+        const Ud = d.umbrales || U, p = Math.round(d.porcentajeAAU), sem = p < Ud.URGENTE ? 'rojo' : (p < Ud.ATENCION ? 'amarillo' : 'verde');   // rojo = estrés, amarillo = arrancar el pivot
         const letra = d.fechaObj.toLocaleDateString('es-PY', { weekday: 'short' }).charAt(0).toUpperCase();
         return `<div class="pred-barra-wrap"><div class="pred-barra ${sem}" style="height: ${Math.max(20, p / 100 * 80)}px;">${p}</div><div class="pred-dia-label">${letra}${String(d.fechaObj.getDate()).padStart(2, '0')}</div></div>`;
       }).join('');
@@ -666,7 +669,7 @@
           <div class="pred-resumen">
             <div class="pred-resumen-item">${ICONO.nube} <strong>${lluviaTotal.toFixed(1)} mm</strong> lluvia</div>
             <div class="pred-resumen-item">${ICONO.planta} <strong>${etcTotal.toFixed(1)} mm</strong> ETc</div>
-            <div class="pred-resumen-item">Suelo <strong>${esc(r.suelo.nombre)}</strong> · reserva ${fmtN(r.tawHoy)} mm · regar al ${U.CRITICO} %</div>
+            <div class="pred-resumen-item">Suelo <strong>${esc(r.suelo.nombre)}</strong> · reserva ${fmtN(r.tawHoy)} mm · ${r.recomendacion.pivot ? 'arrancar el pivot al ' + U.CRITICO + ' %, estrés bajo ' + U.URGENTE + ' %' : 'regar al ' + U.CRITICO + ' %'}</div>
           </div>
           ${SafiaBalance.notaFallbackSuelo(r.suelo)}
         </div>`;

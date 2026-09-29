@@ -39,7 +39,9 @@
     return { URGENTE: urgente, CRITICO: critico, ATENCION: atencion };
   }
   function bandaDe(pct, U) { return pct < U.URGENTE ? 'estres' : pct < U.CRITICO ? 'regar' : pct < U.ATENCION ? 'atencion' : pct < 95 ? 'optimo' : 'lleno'; }
-  var NOMBRE_BANDA = { estres: 'estrés', regar: 'hay que regar', atencion: 'atención', optimo: 'óptimo', lleno: 'lleno' };
+  var NOMBRE_BANDA = { estres: 'estrés', regar: 'arrancar el pivot', atencion: 'atención', optimo: 'óptimo', lleno: 'lleno' };
+  function piv(r) { return (r && r.recomendacion && r.recomendacion.pivot) || null; }
+  function diasTxt(d) { return d == null ? '' : (Math.round(d * 10) / 10).toLocaleString('es-PY') + ' día' + (d === 1 ? '' : 's'); }
 
   /* ---------- 1. medidor con aguja ---------- */
   function medidor(r) {
@@ -48,10 +50,10 @@
     var h = '<div class="fa-medidor">' +
       '<div class="fa-aguja" style="left:' + pct.toFixed(1) + '%;"><div class="fa-aguja-valor">' + fmt(pct, 0) + ' %</div><div class="fa-aguja-punta"></div></div>' +
       '<div class="fa-bandas">' + bandas.map(function (b) { var w = Math.max(0, b[2] - b[1]); return '<div class="fa-banda" style="width:' + w + '%;background:' + COL[b[0]] + ';" title="' + NOMBRE_BANDA[b[0]] + ' (' + b[1] + '–' + b[2] + ' %)"></div>'; }).join('') + '</div>' +
-      '<div class="fa-marcas"><span style="left:0">0</span><span style="left:' + U.URGENTE + '%">' + U.URGENTE + '</span><span style="left:' + U.CRITICO + '%">' + U.CRITICO + '</span><span style="left:' + U.ATENCION + '%">' + U.ATENCION + '</span><span style="left:100%">100 %</span></div>' +
+      '<div class="fa-marcas"><span style="left:0">0</span>' + [U.URGENTE, U.CRITICO, U.ATENCION].filter(function (v, i, a) { return v > 3 && v < 93 && a.indexOf(v) === i && !a.slice(0, i).some(function (w) { return Math.abs(w - v) < 5; }); }).map(function (v) { return '<span style="left:' + v + '%">' + v + '</span>'; }).join('') + '<span style="left:100%">100 %</span></div>' +
       '</div>';
     var banda = bandaDe(pct, U);
-    h += '<div class="fa-medidor-texto">Agua útil hoy: <b style="color:' + COL[banda] + ';">' + fmt(pct, 0) + ' %</b> (' + NOMBRE_BANDA[banda] + ') · ' + fmt(r.aguaDisponibleHoy, 0) + ' de ' + fmt(r.tawHoy, 0) + ' mm en la raíz' + (r.etapaHoy && r.etapaHoy.zr ? ' (' + fmt(r.etapaHoy.zr * 100, 0) + ' cm)' : '') + '. Regar al ' + U.CRITICO + ' %, estrés bajo ' + U.URGENTE + ' %.</div>';
+    h += '<div class="fa-medidor-texto">Agua útil hoy: <b style="color:' + COL[banda] + ';">' + fmt(pct, 0) + ' %</b> (' + NOMBRE_BANDA[banda] + ') · ' + fmt(r.aguaDisponibleHoy, 0) + ' de ' + fmt(r.tawHoy, 0) + ' mm en la raíz' + (r.etapaHoy && r.etapaHoy.zr ? ' (' + fmt(r.etapaHoy.zr * 100, 0) + ' cm)' : '') + '. ' + (piv(r) && piv(r).vueltaDias ? 'Arrancar el pivot al ' + U.CRITICO + ' % (la vuelta tarda ' + diasTxt(piv(r).vueltaDias) + (piv(r).vueltaSupuesta ? ', supuesto: cargá la capacidad del equipo' : '') + ')' : 'Regar al ' + U.CRITICO + ' %') + ', estrés bajo ' + U.URGENTE + ' %.</div>';
     return h;
   }
 
@@ -68,24 +70,30 @@
     var lluviaProx = (r.dias || []).reduce(function (s, d) { return s + (d.esFuturo ? (d.lluviaBruta || 0) : 0); }, 0);
     var out = { tipo: 'ok', titulo: '', detalle: '' };
     if (window.SafiaBalance && SafiaBalance.esSecano && equipo && SafiaBalance.esSecano(equipo)) { out.tipo = 'secano'; out.titulo = 'Lote de secano'; out.detalle = 'No se riega: el agua es la que llueve.'; return out; }
-    if (lluviaProx >= 15) { out.tipo = 'lluvia'; out.titulo = 'No regar: viene lluvia'; out.detalle = 'Se esperan ' + fmt(lluviaProx, 0) + ' mm en los próximos días. Volver a mirar después de la lluvia.'; return out; }
+    var pv = piv(r), hk = hoyK ? hoyK.fecha : (r.dias && r.dias[0] ? r.dias[0].fecha : '');
+    var cuando = function (f) { var t = diaTexto(f, hk); return t === 'hoy' || t === 'mañana' ? t : 'el ' + t; };
+    // Como FieldNET: cuándo arrancar, cuándo "vence" (entra en estrés sin riego) y cuánto tarda la vuelta
+    var vence = pv ? (pv.venceEl ? 'Sin riego entra en estrés ' + (pv.diasHastaEstres === 0 ? 'hoy' : cuando(pv.venceEl) + ' (en ' + diasTxt(pv.diasHastaEstres) + ')') + '. ' : 'Sin riego no entra en estrés en los próximos ' + diasTxt(pv.horizonteDias) + '. ') : '';
+    var vuelta = pv && pv.vueltaDias ? 'La vuelta tarda ' + diasTxt(pv.vueltaDias) + (pv.vueltaSupuesta ? ' (supuesto: cargá la capacidad del equipo en Equipos y lotes)' : '') + '. ' : '';
+    var noAlc = pv && pv.noAlcanza ? 'El equipo no alcanza la demanda del cultivo (' + fmt(pv.consumoMax7, 1) + ' mm/día contra ' + fmt(pv.capacidadNeta, 1) + ' mm/día netos del pivot): mantenerlo girando para no quedar atrás. ' : '';
+    if (lluviaProx >= 15 && !rec.enEstres) { out.tipo = 'lluvia'; out.titulo = 'No regar: viene lluvia'; out.detalle = 'Se esperan ' + fmt(lluviaProx, 0) + ' mm en los próximos días. ' + vence + 'Volver a mirar después de la lluvia.'; return out; }
     if (rec.regar) {
       var mm = rec.mm || 0, v = vueltas(mm, equipo);
-      out.tipo = r.porcentajeHoy < U.URGENTE ? 'urgente' : 'regar';
-      out.titulo = (out.tipo === 'urgente' ? 'Regar hoy (urgente): ' : 'Regar hoy: ') + fmt(mm, 0) + ' mm';
-      out.detalle = (rec.mmTotal > mm ? 'Faltan ' + fmt(rec.mmTotal, 0) + ' mm para llenar la raíz; se reparte en más de una pasada. ' : '') + (v ? v.texto + '.' : '');
+      out.tipo = rec.enEstres || r.porcentajeHoy < U.URGENTE ? 'urgente' : 'regar';
+      out.titulo = pv && pv.noAlcanza ? 'Mantener el pivot girando: ' + fmt(mm, 0) + ' mm por vuelta' : (out.tipo === 'urgente' ? 'Regar ya, el cultivo está en estrés: ' : 'Arrancar el pivot hoy: ') + fmt(mm, 0) + ' mm';
+      out.detalle = noAlc + (out.tipo === 'regar' ? vence : '') + vuelta + (rec.mmTotal > mm ? 'Faltan ' + fmt(rec.mmTotal, 0) + ' mm para llenar la raíz; se reparte en más de una vuelta. ' : '') + (v ? v.texto + '.' : '');
       return out;
     }
-    var prox = (r.dias || []).filter(function (d) { return d.esFuturo && d.estado === 'regar'; })[0];
-    if (prox) {
-      var v2 = vueltas(prox.mmRegar || 0, equipo);
-      out.tipo = 'proximo'; out.titulo = 'Próximo riego: ' + fmt(prox.mmRegar, 0) + ' mm el ' + diaTexto(prox.fecha, hoyK ? hoyK.fecha : '');
-      out.detalle = 'Ese día la humedad llega al ' + fmt(prox.porcentajeAAU, 0) + ' % si no llueve (' + fmt(prox.lluviaBruta, 0) + ' mm previstos).' + (v2 ? ' ' + v2.texto + '.' : '');
+    var prox = (r.dias || []).filter(function (d) { return d.esFuturo && d.estado === 'regar'; })[0], fA = pv && pv.arrancarEl ? pv.arrancarEl : (prox ? String(prox.fecha).slice(0, 10) : null);
+    if (fA) {
+      var mmP = prox ? prox.mmRegar : null, v2 = mmP ? vueltas(mmP, equipo) : null;
+      out.tipo = 'proximo'; out.titulo = 'Arrancar el pivot ' + cuando(fA) + (mmP ? ': ' + fmt(mmP, 0) + ' mm' : '');
+      out.detalle = (noAlc + vence + vuelta + (prox ? 'Ese día la humedad llega al ' + fmt(prox.porcentajeAAU, 0) + ' % si no llueve (' + fmt(prox.lluviaBruta, 0) + ' mm previstos). ' : '') + (v2 ? v2.texto + '.' : '')).trim();
       return out;
     }
-    var n = (r.dias || []).filter(function (d) { return d.esFuturo; }).length, ult = (r.dias || [])[(r.dias || []).length - 1];
+    var n = pv ? pv.horizonteDias : (r.dias || []).filter(function (d) { return d.esFuturo; }).length, ult = (r.dias || [])[(r.dias || []).length - 1];
     out.titulo = 'Sin riego previsto en los próximos ' + n + ' días';
-    out.detalle = ult ? 'La humedad queda en ' + fmt(ult.porcentajeAAU, 0) + ' % el ' + fmtF(ult.fecha) + '.' : '';
+    out.detalle = vence + vuelta + (ult ? 'La humedad queda en ' + fmt(ult.porcentajeAAU, 0) + ' % el ' + fmtF(ult.fecha) + '.' : '');
     return out;
   }
   var COL_TIPO = { urgente: COL.estres, regar: COL.regar, proximo: COL.atencion, ok: COL.optimo, lluvia: COL.lleno, secano: COL.gris };
@@ -111,9 +119,9 @@
     var bandas = [['estres', 0, U.URGENTE], ['regar', U.URGENTE, U.CRITICO], ['atencion', U.CRITICO, U.ATENCION], ['optimo', U.ATENCION, 100]];
     bandas.forEach(function (b) { s += '<rect x="' + ml + '" y="' + y(b[2]) + '" width="' + gw + '" height="' + (y(b[1]) - y(b[2])) + '" fill="' + COL[b[0]] + '" opacity="0.07"/>'; });
     // líneas de referencia
-    [[100, 'capacidad de campo', COL.lleno, '4 3'], [U.CRITICO, 'regar', COL.regar, '5 4'], [U.URGENTE, 'estrés', COL.estres, '2 4']].forEach(function (l) {
+    [[100, 'capacidad de campo', COL.lleno, '4 3'], [U.CRITICO, piv(r) ? 'arrancar pivot' : 'regar', COL.regar, '5 4'], [U.URGENTE, 'estrés', COL.estres, '2 4']].filter(function (l, i) { return i !== 1 || (l[0] !== U.URGENTE && l[0] < 95); }).forEach(function (l) {
       s += '<line x1="' + ml + '" x2="' + (ml + gw) + '" y1="' + y(l[0]) + '" y2="' + y(l[0]) + '" stroke="' + l[2] + '" stroke-width="1" stroke-dasharray="' + l[3] + '"/>';
-      s += '<text x="' + (ml + gw - 2) + '" y="' + (y(l[0]) - 3) + '" font-size="9" text-anchor="end" fill="' + l[2] + '">' + l[1] + ' ' + l[0] + ' %</text>';
+      s += '<text x="' + (ml + 4) + '" y="' + (l[0] >= 95 ? y(l[0]) + 10 : y(l[0]) - 3) + '" font-size="9" text-anchor="start" fill="' + l[2] + '">' + l[1] + ' ' + l[0] + ' %</text>';   // a la izquierda: no choca con "hoy"
     });
     // eje y
     [0, 25, 50, 75, 100].forEach(function (v) { s += '<text x="' + (ml - 4) + '" y="' + (y(v) + 3) + '" font-size="9" text-anchor="end" fill="#8C9196">' + v + '</text>'; });

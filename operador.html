@@ -1226,7 +1226,7 @@
         const rClima = await SafiaClima.obtenerClima({
           lat, lon,
           daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min',
-          pastDays: 92, forecastDays: 4,   // 92 días de historia: el balance arranca en la siembra
+          pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra; 7 de pronóstico para "arrancar el / vence el"
           cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
         });
 
@@ -1280,37 +1280,43 @@
         const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);  // lluvia ventana próxima
         const mmRegar = r.recomendacion.mm || Math.min(25, Math.max(10, Math.round(deficitCC)));
 
-        if (lluviaProxima >= 15) {
+        // Pivot (como FieldNET): arrancar antes del estrés según lo que tarda la vuelta
+        const pv = r.recomendacion.pivot;
+        const fechaCorta = f => f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) : '';
+        const vueltaTxt = pv && pv.vueltaDias ? ` La vuelta tarda <strong>${pv.vueltaDias.toLocaleString('es-PY')} días</strong>${pv.vueltaSupuesta ? ' (supuesto: cargá la capacidad del equipo)' : ''}.` : '';
+        const venceTxt = pv ? (pv.venceEl ? ` Sin riego entra en estrés ${pv.diasHastaEstres === 0 ? '<strong>hoy</strong>' : 'el <strong>' + fechaCorta(pv.venceEl) + '</strong>'}.` : '') : '';
+        const noAlcTxt = pv && pv.noAlcanza ? ` <strong>El equipo no alcanza la demanda</strong> (${pv.consumoMax7} mm/día contra ${pv.capacidadNeta} netos): mantenerlo girando.` : '';
+        if (lluviaProxima >= 15 && !r.recomendacion.enEstres) {
           icono.textContent = "🌧️";
           titulo.textContent = "No regar — viene lluvia";
-          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en los próximos días.`;
+          detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(0)} mm</strong> en los próximos días.${venceTxt}`;
           card.className = "reco-card visible no-regar";
-        } else if (pct < (U.URGENTE || 35)) {
+        } else if (r.recomendacion.enEstres || pct < (U.URGENTE || 35)) {
           icono.textContent = "⚠️";
-          titulo.textContent = "RIEGO URGENTE";
-          detalle.innerHTML = `Humedad del suelo en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico). Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.`;
+          titulo.textContent = "REGAR YA — el cultivo está en estrés";
+          detalle.innerHTML = `Humedad del suelo en <strong>${pct.toFixed(0)}%</strong> del agua útil, debajo del punto de estrés (${U.URGENTE} %). Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.${noAlcTxt}${vueltaTxt}`;
           card.className = "reco-card visible urgente";
         } else if (pct < U.CRITICO) {
           icono.textContent = "💧";
-          titulo.textContent = "Programar riego";
-          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Regar <strong>${mmRegar.toFixed(0)} mm</strong> en 24-48 hs.`;
+          titulo.textContent = pv && pv.noAlcanza ? "Mantener el pivot girando" : "Arrancar el pivot hoy";
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil: llegó al punto de arranque (${U.CRITICO} %). Regar <strong>${mmRegar.toFixed(0)} mm</strong> para que el último sector no entre en estrés antes de que le llegue el agua.${venceTxt}${vueltaTxt}${noAlcTxt}`;
           card.className = "reco-card visible regar";
         } else if (pct >= U.ATENCION) {
           icono.textContent = "✅";
           titulo.textContent = "Sin necesidad de riego";
-          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Suelo bien abastecido.`;
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Suelo bien abastecido.${pv && pv.arrancarEl ? ' Arrancar el pivot el <strong>' + fechaCorta(pv.arrancarEl) + '</strong>.' : ''}${venceTxt}`;
           card.className = "reco-card visible no-regar";
         } else {
           icono.textContent = "👀";
-          titulo.textContent = "Monitorear";
-          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Reevaluar en 2-3 días.`;
+          titulo.textContent = pv && pv.arrancarEl ? "Arrancar el pivot el " + fechaCorta(pv.arrancarEl) : "Monitorear";
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil, cerca del punto de arranque (${U.CRITICO} %).${venceTxt}${vueltaTxt}`;
           card.className = "reco-card visible regar";
         }
 
         // Cómo se calculó: suelo, etapa, fuente de la humedad (modelo / sonda / estación)
         if (r.recomendacion.mmTotal > r.recomendacion.mm && !SafiaBalance.esSecano(equipo)) detalle.innerHTML += ` En total faltan <strong>${r.recomendacion.mmTotal} mm</strong> para llegar a capacidad de campo: repartirlos en más de una pasada.`;
         const fuenteHum = r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad (' + r.sonda.valor.toFixed(1) + ' % vol)' : (r.fuentes.estacion ? 'balance con lluvia y ET0 de la estación' : 'balance con clima estimado');
-        detalle.innerHTML += `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, regar al ${U.CRITICO} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco.</div>`;
+        detalle.innerHTML += `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, arrancar el pivot al ${U.CRITICO} %, estrés bajo ${U.URGENTE} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco; punto de arranque según lo que tarda la vuelta del equipo (NCH-20, como FieldNET Advisor).</div>`;
         if (r.pastura) detalle.innerHTML += SafiaPasturas.htmlTemperatura(r.pastura);
         detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
         // Ficha de agua: medidor con aguja, próximo riego y el gráfico día por día (mismo motor)

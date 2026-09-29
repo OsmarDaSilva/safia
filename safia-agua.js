@@ -168,8 +168,13 @@
       res.campana = camp; res.fuentes = d.fuentes; res.lluviaDeEventos = d.lluviaDeEventos; res.lote = lote;
       if (camp.abierta && fin >= hoy) {
         var reales = res.dias.filter(function (x) { return !x.pronostico; }), ult = reales[reales.length - 1];
-        var futuros = res.dias.filter(function (x) { return x.pronostico; }), cruce = futuros.find(function (x) { return x.dr > x.raw; });
-        res.hoy = ult ? { fecha: ult.fecha, dds: ult.dds, etapa: ult.etapa, disponible: ult.disponible, dr: ult.dr, raw: ult.raw, taw: ult.taw, ks: ult.ks, faltaParaRecarga: Math.round(ult.raw - ult.dr) } : null;
+        // Punto de arranque del pivot (mismo cálculo que Operación: SafiaBalance.arranquePivot): antes del estrés, según lo que tarda la vuelta
+        var ef = res.eficiencia == null ? 1 : res.eficiencia, capB = ef > 0 && SB().capacidadBruta ? SB().capacidadBruta(lote) : null;
+        var etcs = res.dias.map(function (x) { return x.etc; }), lls = res.dias.map(function (x) { return x.pronostico ? x.lluvia : 0; });
+        var arrEn = function (x, i) { return ef > 0 && SB().arranquePivot ? SB().arranquePivot(x.raw, ef, capB, etcs, lls, i + 1) : { dr: x.raw, dias: null }; };
+        var iUlt = res.dias.indexOf(ult), arrU = ult ? arrEn(ult, iUlt) : null;
+        var futuros = res.dias.filter(function (x) { return x.pronostico; }), cruce = futuros.find(function (x) { return x.dr > arrEn(x, res.dias.indexOf(x)).dr; });
+        res.hoy = ult ? { fecha: ult.fecha, dds: ult.dds, etapa: ult.etapa, disponible: ult.disponible, dr: ult.dr, raw: ult.raw, taw: ult.taw, ks: ult.ks, faltaParaRecarga: Math.round(arrU.dr - ult.dr), faltaParaEstres: Math.round(ult.raw - ult.dr), vueltaDias: arrU.dias != null ? Math.round(arrU.dias * 10) / 10 : null } : null;
         res.pronostico = { dias: futuros.length, lluvia: Math.round(futuros.reduce(function (a, x) { return a + x.lluvia; }, 0)), etc: Math.round(futuros.reduce(function (a, x) { return a + x.etc; }, 0)), cruzaRecarga: cruce ? cruce.fecha : null, mmParaLlegarACC: ult ? Math.round(ult.dr) : null };
       }
       return res;
@@ -189,7 +194,7 @@
     s += '<path d="M' + ds.map(function (d) { return x(d.fecha) + ' ' + y(d.taw); }).join(' L') + '" fill="none" stroke="#2E72C8" stroke-dasharray="4 3"/>';
     s += '<path d="M' + ds.map(function (d) { return x(d.fecha) + ' ' + y(d.taw - d.raw); }).join(' L') + '" fill="none" stroke="#B3261E" stroke-dasharray="4 3"/>';
     s += '<text x="' + (W - mr - 4) + '" y="' + (y(ds[ds.length - 1].taw) - 4) + '" font-size="10" fill="#2E72C8" text-anchor="end">capacidad de campo (TAW)</text>';
-    s += '<text x="' + (W - mr - 4) + '" y="' + (y(ds[ds.length - 1].taw - ds[ds.length - 1].raw) + 12) + '" font-size="10" fill="#B3261E" text-anchor="end">punto de riego (recarga)</text>';
+    s += '<text x="' + (W - mr - 4) + '" y="' + (y(ds[ds.length - 1].taw - ds[ds.length - 1].raw) + 12) + '" font-size="10" fill="#B3261E" text-anchor="end">punto de estrés (el pivot se prende antes)</text>';
     // lluvia y riego
     var maxP = Math.max.apply(null, ds.map(function (d) { return Math.max(d.lluvia, d.riego); }).concat([1]));
     ds.forEach(function (d) { if (d.lluvia > 0) { var h = Math.min(60, 60 * d.lluvia / maxP); s += '<rect x="' + (x(d.fecha) - 1.5) + '" y="' + (H - mb - h) + '" width="3" height="' + h + '" fill="#2E72C8" opacity="0.35"><title>' + fmtF(d.fecha) + ' lluvia ' + fmt(d.lluvia, 1) + ' mm</title></rect>'; } if (d.riego > 0) { var h2 = Math.min(60, 60 * d.riego / maxP); s += '<rect x="' + (x(d.fecha) + 1.5) + '" y="' + (H - mb - h2) + '" width="3" height="' + h2 + '" fill="#178029" opacity="0.6"><title>' + fmtF(d.fecha) + ' riego ' + fmt(d.riego, 1) + ' mm</title></rect>'; } });
@@ -214,8 +219,8 @@
     if (res.hoy) {
       var hoy = res.hoy, pr = res.pronostico, tono = hoy.ks < 1 ? 'warn' : (hoy.faltaParaRecarga <= 10 || pr.cruzaRecarga ? 'warn' : 'info');
       h += '<div class="note ' + tono + '"><b>Consultor en vivo · agua.</b> Hoy (' + fmtF(hoy.fecha) + ', día ' + hoy.dds + ', ' + NOMBRE_ETAPA[hoy.etapa].toLowerCase() + ') la zona de raíces tiene <b>' + fmt(hoy.disponible) + ' mm</b> disponibles de ' + fmt(hoy.taw) + '; ' +
-        (hoy.ks < 1 ? 'el cultivo <b>ya está en estrés</b> (Ks ' + fmt(hoy.ks, 2) + '): regar hoy ' + fmt(hoy.dr) + ' mm para volver a capacidad de campo.' : 'el cultivo todavía puede gastar <b>' + fmt(hoy.faltaParaRecarga) + ' mm</b> antes de llegar al punto de riego (recarga): hoy no hace falta regar.') +
-        ' Próximos ' + pr.dias + ' días: demanda ' + fmt(pr.etc) + ' mm, lluvia prevista ' + fmt(pr.lluvia) + ' mm' + (pr.cruzaRecarga ? ' → <b>llega al punto de riego el ' + fmtF(pr.cruzaRecarga) + '</b>: programar el riego antes' + (hoy.etapa === 'flor' || hoy.etapa === 'llen' ? ' (etapa crítica: cada día de déficit pesa ' + (res.ky[hoy.etapa] || 0) + ' de Ky)' : '') + '.' : (pr.lluvia >= pr.etc ? ' → la lluvia cubre el consumo de la semana: <b>no hace falta regar</b>' + (pr.lluvia > pr.etc + 10 ? ' (lo que sobre percola por debajo de las raíces)' : '') + '.' : ' → el suelo aguanta la semana sin llegar al punto de riego: <b>no hace falta regar todavía</b>.')) + '</div>';
+        (hoy.ks < 1 ? 'el cultivo <b>ya está en estrés</b> (Ks ' + fmt(hoy.ks, 2) + '): regar hoy ' + fmt(hoy.dr) + ' mm para volver a capacidad de campo.' : (hoy.faltaParaRecarga <= 0 ? '<b>llegó al punto de arranque del pivot</b>: prenderlo hoy para que el último sector no entre en estrés' + (hoy.vueltaDias ? ' (la vuelta tarda ' + fmt(hoy.vueltaDias, 1) + ' días)' : '') + '.' : 'el cultivo todavía puede gastar <b>' + fmt(hoy.faltaParaRecarga) + ' mm</b> antes del punto de arranque del pivot' + (hoy.vueltaDias ? ' (se prende antes del estrés porque la vuelta tarda ' + fmt(hoy.vueltaDias, 1) + ' días)' : '') + ': hoy no hace falta regar.')) +
+        ' Próximos ' + pr.dias + ' días: demanda ' + fmt(pr.etc) + ' mm, lluvia prevista ' + fmt(pr.lluvia) + ' mm' + (pr.cruzaRecarga ? ' → <b>llega al punto de arranque del pivot el ' + fmtF(pr.cruzaRecarga) + '</b>: prenderlo ese día' + (hoy.etapa === 'flor' || hoy.etapa === 'llen' ? ' (etapa crítica: cada día de déficit pesa ' + (res.ky[hoy.etapa] || 0) + ' de Ky)' : '') + '.' : (pr.lluvia >= pr.etc ? ' → la lluvia cubre el consumo de la semana: <b>no hace falta regar</b>' + (pr.lluvia > pr.etc + 10 ? ' (lo que sobre percola por debajo de las raíces)' : '') + '.' : ' → el suelo aguanta la semana sin llegar al punto de riego: <b>no hace falta regar todavía</b>.')) + '</div>';
     }
     h += svg(res);
     h += '<div class="tablewrap" style="margin-top:8px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Etapa</th><th class="r">Días</th><th class="r">Demanda ETc</th><th class="r">Usó ETa</th><th class="r">Déficit</th><th class="r">Días con estrés</th><th class="r">Lluvia + riego</th><th class="r">Ky</th><th class="r">Rinde perdido</th></tr></thead><tbody>' +

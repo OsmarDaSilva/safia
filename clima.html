@@ -856,20 +856,22 @@
       const pct = rBal.porcentajeHoy;
       const mmRegar = (rBal.recomendacion.mm || 0);
 
-      if (lluviaProxima >= 15) {
+      const pvC = rBal.recomendacion.pivot, enEstresC = !!rBal.recomendacion.enEstres, fcC = f => f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) : '';
+      const extraC = pvC ? (pvC.venceEl ? ` Sin riego entra en estrés ${pvC.diasHastaEstres === 0 ? 'hoy' : 'el <strong>' + fcC(pvC.venceEl) + '</strong>'}.` : '') + (pvC.vueltaDias ? ` La vuelta del pivot tarda ${pvC.vueltaDias.toLocaleString('es-PY')} días.` : '') + (pvC.noAlcanza ? ` <strong>El equipo no alcanza la demanda</strong>: mantenerlo girando.` : '') : '';
+      if (lluviaProxima >= 15 && !enEstresC) {
         icono.innerHTML = SVG(ICO.lluvia, 34);
         titulo.textContent = 'No regar — viene lluvia';
         detalle.innerHTML = `Se esperan <strong>${lluviaProxima.toFixed(1)} mm</strong> en los próximos 3 días.${esCampana ? ` Tu ${cultivoNombre} en <strong>${etapa}</strong> tendrá agua suficiente.` : ''}`;
         reco.classList.add('no-regar');
-      } else if (pct < U.URGENTE) {
+      } else if (enEstresC || pct < U.URGENTE) {
         icono.innerHTML = SVG(ICO.alerta, 34);
-        titulo.textContent = 'Riego URGENTE recomendado';
-        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico).${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está bajo estrés hídrico fuerte. ` : ' '}Regar al menos <strong>${mmRegar.toFixed(0)} mm</strong> hoy o mañana.`;
+        titulo.textContent = 'Regar ya: el cultivo está en estrés';
+        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil, debajo del punto de estrés (${U.URGENTE} %).${esCampana ? ` Tu <strong>${cultivoNombre}</strong> en <strong>${etapa}</strong> está perdiendo rinde. ` : ' '}Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.${extraC}`;
         reco.classList.add('urgente');
       } else if (pct < U.CRITICO) {
         icono.innerHTML = SVG(ICO.gota, 34);
-        titulo.textContent = 'Programar riego pronto';
-        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil.${esCampana ? ` ${cultivoNombre} en <strong>${etapa}</strong>. ` : ' '}Regar <strong>${mmRegar.toFixed(0)} mm</strong> en 24-48 hs.`;
+        titulo.textContent = pvC ? (pvC.noAlcanza ? 'Mantener el pivot girando' : 'Arrancar el pivot hoy') : 'Programar riego pronto';
+        detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil${pvC ? `: llegó al punto de arranque (${U.CRITICO} %)` : ''}.${esCampana ? ` ${cultivoNombre} en <strong>${etapa}</strong>. ` : ' '}Regar <strong>${mmRegar.toFixed(0)} mm</strong>${pvC ? ' para que el último sector no entre en estrés' : ' en 24-48 hs'}.${extraC}`;
         reco.classList.add('regar');
       } else if (pct >= U.ATENCION) {
         icono.innerHTML = SVG(ICO.check, 34);

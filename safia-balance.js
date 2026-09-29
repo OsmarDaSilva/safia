@@ -122,6 +122,38 @@
   var UMBRALES = { URGENTE: 35, CRITICO: 50, ATENCION: 70 };
   function umbralesDe(cu) { var c = Math.round(100 * (1 - (P_TABLA[cu] || 0.5))); return { CRITICO: c, ATENCION: c + 20, URGENTE: c - 15 }; }
 
+  /* ---------- Punto de arranque del pivot (margen de seguridad) ----------
+     Un pivot tarda días en dar la vuelta. Si se prende recién cuando el suelo llega al punto de estrés (RAW),
+     el último sector queda en estrés hasta que le llega el agua. Por eso se arranca cuando lo que falta para el
+     estrés es igual a lo que el cultivo va a gastar mientras el pivot da la vuelta (menos la lluvia prevista):
+       arranque (agotamiento) = RAW − (ETc de los días de la vuelta − lluvia prevista en esos días)
+       días de vuelta = lámina bruta de la vuelta ÷ capacidad del equipo (mm/24 h, ficha del equipo).
+     Fuentes: Rhoads & Yonts, National Corn Handbook NCH-20 (Iowa State Univ./USDA, 1991): con pivots, si el agua
+     llega al agotamiento permitido, parte del lote sufre estrés antes de terminar el ciclo de riego; arrancar antes
+     (a la mitad del agotamiento permitido) y, en regiones semiáridas, mantenerse adelante de la demanda del cultivo.
+     Lindsay FieldNET Advisor (folleto 2017): Start Next Irrigation = Next Irrigation Due By − Next Irrigation Refill
+     Time; líneas capacidad de campo, recarga, seguridad y agotamiento crítico; días hasta el estrés.
+     Sin datos del equipo se supone una vuelta de 3 días (el ejemplo de SDSU, cap. 49, usa 4). */
+  var VUELTA_SUPUESTA_DIAS = 3;
+  function capacidadBruta(eq) {
+    var dt = (eq && eq.datosTecnicos) || {}, c = num(dt.capacidad);
+    if (c > 0) return c;
+    var l = num(dt.lamina100), h = num(dt.vuelta100);
+    return (l > 0 && h > 0) ? l / h * 24 : null;
+  }
+  function laminaVuelta(raw, ef) { return Math.max(10, Math.min(35, Math.ceil(raw / (ef > 0 ? ef : 1) / 5) * 5)); }
+  // mm que el cultivo gasta, neto de la lluvia prevista, durante 'dias' desde la posición i de las listas
+  function gastoEnVuelta(etcs, lluvias, i, dias) {
+    var n = Math.max(1, Math.ceil(dias)), s = 0;
+    for (var k = 0; k < n; k++) { var j = Math.min(i + k, etcs.length - 1), f = (k === n - 1 && dias % 1 > 0) ? dias % 1 : 1; s += f * ((etcs[j] || 0) - (lluvias[j] || 0)); }
+    return Math.max(0, s);
+  }
+  // Agotamiento (mm) al que hay que prender el pivot en el día i
+  function arranquePivot(raw, ef, capB, etcs, lluvias, i) {
+    var lam = laminaVuelta(raw, ef), dias = capB > 0 ? lam / capB : VUELTA_SUPUESTA_DIAS, g = gastoEnVuelta(etcs, lluvias, i, dias);
+    return { dr: Math.max(0, raw - g), dias: dias, lamina: lam, gasto: g, supuesto: !(capB > 0) };
+  }
+
   // Eficiencia de riego por tipo de equipo.
   var EFICIENCIA_RIEGO = { pivote: 0.85, goteo: 0.92, microaspersion: 0.88, aspersion: 0.78, canon: 0.70, superficie: 0.50, secano: 0, otro: 0.80 };
   function getEficienciaEquipo(equipo) {
@@ -354,6 +386,14 @@
     var totales = { lluviaBruta: 0, lluviaEfectiva: 0, riegoBruto: 0, riegoEfectivo: 0, etc: 0, eta: 0, drenaje: 0 };
     var fuentes = { estacion: 0, meteo: 0, pronostico: 0, sonda: 0, manual: 0 };
     var dias = [], pasado = [], dr = null, ultimaSonda = null, drHoyInicio = 0, umbr = umbralesDe(conCultivo ? cu : 'otro');
+    // Consumo y lluvia prevista de hoy en adelante (para el punto de arranque del pivot y la proyección sin riego)
+    var capB = eficiencia > 0 ? capacidadBruta(opts.equipo) : null, etcF = [], llF = [], prmF = [];
+    for (var q = 0; q < claves.length; q++) {
+      if (q < indiceHoy) { etcF.push(0); llF.push(0); prmF.push(null); continue; }
+      var pq = prmDe(q); prmF.push(pq); etcF.push(pq.etc);
+      llF.push(resolverLluviaDia(claves[q], daily.precipitation_sum && daily.precipitation_sum[q], idx.lluvia, estacion).mm);
+    }
+    function arranqueEn(i2, prm2) { return eficiencia > 0 ? arranquePivot(prm2.raw, eficiencia, capB, etcF, llF, i2) : { dr: prm2.raw, dias: null, lamina: null, gasto: 0, supuesto: false }; }
 
     for (var i = inicio; i < claves.length && i < indiceHoy + diasFuturo; i++) {
       var k = claves[i], prm = prmDe(i), esPasado = i < indiceHoy, esHoy = i === indiceHoy;
@@ -380,22 +420,24 @@
       }
 
       // Día de hoy o futuro: estado y recomendación
-      var disponible = prm.taw - dr, pct = prm.taw > 0 ? disponible / prm.taw * 100 : 0, critico = Math.round((1 - prm.p) * 100);
+      var disponible = prm.taw - dr, pct = prm.taw > 0 ? disponible / prm.taw * 100 : 0, estresDia = Math.round((1 - prm.p) * 100);
+      var arrDia = conCultivo ? arranqueEn(i, prm) : { dr: prm.raw }, critico = Math.max(estresDia, Math.min(100, Math.round(prm.taw > 0 ? (1 - arrDia.dr / prm.taw) * 100 : estresDia)));
       var estado, mmRegar = 0, mmRegarTotal = 0, drenajeDia = paso.dp;
       if (lluvia.mm >= 10) estado = 'lluvia';
-      else if (dr > prm.raw) {
+      else if (dr > arrDia.dr) {
         estado = 'regar';
         if (eficiencia > 0) { mmRegarTotal = Math.ceil(dr / eficiencia / 5) * 5; mmRegar = Math.max(10, Math.min(35, mmRegarTotal)); }
         if (asumirRiego && mmRegar > 0) { var p2 = pasoDia(dr, Object.assign({}, prm, { etc: 0 }), mmRegar * eficiencia); dr = p2.dr; drenajeDia += p2.dp; }
-      } else if (pct < critico + 20) estado = 'atencion';
+      } else if (pct < critico + 10) estado = 'atencion';
       else estado = 'ok';
+      var umbDia = (conCultivo && eficiencia > 0) ? { URGENTE: estresDia, CRITICO: critico, ATENCION: Math.min(100, critico + 10), ESTRES: estresDia, ARRANQUE: critico } : umbr;
 
       totales.lluviaBruta += lluvia.mm; totales.lluviaEfectiva += lluvia.mm; totales.riegoBruto += riegoBruto; totales.riegoEfectivo += riegoEf; totales.etc += prm.etc; totales.eta += paso.eta; totales.drenaje += drenajeDia;
       var pmpMM = suelo.pmp / 100 * prm.zr * 1000;
       dias.push({
         fecha: daily.time[i], fechaObj: new Date(k + 'T12:00:00'), esHoy: esHoy, esFuturo: i > indiceHoy,
         humedadInicio: pmpMM + (prm.taw - drInicio), humedadFin: pmpMM + (prm.taw - dr),
-        aguaDisponible: disponible, porcentajeAAU: pct, dr: dr, taw: prm.taw, raw: prm.raw, zr: prm.zr, p: prm.p, umbralCriticoPct: critico,
+        aguaDisponible: disponible, porcentajeAAU: pct, dr: dr, taw: prm.taw, raw: prm.raw, zr: prm.zr, p: prm.p, umbralCriticoPct: critico, umbralEstresPct: estresDia, umbrales: umbDia, drArranque: arrDia.dr,
         lluviaBruta: lluvia.mm, lluviaEfectiva: lluvia.mm, fuenteLluvia: lluvia.fuente, riegoBruto: riegoBruto, riegoEfectivo: riegoEf,
         etoDia: prm.et0, fuenteEt0: prm.fuenteEt0, kc: prm.kc, etapa: prm.etapaLegacy, etapaFAO: prm.etapa, nombreEtapa: prm.nombreEtapa, dds: prm.dds, ky: prm.ky,
         etcDia: prm.etc, etaDia: paso.eta, ks: paso.ks, estres: paso.ks < 1, drenaje: drenajeDia, estado: estado, mmRegar: mmRegar, mmRegarTotal: mmRegarTotal, fuenteHumedad: fuenteHum,
@@ -409,10 +451,32 @@
     var prmHoy = prmDe(indiceHoy), drHoy = Math.min(prmHoy.taw, drHoyInicio);
     var tawHoy = prmHoy.taw, aguaHoy = Math.max(0, tawHoy - drHoy), pctHoy = tawHoy > 0 ? aguaHoy / tawHoy * 100 : 0;
     var pmpHoy = suelo.pmp / 100 * prmHoy.zr * 1000;
-    var estadoHoy = 'ok', regar = false, mmHoy = 0, mmTotalHoy = 0, criticoHoy = Math.round((1 - prmHoy.p) * 100);
-    if (drHoy > prmHoy.raw) { regar = true; estadoHoy = 'regar'; if (eficiencia > 0) { mmTotalHoy = Math.ceil(drHoy / eficiencia / 5) * 5; mmHoy = Math.max(10, Math.min(35, mmTotalHoy)); } }
-    else if (pctHoy < criticoHoy + 20) estadoHoy = 'atencion';
+    // Hoy: se prende el pivot al llegar al punto de arranque (no al de estrés); ver arranquePivot
+    var estresHoy = Math.round((1 - prmHoy.p) * 100), arrHoy = conCultivo ? arranqueEn(indiceHoy, prmHoy) : { dr: prmHoy.raw, dias: null, supuesto: false };
+    var arranqueHoy = Math.max(estresHoy, Math.min(100, Math.round(tawHoy > 0 ? (1 - arrHoy.dr / tawHoy) * 100 : estresHoy)));
+    var estadoHoy = 'ok', regar = false, mmHoy = 0, mmTotalHoy = 0;
+    if (drHoy > arrHoy.dr) { regar = true; estadoHoy = 'regar'; if (eficiencia > 0) { mmTotalHoy = Math.ceil(drHoy / eficiencia / 5) * 5; mmHoy = Math.max(10, Math.min(35, mmTotalHoy)); } }
+    else if (pctHoy < arranqueHoy + 10) estadoHoy = 'atencion';
     var ksHoy = drHoy > prmHoy.raw ? Math.max(0, (tawHoy - drHoy) / ((1 - prmHoy.p) * tawHoy)) : 1;
+    if (conCultivo && eficiencia > 0) umbr = { URGENTE: estresHoy, CRITICO: arranqueHoy, ATENCION: Math.min(100, arranqueHoy + 10), ESTRES: estresHoy, ARRANQUE: arranqueHoy };
+
+    // Proyección SIN riego nuevo (como FieldNET): cuándo hay que arrancar y cuándo "vence" (entra en estrés)
+    var arrancarEl = null, venceEl = null, dP = drHoy, etcMax = 0;
+    for (var j = indiceHoy; j < claves.length; j++) {
+      var pj = prmF[j] || prmDe(j); dP = Math.min(dP, pj.taw);
+      if (conCultivo && arrancarEl == null && dP > arranqueEn(j, pj).dr) arrancarEl = claves[j];
+      if (venceEl == null && dP > pj.raw) venceEl = claves[j];
+      if (j < indiceHoy + 7) etcMax = Math.max(etcMax, pj.etc);
+      dP = pasoDia(dP, pj, llF[j] + (idx.riego[claves[j]] || 0) * eficiencia).dr;
+    }
+    var capNeta = capB ? capB * eficiencia : null;
+    var pivot = (conCultivo && eficiencia > 0) ? {
+      arrancarEl: arrancarEl, venceEl: venceEl, diasHastaEstres: venceEl ? diasEntre(claveHoy, venceEl) : null, horizonteDias: claves.length - indiceHoy,
+      vueltaDias: arrHoy.dias != null ? Math.round(arrHoy.dias * 10) / 10 : null, laminaVuelta: arrHoy.lamina || null, vueltaSupuesta: !!arrHoy.supuesto,
+      capacidadBruta: capB ? Math.round(capB * 10) / 10 : null, capacidadNeta: capNeta ? Math.round(capNeta * 10) / 10 : null,
+      consumoMax7: Math.round(etcMax * 10) / 10, noAlcanza: !!(capNeta && etcMax > capNeta),
+      arranquePct: arranqueHoy, estresPct: estresHoy, gastoEnVueltaMM: Math.round((arrHoy.gasto || 0) * 10) / 10
+    } : null;
 
     // Pasturas: temperatura media de los últimos 7 días (si el daily trae temperaturas) para avisar la parada invernal
     var pasturaInfo = null;
@@ -431,7 +495,7 @@
       sonda: ultimaSonda ? Object.assign({}, ultimaSonda, { antiguedadDias: diasEntre(ultimaSonda.fecha, claveHoy) }) : null,
       pastura: pasturaInfo,
       fuentes: fuentes,
-      recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta },
+      recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta, enEstres: drHoy > prmHoy.raw, pivot: pivot },
       dias: dias, pasado: pasado, totales: totales, totalesPasado: totalesPasado
     };
   }
@@ -447,7 +511,8 @@
     hoyLocal: hoyLocal, fechaLocal: fechaLocal, claveDia: claveDia, sumarDias: sumarDias, diasEntre: diasEntre,
     indexarEventos: indexarEventos, resolverLluviaDia: resolverLluviaDia, estacionDelCampo: estacionDelCampo,
     simular: simular,
-    version: '2.0.0'
+    capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
+    version: '2.1.0'
   };
 
   root.SafiaBalance = SafiaBalance;

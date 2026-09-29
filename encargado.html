@@ -746,26 +746,30 @@
           const U = balance.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
           const pct = balance.pct;
           const mmRegar = (balance.mmRegar || 0).toFixed(0);
-          if (balance.lluviaProxima >= 15) {
+          // Pivot (como FieldNET): arrancar antes del estrés según lo que tarda la vuelta del equipo
+          const pv = balance.r && balance.r.recomendacion ? balance.r.recomendacion.pivot : null, enEstres = !!(balance.r && balance.r.recomendacion && balance.r.recomendacion.enEstres);
+          const fc = f => f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) : '';
+          const extraPv = pv ? (pv.venceEl ? ` Sin riego entra en estrés ${pv.diasHastaEstres === 0 ? 'hoy' : 'el ' + fc(pv.venceEl)}.` : '') + (pv.vueltaDias ? ` Vuelta de ${pv.vueltaDias.toLocaleString('es-PY')} días.` : '') + (pv.noAlcanza ? ` <strong>El equipo no alcanza la demanda</strong> (${pv.consumoMax7} contra ${pv.capacidadNeta} mm/día netos): mantenerlo girando.` : '') : '';
+          if (balance.lluviaProxima >= 15 && !enEstres) {
             datos.semaforo = 'azul';
             datos.textoSemaforo = '🌧️ Lluvia esperada';
-            datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en los próximos días. No regar.`;
-          } else if (pct < (U.URGENTE || 35)) {
+            datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en los próximos días. No regar.${extraPv}`;
+          } else if (enEstres || pct < (U.URGENTE || 35)) {
             datos.semaforo = 'rojo';
-            datos.textoSemaforo = '🔴 URGENTE';
-            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil (crítico). Regar <strong>${mmRegar} mm</strong> hoy — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.`;
+            datos.textoSemaforo = '🔴 En estrés';
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil, debajo del punto de estrés (${U.URGENTE} %). Regar <strong>${mmRegar} mm</strong> ya — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.${extraPv}`;
           } else if (pct < U.CRITICO) {
             datos.semaforo = 'amarillo';
-            datos.textoSemaforo = '🟡 Monitorear';
-            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Programar riego <strong>${mmRegar} mm</strong> en 24-48 hs.`;
+            datos.textoSemaforo = pv && pv.noAlcanza ? '🟡 Mantener girando' : '🟡 Arrancar pivot';
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil: llegó al punto de arranque (${U.CRITICO} %). Arrancar el pivot hoy con <strong>${mmRegar} mm</strong>.${extraPv}`;
           } else if (pct >= U.ATENCION) {
             datos.semaforo = 'verde';
             datos.textoSemaforo = '🟢 OK';
-            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Sin necesidad de riego.`;
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Sin necesidad de riego.${pv && pv.arrancarEl ? ' Arrancar el pivot el ' + fc(pv.arrancarEl) + '.' : ''}`;
           } else {
             datos.semaforo = 'amarillo';
             datos.textoSemaforo = '🟡 Monitorear';
-            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Reevaluar en 2-3 días.`;
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil, cerca del punto de arranque (${U.CRITICO} %).${pv && pv.arrancarEl ? ' Arrancar el pivot el <strong>' + fc(pv.arrancarEl) + '</strong>.' : ''}${extraPv}`;
           }
           if (balance.sonda && balance.sonda.antiguedadDias <= 2) datos.recomendacion += ` <span style="color:#8C9196;">(sonda: ${balance.sonda.valor.toFixed(1)} % vol)</span>`;
           if (balance.etapaHoy && balance.etapaHoy.critica && pct < U.CRITICO) datos.recomendacion += ' <strong>Etapa crítica para el rinde.</strong>';
@@ -867,7 +871,7 @@
       const rClima = await SafiaClima.obtenerClima({
         lat: campo.latitud, lon: campo.longitud,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
-        pastDays: 92, forecastDays: 5,   // 92 días de historia: el balance arranca en la siembra
+        pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra; 7 de pronóstico para "arrancar el / vence el"
         cacheKey: 'campo:' + campo.id
       });
       if (!rClima.datos) {
@@ -1022,7 +1026,7 @@
     function celdaAgua(d) {
       const r = d.balance && d.balance.r; if (!r || r.porcentajeHoy == null) return '<span class="tl-muted">—</span>';
       const U = r.umbrales || {}; const pct = Math.round(r.porcentajeHoy);
-      const banda = pct < (U.URGENTE || 35) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 50) ? ['regar', '#E67E22'] : pct < (U.ATENCION || 70) ? ['atención', '#D4A24C'] : pct < 95 ? ['óptimo', '#178029'] : ['lleno', '#2E72C8'];
+      const banda = pct < (U.URGENTE || 35) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 50) ? ['arrancar pivot', '#E67E22'] : pct < (U.ATENCION || 70) ? ['atención', '#D4A24C'] : pct < 95 ? ['óptimo', '#178029'] : ['lleno', '#2E72C8'];
       return '<div class="tl-agua"><b style="color:' + banda[1] + ';">' + pct + ' %</b><div class="tl-sub">' + banda[0] + ' · ' + Math.round(r.aguaDisponibleHoy) + ' de ' + Math.round(r.tawHoy) + ' mm</div></div>';
     }
     function celdaRiego(d) {

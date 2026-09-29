@@ -115,8 +115,8 @@
         r.agua = { rinde_perdido_por_agua_hasta_hoy_pct: res.perdidaPct, dias_con_estres: reales.filter(function (d) { return d.ks < 1; }).length, etapa_hoy: NOMBRE_ETAPA[ag.etapa] || ag.etapa,
           por_etapa: res.etapas.filter(function (s) { return s.dias > 0; }).map(function (s) { return { etapa: s.n, dias: s.dias, demanda_mm: s.etc, uso_mm: s.eta, deficit_pct: s.deficitPct, dias_estres: s.diasEstres, lluvia_mm: s.lluvia, riego_mm: s.riego, rinde_perdido_pct: s.perdidaPct }; }),
           episodios_de_falta: (res.episodios || []).map(function (p) { return { desde: p.desde, hasta: p.hasta, dias: p.dias, etapa: NOMBRE_ETAPA[p.etapa] || p.etapa }; }),
-          hoy: res.hoy ? { agua_disponible_mm: r0(res.hoy.disponible), capacidad_mm: r0(res.hoy.taw), puede_gastar_antes_de_regar_mm: res.hoy.faltaParaRecarga, en_estres: res.hoy.ks < 1 } : null,
-          proximos_7_dias: res.pronostico ? { lluvia_mm: res.pronostico.lluvia, demanda_mm: res.pronostico.etc, llega_al_punto_de_riego: res.pronostico.cruzaRecarga } : null,
+          hoy: res.hoy ? { agua_disponible_mm: r0(res.hoy.disponible), capacidad_mm: r0(res.hoy.taw), puede_gastar_antes_de_arrancar_el_pivot_mm: res.hoy.faltaParaRecarga, puede_gastar_antes_del_estres_mm: res.hoy.faltaParaEstres, vuelta_del_pivot_dias: res.hoy.vueltaDias, en_estres: res.hoy.ks < 1 } : null,
+          proximos_7_dias: res.pronostico ? { lluvia_mm: res.pronostico.lluvia, demanda_mm: res.pronostico.etc, llega_al_punto_de_arranque_del_pivot: res.pronostico.cruzaRecarga } : null,
           lluvia_de: res.lluviaDeEventos ? 'lluvias cargadas del lote' : 'clima estimado (CHIRPS/Open-Meteo): el lote no tiene lluvias cargadas en la campaña' };
         if (!res.lluviaDeEventos) falta.push('lluvias medidas en el pluviómetro del campo (Operador o Eventos)');
       }, function () { r.agua = { error: 'No se pudo traer el clima para el balance por etapa.' }; }));
@@ -305,7 +305,11 @@
           var tp = r.totalesPasado || {}, ult7 = (r.pasado || []).slice(-7);
           return Object.assign(base, {
             recomendacion: p.titulo, detalle: p.detalle || null,
-            agua_util_hoy_pct: r0(r.porcentajeHoy), regar_por_debajo_de_pct: U.CRITICO, estres_por_debajo_de_pct: U.URGENTE,
+            agua_util_hoy_pct: r0(r.porcentajeHoy), arrancar_el_pivot_por_debajo_de_pct: U.CRITICO, estres_por_debajo_de_pct: U.URGENTE, en_estres_hoy: !!r.recomendacion.enEstres,
+            pivot: r.recomendacion.pivot ? { arrancar_el: r.recomendacion.pivot.arrancarEl, entra_en_estres_sin_riego_el: r.recomendacion.pivot.venceEl, dias_hasta_estres: r.recomendacion.pivot.diasHastaEstres, horizonte_dias: r.recomendacion.pivot.horizonteDias,
+              vuelta_dias: r.recomendacion.pivot.vueltaDias, lamina_vuelta_mm: r.recomendacion.pivot.laminaVuelta, vuelta_supuesta_sin_datos_del_equipo: r.recomendacion.pivot.vueltaSupuesta, capacidad_neta_mm_dia: r.recomendacion.pivot.capacidadNeta,
+              consumo_maximo_7_dias_mm: r.recomendacion.pivot.consumoMax7, equipo_no_alcanza_la_demanda: r.recomendacion.pivot.noAlcanza,
+              regla: 'se prende antes del estrés: arranque = estrés + consumo durante la vuelta − lluvia prevista (NCH-20; como FieldNET Advisor: Start = Due By − Refill Time)' } : null,
             agua_disponible_mm: r0(r.aguaDisponibleHoy), reserva_total_raiz_mm: r0(r.tawHoy), falta_para_capacidad_campo_mm: r0(r.deficitHastaCC),
             lamina_sugerida_hoy_mm: r.recomendacion.mm || 0, eficiencia_riego: r.eficiencia,
             dias_desde_siembra: r.etapaHoy.dds, etapa: r.etapaHoy.nombre || null, etapa_critica: !!r.etapaHoy.critica, raiz_cm: r.etapaHoy.zr ? Math.round(r.etapaHoy.zr * 100) : null, kc_hoy: r.etapaHoy.kc,

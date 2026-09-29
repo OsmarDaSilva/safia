@@ -325,7 +325,7 @@
       const dias = r.dias.map((d, i) => {
         let recomendacion;
         if (d.estado === "lluvia")        recomendacion = `Lluvia prevista ${d.lluviaBruta.toFixed(0)} mm: no regar`;
-        else if (d.estado === "regar")    recomendacion = `Regar ${d.mmRegar} mm`;
+        else if (d.estado === "regar")    recomendacion = `Arrancar el pivot: ${d.mmRegar} mm`;
         else if (d.estado === "atencion") recomendacion = "Atención: preparar el riego";
         else                              recomendacion = "Sin necesidad de riego";
         const confianza = (i <= 2) ? "alta" : "media";
@@ -343,7 +343,7 @@
           etoDia: d.etoDia,
           etcDia: d.etcDia,
           kcInfo: { kc: d.kc, etapa: d.etapa },
-          umbrales: UM,
+          umbrales: d.umbrales || UM,   // del día: arranque del pivot y estrés cambian con la etapa y el pronóstico
           riegoManual: d.riegoBruto,
           tMax: d.tMax,
           tMin: d.tMin,
@@ -442,13 +442,13 @@
       document.getElementById('diasDetalle').innerHTML = pred.dias.map(dia => {
         const f = dia.fechaObj || fechaLocal(dia.fecha);
         const UMB = dia.umbrales || UMBRALES;
-        const barra = dia.porcentajeAAU < UMB.CRITICO ? 'barra-roja' : (dia.porcentajeAAU < UMB.ATENCION ? 'barra-amarilla' : 'barra-verde');
+        const barra = dia.porcentajeAAU < UMB.URGENTE ? 'barra-roja' : (dia.porcentajeAAU < UMB.ATENCION ? 'barra-amarilla' : 'barra-verde');   // rojo = estrés
         let msg;
-        if (dia.estado === 'regar') msg = 'Sin riego la humedad bajaría a ' + dia.porcentajeAAU.toFixed(0) + ' %, debajo del umbral crítico (' + UMB.CRITICO + ' %).';
+        if (dia.estado === 'regar') msg = 'Sin riego la humedad bajaría a ' + dia.porcentajeAAU.toFixed(0) + ' %, debajo del punto de arranque del pivot (' + UMB.CRITICO + ' %; estrés bajo ' + UMB.URGENTE + ' %).';
         else if (dia.estado === 'lluvia') msg = 'De ' + dia.lluviaDia.toFixed(0) + ' mm, el suelo aprovecha ~' + dia.lluviaEfectiva.toFixed(0) + ' mm' + (dia.probLluvia ? ' (probabilidad ' + dia.probLluvia + ' %)' : '') + '.';
         else if (dia.estado === 'atencion') msg = 'La humedad baja a ' + dia.porcentajeAAU.toFixed(0) + ' %: preparar el equipo.';
-        else msg = 'Humedad por encima del umbral crítico (' + UMB.CRITICO + ' %).';
-        const titulo = dia.estado === 'regar' ? 'Regar ' + dia.mmRegar + ' mm' : (dia.estado === 'lluvia' ? 'Llueve ' + dia.lluviaDia.toFixed(0) + ' mm' : TXT_ESTADO[dia.estado] || '—');
+        else msg = 'Humedad por encima del punto de arranque del pivot (' + UMB.CRITICO + ' %).';
+        const titulo = dia.estado === 'regar' ? 'Arrancar el pivot: ' + dia.mmRegar + ' mm' : (dia.estado === 'lluvia' ? 'Llueve ' + dia.lluviaDia.toFixed(0) + ' mm' : TXT_ESTADO[dia.estado] || '—');
         const tip = 'Kc ' + dia.kcInfo.kc.toFixed(2) + (dia.kcInfo.etapa ? ' (' + dia.kcInfo.etapa + ')' : '') + ' · ETo ' + dia.etoDia.toFixed(1) + ' mm · confianza del pronóstico ' + dia.confianza;
         return '<div class="dia-card dia-' + dia.estado + (dia.esHoy ? ' dia-hoy' : '') + '" title="' + tip + '">' +
           '<div class="dia-fecha">' + (dia.esHoy ? 'Hoy' : f.toLocaleDateString('es-PY', { weekday: 'short' })) + ' <small>' + f.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' }) + '</small></div>' +
