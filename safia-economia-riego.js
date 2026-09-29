@@ -13,7 +13,8 @@
    (FAO-33) y los costos son los de riego sin energía ni mantenimiento. Año seco = la peor zafra de los 10 años.
    Energía: la de la base, o los mm que pide el cultivo en ese campo × US$ por mm si se carga.
    La inversión se paga con lo que AGREGA el riego si hoy el campo produce en secano, o con el margen completo
-   con riego si es un campo nuevo (lo elige el usuario). Inversión por proyecto (decisión de Osmar, 28-sep-2026).
+   con riego si es un campo nuevo (lo elige el usuario). Inversión por proyecto (decisión de Osmar, 28-sep-2026): monto total
+   o por partes (equipos, pozos, reservorio, eléctrica, obras). Todo el proyecto por año con la energía aparte (29-sep-2026).
    Solo grano: para ensilaje, fardos y pastoreo SAFIA no tiene precio de venta; se dice. */
 (function () {
   'use strict';
@@ -30,6 +31,7 @@
     for (var i = 0; i < 200; i++) { var m = (lo + hi) / 2; if (vpn(lo) * vpn(m) <= 0) hi = m; else lo = m; }
     return (lo + hi) / 2;
   }
+  var PARTES_INV = [['equipo', 'Equipos de riego'], ['pozos', 'Pozos y bombas'], ['reservorio', 'Reservorio o tajamar'], ['electrica', 'Parte eléctrica'], ['obras', 'Obras y otros']];
   var CONCEPTOS = [['insumos', 'Insumos'], ['maquinas', 'Maquinaria'], ['fletes', 'Fletes'], ['alquiler', 'Alquiler'], ['energia', 'Energía del riego'], ['mant', 'Mantenimiento del riego'], ['reposicion', 'Reposición de lo que se llevan los kilos extra']];
 
   function calcular(o) {
@@ -90,6 +92,16 @@
     var r = { filas: filas, ok: ok, superficieHa: ha, inversionUSD: inv, vidaUtil: vida, energiaUSDmm: eMm, situacion: nuevo ? 'nuevo' : 'secano',
       margenR: sum('margenR'), margenS: sum('margenS'), agrega: sum('agrega'), agregaSeco: ok.some(function (f) { return f.agregaSeco != null; }) ? ok.reduce(function (a, f) { return a + (f.agregaSeco != null ? f.agregaSeco : f.agrega) * f.parte; }, 0) : null, compartidas: compartidas, nEpocas: Object.keys(porEpoca).length };
     r.pagaCon = nuevo ? r.margenR : r.agrega;   // lo que paga la inversión cada año, por ha
+    r.inversionPartes = o.inversionPartes || null; r.energiaModo = o.energiaModo || (eMm != null ? 'mm' : 'base');
+    // por ha (ponderado por la parte del área de cada cultivo): ingreso, costos sin energía, energía
+    var pond = function (fn) { return ok.reduce(function (a, f) { return a + fn(f) * f.parte; }, 0); };
+    r.porHa = {
+      ingR: pond(function (f) { return f.ingR; }), ingS: pond(function (f) { return f.ingS; }),
+      energiaR: pond(function (f) { return f.cR.energia || 0; }),
+      costoR: pond(function (f) { return f.totalR - (f.cR.energia || 0); }),
+      costoS: pond(function (f) { return f.totalS * (f.fracSembro != null && f.fracSembro < 1 ? f.fracSembro : 1); })
+    };
+    if (ha > 0) r.proyecto = { ingR: r.porHa.ingR * ha, ingS: r.porHa.ingS * ha, energiaR: r.porHa.energiaR * ha, costoR: r.porHa.costoR * ha, costoS: r.porHa.costoS * ha, margenR: r.margenR * ha, margenS: r.margenS * ha };
     if (ha > 0) { r.anualR = r.margenR * ha; r.anualS = r.margenS * ha; r.anualAgrega = r.agrega * ha; r.anualPaga = r.pagaCon * ha; }
     if (inv > 0 && ha > 0) {
       r.inversionHa = inv / ha;
@@ -136,9 +148,25 @@
       '<div class="stat"><div class="sl">Margen con riego</div><div class="sv green">' + usd(r.margenR) + '</div><div class="ss">por ha y año · ' + varios + '</div></div>' +
       '<div class="stat"><div class="sl">Margen en secano</div><div class="sv">' + usd(r.margenS) + '</div><div class="ss">por ha y año</div></div>' +
       '<div class="stat"><div class="sl">Lo que agrega el riego</div><div class="sv green">' + (r.agrega >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(r.agrega), 0) + '</div><div class="ss">por ha y año' + (r.agregaSeco != null ? ' · año seco +US$ ' + fmt(r.agregaSeco, 0) : '') + '</div></div>' +
+      (r.proyecto ? '<div class="stat"><div class="sl">Energía del riego</div><div class="sv">' + usd(r.proyecto.energiaR) + '</div><div class="ss">por año · US$ ' + fmt(r.porHa.energiaR, 0) + ' por ha</div></div>' : '') +
       (r.inversionUSD ? '<div class="stat"><div class="sl">Inversión</div><div class="sv">US$ ' + fmt(r.inversionUSD, 0) + '</div><div class="ss">' + (r.inversionHa ? 'US$ ' + fmt(r.inversionHa, 0) + ' por ha' : '') + '</div></div>' : '') +
       (r.recupero != null ? '<div class="stat"><div class="sl">Se recupera en</div><div class="sv">' + fmt(r.recupero, 1) + ' años</div><div class="ss">' + (r.situacion === 'nuevo' ? 'con el margen completo con riego' : 'con lo que agrega el riego') + '</div></div>' : '') +
       (r.tir != null ? '<div class="stat"><div class="sl">Tasa interna de retorno</div><div class="sv">' + fmt(r.tir * 100, 1) + ' %</div><div class="ss">a ' + r.horizonte + ' años</div></div>' : '') + '</div>';
+    if (r.proyecto) {
+      var P = r.proyecto, f2 = function (n, a, b, sub, neg) { var d = a != null && b != null ? a - b : null; return '<tr><td style="white-space:normal;">' + n + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</td><td class="r">' + usd(neg ? -a : a) + '</td><td class="r">' + (b == null ? '—' : usd(neg ? -b : b)) + '</td><td class="r">' + (d == null ? '—' : ((neg ? -d : d) >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(d), 0)) + '</td></tr>'; };
+      h += '<div style="font-weight:700;margin:12px 0 6px;">Todo el proyecto por año · ' + fmt(r.superficieHa, 0) + ' ha</div><div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Por año</th><th class="r">Con riego</th><th class="r">Secano</th><th class="r">Diferencia</th></tr></thead><tbody>' +
+        f2('Ingreso', P.ingR, P.ingS, '') +
+        f2('Costos de producción', P.costoR, P.costoS, 'insumos, maquinaria, fletes, mantenimiento del riego y reposición de nutrientes; sin la energía', true) +
+        f2('<b>Energía del riego</b>', P.energiaR, 0, r.energiaModo === 'calc' ? 'calculada con las bombas y la tarifa: US$ ' + fmt(r.energiaUSDmm, 2) + ' por mm por ha × los mm de cada cultivo' : (r.energiaModo === 'mm' ? 'US$ ' + fmt(r.energiaUSDmm, 2) + ' por mm por ha × los mm de cada cultivo en este campo' : 'la de la referencia de la zona (base de Irrigar)'), true) +
+        '<tr style="background:#F4FAF5;"><td><b>Margen</b></td><td class="r"><b style="color:' + (P.margenR >= 0 ? '#178029' : '#B3261E') + ';">' + usd(P.margenR) + '</b></td><td class="r"><b>' + usd(P.margenS) + '</b></td><td class="r"><b>' + (P.margenR - P.margenS >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(P.margenR - P.margenS), 0) + '</b></td></tr>' +
+        '</tbody></table></div></div>';
+    }
+    if (r.inversionPartes) {
+      var tp = PARTES_INV.filter(function (p) { return r.inversionPartes[p[0]] > 0; });
+      if (tp.length) h += '<div style="font-weight:700;margin:12px 0 6px;">Inversión por partes</div><div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Parte</th><th class="r">US$</th><th class="r">US$ por ha</th><th class="r">% del total</th></tr></thead><tbody>' +
+        tp.map(function (p) { var v = r.inversionPartes[p[0]]; return '<tr><td>' + p[1] + '</td><td class="r">' + fmt(v, 0) + '</td><td class="r">' + (r.superficieHa > 0 ? fmt(v / r.superficieHa, 0) : '—') + '</td><td class="r">' + (r.inversionUSD > 0 ? fmt(v / r.inversionUSD * 100, 0) + ' %' : '—') + '</td></tr>'; }).join('') +
+        '<tr style="background:#F4FAF5;"><td><b>Total</b></td><td class="r"><b>' + fmt(r.inversionUSD, 0) + '</b></td><td class="r"><b>' + (r.superficieHa > 0 ? fmt(r.inversionUSD / r.superficieHa, 0) : '—') + '</b></td><td class="r">100 %</td></tr></tbody></table></div></div>';
+    }
     if (!r.inversionUSD) h += '<div class="note">Cargá la <b>inversión del proyecto de riego</b> (paso 5) para ver en cuántos años se recupera y su tasa de retorno.</div>';
     else if (!(r.superficieHa > 0)) h += '<div class="note">Cargá la <b>superficie a regar</b> (paso 0) para pasar de US$ por ha a todo el proyecto.</div>';
     else h += '<div style="font-size:13px;line-height:1.55;">Con ' + fmt(r.superficieHa, 0) + ' ha: con riego el campo deja <b>' + usd(r.anualR) + ' por año</b>' + (r.situacion === 'nuevo' ? '' : ' contra ' + usd(r.anualS) + ' en secano; el riego agrega <b>' + usd(r.anualAgrega) + ' por año</b>') + '. ' +

@@ -202,13 +202,34 @@
             <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="w_laminaAnualMm" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato, 500 mm. Al evaluar, SAFIA calcula el riego de cada cultivo con el clima del campo.</span></div>
           </div>
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd);">
-            <div style="font-weight:700;font-size:14px;margin-bottom:2px;">5 · Inversión del proyecto de riego</div>
-            <div class="muted" style="font-size:12px;margin-bottom:8px;">Para la economía: en cuántos años se recupera y cuánto deja. La carga cada proyecto (equipo, pozos, reservorio, energía, obras).</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:2px;">5 · Inversión y energía del proyecto de riego</div>
+            <div class="muted" style="font-size:12px;margin-bottom:8px;">Para la economía: en cuántos años se recupera, cuánto deja y cuánto cuesta la energía. Cada proyecto la carga como la tenga: monto total o por partes.</div>
             <div class="form-grid">
               <div class="field"><label>El campo hoy</label><select id="pSituacion"><option value="secano">Produce en secano</option><option value="nuevo">No produce todavía (campo nuevo)</option></select><span class="hint">En secano, la inversión se paga con lo que agrega el riego; en un campo nuevo, con el margen completo con riego.</span></div>
-              <div class="field"><label>Inversión total (US$)</label><input type="number" id="pInversion" step="1000" min="0" placeholder="Ej: 250000"></div>
+              <div class="field"><label>Inversión</label><select id="pInvModo"><option value="total">Monto total</option><option value="partes">Por partes</option></select></div>
+              <div class="field"><label>Inversión total (US$)</label><input type="number" id="pInversion" step="1000" min="0" placeholder="Ej: 250000"><span class="hint" id="pInvHint"></span></div>
               <div class="field"><label>Vida útil (años)</label><input type="number" id="pVidaUtil" step="1" min="1" placeholder="Opcional"><span class="hint">Para amortizar la inversión; sin dato, el horizonte es de 10 años.</span></div>
-              <div class="field"><label>Energía y operación (US$ por mm)</label><input type="number" id="pEnergiaMm" step="0.01" min="0" placeholder="Opcional"><span class="hint">Vacío = el costo con riego de la base de Irrigar. Con dato, la energía sale de los mm que pide cada cultivo en este campo.</span></div>
+            </div>
+            <div class="form-grid" id="pInvPartes" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
+              <div class="field"><label>Equipos de riego (US$)</label><input type="number" class="pInvParte" data-k="equipo" step="1000" min="0" placeholder="Pivots, cañones, goteo"></div>
+              <div class="field"><label>Pozos y bombas (US$)</label><input type="number" class="pInvParte" data-k="pozos" step="1000" min="0" placeholder="Perforación, bombas, cañerías"></div>
+              <div class="field"><label>Reservorio o tajamar (US$)</label><input type="number" class="pInvParte" data-k="reservorio" step="1000" min="0" placeholder="Excavación, lona"></div>
+              <div class="field"><label>Parte eléctrica (US$)</label><input type="number" class="pInvParte" data-k="electrica" step="1000" min="0" placeholder="Línea, transformadores, generador"></div>
+              <div class="field"><label>Obras y otros (US$)</label><input type="number" class="pInvParte" data-k="obras" step="1000" min="0" placeholder="Caseta, fertirriego, instalación"></div>
+            </div>
+            <div class="form-grid" style="margin-top:10px;">
+              <div class="field"><label>Energía del riego</label><select id="pEnergiaModo"><option value="base">De la base de Irrigar (por ha)</option><option value="mm">La cargo en US$ por mm</option><option value="calc">Calcularla (bombas y tarifa)</option></select><span class="hint">Con US$ por mm, la energía sale de los mm que pide cada cultivo en este campo.</span></div>
+              <div class="field" id="pEnergiaMmCampo" style="display:none;"><label>Energía y operación (US$ por mm por ha)</label><input type="number" id="pEnergiaMm" step="0.01" min="0" placeholder="Ej: 0,45"><span class="hint" id="pEnergiaHint"></span></div>
+            </div>
+            <div class="form-grid" id="pEnergiaCalc" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
+              <div class="field"><label>Potencia por equipo (kW)</label><input type="number" class="pEc" data-k="kw" step="any" min="0" placeholder="Bomba de pozo + bomba + pivot"><span class="hint">1 HP = 0,746 kW</span></div>
+              <div class="field"><label>Tarifa eléctrica (US$ por kWh)</label><input type="number" class="pEc" data-k="tarifa" step="0.001" min="0" placeholder="Ej: 0,047"></div>
+              <div class="field"><label>Lámina del equipo en 24 h (mm)</label><input type="number" class="pEc" data-k="lamina" step="any" min="0" placeholder="Ej: 8"></div>
+              <div class="field"><label>Hectáreas por equipo</label><input type="number" class="pEc" data-k="ha" step="any" min="0" placeholder="Ej: 80"></div>
+              <div class="field"><label>Horas de bombeo por día</label><input type="number" class="pEc" data-k="horas" step="any" min="1" max="24" placeholder="24"></div>
+              <div class="field"><label>Tiempo con generador (%)</label><input type="number" class="pEc" data-k="gen" step="any" min="0" max="100" placeholder="0"><span class="hint">Si parte del tiempo se riega con gasoil</span></div>
+              <div class="field"><label>Consumo del generador (litros por hora)</label><input type="number" class="pEc" data-k="genLh" step="any" min="0" placeholder="Ej: 31"></div>
+              <div class="field"><label>Precio del gasoil (US$ por litro)</label><input type="number" class="pEc" data-k="gasoil" step="0.01" min="0" placeholder="Ej: 1,25"></div>
             </div>
           </div>
           <div class="form-actions">
@@ -526,13 +547,48 @@
 
   /* ---------- clima del campo y riego por cultivo (SafiaClimaProyecto) ---------- */
   var ultimoRiego=[], riegoListo=false, ultimasRefs=[], refsListas=false, ultimasFilas=[], pintarRiegoOtraVez=null;
-  document.getElementById('evCampoSup').addEventListener('input',function(){ if(pintarRiegoOtraVez) pintarRiegoOtraVez(); pintarEconomia(); });
+  document.getElementById('evCampoSup').addEventListener('input',function(){ if(pintarRiegoOtraVez) pintarRiegoOtraVez(); if(typeof syncInversion==='function') syncInversion(); pintarEconomia(); });
   ['pInversion','pVidaUtil','pEnergiaMm','pSituacion'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ pintarEconomia(); }); });
+  /* Inversión por partes y energía calculada (misma cuenta que la planilla de Irrigar para Carlos Casado:
+     costo por día = horas × [(1 − generador) × kW × tarifa + generador × litros por hora × precio del gasoil];
+     US$ por mm y por ha = costo por día ÷ (lámina de 24 h × horas/24 × hectáreas del equipo)) */
+  function invPartes(){ var o={}, hay=false; document.querySelectorAll('.pInvParte').forEach(function(el){ var v=num(el.value); if(v!=null){ o[el.getAttribute('data-k')]=v; hay=true; } }); return hay?o:null; }
+  function energiaCalcDatos(){ var o={}, hay=false; document.querySelectorAll('.pEc').forEach(function(el){ var v=num(el.value); if(v!=null){ o[el.getAttribute('data-k')]=v; hay=true; } }); return hay?o:null; }
+  function energiaCalcular(c){
+    if(!c||!(c.kw>0)||!(c.tarifa>0)||!(c.lamina>0)||!(c.ha>0)) return null;
+    var h=c.horas>0?Math.min(24,c.horas):24, g=c.gen>0?Math.min(100,c.gen)/100:0;
+    if(g>0 && !(c.genLh>0 && c.gasoil>0)) return null;
+    var dia=h*((1-g)*c.kw*c.tarifa+(g>0?g*c.genLh*c.gasoil:0)), mmDia=c.lamina*h/24;
+    return { usdMmHa:dia/(mmDia*c.ha), usdDia:dia, mmDia:mmDia, kwhPorM3: c.kw/(c.lamina*10*c.ha/24) };
+  }
+  function syncInversion(){
+    var modo=$('pInvModo').value, partes=invPartes(), sup=num($('evCampoSup').value);
+    $('pInvPartes').style.display=modo==='partes'?'':'none';
+    $('pInversion').readOnly=modo==='partes';
+    if(modo==='partes'){ var t=partes?Object.keys(partes).reduce(function(a,k){ return a+partes[k]; },0):null; $('pInversion').value=t!=null?Math.round(t):''; }
+    var inv=num($('pInversion').value);
+    $('pInvHint').textContent=inv>0?(sup>0?'US$ '+fmt(inv/sup,0)+' por ha regada':'cargá las hectáreas a regar para verlo por ha')+(modo==='partes'?' · suma de las partes':''):'';
+  }
+  function syncEnergia(){
+    var modo=$('pEnergiaModo').value;
+    $('pEnergiaMmCampo').style.display=modo==='base'?'none':'';
+    $('pEnergiaCalc').style.display=modo==='calc'?'':'none';
+    $('pEnergiaMm').readOnly=modo==='calc';
+    var hint='';
+    if(modo==='calc'){ var r=energiaCalcular(energiaCalcDatos()); $('pEnergiaMm').value=r?Math.round(r.usdMmHa*1000)/1000:''; hint=r?'US$ '+fmt(r.usdDia,0)+' por día por equipo, '+fmt(r.mmDia,1)+' mm por día · '+fmt(r.kwhPorM3,2)+' kWh por m³':'completá potencia, tarifa, lámina y hectáreas'+($('pEnergiaCalc').querySelector('[data-k="gen"]').value>0?', y el consumo y el precio del gasoil':''); }
+    else if(modo==='base') $('pEnergiaMm').value='';
+    $('pEnergiaHint').textContent=hint;
+  }
+  ['pInvModo'].forEach(function(id){ $(id).addEventListener('change',function(){ syncInversion(); pintarEconomia(); }); });
+  document.querySelectorAll('.pInvParte').forEach(function(el){ el.addEventListener('input',function(){ syncInversion(); pintarEconomia(); }); });
+  $('pInversion').addEventListener('input',function(){ syncInversion(); });
+  $('pEnergiaModo').addEventListener('change',function(){ syncEnergia(); pintarEconomia(); });
+  document.querySelectorAll('.pEc').forEach(function(el){ el.addEventListener('input',function(){ syncEnergia(); pintarEconomia(); }); });
   function pintarEconomia(){
     var out=document.getElementById('rEconomia'); if(!out||!window.SafiaEconomiaRiego) return;
     if(!refsListas||!riegoListo) return;
     var r=SafiaEconomiaRiego.calcular({ cultivos: ultimasFilas.map(function(f,i){ var sim=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(f.cultivo) && (l.epoca||null)===(f.epoca||null); })||null; return { cultivo:f.cultivo, finalidad:f.finalidad, epoca:f.epoca, ref:ultimasRefs[i]||null, riego:sim }; }),
-      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:num(document.getElementById('pEnergiaMm').value), situacion:document.getElementById('pSituacion').value });
+      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), inversionPartes:document.getElementById('pInvModo').value==='partes'?invPartes():null, vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:document.getElementById('pEnergiaModo').value==='base'?null:num(document.getElementById('pEnergiaMm').value), energiaModo:document.getElementById('pEnergiaModo').value, situacion:document.getElementById('pSituacion').value });
     out.innerHTML=SafiaEconomiaRiego.html(r);
   }
   function llenarPotAgua(){ document.querySelectorAll('.pot-agua').forEach(function(el){ var x=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(el.getAttribute('data-cultivo')); }); el.textContent = x ? Math.round(x.rindeRelSecano*100)+' %' : (ultimoRiego.length ? '—' : '…'); }); }
@@ -743,6 +799,11 @@
     $('evNombre').value=ev.nombre||''; $('evNotas').value=ev.notas||'';
     if(ev.superficieHa!=null) $('evCampoSup').value=ev.superficieHa;
     $('pInversion').value=ev.inversionUSD!=null?ev.inversionUSD:''; $('pVidaUtil').value=ev.vidaUtil!=null?ev.vidaUtil:''; $('pEnergiaMm').value=ev.energiaUSDmm!=null?ev.energiaUSDmm:''; $('pSituacion').value=ev.situacion==='nuevo'?'nuevo':'secano';
+    $('pInvModo').value=ev.inversionPartes?'partes':'total';
+    document.querySelectorAll('.pInvParte').forEach(function(el){ var k=el.getAttribute('data-k'); el.value=ev.inversionPartes&&ev.inversionPartes[k]!=null?ev.inversionPartes[k]:''; });
+    $('pEnergiaModo').value=ev.energiaModo||(ev.energiaUSDmm!=null?'mm':'base');
+    document.querySelectorAll('.pEc').forEach(function(el){ var k=el.getAttribute('data-k'); el.value=ev.energiaCalc&&ev.energiaCalc[k]!=null?ev.energiaCalc[k]:''; });
+    syncInversion(); syncEnergia();
     var u=ev.ubicacion||{};
     if(u.departamento) $('pDepto').value=u.departamento; if(u.localidad) $('pLocalidad').value=u.localidad; if(u.pais) $('pPais').value=u.pais;
     if(u.lat!=null){ $('pLat').value=u.lat; $('pLon').value=u.lon; $('pGps').value=u.lat+', '+u.lon; } if(u.altitud!=null) $('pAlt').value=u.altitud;
@@ -833,7 +894,7 @@
     // nombre automático (cultivos y objetivos) mientras no se escriba uno propio
     var escrito=$('evNombre').value.trim(), auto=!escrito || (evPrev && evPrev.nombreAuto && escrito===evPrev.nombre);
     var datos={ clienteId:cliente.id, campoId:campo.id, analisisId:analisisId, nombre:auto?(nombreDef||'Estrategia'):escrito, nombreAuto:auto, notas:$('evNotas').value.trim(),
-      superficieHa:sup, inversionUSD:num($('pInversion').value), vidaUtil:num($('pVidaUtil').value), energiaUSDmm:num($('pEnergiaMm').value), situacion:$('pSituacion').value, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
+      superficieHa:sup, inversionUSD:num($('pInversion').value), inversionPartes:$('pInvModo').value==='partes'?invPartes():null, vidaUtil:num($('pVidaUtil').value), energiaModo:$('pEnergiaModo').value, energiaUSDmm:$('pEnergiaModo').value==='base'?null:num($('pEnergiaMm').value), energiaCalc:$('pEnergiaModo').value==='calc'?energiaCalcDatos():null, situacion:$('pSituacion').value, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
       cultivos:d.cultivos, suelo:d.suelo, resultados:d.resultados, aguaId:aguaId, agua:d.agua||null, aguaLectura:d.aguaLectura||null, casosEnBanco:casos.length, evaluadoPor:u.nombre||null, fechaModificacion:ahora };
     var ev=evPrev;
     if(ev) Object.assign(ev,datos); else { ev=Object.assign({ id:t0+3, fecha:ahora },datos); evs.push(ev); }
