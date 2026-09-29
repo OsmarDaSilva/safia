@@ -110,7 +110,7 @@
     <div class="modal">
       <div class="modal-titulo" id="sTitulo">Suscripción</div>
       <div class="sub" id="sSub" style="margin-bottom:12px;"></div>
-      <div class="field"><label>Vence el</label><input type="date" id="sVence"></div>
+      <div class="field"><label>Vence el</label><input type="date" id="sVence"><div id="sVenceTxt" style="font-size:13px;font-weight:700;color:#2E3236;margin-top:6px;"></div></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px;">
         <button class="btn" type="button" data-mas="12">+1 año</button>
         <button class="btn" type="button" data-mas="6">+6 meses</button>
@@ -183,7 +183,7 @@
       let h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">' +
         tarjeta(piv.length, 'Pivots en total', '#2E3236', 'todos') + tarjeta(cuenta('vigente') + cuenta('por_vencer') + cuenta('prueba'), 'Vigentes · ' + Math.round(haVig).toLocaleString('es-PY') + ' ha', '#17692A', 'vigentes') +
         tarjeta(cuenta('por_vencer'), 'Vencen en 30 días', '#B8731A', 'por_vencer') + tarjeta(cuenta('prueba'), 'En prueba', '#1B5E9A', 'prueba') + tarjeta(cuenta('vencida') + cuenta('prueba_fin'), 'Vencidas', '#C0392B', 'vencida') + tarjeta(cuenta('sin'), 'Sin suscripción', '#C0392B', 'sin') + '</div>';
-      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input type="search" id="busca" placeholder="Buscar cliente, campo o pivot" value="' + esc(busca) + '" style="max-width:320px;margin:0;"></div>';
+      h += '<div class="field" style="max-width:360px;margin-bottom:12px;"><input type="search" id="busca" placeholder="Buscar cliente, campo o pivot" value="' + esc(busca) + '"></div>';
       const vis = todas.filter(f => {
         if (filtro === 'vigentes' && !(f.clave === 'vigente' || f.clave === 'por_vencer' || f.clave === 'prueba')) return false;
         if (filtro === 'vencida' && !(f.clave === 'vencida' || f.clave === 'prueba_fin')) return false;
@@ -266,8 +266,21 @@
       $('sVence').value = reg.vence || ''; $('sPlan').value = reg.plan || 'Anual'; $('sNotas').value = reg.notas || '';
       const hi = (reg.historial || []).slice(-5).reverse();
       $('sHistorial').innerHTML = hi.length ? '<b>Historial:</b><br>' + hi.map(x => fecha(x.fecha) + ' · ' + esc(x.accion) + (x.vence ? ' hasta el ' + fecha(x.vence) : ' sin fecha') + ' · ' + esc(x.por || '')).join('<br>') : '';
+      pintarVence();
       $('modalSusc').classList.add('visible');
     }
+    // La fecha en palabras (el calendario muestra día/mes o mes/día según la computadora)
+    const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'], MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    function enPalabras(iso) { const d = new Date(iso + 'T12:00:00'); return DIAS[d.getDay()] + ' ' + d.getDate() + ' de ' + MESES[d.getMonth()] + ' de ' + d.getFullYear(); }
+    function pintarVence() {
+      const v = $('sVence').value, t = $('sVenceTxt'); if (!t) return;
+      if (!v) { t.textContent = 'Sin fecha: queda vigente hasta que cargues una.'; t.style.color = '#4A5157'; return; }
+      const d = S().dias(S().hoy(), v);
+      t.textContent = 'Vence el ' + enPalabras(v) + (d > 0 ? ' (en ' + d + ' día' + (d === 1 ? '' : 's') + ')' : d === 0 ? ' (hoy)' : ' (ya pasó: queda bloqueado)');
+      t.style.color = d < 0 ? '#C0392B' : '#17692A';
+    }
+    $('sVence').addEventListener('input', pintarVence); $('sVence').addEventListener('change', pintarVence);
+    document.addEventListener('click', (ev) => { if (ev.target.closest && ev.target.closest('#modalSusc [data-mas], #modalSusc [data-dias], #sSinFecha')) setTimeout(pintarVence, 0); });
     function cerrar() { $('modalSusc').classList.remove('visible'); editando = null; }
     document.querySelectorAll('[data-mas]').forEach(b => b.addEventListener('click', () => { const v = $('sVence').value, base = v && v >= S().hoy() ? v : S().hoy(); $('sVence').value = sumarMeses(base, parseInt(b.dataset.mas, 10)); }));
     $('sSinFecha').addEventListener('click', () => { $('sVence').value = ''; });
@@ -275,7 +288,8 @@
     $('sCancelar').addEventListener('click', cerrar);
     $('sGuardar').addEventListener('click', () => {
       if (!editando) return; const v = $('sVence').value || null;
-      guardar(editando, { vence: v, plan: $('sPlan').value, notas: $('sNotas').value.trim() }, 'editada');
+      let notas = $('sNotas').value.trim(); if (v && notas === 'Vigente sin fecha: cargar el vencimiento real') notas = '';
+      guardar(editando, { vence: v, plan: $('sPlan').value, notas: notas }, 'editada');
       toast(nombrePivot(editando) + ': ' + (v ? 'vence el ' + fecha(v) : 'vigente sin fecha')); cerrar();
     });
     $('sBaja').addEventListener('click', () => {
