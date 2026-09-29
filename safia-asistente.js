@@ -175,9 +175,9 @@
       r.campanas_anteriores_del_lote = ant.slice(0, 6).map(function (k) { return { campana: k.campana, variedad: k.variedad || null, siembra: k.siembra, rinde_kg_ha: r0(k.rindeKgHa), lluvia_mm: r0(k.lluviaMM), riego_mm: r0(k.riegoMM), dias_ciclo: k.dias }; });
       var rs = ant.map(function (k) { return num(k.rindeKgHa); }).filter(function (v) { return v; });
 
-      // 7) El mejor lote de la zona: mismo cultivo, finalidad, época y régimen de agua (sin nombres de otros productores)
+      // 7) El mejor lote de la zona: de OTROS productores (no del mismo cliente), mismo cultivo, finalidad, época y régimen de agua, sin nombres
       var ep = C() ? C().epocaDeSiembra(siembra) : null, conRiego = !(window.SafiaBalance && SafiaBalance.esSecano(e));
-      var zona = c && C() ? casos().filter(function (k) { return String(k.equipoId) !== String(e.id) && mismoCultivo(k.cultivo, cu.cultivo) && (!ep || k.epoca === ep) && (k.riego !== false) === conRiego && C().normLoc(k.localidad) === C().normLoc(c.localidad) && C().grupoFinalidad(k.cultivo, k.finalidad) === C().grupoFinalidad(cu.cultivo, cu.finalidad); }) : [];
+      var zona = c && C() ? casos().filter(function (k) { return String(k.equipoId) !== String(e.id) && (c.clienteId == null || String(k.clienteId) !== String(c.clienteId)) && mismoCultivo(k.cultivo, cu.cultivo) && (!ep || k.epoca === ep) && (k.riego !== false) === conRiego && C().normLoc(k.localidad) === C().normLoc(c.localidad) && C().grupoFinalidad(k.cultivo, k.finalidad) === C().grupoFinalidad(cu.cultivo, cu.finalidad); }) : [];
       zona.sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
       r.mejores_de_la_zona = { ambito: c ? (c.localidad || c.departamento) : null, epoca: ep, con_riego: conRiego, casos: zona.length, mejores: zona.slice(0, 3).map(function (k) { return { quien: 'Lote de ' + (k.localidad || k.departamento || 'la zona') + ' (sin nombre: regla de SAFIA)', variedad: k.variedad || null, siembra: k.siembra, rinde_kg_ha: r0(k.rindeKgHa), agua_total_mm: r0(k.aguaTotalMM) }; }) };
 
