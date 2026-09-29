@@ -544,7 +544,7 @@
     sub.textContent='coordenada '+base.lat+', '+base.lon;
     out.innerHTML='<div class="muted" style="padding:10px 0;">Trayendo la lluvia diaria de los últimos 10 años (CHIRPS, tarda unos segundos) y el clima de la coordenada, y simulando cada zafra…</div>';
     SafiaClimaProyecto.historico(base.lat, base.lon).then(function(h){
-      var opcs=filas.map(function(f){ return { cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo }; });
+      var opcs=filas.map(function(f){ return { cultivo:f.cultivo, epoca:f.epoca, siembra:f.siembra, suelo:base.suelo, departamento:document.getElementById('pDepto').value.trim()||null, lat:base.lat, lon:base.lon }; });
       var lista=opcs.map(function(o){ return SafiaClimaProyecto.riego(h,o); });
       ultimoRiego=lista; riegoListo=true; setTimeout(llenarPotAgua,0); pintarEconomia();
       sub.textContent=h.resumen.desde+'–'+h.resumen.hasta+' · '+h.fuente;

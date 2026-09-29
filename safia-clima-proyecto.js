@@ -116,6 +116,76 @@
     if (ta && ta.t) return { t: ta.t, clase: ta.clase, supuesto: false };
     return { t: b.texturaPorClave('franco'), supuesto: true };
   }
+  /* ---------- secano realista: el productor de secano siembra cuando el perfil está cargado ----------
+     Sin riego no se siembra en la fecha del riego: se espera a que las lluvias carguen el perfil.
+     Criterio (Fundación IDEAGRO, Guía de Producción Sostenible de Cultivos Extensivos para el Chaco Paraguayo, 2025,
+     caps. 2-4): sembrar con humedad en el perfil de al menos 0,8 m (ideal 1,5 m) y con la humedad de la superficie unida a la
+     del perfil (lluvia reciente). Ventanas del Chaco Central (Boquerón): soja 15/12–15/03 (óptima 15/01–15/02), maíz
+     15/01–28/02; antes, el calor de enero es "altamente riesgoso". Fuera de Boquerón: desde la fecha elegida, esperando la
+     carga del perfil hasta 75 días.
+     Barbecho: desde el 1 de julio con el perfil seco (después de la cosecha anterior). La lluvia moja primero la capa de
+     superficie (10 cm) y lo que sobra baja al perfil; la superficie se seca por evaporación de suelo desnudo en dos etapas
+     (FAO-56, cap. 7: Ke ≈ 1,05 con suelo mojado, Kr = (TEW − De)/(TEW − REW), REW y TEW de la Tabla 19 según la textura).
+     El agua que bajó al perfil no se evapora. Profundidad mojada = 0,10 m + agua del perfil ÷ agua útil por metro. No
+     considera rastrojo (con cobertura se evapora menos y el perfil se carga antes). */
+  var EVAP_SUELO = {   // FAO-56 Tabla 19 (Ze = 0,10 m), punto medio de cada rango: [REW, TEW] en mm
+    arenoso: [4.5, 9], franco_arenoso: [8, 17.5], franco: [9, 19], franco_arcilloso: [9.5, 24.5], arcilloso: [10, 25.5],
+    franco_limoso: [9.5, 21.5], limoso: [9.5, 24], franco_arcillo_limoso: [9.5, 24.5], arcillo_limoso: [10, 25]
+  };
+  var PERFIL_MIN_M = 0.8;   // IDEAGRO 2025: humedad mínima en el perfil para sembrar
+  function esBoqueron(o) {
+    if (o.departamento) return /boquer/.test(norm(o.departamento));
+    var la = num(o.lat), lo = num(o.lon); if (la == null || lo == null) return false;
+    var dy = (la + 22.35) * 111, dx = (lo + 60.03) * 111 * Math.cos(22.35 * Math.PI / 180);   // a menos de 150 km de Filadelfia
+    return Math.sqrt(dx * dx + dy * dy) <= 150;
+  }
+  function sumarDiasISO(s, n) { var d = new Date(s + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function ventanaSecano(o, cu, dm, y) {
+    // temporada: soja/maíz de verano o zafriña se siembran entre agosto y marzo; s = año en que arranca el barbecho
+    var verano = dm.m >= 8 || dm.m <= 3, s = dm.m >= 8 ? y : y - 1;
+    var elegida = y + '-' + String(dm.m).padStart(2, '0') + '-' + String(dm.d).padStart(2, '0');
+    if (verano && esBoqueron(o) && (cu === 'soja' || cu === 'maiz')) {
+      return cu === 'soja' ? { barbecho: s + '-07-01', desde: s + '-12-15', hasta: (s + 1) + '-03-15', fuente: 'ideagro' }
+                           : { barbecho: s + '-07-01', desde: (s + 1) + '-01-15', hasta: (s + 1) + '-02-28', fuente: 'ideagro' };
+    }
+    return { barbecho: verano ? s + '-07-01' : y + '-01-01', desde: elegida, hasta: sumarDiasISO(elegida, 75), fuente: 'perfil' };
+  }
+  function secanoRealista(hist, o, kcDef, cu, theta, tx, dm, largo, ky, idx) {
+    var b = B(), ev = EVAP_SUELO[tx.t.k] || EVAP_SUELO.franco, REW = ev[0], TEW = ev[1], aguaPorM = theta * 1000;
+    var porAnio = {};
+    for (var y = hist.desde; y <= hist.hasta; y++) {
+      var v = ventanaSecano(o, cu, dm, y);
+      var i = idx[v.barbecho]; if (i == null) i = 0;
+      var iFin = idx[v.hasta]; if (iFin == null) continue;   // la ventana tiene que entrar en los 10 años
+      var De = TEW, W = 0, Wmax = aguaPorM * 1.4, iSiembra = null, prof = 0;
+      for (; i <= iFin; i++) {
+        var P = hist.lluvia[i] || 0, e0 = hist.et0[i] || 0;
+        // la lluvia primero moja la superficie; lo que sobra baja al perfil (hasta 1,5 m; lo demás drena)
+        var aSup = Math.min(P, De); De -= aSup; W = Math.min(Wmax, W + (P - aSup));
+        var Kr = De <= REW ? 1 : Math.max(0, (TEW - De) / (TEW - REW));
+        De = Math.min(TEW, De + Kr * 1.05 * e0);
+        prof = 0.10 + W / aguaPorM;
+        if (hist.time[i] >= v.desde && prof >= PERFIL_MIN_M && De <= REW) { iSiembra = i; break; }
+      }
+      if (iSiembra == null) { porAnio[y] = { sembro: false, rel: 0, fecha: null, ventana: v }; continue; }
+      if (iSiembra + largo > hist.time.length) continue;
+      // cultivo en secano desde la siembra, con el perfil cargado hasta 'prof' (la raíz que baja más allá encuentra suelo seco)
+      var dr = 0, etc = 0, eta = 0, zPrev = null;
+      for (var d = 0; d < largo; d++) {
+        var k2 = iSiembra + d, prm = b.parametrosDia(cu, kcDef, d, theta, hist.et0[k2] || 0, {});
+        if (zPrev != null && prm.zr > zPrev) dr += aguaPorM * Math.max(0, prm.zr - Math.max(zPrev, prof));
+        zPrev = prm.zr;
+        var r = b.pasoDia(Math.min(dr, prm.taw), prm, hist.lluvia[k2] || 0); dr = r.dr; eta += r.eta; etc += prm.etc;
+      }
+      porAnio[y] = { sembro: true, fecha: hist.time[iSiembra], rel: etc > 0 ? Math.max(0, 1 - ky * (1 - eta / etc)) : 1, falta: etc - eta, perfilM: prof, ventana: v };
+    }
+    var anios = Object.keys(porAnio); if (!anios.length) return null;
+    var sembrados = anios.filter(function (a) { return porAnio[a].sembro; });
+    var doy = sembrados.map(function (a) { var t = new Date(porAnio[a].fecha + 'T12:00:00Z'), ini = new Date(Date.UTC(+porAnio[a].ventana.barbecho.slice(0, 4), 6, 1)); return Math.round((t - ini) / 864e5); }).sort(function (p, q) { return p - q; });
+    var fechaDe = function (n) { var t = new Date(Date.UTC(2001, 6, 1) + n * 864e5); return String(t.getUTCDate()).padStart(2, '0') + '/' + String(t.getUTCMonth() + 1).padStart(2, '0'); };
+    return { porAnio: porAnio, n: anios.length, nSembro: sembrados.length, fuente: porAnio[anios[0]].ventana.fuente,
+      fechaTipica: doy.length ? fechaDe(doy[Math.floor(doy.length / 2)]) : null, fechaPrimera: doy.length ? fechaDe(doy[0]) : null, fechaUltima: doy.length ? fechaDe(doy[doy.length - 1]) : null };
+  }
   function riego(hist, o) {
     var b = B(); if (!b || !hist) return null;
     o = o || {};
@@ -152,13 +222,18 @@
       zafras.push({ anio: y, etiqueta: perenne ? String(y) : (dm.m >= 7 ? y + '/' + String(y + 1).slice(2) : String(y)), inicio: ini, lluvia: lluvia, lluviaEfectiva: lluviaEf, etc: etc, riegoNeto: riegoNeto, riegoBruto: riegoNeto / efic, riegos: nR, faltaSecano: etc - etaS, rindeRelSecano: rel, pico7: pico7, porMesNeto: porMes });
     }
     if (!zafras.length) return { error: 'no hay zafras completas en los 10 años de clima' };
+    // secano realista (no para pasturas perennes): reemplaza la comparación "sin riego en la misma fecha"
+    var sec = perenne ? null : secanoRealista(hist, o, kcDef, cu, theta, tx, dm, largo, ky, idx);
+    if (sec) {
+      zafras.forEach(function (z) { var s = sec.porAnio[z.anio]; if (s) { z.rindeRelSecano = s.rel; z.faltaSecano = s.sembro ? s.falta : null; z.secanoSiembra = s.fecha; z.secanoSembro = s.sembro; } });
+    }
     var prom = function (k) { return zafras.reduce(function (a, z) { return a + z[k]; }, 0) / zafras.length; };
     var peor = zafras.reduce(function (a, z) { return z.riegoNeto > a.riegoNeto ? z : a; });
     var ord = zafras.map(function (z) { return z.riegoNeto; }).sort(function (a, b2) { return a - b2; });
     var p80 = ord[Math.min(ord.length - 1, Math.ceil(0.8 * ord.length) - 1)];   // 8 de cada 10 zafras necesitan esto o menos
-    return { cultivo: o.cultivo, epoca: o.epoca || null, siembra: String(dm.d).padStart(2, '0') + '/' + String(dm.m).padStart(2, '0'), perenne: perenne, dias: largo, textura: tx.t.nombre, texturaSupuesta: tx.supuesto, eficiencia: efic, ky: ky, kyPropio: kyPropio,
+    return { cultivo: o.cultivo, epoca: o.epoca || null, departamento: o.departamento || null, siembra: String(dm.d).padStart(2, '0') + '/' + String(dm.m).padStart(2, '0'), perenne: perenne, dias: largo, textura: tx.t.nombre, texturaSupuesta: tx.supuesto, eficiencia: efic, ky: ky, kyPropio: kyPropio,
       zafras: zafras, n: zafras.length, lluvia: prom('lluvia'), lluviaEfectiva: prom('lluviaEfectiva'), etc: prom('etc'), riegoNeto: prom('riegoNeto'), riegoBruto: prom('riegoBruto'), riegoNetoP80: p80, riegoBrutoP80: p80 / efic,
-      peor: peor, pico7: Math.max.apply(null, zafras.map(function (z) { return z.pico7; })), rindeRelSecano: prom('rindeRelSecano'), rindeRelSecanoMin: Math.min.apply(null, zafras.map(function (z) { return z.rindeRelSecano; })),
+      peor: peor, pico7: Math.max.apply(null, zafras.map(function (z) { return z.pico7; })), rindeRelSecano: prom('rindeRelSecano'), secano: sec ? { fuente: sec.fuente, nSembro: sec.nSembro, n: sec.n, fechaTipica: sec.fechaTipica, fechaPrimera: sec.fechaPrimera, fechaUltima: sec.fechaUltima } : null, rindeRelSecanoMin: Math.min.apply(null, zafras.map(function (z) { return z.rindeRelSecano; })),
       // riego bruto promedio de cada mes calendario (mm), para prever el agua mes a mes
       porMesBruto: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(function (i) { return zafras.reduce(function (a, z) { return a + z.porMesNeto[i]; }, 0) / zafras.length / efic; }) };
   }
@@ -189,7 +264,7 @@
           '<td class="r" style="white-space:normal;min-width:150px;"><b>' + fmt(x.riegoNeto, 0) + ' mm</b><div class="sub">8 de cada 10: hasta ' + fmt(x.riegoNetoP80, 0) + '<br>peor ' + fmt(x.peor.riegoNeto, 0) + ' (' + esc(x.peor.etiqueta) + ')</div></td>' +
           '<td class="r"><b>' + fmt(x.riegoBruto, 0) + ' mm</b><div class="sub">eficiencia ' + fmt(x.eficiencia * 100, 0) + ' %</div></td>' +
           '<td class="r" style="white-space:normal;">' + fmt(x.pico7, 1) + ' mm/día<div class="sub">promedio de 7 días</div></td>' +
-          '<td class="r" style="white-space:normal;min-width:130px;"><b style="color:' + (x.rindeRelSecano < 0.8 ? '#B3261E' : '#8B6F00') + ';">' + fmt(x.rindeRelSecano * 100, 0) + ' %</b><div class="sub">del potencial · peor zafra ' + fmt(x.rindeRelSecanoMin * 100, 0) + ' %</div></td></tr>';
+          '<td class="r" style="white-space:normal;min-width:170px;"><b style="color:' + (x.rindeRelSecano < 0.8 ? '#B3261E' : '#8B6F00') + ';">' + fmt(x.rindeRelSecano * 100, 0) + ' %</b><div class="sub">del potencial · peor zafra ' + fmt(x.rindeRelSecanoMin * 100, 0) + ' %' + (x.secano ? (x.secano.nSembro ? '<br>en secano se siembra ~' + esc(x.secano.fechaTipica) + (x.secano.nSembro < x.secano.n ? '<br>' + (x.secano.n - x.secano.nSembro) + ' de ' + x.secano.n + ' años no se pudo sembrar' : '') : '<br>en secano no se pudo sembrar ningún año: el perfil no se carga') : '') + '</div></td></tr>';
       }).join('') + '</tbody></table></div></div>';
     // volúmenes de agua a prever para la superficie del proyecto (1 mm sobre 1 ha = 10 m³); el diseño de pozos y reservorio es del proyecto
     var ha = num(op.superficieHa), M = function (mm) { return ha > 0 ? fmt(mm * 10 * ha, 0) + ' m³' : fmt(mm, 0) + ' mm'; };
@@ -228,7 +303,7 @@
     // detalle por zafra
     h += ok.map(function (x) {
       return '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;">Zafra por zafra: ' + esc(x.cultivo) + '</summary><div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>' + (x.perenne ? 'Año' : 'Zafra') + '</th><th class="r">Lluvia</th><th class="r">ETc</th><th class="r">Riego neto</th><th class="r">Riego bruto</th><th class="r">Sin riego rendiría</th></tr></thead><tbody>' +
-        x.zafras.map(function (z) { return '<tr><td>' + esc(z.etiqueta) + '<div class="sub">desde ' + esc(z.inicio.split('-').reverse().join('/')) + '</div></td><td class="r">' + fmt(z.lluvia, 0) + '</td><td class="r">' + fmt(z.etc, 0) + '</td><td class="r"><b>' + fmt(z.riegoNeto, 0) + '</b></td><td class="r">' + fmt(z.riegoBruto, 0) + '</td><td class="r">' + fmt(z.rindeRelSecano * 100, 0) + ' %</td></tr>'; }).join('') +
+        x.zafras.map(function (z) { return '<tr><td>' + esc(z.etiqueta) + '<div class="sub">desde ' + esc(z.inicio.split('-').reverse().join('/')) + '</div></td><td class="r">' + fmt(z.lluvia, 0) + '</td><td class="r">' + fmt(z.etc, 0) + '</td><td class="r"><b>' + fmt(z.riegoNeto, 0) + '</b></td><td class="r">' + fmt(z.riegoBruto, 0) + '</td><td class="r">' + fmt(z.rindeRelSecano * 100, 0) + ' %' + (z.secanoSembro === false ? '<div class="sub">no se pudo sembrar</div>' : (z.secanoSiembra ? '<div class="sub">siembra ' + esc(z.secanoSiembra.slice(8, 10) + '/' + z.secanoSiembra.slice(5, 7)) + '</div>' : '')) + '</td></tr>'; }).join('') +
         '</tbody></table></div></div></details>';
     }).join('');
     var kyGen = ok.filter(function (x) { return !x.kyPropio; });
@@ -236,7 +311,7 @@
     var sinKc = lista.filter(function (x) { return x && x.error; });
     if (sinKc.length) h += '<div class="note" style="margin-top:8px;">' + sinKc.map(function (x) { return esc(x.error); }).join('<br>') + '.</div>';
     var supuesto = ok.some(function (x) { return x.texturaSupuesta; });
-    h += '<div class="muted" style="font-size:11px;margin-top:8px;line-height:1.5;">Simulación día por día de cada zafra con el clima real de la coordenada (FAO-56: Kc por etapa del catálogo FAO de SAFIA, raíz que crece, agua disponible del suelo ' + (supuesto ? '<b>franco supuesto (falta el análisis con arcilla)</b>' : esc(ok[0].textura.toLowerCase()) + ' según el análisis') + ', riego cuando se consume el agua fácilmente disponible). Riego neto = lo que tiene que llegar al suelo; bruto = neto ÷ eficiencia del equipo. "Sin riego rendiría" = rinde relativo por falta de agua en secano (FAO-33, Ky del cultivo); no incluye otras pérdidas. No incluye escurrimiento ni napa. El pico define el caudal: 1 mm sobre 1 ha son 10 m³.</div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:8px;line-height:1.5;">Simulación día por día de cada zafra con el clima real de la coordenada (FAO-56: Kc por etapa del catálogo FAO de SAFIA, raíz que crece, agua disponible del suelo ' + (supuesto ? '<b>franco supuesto (falta el análisis con arcilla)</b>' : esc(ok[0].textura.toLowerCase()) + ' según el análisis') + ', riego cuando se consume el agua fácilmente disponible). Riego neto = lo que tiene que llegar al suelo; bruto = neto ÷ eficiencia del equipo. "Sin riego rendiría" = rinde relativo por falta de agua en secano (FAO-33, Ky del cultivo); no incluye otras pérdidas. En secano la siembra no es en la fecha del riego: se espera a tener el perfil mojado al menos 0,8 m y la superficie húmeda (Fundación IDEAGRO, guía para el Chaco 2025); en Boquerón dentro de su ventana (soja 15/12–15/03, maíz 15/01–28/02), en otras zonas desde la fecha elegida hasta 75 días después. El perfil se carga en el barbecho desde el 1 de julio, con la evaporación del suelo desnudo de FAO-56 (Tabla 19); con rastrojo se carga antes. Si el perfil no se carga en la ventana, ese año no se siembra (0 %). No incluye escurrimiento ni napa. El pico define el caudal: 1 mm sobre 1 ha son 10 m³.</div>';
     return h;
   }
   // Riego anual bruto de todo el proyecto (para el cálculo de yeso y ácido del análisis de agua)

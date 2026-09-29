@@ -49,9 +49,17 @@
       // rindes
       f.kgR = ref.riego;
       if (ref.secano) { f.kgS = ref.secano; f.secanoDe = 'zona en secano'; }
-      else if (sim) { f.kgS = Math.round(ref.riego * sim.rindeRelSecano); f.secanoDe = 'estimado con el clima del campo (FAO-33)'; }
+      else if (sim) {
+        f.kgS = Math.round(ref.riego * sim.rindeRelSecano); f.secanoDe = 'estimado con el clima del campo (FAO-33)';
+        // años en que el perfil no se cargó y en secano no se siembra: sin ingreso y sin costo del cultivo
+        if (sim.secano && sim.secano.n) {
+          f.fracSembro = sim.secano.nSembro / sim.secano.n;
+          if (f.fracSembro < 1) f.secanoDe += '; en ' + (sim.secano.n - sim.secano.nSembro) + ' de ' + sim.secano.n + ' años el perfil no se carga y no se siembra (sin ingreso ni costo del cultivo)';
+        }
+      }
       else { f.error = 'sin dato de secano en la zona ni simulación del clima'; return f; }
       f.kgSseco = sim ? Math.round(ref.riego * sim.rindeRelSecanoMin) : null;
+      f.secoNoSembro = !!(sim && sim.zafras && sim.zafras.some(function (z) { return z.secanoSembro === false; }));
       // costos con riego (base) y energía por mm si se cargó
       var cr = ref.costosRiego, cR = { insumos: cr.insumos || 0, maquinas: cr.maquinas || 0, fletes: cr.fletes || 0, alquiler: cr.alquiler || 0, energia: cr.energia || 0, mant: cr.mant || 0 };
       if (eMm != null && sim) { cR.energia = sim.riegoBruto * eMm; f.energiaDe = fmt(sim.riegoBruto, 0) + ' mm × US$ ' + fmt(eMm, 2); }
@@ -67,7 +75,9 @@
       f.cR = cR; f.cS = cS; f.totalR = total(cR); f.totalS = total(cS);
       f.ingR = f.kgR / 1000 * f.precio; f.ingS = f.kgS / 1000 * f.precio;
       f.margenR = f.ingR - f.totalR; f.margenS = f.ingS - f.totalS; f.agrega = f.margenR - f.margenS;
-      if (f.kgSseco != null) { f.ingSseco = f.kgSseco / 1000 * f.precio; f.margenSseco = f.ingSseco - f.totalS; f.agregaSeco = f.margenR - f.margenSseco; }
+      // secano estimado con años sin sembrar: el costo solo corre en los años que se siembra
+      if (f.fracSembro != null && f.fracSembro < 1) { f.margenS = f.ingS - f.totalS * f.fracSembro; f.agrega = f.margenR - f.margenS; }
+      if (f.kgSseco != null) { f.ingSseco = f.kgSseco / 1000 * f.precio; f.margenSseco = f.secoNoSembro ? 0 : f.ingSseco - f.totalS; f.agregaSeco = f.margenR - f.margenSseco; }
       return f;
     });
     var ok = filas.filter(function (f) { return !f.error; });
@@ -107,8 +117,9 @@
       h += fila(k[1], usd(-a), usd(-b), difCelda(-a, -b), sub);
     });
     h += fila('<b>Costo total</b>', '<b>' + usd(-f.totalR) + '</b>', '<b>' + usd(-f.totalS) + '</b>', difCelda(-f.totalR, -f.totalS), f.costosSecanoDe !== 'zona en secano' ? 'secano: ' + f.costosSecanoDe : '');
+    if (f.fracSembro != null && f.fracSembro < 1) h += fila('Costo en secano promediado', '', usd(-f.totalS * f.fracSembro), '', 'solo se gasta en los años que se siembra (' + fmt(f.fracSembro * 100, 0) + ' % de los años)');
     h += '<tr style="background:#F4FAF5;"><td><b>Margen</b></td><td class="r"><b style="color:' + (f.margenR >= 0 ? '#178029' : '#B3261E') + ';">' + usd(f.margenR) + '</b></td><td class="r"><b>' + usd(f.margenS) + '</b></td><td class="r"><b style="color:' + (f.agrega >= 0 ? '#178029' : '#B3261E') + ';">' + (f.agrega >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(f.agrega), 0) + '</b></td></tr>';
-    if (f.margenSseco != null) h += '<tr><td>Margen en un año seco<div class="sub">la peor zafra de 10 en este campo</div></td><td class="r">' + usd(f.margenR) + '</td><td class="r">' + usd(f.margenSseco) + '<div class="sub">' + fmt(f.kgSseco, 0) + ' kg</div></td><td class="r"><b>' + (f.agregaSeco >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(f.agregaSeco), 0) + '</b></td></tr>';
+    if (f.margenSseco != null) h += '<tr><td>Margen en un año seco<div class="sub">la peor zafra de 10 en este campo</div></td><td class="r">' + usd(f.margenR) + '</td><td class="r">' + usd(f.margenSseco) + '<div class="sub">' + (f.secoNoSembro ? 'ese año no se siembra' : fmt(f.kgSseco, 0) + ' kg') + '</div></td><td class="r"><b>' + (f.agregaSeco >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(f.agregaSeco), 0) + '</b></td></tr>';
     return h + '</tbody></table></div></div></div>';
   }
 
