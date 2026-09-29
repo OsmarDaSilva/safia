@@ -30,7 +30,7 @@
 
   /* ---------- menú y permisos por rol ---------- */
   var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'backup.html', 'precios.html'];
-  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html'];
+  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html'];
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
     if (rol === 'operador' || rol === 'encargado') return PAGINAS_OPERADOR.indexOf(pag) < 0;   // el encargado ve lo mismo que el operador
