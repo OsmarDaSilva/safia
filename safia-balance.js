@@ -214,6 +214,7 @@
       if (opciones.sinPedir) return;
       return Promise.all(lista.map(function (e) {
         if (!e.poligono || !e.poligono.partes || !e.campoId) return null;
+        if (root.SafiaSuscripcion && !root.SafiaSuscripcion.puedeCargar(e.id)) return null;   // suscripción vencida: sin pasadas nuevas
         var serie = leerLS('ndvi_' + String(e.id)), ult = serie.length ? String(serie[serie.length - 1].fecha).slice(0, 10) : null, marca = 'ndvi_pedido_' + String(e.id);
         if (ult && diasEntre(ult, hoy) <= 4) return null;
         try { if (localStorage.getItem(marca) === hoy) return null; localStorage.setItem(marca, hoy); } catch (x) { return null; }

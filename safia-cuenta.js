@@ -29,7 +29,7 @@
   var usuario = null, abierto = false;
 
   /* ---------- menú y permisos por rol ---------- */
-  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'backup.html', 'precios.html'];
+  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'backup.html', 'precios.html', 'suscripciones.html'];
   var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html'];
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
@@ -231,7 +231,63 @@
     }
     pill.onclick = function () { abierto ? cerrarMenu() : abrirMenu(); };
     franja();
+    suscripcionEnPantalla(usuario);
   }
+
+  /* ---------- Suscripciones por pivot: enlace del menú (Irrigar) y aviso arriba de la pantalla ---------- */
+  var ICO_SUSC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg>';
+  function enlaceSuscripciones(u) {
+    if (!u || !esAlto(u)) return;
+    var poner = function () {
+      document.querySelectorAll('aside a[href="usuarios.html"], nav a[href="usuarios.html"], .sidebar a[href="usuarios.html"]').forEach(function (a) {
+        if (a.parentNode.querySelector('a[href="suscripciones.html"]')) return;
+        var n = a.cloneNode(true); n.setAttribute('href', 'suscripciones.html'); n.classList.remove('active'); n.classList.remove('activo');
+        if (paginaActual().replace(/\.html$/, '') === 'suscripciones') n.classList.add(a.classList.contains('sidebar-link') ? 'activo' : 'active');
+        var svg = n.querySelector('svg'); if (svg) { var cls = svg.getAttribute('class'); svg.outerHTML = cls ? ICO_SUSC.replace('<svg ', '<svg class="' + cls + '" ') : ICO_SUSC; }
+        var spans = n.querySelectorAll('span'), etiqueta = null;
+        for (var i = spans.length - 1; i >= 0; i--) { if (!spans[i].querySelector('svg') && !spans[i].className) { etiqueta = spans[i]; break; } }
+        if (etiqueta) etiqueta.textContent = 'Suscripciones';
+        else { for (var j = n.childNodes.length - 1; j >= 0; j--) { if (n.childNodes[j].nodeType === 3 && n.childNodes[j].textContent.trim()) { n.childNodes[j].textContent = 'Suscripciones'; break; } } }
+        a.parentNode.insertBefore(n, a.nextSibling);
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', poner); else poner();
+  }
+  // Aviso: pivots vencidos, sin suscripción o que vencen en 30 días (el cliente, en todas sus pantallas; Irrigar, en el Inicio)
+  function avisoSuscripcion(u) {
+    var S = window.SafiaSuscripcion; if (!u || !S || !S.activa()) return;
+    var alto = esAlto(u), pag = paginaActual().replace(/\.html$/, '') || 'index';
+    if (alto && pag !== 'index') return;
+    if (pag === 'suscripciones' || pag === 'login') return;
+    var hoyK = S.hoy(), cerrado = null; try { cerrado = localStorage.getItem('safia_susc_aviso'); } catch (e) {}
+    var av = S.avisos(); if (!av.length) { var v0 = $('safiaSuscAviso'); if (v0) v0.remove(); return; }
+    var vencidos = av.filter(function (x) { return !x.estado.vigente; }), porVencer = av.filter(function (x) { return x.estado.vigente; });
+    // el aviso de 'por vencer' se puede cerrar por el día; el de vencido vuelve en cada pantalla
+    if (!vencidos.length && cerrado === hoyK) return;
+    var campos = leer('campos'), nombre = function (x) { var c = campos.find(function (k) { return String(k.id) === String(x.equipo.campoId); }); return esc((c ? c.nombre + ' · ' : '') + (x.equipo.nombre || 'pivot')); };
+    var linea = function (x) { var e = x.estado; return '<b>' + nombre(x) + '</b>: ' + (e.sinSuscripcion ? 'sin suscripción' : !e.vigente ? 'vencida el ' + S.fecha(e.vence) : 'vence el ' + S.fecha(e.vence) + (e.dias === 0 ? ' (hoy)' : ' (en ' + e.dias + ' día' + (e.dias === 1 ? '' : 's') + ')')); };
+    var rojo = vencidos.length > 0, d = $('safiaSuscAviso');
+    if (!d) { d = document.createElement('div'); d.id = 'safiaSuscAviso'; }
+    d.style.cssText = 'margin:0 0 14px;padding:12px 14px;border-radius:12px;font:500 13px/1.5 system-ui,sans-serif;display:flex;gap:12px;align-items:flex-start;' + (rojo ? 'background:#FDECEA;border:1px solid #F5C2BC;color:#7A1F16;' : 'background:#FFF6E0;border:1px solid #F1D48A;color:#6B4A00;');
+    var titulo = alto ? 'Suscripciones de clientes' : (rojo ? 'Suscripción vencida' : 'Tu suscripción vence pronto');
+    var texto = alto ? 'Revisá y renová en Suscripciones.' : (rojo ? 'En esos pivots podés ver todo lo cargado, pero no cargar datos nuevos, análisis, metas ni comparativos. Para renovar, hablá con Irrigar.' : 'Para no cortar el seguimiento, renovala con Irrigar antes de esa fecha.');
+    d.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px;"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M12 14v2"/></svg>' +
+      '<div style="flex:1;"><div style="font-weight:800;margin-bottom:2px;">' + titulo + '</div>' + vencidos.concat(porVencer).slice(0, 6).map(linea).join('<br>') + (av.length > 6 ? '<br>y ' + (av.length - 6) + ' más' : '') +
+      '<div style="margin-top:4px;">' + texto + (alto ? ' <a href="suscripciones.html" style="color:inherit;font-weight:700;">Ir a Suscripciones</a>' : '') + '</div></div>' +
+      (rojo && !alto ? '' : '<a href="#" id="safiaSuscCerrar" style="color:inherit;font-weight:700;text-decoration:none;flex:none;">Cerrar</a>');
+    if (!d.parentNode) {
+      var main = document.querySelector('main.main, main, .enc-wrap, .contenido, .content');
+      if (main) main.insertBefore(d, main.firstChild); else document.body.insertBefore(d, document.body.firstChild);
+    }
+    var x = $('safiaSuscCerrar'); if (x) x.addEventListener('click', function (ev) { ev.preventDefault(); try { localStorage.setItem('safia_susc_aviso', hoyK); } catch (e) {} d.remove(); });
+  }
+  function suscripcionEnPantalla(u) {
+    enlaceSuscripciones(u);
+    var ir = function () { avisoSuscripcion(u); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ir); else ir();
+    setTimeout(ir, 1200);   // después de la primera bajada de la nube
+  }
+  try { var uGuardado = JSON.parse(localStorage.getItem('safia_usuario') || 'null'); if (uGuardado) enlaceSuscripciones(uGuardado); } catch (e) {}
 
   window.SafiaCuenta = { acerca: modalAcerca, montar: montar, aplicarRol: aplicarRol, fueraDeRol: fueraDeRol, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
 })();

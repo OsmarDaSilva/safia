@@ -54,7 +54,8 @@
     clima_estacion:  'safia_clima_estacion',
     precios:         'safia_precios',
     evaluaciones:    'safia_evaluaciones',
-    analisis_agua:   'safia_analisis_agua'
+    analisis_agua:   'safia_analisis_agua',
+    suscripciones:   'safia_suscripciones'
   };
 
   var ES_LOGIN = /login(\.html)?$/i.test(location.pathname);
@@ -86,6 +87,94 @@
     else document.addEventListener('DOMContentLoaded', arrancarApagado);
   }
 
+  /* ---------- Suscripción anual por pivot (29-sep-2026) ----------
+     Cada pivot tiene su suscripción (tabla safia_suscripciones: solo Irrigar la cambia). Vencida: el cliente ve lo
+     cargado, pero no carga nada NUEVO en ese pivot (campañas, riegos, lluvias, análisis, metas, satélite). La base lo
+     rechaza igual (safia_suscripciones.sql); acá se frena antes y se avisa. Secano: habilitado si su campo tiene un
+     pivot vigente. Mientras la tabla no exista (SQL sin correr) no se controla nada. Irrigar siempre puede corregir. */
+  var _giSusc = Storage.prototype.getItem;
+  var SUSC_GUARDADAS = { eventos: 1, campanas: 1, analisis_suelo: 1, analisis_agua: 1, analisis_foliar: 1, planes_rotacion: 1, clima_estacion: 1, ciclos: 1 };
+  var SafiaSuscripcion = (function () {
+    function lista(k) { try { var l = JSON.parse(_giSusc.call(window.localStorage, k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+    function activa() { try { return _giSusc.call(window.localStorage, 'safia_susc_activa') === '1'; } catch (e) { return false; } }
+    function hoy() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+    function dias(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
+    function fecha(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; }
+    function usuario() { try { if (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) return SafiaSync.usuario(); } catch (e) {} try { return JSON.parse(_giSusc.call(window.localStorage, 'safia_usuario') || 'null'); } catch (e) { return null; } }
+    function soyIrrigar() { var u = usuario(); return !!u && (u.rol === 'admin' || u.rol === 'propietario'); }
+    function registro(eqId) { return lista('suscripciones').find(function (x) { return x && String(x.id) === String(eqId); }) || null; }
+    function vence(r) { var v = r && r.vence; return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : null; }
+    function estadoPivot(eqId) {
+      var r = registro(eqId);
+      if (!r) return { vigente: false, sinSuscripcion: true, texto: 'sin suscripción' };
+      var v = vence(r); if (!v) return { vigente: true, sinFecha: true, texto: 'vigente (sin fecha cargada)' };
+      var d = dias(hoy(), v);
+      return { vigente: d >= 0, vence: v, dias: d, porVencer: d >= 0 && d <= 30, texto: d >= 0 ? 'vigente hasta el ' + fecha(v) : 'vencida el ' + fecha(v) };
+    }
+    function campoVigente(campoId) {
+      if (!activa() || campoId == null || campoId === '') return true;
+      return lista('equipos').some(function (e) { return e && String(e.campoId) === String(campoId) && e.tipo !== 'secano' && estadoPivot(e.id).vigente; });
+    }
+    // Estado de un lote: { vigente, vence, dias, porVencer, sinSuscripcion, secano, texto }
+    function estado(eqId) {
+      if (!activa() || eqId == null || eqId === '') return { vigente: true, sinControl: true, texto: '' };
+      var eq = lista('equipos').find(function (e) { return e && String(e.id) === String(eqId); });
+      if (!eq) return { vigente: true, desconocido: true, texto: '' };
+      if (eq.tipo === 'secano') { var ok = campoVigente(eq.campoId); return { vigente: ok, secano: true, texto: ok ? 'lote de secano: habilitado por el pivot vigente del campo' : 'lote de secano: el campo no tiene ningún pivot con suscripción vigente' }; }
+      return estadoPivot(eqId);
+    }
+    function puedeCargar(eqId) { return soyIrrigar() || estado(eqId).vigente; }
+    function puedeCargarCampo(campoId) { return soyIrrigar() || campoVigente(campoId); }
+    // ¿el usuario tiene al menos un pivot vigente? (el Asistente y la lectura con IA no gastan si no)
+    function algunaVigente() { return !activa() || soyIrrigar() || lista('equipos').some(function (e) { return e && e.tipo !== 'secano' && estadoPivot(e.id).vigente; }); }
+    // Pivots para avisar: vencidos, sin suscripción o que vencen en 30 días
+    function avisos() {
+      if (!activa()) return [];
+      return lista('equipos').filter(function (e) { return e && e.tipo !== 'secano'; }).map(function (e) { return { equipo: e, estado: estadoPivot(e.id) }; })
+        .filter(function (x) { return !x.estado.vigente || x.estado.porVencer; });
+    }
+    // ¿A qué lote o campo va un registro?
+    function destino(r) {
+      var eq = r.equipoId != null && r.equipoId !== '' ? r.equipoId : null;
+      if (eq == null && r.campanaId != null) { var c = lista('campanas').find(function (x) { return x && String(x.id) === String(r.campanaId); }); if (c) eq = c.equipoId; }
+      return eq != null ? { equipoId: eq } : { campoId: r.campoId };
+    }
+    function permitido(r) { var d = destino(r); return d.equipoId != null ? estado(d.equipoId).vigente : campoVigente(d.campoId); }
+    function nombreDe(r) { var d = destino(r); if (d.equipoId != null) { var e = lista('equipos').find(function (x) { return x && String(x.id) === String(d.equipoId); }); return e ? e.nombre : 'este lote'; } var c = lista('campos').find(function (x) { return x && String(x.id) === String(d.campoId); }); return c ? c.nombre : 'este campo'; }
+    function mapa(l) { var o = {}; (l || []).forEach(function (x) { if (x && x.id != null) o[String(x.id)] = x; }); return o; }
+    // Al guardar una colección: lo NUEVO o CAMBIADO en un área vencida no entra (queda como estaba). Devuelve null si no hay nada que frenar.
+    function filtrar(clave, nueva, vieja) {
+      if (!SUSC_GUARDADAS[clave] || !activa() || soyIrrigar() || !Array.isArray(nueva)) return null;
+      var V = mapa(vieja), fuera = [], salida = [];
+      nueva.forEach(function (r) {
+        if (!r || r.id == null) { salida.push(r); return; }
+        var ant = V[String(r.id)];
+        if (ant && JSON.stringify(ant) === JSON.stringify(r)) { salida.push(r); return; }
+        if (permitido(r)) { salida.push(r); return; }
+        fuera.push(r); if (ant) salida.push(ant);
+      });
+      return fuera.length ? { lista: salida, frenados: fuera } : null;
+    }
+    var ultimoAviso = 0;
+    function avisarFrenado(registros) {
+      if (!registros || !registros.length || Date.now() - ultimoAviso < 1500) return;
+      ultimoAviso = Date.now();
+      var nombres = Array.from(new Set(registros.map(nombreDe))).join(', ');
+      var poner = function () {
+        var t = document.getElementById('safiaSuscToast');
+        if (!t) { t = document.createElement('div'); t.id = 'safiaSuscToast'; document.body.appendChild(t); }
+        t.style.cssText = 'position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:100000;max-width:min(560px,calc(100vw - 32px));background:#7A1F16;color:#fff;font:500 13px/1.45 system-ui,sans-serif;padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);';
+        t.innerHTML = '<b>No se guardó.</b> La suscripción de ' + String(nombres).replace(/</g, '&lt;') + ' está vencida: podés ver lo cargado, pero para cargar datos nuevos hay que renovarla con Irrigar.';
+        clearTimeout(t._h); t._h = setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 7000);
+      };
+      if (document.body) poner(); else document.addEventListener('DOMContentLoaded', poner);
+      try { window.dispatchEvent(new CustomEvent('safia-suscripcion-frenado', { detail: { registros: registros } })); } catch (e) {}
+    }
+    return { activa: activa, estado: estado, puedeCargar: puedeCargar, puedeCargarCampo: puedeCargarCampo, campoVigente: campoVigente, algunaVigente: algunaVigente,
+      avisos: avisos, filtrar: filtrar, avisarFrenado: avisarFrenado, soyIrrigar: soyIrrigar, registro: registro, fecha: fecha, hoy: hoy, dias: dias, GUARDADAS: SUSC_GUARDADAS };
+  })();
+  window.SafiaSuscripcion = SafiaSuscripcion;
+
   // Sin supabase-js (sin internet o CDN caída): modo local, sin bloqueo.
   if (!window.supabase || !window.supabase.createClient) {
     console.warn('SAFIA sync: supabase-js no cargó. Trabajando en modo local.');
@@ -101,6 +190,7 @@
     window.safiaSupabase = PADRE.safiaSupabase;
     var _setEmb = Storage.prototype.setItem;
     Storage.prototype.setItem = function (clave, valor) {
+      if (this === window.localStorage && SUSC_GUARDADAS[clave]) { var fe = SafiaSuscripcion.filtrar(clave, leerLista(valor), leerLista(_giSusc.call(this, clave))); if (fe) { valor = JSON.stringify(fe.lista); SafiaSuscripcion.avisarFrenado(fe.frenados); } }
       _setEmb.call(this, clave, valor);
       if (this === window.localStorage && TABLAS.hasOwnProperty(clave)) { try { PADRE.SafiaSync._subir(clave, leerLista(valor)); } catch (e) { console.error('SAFIA sync (embebido):', e); } }
     };
@@ -210,6 +300,19 @@
      en un solo pedido) y bajas (ids que estaban en la nube y ya no están acá). Lo que no cambió no se toca,
      así otro navegador que editó otro registro no se pisa. Si dos navegadores editan el MISMO registro,
      queda el último que guardó. */
+  function esVencida(e) { return /SAFIA_SUSCRIPCION_VENCIDA/.test(String((e && (e.message || e.details || e.hint)) || '')); }
+  function esSinPermiso(e) { return !!e && (e.code === '42501' || esVencida(e)); }
+  // Sube en un pedido; si la base rechaza por permisos, prueba uno por uno para que un registro de un pivot vencido no frene a los demás
+  function subirFilas(tabla, filas) {
+    return sb.from(tabla).upsert(filas).then(function (r) {
+      if (!r.error) return { error: null, rechazados: [] };
+      if (!esSinPermiso(r.error)) return { error: r.error, rechazados: [] };
+      if (filas.length === 1) return esVencida(r.error) ? { error: null, rechazados: [filas[0].id] } : { error: r.error, rechazados: [] };
+      var rech = [], otro = null;
+      return filas.reduce(function (pr, f) { return pr.then(function () { return sb.from(tabla).upsert([f]).then(function (x) { if (x.error) { if (esVencida(x.error)) rech.push(f.id); else otro = otro || x.error; } }); }); }, Promise.resolve())
+        .then(function () { return { error: otro, rechazados: rech }; });
+    });
+  }
   function subirColeccion(clave, lista) {
     var tabla = TABLAS[clave];
     var porId = mapaPorId(lista);
@@ -221,9 +324,18 @@
       var borrar = Object.keys(snap).filter(function (id) { return porId[id] === undefined; });
       if (!cambiados.length && !borrar.length) return Promise.resolve();
       var filas = cambiados.map(function (id) { return { id: id, datos: porId[id], actualizado_en: ahora }; });
-      var p = filas.length ? sb.from(tabla).upsert(filas) : Promise.resolve({ error: null });
+      var p = filas.length ? subirFilas(tabla, filas) : Promise.resolve({ error: null, rechazados: [] });
       return p.then(function (r) {
         if (r.error) throw r.error;
+        if (r.rechazados && r.rechazados.length) {
+          var fuera = {}; r.rechazados.forEach(function (id) { fuera[String(id)] = 1; });
+          // fuera del snapshot: así no se toma como "borrado" (no se borra de la nube) y la próxima bajada lo devuelve como estaba
+          r.rechazados.forEach(function (id) { delete snap[String(id)]; });
+          cambiados = cambiados.filter(function (id) { return !fuera[id]; });
+          var quedan = leerLista(setGet(clave)).filter(function (x) { return !(x && fuera[String(x.id)]); });
+          setOriginal(clave, JSON.stringify(quedan));   // lo cambiado vuelve como estaba en la nube en la próxima bajada
+          SafiaSuscripcion.avisarFrenado(r.rechazados.map(function (id) { return porId[id]; }).filter(Boolean));
+        }
         cambiados.forEach(function (id) { snap[id] = huella(porId[id]); });
         guardarSnap(clave, snap);
         if (borrar.length) return sb.from(tabla).delete().in('id', borrar);
@@ -243,6 +355,10 @@
 
   // interceptar los guardados de la app (también los que usan variables como clave)
   Storage.prototype.setItem = function (clave, valor) {
+    if (this === window.localStorage && SUSC_GUARDADAS[clave]) {
+      var fs = SafiaSuscripcion.filtrar(clave, leerLista(valor), leerLista(_getItem.call(this, clave)));
+      if (fs) { valor = JSON.stringify(fs.lista); SafiaSuscripcion.avisarFrenado(fs.frenados); }
+    }
     _setItem.call(this, clave, valor);
     if (this === window.localStorage && TABLAS.hasOwnProperty(clave)) {
       subirColeccion(clave, leerLista(valor));
@@ -292,9 +408,10 @@
         return sb.from(TABLAS[clave]).select('id,datos').then(function (r) {
           if (r.error) {
             // Una tabla nueva que todavía no se creó en Supabase no frena el resto del sync
-            if (/does not exist|schema cache|PGRST205|relation/i.test(String(r.error.message || ''))) { console.warn('SAFIA sync: falta la tabla ' + TABLAS[clave] + ' en Supabase (correr su SQL). Se sigue con las demás.'); return; }
+            if (/does not exist|schema cache|PGRST205|relation/i.test(String(r.error.message || ''))) { if (clave === 'suscripciones') setOriginal('safia_susc_activa', '0'); console.warn('SAFIA sync: falta la tabla ' + TABLAS[clave] + ' en Supabase (correr su SQL). Se sigue con las demás.'); return; }
             throw r.error;
           }
+          if (clave === 'suscripciones') setOriginal('safia_susc_activa', '1');
           var remoto = (r.data || []).map(function (f) { return f.datos; }).filter(function (x) { return x && x.id !== undefined && x.id !== null; });
           remoto.sort(function (a, b) { return (parseFloat(a && a.id) || 0) - (parseFloat(b && b.id) || 0); });
           var local = leerLista(setGet(clave)), snap = leerSnap(clave);

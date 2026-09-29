@@ -383,6 +383,7 @@
     var input = $('fArchivo'), archivo = input.files && input.files[0], hint = $('leerFoliarHint'), boton = $('btnLeerFoliarIA');
     if (!archivo) { B().toast('Primero elegí la foto o el PDF del laboratorio', true); return; }
     if (!window.safiaSupabase) { B().toast('Sin conexión a internet', true); return; }
+    var cS = B().campoActual(); if (window.SafiaSuscripcion && cS && !SafiaSuscripcion.puedeCargarCampo(cS.id)) { B().toast('La suscripción de este campo está vencida: podés ver lo cargado, pero para leer y cargar análisis nuevos hay que renovarla con Irrigar.', true); return; }
     var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
     boton.disabled = true; boton.textContent = 'Leyendo…'; hint.textContent = 'Leyendo el análisis foliar con IA, esto tarda unos segundos…';
     (esPdf ? archivoABase64(archivo) : comprimirImagen(archivo, 2000, 0.85)).then(function (b64) {

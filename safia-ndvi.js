@@ -78,6 +78,7 @@
     if (!lote) { B().toast('Elegí un lote', true); return; }
     if (!lote.poligono || !lote.poligono.partes) { B().toast('Este lote no tiene polígono: cargalo en Equipos y lotes (KML de Google Earth o dibujado en el mapa)', true); return; }
     if (!window.safiaSupabase) { B().toast('Sin conexión: se muestra lo guardado', true); return; }
+    if (window.SafiaSuscripcion && !SafiaSuscripcion.puedeCargar(lote.id)) { B().toast('La suscripción de este pivot está vencida: para traer pasadas nuevas del satélite hay que renovarla con Irrigar.', true); return; }
     var desde = $('ndviDesde').value, hasta = $('ndviHasta').value;
     if (!desde || !hasta || hasta <= desde) { B().toast('Revisá las fechas desde / hasta', true); return; }
     if (diasEntre(desde, hasta) > 400) { B().toast('Pedí hasta 400 días por vez', true); return; }

@@ -1581,6 +1581,7 @@
     var hint = document.getElementById('leerIAHint');
     if (!archivo) { toast('Primero elegí la foto o el PDF del laboratorio', true); return; }
     if (!window.safiaSupabase) { toast('Sin conexión a internet', true); return; }
+    if (window.SafiaSuscripcion && campoActual && !SafiaSuscripcion.puedeCargarCampo(campoActual.id)) { toast('La suscripción de este campo está vencida: podés ver lo cargado, pero para leer y cargar análisis nuevos hay que renovarla con Irrigar.', true); return; }
 
     var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
     var boton = this;

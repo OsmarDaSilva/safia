@@ -84,6 +84,7 @@
   function sincronizarCampo(campo, opciones) {
     opciones = opciones || {};
     if (!campo || !campo.estacionId) return Promise.reject(new Error('Este campo no tiene estación asignada (Campos → Estación meteorológica)'));
+    if (window.SafiaSuscripcion && !SafiaSuscripcion.puedeCargarCampo(campo.id)) return Promise.reject(new Error('La suscripción de este campo está vencida: renovar con Irrigar para traer datos nuevos de la estación.'));
     var previas = climaDeEstacion(campo.id), ultima = previas.length ? previas[previas.length - 1].fecha : null;
     var desde = opciones.desde || (ultima ? sumarDias(ultima, -2) : sumarDias(hoyISO(), -400)), hasta = opciones.hasta || hoyISO();
     if (desde > hasta) desde = hasta;

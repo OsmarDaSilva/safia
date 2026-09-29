@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-asistente (v5: todo lo del productor —lote, mantenimiento, riegos, suelo— y el líder de la zona sin nombres)
+// SAFIA · Edge Function: safia-asistente (v6: no gasta IA si el usuario no tiene ningún pivot con suscripción vigente)
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
 // Arquitectura: esta función solo habla con Claude (la llave vive acá, como secreto). Las HERRAMIENTAS se ejecutan en el
 // navegador del usuario (safia-asistente.js), sobre los datos que ese usuario ya puede ver con su rol: un cliente ve lo
@@ -133,6 +133,16 @@ Deno.serve(async (req: Request) => {
     if (!messages || !messages.length) return json({ error: 'Falta la conversación' }, 400);
     if (messages.length > 60) return json({ error: 'La conversación es muy larga: empezá una nueva.' }, 413);
     if (JSON.stringify(messages).length > 900000) return json({ error: 'La conversación es muy larga: empezá una nueva.' }, 413);
+
+    // Suscripción por pivot: sin ningún pivot vigente no se consulta a la IA (lo decide la base con safia_tengo_vigente).
+    // Si todavía no existe la función (SQL sin correr) o no se puede verificar, se sigue: la base igual frena la carga de datos.
+    const urlSb = Deno.env.get('SUPABASE_URL'), anon = Deno.env.get('SUPABASE_ANON_KEY'), auth = req.headers.get('Authorization') || '';
+    if (urlSb && anon && auth) {
+      try {
+        const rv = await fetch(urlSb + '/rest/v1/rpc/safia_tengo_vigente', { method: 'POST', headers: { apikey: anon, Authorization: auth, 'Content-Type': 'application/json' }, body: '{}' });
+        if (rv.ok && (await rv.json()) === false) return json({ error: 'Tu suscripción de SAFIA está vencida: el Asistente funciona con al menos un pivot vigente. Para renovar, hablá con Irrigar.' }, 402);
+      } catch (_e) { /* sin verificar: se sigue */ }
+    }
 
     // Fallback del lado del servidor ("default"): si el filtro de seguridad rechaza por error una consulta agronómica,
     // la API la reintenta con el modelo recomendado en lugar de devolver un rechazo.

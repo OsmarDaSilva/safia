@@ -13,7 +13,17 @@
   function num(v) { if (v == null || v === '') return null; var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
   function r0(v) { return v == null || isNaN(v) ? null : Math.round(v); }
   function r1(v) { return v == null || isNaN(v) ? null : Math.round(v * 10) / 10; }
-  function propios(k) { try { var l = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+  function propios(k) { try { var l = JSON.parse(localStorage.getItem(k) || '[]'); return conSuscripcion(k, Array.isArray(l) ? l : []); } catch (e) { return []; } }
+  // Suscripción por pivot: el asistente analiza solo los pivots vigentes (los vencidos se ven en sus pantallas, pero no se analizan)
+  function conSuscripcion(k, l) {
+    var S = window.SafiaSuscripcion; if (!S || !S.activa() || S.soyIrrigar()) return l;
+    if (k === 'equipos') return l.filter(function (e) { return S.estado(e.id).vigente; });
+    if (k === 'campos') return l.filter(function (c) { return S.campoVigente(c.id); });
+    if (k === 'campanas' || k === 'eventos' || k === 'analisis_foliar') return l.filter(function (r) { return r.equipoId == null || r.equipoId === '' || S.estado(r.equipoId).vigente; });
+    if (k === 'analisis_suelo' || k === 'analisis_agua') return l.filter(function (r) { return r.equipoId != null && r.equipoId !== '' ? S.estado(r.equipoId).vigente : S.campoVigente(r.campoId); });
+    return l;
+  }
+  function pivotsVencidos() { var S = window.SafiaSuscripcion; if (!S || !S.activa() || S.soyIrrigar()) return []; try { return (JSON.parse(localStorage.getItem('equipos') || '[]') || []).filter(function (e) { return !S.estado(e.id).vigente; }).map(function (e) { return e.nombre; }); } catch (e) { return []; } }
   var C = function () { return window.SafiaCasos; };
 
   /* ---------- datos ---------- */
@@ -568,7 +578,7 @@
   function contexto() {
     var u = (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) || {};
     var hoy = new Date();
-    return '[Contexto de SAFIA · fecha ' + hoy.toISOString().slice(0, 10) + ' · usuario ' + (u.nombre || '—') + ' (rol ' + (u.rol || '—') + ') · ' + propios('campos').length + ' campo(s) propio(s) · ' + casos().length + ' caso(s) en el banco visibles para este usuario]';
+    return '[Contexto de SAFIA · fecha ' + hoy.toISOString().slice(0, 10) + ' · usuario ' + (u.nombre || '—') + ' (rol ' + (u.rol || '—') + ') · ' + propios('campos').length + ' campo(s) propio(s) · ' + casos().length + ' caso(s) en el banco visibles para este usuario' + (pivotsVencidos().length ? ' · lotes con la suscripción VENCIDA (no se analizan; si pregunta por ellos, decile que renueve con Irrigar): ' + pivotsVencidos().join(', ') : '') + ']';
   }
   function llamar() {
     if (!window.safiaSupabase) return Promise.reject(new Error('Sin conexión a SAFIA: iniciá sesión'));
@@ -585,6 +595,8 @@
   var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias cargados', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona' };
   function preguntar(texto, al) {
     if (ocupado || !texto.trim()) return Promise.resolve();
+    // sin ningún pivot con suscripción vigente no se consulta a la IA (no se gasta)
+    if (window.SafiaSuscripcion && !SafiaSuscripcion.algunaVigente()) { al.inicio(texto.trim()); al.fin({ error: 'Tu suscripción de SAFIA está vencida: el Asistente funciona con al menos un pivot vigente. Para renovar, hablá con Irrigar.' }); return Promise.resolve(); }
     ocupado = true;
     var fin = function (r) { ocupado = false; al.fin(r); };   // libre apenas responde
     var primero = !conv.length;

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAFIA — Suscripciones</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0F3D14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SAFIA">
+  <link rel="apple-touch-icon" href="icons/safia-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="safia-theme.css">
+  <style>
+    .fila-s,.cab-s{display:grid;grid-template-columns:minmax(170px,1.3fr) minmax(150px,1.1fr) minmax(170px,1fr) 130px auto;gap:10px;align-items:center;}
+    .fila-s{padding:11px 0;border-bottom:1px solid var(--bd2);font-size:13px;}
+    .fila-s:last-child{border-bottom:0;}
+    .cab-s{font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;padding:8px 0;border-bottom:1px solid var(--bd2);}
+    .fila-s .acc{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+    .fila-s .acc .btn{padding:6px 10px;font-size:12px;}
+    .muted{color:var(--label);}
+    @media (max-width:760px){.fila-s,.cab-s{grid-template-columns:1fr;gap:4px;} .cab-s{display:none;} .fila-s .acc{justify-content:flex-start;margin-top:4px;}}
+    .modal .field{margin-bottom:10px;}
+  </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="safia-sync.js"></script>
+<script src="safia-cuenta.js"></script>
+<script src="safia-pwa.js"></script>
+<script src="safia-iconos.js"></script>
+<script src="safia-cultivos-fao.js"></script>
+</head>
+<body>
+  <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
+  <div class="app">
+    <aside class="side" id="sideNav">
+      <div class="brand">
+        <div class="mark"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19c0-7 5-13 14-14 0 9-6 14-14 14z"/><path d="M5 19c2-4 5-7 9-9"/></svg></div>
+        <div><div class="bname">SAFIA</div><div class="btag">SMART AGRO INTELLIGENCE</div></div>
+      </div>
+      <div class="navlabel">Inicio</div>
+      <nav class="nav"><a href="index.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>Dashboard</a></nav>
+      <div class="navlabel">Datos</div>
+      <nav class="nav">
+        <a href="mis-clientes.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 20c0-3.6 2.9-6.4 6.5-6.4s6.5 2.8 6.5 6.4"/></svg>Clientes</a>
+        <a href="mis-campos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>Campos</a>
+        <a href="mis-equipos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg>Equipos y lotes</a>
+        <a href="mis-cultivos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg>Cultivos</a>
+        <a href="mis-campanas.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3.2A1.2 1.2 0 0 1 10.2 2h3.6A1.2 1.2 0 0 1 15 3.2V4"/><path d="m9 13 2 2 4-4"/></svg>Campañas</a>
+        <a href="ficha.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>Ficha de campaña</a>
+        <a href="precios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Precios</a>
+        <a href="banco.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7" ry="2.8"/><path d="M5 5.5V18c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8V5.5"/><path d="M5 11.8c0 1.6 3.1 2.8 7 2.8s7-1.2 7-2.8"/></svg>Banco Agronómico</a>
+        <a href="referencia.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-6"/></svg>Referencia agrícola</a>
+        <a href="referencia-forraje.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg>Referencia forrajera</a>
+      </nav>
+      <div class="navlabel">Inteligencia</div>
+      <nav class="nav">
+        <a href="clima.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V5a2 2 0 0 0-4 0v9.76a4 4 0 1 0 4 0z"/></svg>Clima · ETo/ETc</a>
+        <a href="prediccion.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 16 8"/><path d="m15 5 1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg>Predicción 7d</a>
+        <a href="evaluar.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Evaluar proyecto</a>
+        <a href="rankings.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>Rankings</a>
+        <a href="asistente.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>Asistente IA</a>
+      </nav>
+      <div class="navlabel">Operación</div>
+      <nav class="nav">
+        <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
+        <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
+        <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
+        <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
+      </nav>
+      <div class="navlabel">Sistema</div>
+      <nav class="nav"><a href="usuarios.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.3c.5-.2 1-.3 1.5-.3 2.5 0 4.5 2 4.5 4.5"/></svg>Usuarios</a></nav>
+      <div class="side-foot">SAFIA v1.0<br>Herramienta para productores</div>
+    </aside>
+    <div class="side-overlay" id="sideOverlay"></div>
+
+    <main class="main">
+      <div class="crumb">Sistema · <b>Suscripciones</b></div>
+      <div class="ptop">
+        <div>
+          <h2>Suscripciones por pivot</h2>
+          <div class="sub">Cada pivot tiene su suscripción anual. Vencida: el cliente ve lo que ya cargó, pero no puede cargar nada nuevo en ese pivot (riegos, lluvias, campañas, análisis de suelo o agua, metas, comparativos, satélite ni el Asistente). El lote de secano funciona si el campo tiene un pivot vigente. Desde 30 días antes, el cliente ve el aviso.</div>
+        </div>
+      </div>
+      <div id="contenido"><div class="note info">Cargando…</div></div>
+    </main>
+  </div>
+
+  <!-- Modal: editar suscripción -->
+  <div class="modal-overlay" id="modalSusc">
+    <div class="modal">
+      <div class="modal-titulo" id="sTitulo">Suscripción</div>
+      <div class="sub" id="sSub" style="margin-bottom:12px;"></div>
+      <div class="field"><label>Vence el</label><input type="date" id="sVence"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:-4px 0 12px;">
+        <button class="btn" type="button" data-mas="12">+1 año</button>
+        <button class="btn" type="button" data-mas="6">+6 meses</button>
+        <button class="btn" type="button" data-mas="1">+1 mes</button>
+        <button class="btn" type="button" id="sSinFecha">Sin fecha</button>
+      </div>
+      <div class="field"><label>Plan</label><select id="sPlan"><option>Anual</option><option>Prueba</option><option>Cortesía</option><option>Otro</option></select></div>
+      <div class="field"><label>Notas (factura, acuerdo, contacto)</label><input type="text" id="sNotas" placeholder="Ej.: factura 001-001-0001234, pagado en septiembre"></div>
+      <div class="sub" id="sHistorial" style="font-size:12px;margin-top:4px;"></div>
+      <div class="modal-actions">
+        <button class="btn green" id="sGuardar">Guardar</button>
+        <button class="btn danger" id="sBaja" title="Vence ayer: queda bloqueado desde hoy">Dar de baja hoy</button>
+        <button class="btn" id="sCancelar">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const leer = (k) => { try { const l = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
+    const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? null : n; };
+    function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast visible' + (err ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 3600); }
+    const S = () => window.SafiaSuscripcion;
+    const fecha = (iso) => S() ? S().fecha(iso) : iso;
+    function sumarMeses(iso, m) { const d = new Date(iso + 'T12:00:00'); const dia = d.getDate(); d.setMonth(d.getMonth() + m); if (d.getDate() !== dia) d.setDate(0); return d.toISOString().slice(0, 10); }
+    function ayer() { const d = new Date(S().hoy() + 'T12:00:00'); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10); }
+    let filtro = 'todos', busca = '', editando = null;
+
+    // Un registro por pivot: el lote de secano no paga (depende del pivot del campo)
+    function filas() {
+      const cl = leer('clientes'), cps = leer('campos');
+      return leer('equipos').map(e => {
+        const c = cps.find(x => String(x.id) === String(e.campoId)), k = c ? cl.find(x => String(x.id) === String(c.clienteId)) : null;
+        const est = S().estado(e.id), reg = S().registro(e.id);
+        let clave = est.secano ? (est.vigente ? 'secano_ok' : 'secano_no') : est.sinSuscripcion ? 'sin' : !est.vigente ? 'vencida' : est.porVencer ? 'por_vencer' : 'vigente';
+        return { e, campo: c, cliente: k, est, reg, clave, ha: num(e.superficie) };
+      }).sort((a, b) => String(a.cliente ? a.cliente.nombre : '~').localeCompare(String(b.cliente ? b.cliente.nombre : '~')) || String(a.campo ? a.campo.nombre : '').localeCompare(String(b.campo ? b.campo.nombre : '')) || String(a.e.nombre).localeCompare(String(b.e.nombre)));
+    }
+    const CHIP = {
+      vigente: ['Vigente', 'var(--green-t, #E6F4EA)', '#17692A'],
+      por_vencer: ['Vence pronto', '#FFF6E0', '#6B4A00'],
+      vencida: ['Vencida', '#FDECEA', '#7A1F16'],
+      sin: ['Sin suscripción', '#FDECEA', '#7A1F16'],
+      secano_ok: ['Secano: habilitado', '#EEF1F4', '#4A5157'],
+      secano_no: ['Secano: bloqueado', '#FDECEA', '#7A1F16']
+    };
+    function chip(k) { const c = CHIP[k]; return '<span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;background:' + c[1] + ';color:' + c[2] + ';white-space:nowrap;">' + c[0] + '</span>'; }
+    function venceTxt(f) {
+      if (f.est.secano) return '<span class="muted">depende del pivot del campo</span>';
+      if (f.est.sinSuscripcion) return '<span class="muted">—</span>';
+      if (f.est.sinFecha) return 'sin fecha <span class="muted">(vigente)</span>';
+      const d = f.est.dias;
+      return fecha(f.est.vence) + ' <span class="muted">(' + (d > 0 ? 'faltan ' + d + ' día' + (d === 1 ? '' : 's') : d === 0 ? 'vence hoy' : 'hace ' + (-d) + ' día' + (d === -1 ? '' : 's')) + ')</span>';
+    }
+
+    function pintar() {
+      if (!S() || !S().activa()) { $('contenido').innerHTML = '<div class="note warn"><b>Falta activar las suscripciones en la base.</b> Corré el SQL <code>safia_suscripciones.sql</code> en Supabase (SQL Editor) y volvé a abrir esta pantalla. Mientras tanto, SAFIA no bloquea nada.</div>'; return; }
+      const todas = filas(), piv = todas.filter(f => !f.est.secano);
+      const cuenta = (k) => piv.filter(f => f.clave === k).length;
+      const haVig = piv.filter(f => f.est.vigente).reduce((s, f) => s + (f.ha || 0), 0);
+      const tarjeta = (n, t, col, k) => '<button type="button" class="card" data-f="' + k + '" style="text-align:left;cursor:pointer;border:' + (filtro === k ? '2px solid ' + col : '1px solid var(--bd)') + ';padding:12px 14px;margin:0;"><div style="font-size:24px;font-weight:800;color:' + col + ';">' + n + '</div><div style="font-size:12px;color:var(--label);font-weight:700;">' + t + '</div></button>';
+      let h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">' +
+        tarjeta(piv.length, 'Pivots en total', '#2E3236', 'todos') + tarjeta(cuenta('vigente') + cuenta('por_vencer'), 'Vigentes · ' + Math.round(haVig).toLocaleString('es-PY') + ' ha', '#17692A', 'vigentes') +
+        tarjeta(cuenta('por_vencer'), 'Vencen en 30 días', '#B8731A', 'por_vencer') + tarjeta(cuenta('vencida'), 'Vencidas', '#C0392B', 'vencida') + tarjeta(cuenta('sin'), 'Sin suscripción', '#C0392B', 'sin') + '</div>';
+      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input type="search" id="busca" placeholder="Buscar cliente, campo o pivot" value="' + esc(busca) + '" style="max-width:320px;margin:0;"></div>';
+      const vis = todas.filter(f => {
+        if (filtro === 'vigentes' && !(f.clave === 'vigente' || f.clave === 'por_vencer')) return false;
+        if (filtro !== 'todos' && filtro !== 'vigentes' && f.clave !== filtro) return false;
+        if (busca) { const t = [f.cliente && f.cliente.nombre, f.campo && f.campo.nombre, f.e.nombre].join(' ').toLowerCase(); if (t.indexOf(busca.toLowerCase()) < 0) return false; }
+        return true;
+      });
+      h += '<div class="card" style="padding:6px 14px;"><div class="cab-s"><div>Cliente · campo</div><div>Pivot</div><div>Vence</div><div>Estado</div><div></div></div>' +
+        (vis.length ? vis.map(f => '<div class="fila-s">' +
+          '<div><b>' + esc(f.cliente ? f.cliente.nombre : 'Sin cliente') + '</b><div class="muted" style="font-size:12px;">' + esc(f.campo ? f.campo.nombre + (f.campo.localidad ? ' · ' + f.campo.localidad : '') : '—') + '</div></div>' +
+          '<div>' + esc(f.e.nombre) + (f.ha ? ' <span class="muted">· ' + Math.round(f.ha).toLocaleString('es-PY') + ' ha</span>' : '') + (f.reg && f.reg.plan && !f.est.secano ? '<div class="muted" style="font-size:12px;">' + esc(f.reg.plan) + (f.reg.notas ? ' · ' + esc(f.reg.notas) : '') + '</div>' : '') + '</div>' +
+          '<div>' + venceTxt(f) + '</div><div>' + chip(f.clave) + '</div>' +
+          '<div class="acc">' + (f.est.secano ? '' : '<button class="btn green" data-renovar="' + esc(f.e.id) + '">' + (f.est.sinSuscripcion ? 'Habilitar 1 año' : 'Renovar 1 año') + '</button><button class="btn" data-editar="' + esc(f.e.id) + '">Editar</button>') + '</div></div>').join('')
+          : '<div class="muted" style="padding:14px 0;">No hay pivots en este filtro.</div>') + '</div>';
+      $('contenido').innerHTML = h;
+      $('contenido').querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { filtro = filtro === b.dataset.f ? 'todos' : b.dataset.f; pintar(); }));
+      const bu = $('busca'); bu.addEventListener('input', () => { busca = bu.value; const pos = bu.selectionStart; pintar(); const nb = $('busca'); nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) {} });
+      $('contenido').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrir(b.dataset.editar)));
+      $('contenido').querySelectorAll('[data-renovar]').forEach(b => b.addEventListener('click', () => renovarConConfirm(b.dataset.renovar)));
+    }
+
+    function guardar(eqId, cambios, motivo) {
+      const lista = leer('suscripciones'), i = lista.findIndex(x => String(x.id) === String(eqId)), u = (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) || {};
+      const prev = i >= 0 ? lista[i] : { id: String(eqId), equipoId: String(eqId), plan: 'Anual', creado: S().hoy(), historial: [] };
+      const nuevo = Object.assign({}, prev, cambios);
+      nuevo.historial = (prev.historial || []).concat([{ fecha: S().hoy(), accion: motivo, vence: nuevo.vence || null, plan: nuevo.plan || null, por: u.nombre || u.email || 'Irrigar' }]).slice(-30);
+      if (i >= 0) lista[i] = nuevo; else lista.push(nuevo);
+      localStorage.setItem('suscripciones', JSON.stringify(lista));   // la sincronización la sube (solo Irrigar puede)
+      pintar();
+    }
+    function nombrePivot(eqId) { const e = leer('equipos').find(x => String(x.id) === String(eqId)); return e ? e.nombre : 'pivot'; }
+    function renovar(eqId) {
+      const est = S().estado(eqId), base = est.vence && est.vence >= S().hoy() ? est.vence : S().hoy(), nueva = sumarMeses(base, 12);
+      if (!confirmar(nombrePivot(eqId) + ': queda vigente hasta el ' + fecha(nueva) + '.')) return;
+      guardar(eqId, { vence: nueva }, est.sinSuscripcion ? 'habilitada' : 'renovada 1 año');
+      toast(nombrePivot(eqId) + ' vigente hasta el ' + fecha(nueva));
+    }
+    // confirmación simple dentro de la pantalla (sin ventanas del navegador)
+    let aprobado = false;
+    function confirmar(texto) { if (aprobado) { aprobado = false; return true; } pendiente = texto; mostrarConfirmar(texto); return false; }
+    let pendiente = null, accionPendiente = null;
+    function mostrarConfirmar(texto) {
+      const d = document.createElement('div'); d.className = 'modal-overlay visible'; d.id = 'modalConf';
+      d.innerHTML = '<div class="modal"><div class="modal-titulo">Confirmar</div><div class="sub" style="margin-bottom:12px;">' + esc(texto) + '</div><div class="modal-actions"><button class="btn green" id="cSi">Sí, guardar</button><button class="btn" id="cNo">Cancelar</button></div></div>';
+      document.body.appendChild(d);
+      $('cNo').onclick = () => d.remove();
+      $('cSi').onclick = () => { d.remove(); aprobado = true; if (accionPendiente) accionPendiente(); };
+    }
+    function renovarConConfirm(eqId) { accionPendiente = () => renovar(eqId); renovar(eqId); }
+
+    function abrir(eqId) {
+      editando = eqId; const reg = S().registro(eqId) || {}, est = S().estado(eqId);
+      const f = filas().find(x => String(x.e.id) === String(eqId));
+      $('sTitulo').textContent = nombrePivot(eqId);
+      $('sSub').textContent = [f && f.cliente ? f.cliente.nombre : null, f && f.campo ? f.campo.nombre : null, f && f.ha ? Math.round(f.ha) + ' ha' : null].filter(Boolean).join(' · ') + ' — hoy: ' + (est.texto || '');
+      $('sVence').value = reg.vence || ''; $('sPlan').value = reg.plan || 'Anual'; $('sNotas').value = reg.notas || '';
+      const hi = (reg.historial || []).slice(-5).reverse();
+      $('sHistorial').innerHTML = hi.length ? '<b>Historial:</b><br>' + hi.map(x => fecha(x.fecha) + ' · ' + esc(x.accion) + (x.vence ? ' hasta el ' + fecha(x.vence) : ' sin fecha') + ' · ' + esc(x.por || '')).join('<br>') : '';
+      $('modalSusc').classList.add('visible');
+    }
+    function cerrar() { $('modalSusc').classList.remove('visible'); editando = null; }
+    document.querySelectorAll('[data-mas]').forEach(b => b.addEventListener('click', () => { const v = $('sVence').value, base = v && v >= S().hoy() ? v : S().hoy(); $('sVence').value = sumarMeses(base, parseInt(b.dataset.mas, 10)); }));
+    $('sSinFecha').addEventListener('click', () => { $('sVence').value = ''; });
+    $('sCancelar').addEventListener('click', cerrar);
+    $('sGuardar').addEventListener('click', () => {
+      if (!editando) return; const v = $('sVence').value || null;
+      guardar(editando, { vence: v, plan: $('sPlan').value, notas: $('sNotas').value.trim() }, 'editada');
+      toast(nombrePivot(editando) + ': ' + (v ? 'vence el ' + fecha(v) : 'vigente sin fecha')); cerrar();
+    });
+    $('sBaja').addEventListener('click', () => {
+      if (!editando) return; const id = editando;
+      accionPendiente = () => { guardar(id, { vence: ayer() }, 'dada de baja'); toast(nombrePivot(id) + ': dada de baja (bloqueada desde hoy)'); cerrar(); };
+      mostrarConfirmar(nombrePivot(id) + ': queda bloqueado desde hoy. El cliente sigue viendo lo cargado, pero no puede cargar nada nuevo.');
+    });
+
+    function arrancar() {
+      if (!SafiaSync.esAdmin || !SafiaSync.esAdmin()) { $('contenido').innerHTML = '<div class="note warn">Esta pantalla es solo para Irrigar.</div>'; return; }
+      pintar();
+      // después de cada bajada de la nube se vuelve a pintar (otro navegador pudo renovar)
+      window.addEventListener('storage', (ev) => { if (ev.key === 'suscripciones' || ev.key === 'equipos') pintar(); });
+      setTimeout(pintar, 1500);
+    }
+    if (window.SafiaSync && SafiaSync.usuario()) arrancar(); else window.addEventListener('safia:usuario', arrancar, { once: true });
+    if (!window.SafiaSync) $('contenido').innerHTML = '<div class="note warn">Sin conexión con la nube: esta pantalla necesita internet.</div>';
+  </script>
+
+  <script>
+    /* SAFIA · control del menú móvil (theme) */
+    (function () {
+      var btn = document.getElementById('menuToggle');
+      var side = document.getElementById('sideNav');
+      var ov = document.getElementById('sideOverlay');
+      if (!btn || !side) return;
+      function abrir()  { side.classList.add('abierto');    if (ov) ov.classList.add('visible');    document.body.classList.add('menu-abierto'); }
+      function cerrar() { side.classList.remove('abierto'); if (ov) ov.classList.remove('visible'); document.body.classList.remove('menu-abierto'); }
+      btn.addEventListener('click', function () { side.classList.contains('abierto') ? cerrar() : abrir(); });
+      if (ov) ov.addEventListener('click', cerrar);
+      side.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', cerrar); });
+      window.addEventListener('resize', function () { if (window.innerWidth > 860) cerrar(); });
+    })();
+  </script>
+</body>
+</html>
