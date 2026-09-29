@@ -265,7 +265,7 @@
     // el aviso de 'por vencer' se puede cerrar por el día; el de vencido vuelve en cada pantalla
     if (!vencidos.length && cerrado === hoyK) return;
     var campos = leer('campos'), nombre = function (x) { var c = campos.find(function (k) { return String(k.id) === String(x.equipo.campoId); }); return esc((c ? c.nombre + ' · ' : '') + (x.equipo.nombre || 'pivot')); };
-    var linea = function (x) { var e = x.estado; return '<b>' + nombre(x) + '</b>: ' + (e.sinSuscripcion ? 'sin suscripción' : !e.vigente ? 'vencida el ' + S.fecha(e.vence) : 'vence el ' + S.fecha(e.vence) + (e.dias === 0 ? ' (hoy)' : ' (en ' + e.dias + ' día' + (e.dias === 1 ? '' : 's') + ')')); };
+    var linea = function (x) { var e = x.estado, r = S.registro(x.equipo.id) || {}, pr = r.plan === 'Prueba'; return '<b>' + nombre(x) + '</b>: ' + (e.sinSuscripcion ? 'sin suscripción' : !e.vigente ? (pr ? 'la prueba gratis terminó el ' : 'vencida el ') + S.fecha(e.vence) : (pr ? 'prueba gratis hasta el ' : 'vence el ') + S.fecha(e.vence) + (e.dias === 0 ? ' (hoy)' : ' (en ' + e.dias + ' día' + (e.dias === 1 ? '' : 's') + ')')); };
     var rojo = vencidos.length > 0, d = $('safiaSuscAviso');
     if (!d) { d = document.createElement('div'); d.id = 'safiaSuscAviso'; }
     d.style.cssText = 'margin:0 0 14px;padding:12px 14px;border-radius:12px;font:500 13px/1.5 system-ui,sans-serif;display:flex;gap:12px;align-items:flex-start;' + (rojo ? 'background:#FDECEA;border:1px solid #F5C2BC;color:#7A1F16;' : 'background:#FFF6E0;border:1px solid #F1D48A;color:#6B4A00;');

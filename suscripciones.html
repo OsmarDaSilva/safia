@@ -89,6 +89,22 @@
     </main>
   </div>
 
+  <!-- Modal: prueba gratis -->
+  <div class="modal-overlay" id="modalPrueba">
+    <div class="modal">
+      <div class="modal-titulo" id="pTitulo">Prueba gratis</div>
+      <div class="sub" id="pSub" style="margin-bottom:12px;">Mientras dure la prueba el cliente usa todo en este pivot. Al terminar queda como vencido: ve lo cargado, pero no carga nada nuevo hasta que lo renueves.</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+        <button class="btn" type="button" data-prueba="1">1 día</button>
+        <button class="btn" type="button" data-prueba="7">7 días</button>
+        <button class="btn" type="button" data-prueba="15">15 días</button>
+        <button class="btn green" type="button" data-prueba="30">30 días</button>
+      </div>
+      <div class="sub" id="pHasta" style="font-size:13px;min-height:18px;"></div>
+      <div class="modal-actions"><button class="btn green" id="pGuardar" disabled>Dar la prueba</button><button class="btn" id="pCancelar">Cancelar</button></div>
+    </div>
+  </div>
+
   <!-- Modal: editar suscripción -->
   <div class="modal-overlay" id="modalSusc">
     <div class="modal">
@@ -99,6 +115,8 @@
         <button class="btn" type="button" data-mas="12">+1 año</button>
         <button class="btn" type="button" data-mas="6">+6 meses</button>
         <button class="btn" type="button" data-mas="1">+1 mes</button>
+        <button class="btn" type="button" data-dias="7">+7 días</button>
+        <button class="btn" type="button" data-dias="1">+1 día</button>
         <button class="btn" type="button" id="sSinFecha">Sin fecha</button>
       </div>
       <div class="field"><label>Plan</label><select id="sPlan"><option>Anual</option><option>Prueba</option><option>Cortesía</option><option>Otro</option></select></div>
@@ -132,12 +150,15 @@
       return leer('equipos').map(e => {
         const c = cps.find(x => String(x.id) === String(e.campoId)), k = c ? cl.find(x => String(x.id) === String(c.clienteId)) : null;
         const est = S().estado(e.id), reg = S().registro(e.id);
-        let clave = est.secano ? (est.vigente ? 'secano_ok' : 'secano_no') : est.sinSuscripcion ? 'sin' : !est.vigente ? 'vencida' : est.porVencer ? 'por_vencer' : 'vigente';
+        const enPrueba = !!(reg && reg.plan === 'Prueba');
+        let clave = est.secano ? (est.vigente ? 'secano_ok' : 'secano_no') : est.sinSuscripcion ? 'sin' : !est.vigente ? (enPrueba ? 'prueba_fin' : 'vencida') : enPrueba ? 'prueba' : est.porVencer ? 'por_vencer' : 'vigente';
         return { e, campo: c, cliente: k, est, reg, clave, ha: num(e.superficie) };
       }).sort((a, b) => String(a.cliente ? a.cliente.nombre : '~').localeCompare(String(b.cliente ? b.cliente.nombre : '~')) || String(a.campo ? a.campo.nombre : '').localeCompare(String(b.campo ? b.campo.nombre : '')) || String(a.e.nombre).localeCompare(String(b.e.nombre)));
     }
     const CHIP = {
       vigente: ['Vigente', 'var(--green-t, #E6F4EA)', '#17692A'],
+      prueba: ['En prueba', '#E7F1FB', '#1B5E9A'],
+      prueba_fin: ['Prueba terminada', '#FDECEA', '#7A1F16'],
       por_vencer: ['Vence pronto', '#FFF6E0', '#6B4A00'],
       vencida: ['Vencida', '#FDECEA', '#7A1F16'],
       sin: ['Sin suscripción', '#FDECEA', '#7A1F16'],
@@ -160,12 +181,13 @@
       const haVig = piv.filter(f => f.est.vigente).reduce((s, f) => s + (f.ha || 0), 0);
       const tarjeta = (n, t, col, k) => '<button type="button" class="card" data-f="' + k + '" style="text-align:left;cursor:pointer;border:' + (filtro === k ? '2px solid ' + col : '1px solid var(--bd)') + ';padding:12px 14px;margin:0;"><div style="font-size:24px;font-weight:800;color:' + col + ';">' + n + '</div><div style="font-size:12px;color:var(--label);font-weight:700;">' + t + '</div></button>';
       let h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">' +
-        tarjeta(piv.length, 'Pivots en total', '#2E3236', 'todos') + tarjeta(cuenta('vigente') + cuenta('por_vencer'), 'Vigentes · ' + Math.round(haVig).toLocaleString('es-PY') + ' ha', '#17692A', 'vigentes') +
-        tarjeta(cuenta('por_vencer'), 'Vencen en 30 días', '#B8731A', 'por_vencer') + tarjeta(cuenta('vencida'), 'Vencidas', '#C0392B', 'vencida') + tarjeta(cuenta('sin'), 'Sin suscripción', '#C0392B', 'sin') + '</div>';
+        tarjeta(piv.length, 'Pivots en total', '#2E3236', 'todos') + tarjeta(cuenta('vigente') + cuenta('por_vencer') + cuenta('prueba'), 'Vigentes · ' + Math.round(haVig).toLocaleString('es-PY') + ' ha', '#17692A', 'vigentes') +
+        tarjeta(cuenta('por_vencer'), 'Vencen en 30 días', '#B8731A', 'por_vencer') + tarjeta(cuenta('prueba'), 'En prueba', '#1B5E9A', 'prueba') + tarjeta(cuenta('vencida') + cuenta('prueba_fin'), 'Vencidas', '#C0392B', 'vencida') + tarjeta(cuenta('sin'), 'Sin suscripción', '#C0392B', 'sin') + '</div>';
       h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input type="search" id="busca" placeholder="Buscar cliente, campo o pivot" value="' + esc(busca) + '" style="max-width:320px;margin:0;"></div>';
       const vis = todas.filter(f => {
-        if (filtro === 'vigentes' && !(f.clave === 'vigente' || f.clave === 'por_vencer')) return false;
-        if (filtro !== 'todos' && filtro !== 'vigentes' && f.clave !== filtro) return false;
+        if (filtro === 'vigentes' && !(f.clave === 'vigente' || f.clave === 'por_vencer' || f.clave === 'prueba')) return false;
+        if (filtro === 'vencida' && !(f.clave === 'vencida' || f.clave === 'prueba_fin')) return false;
+        if (filtro !== 'todos' && filtro !== 'vigentes' && filtro !== 'vencida' && f.clave !== filtro) return false;
         if (busca) { const t = [f.cliente && f.cliente.nombre, f.campo && f.campo.nombre, f.e.nombre].join(' ').toLowerCase(); if (t.indexOf(busca.toLowerCase()) < 0) return false; }
         return true;
       });
@@ -174,12 +196,13 @@
           '<div><b>' + esc(f.cliente ? f.cliente.nombre : 'Sin cliente') + '</b><div class="muted" style="font-size:12px;">' + esc(f.campo ? f.campo.nombre + (f.campo.localidad ? ' · ' + f.campo.localidad : '') : '—') + '</div></div>' +
           '<div>' + esc(f.e.nombre) + (f.ha ? ' <span class="muted">· ' + Math.round(f.ha).toLocaleString('es-PY') + ' ha</span>' : '') + (f.reg && f.reg.plan && !f.est.secano ? '<div class="muted" style="font-size:12px;">' + esc(f.reg.plan) + (f.reg.notas ? ' · ' + esc(f.reg.notas) : '') + '</div>' : '') + '</div>' +
           '<div>' + venceTxt(f) + '</div><div>' + chip(f.clave) + '</div>' +
-          '<div class="acc">' + (f.est.secano ? '' : '<button class="btn green" data-renovar="' + esc(f.e.id) + '">' + (f.est.sinSuscripcion ? 'Habilitar 1 año' : 'Renovar 1 año') + '</button><button class="btn" data-editar="' + esc(f.e.id) + '">Editar</button>') + '</div></div>').join('')
+          '<div class="acc">' + (f.est.secano ? '' : '<button class="btn green" data-renovar="' + esc(f.e.id) + '">' + (f.est.sinSuscripcion ? 'Habilitar 1 año' : 'Renovar 1 año') + '</button><button class="btn" data-prueba-de="' + esc(f.e.id) + '">Prueba</button><button class="btn" data-editar="' + esc(f.e.id) + '">Editar</button>') + '</div></div>').join('')
           : '<div class="muted" style="padding:14px 0;">No hay pivots en este filtro.</div>') + '</div>';
       $('contenido').innerHTML = h;
       $('contenido').querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { filtro = filtro === b.dataset.f ? 'todos' : b.dataset.f; pintar(); }));
       const bu = $('busca'); bu.addEventListener('input', () => { busca = bu.value; const pos = bu.selectionStart; pintar(); const nb = $('busca'); nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) {} });
       $('contenido').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => abrir(b.dataset.editar)));
+      $('contenido').querySelectorAll('[data-prueba-de]').forEach(b => b.addEventListener('click', () => abrirPrueba(b.dataset.pruebaDe)));
       $('contenido').querySelectorAll('[data-renovar]').forEach(b => b.addEventListener('click', () => renovarConConfirm(b.dataset.renovar)));
     }
 
@@ -196,7 +219,8 @@
     function renovar(eqId) {
       const est = S().estado(eqId), base = est.vence && est.vence >= S().hoy() ? est.vence : S().hoy(), nueva = sumarMeses(base, 12);
       if (!confirmar(nombrePivot(eqId) + ': queda vigente hasta el ' + fecha(nueva) + '.')) return;
-      guardar(eqId, { vence: nueva }, est.sinSuscripcion ? 'habilitada' : 'renovada 1 año');
+      const eraPrueba = (S().registro(eqId) || {}).plan === 'Prueba';
+      guardar(eqId, eraPrueba ? { vence: nueva, plan: 'Anual', notas: '' } : { vence: nueva }, est.sinSuscripcion ? 'habilitada' : 'renovada 1 año');
       toast(nombrePivot(eqId) + ' vigente hasta el ' + fecha(nueva));
     }
     // confirmación simple dentro de la pantalla (sin ventanas del navegador)
@@ -211,6 +235,28 @@
       $('cSi').onclick = () => { d.remove(); aprobado = true; if (accionPendiente) accionPendiente(); };
     }
     function renovarConConfirm(eqId) { accionPendiente = () => renovar(eqId); renovar(eqId); }
+    function sumarDias(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+    // Prueba gratis: N días desde hoy (1 día = hoy y mañana), plan 'Prueba'
+    let pruebaDe = null, pruebaDias = null;
+    function abrirPrueba(eqId) {
+      pruebaDe = eqId; pruebaDias = null; const est = S().estado(eqId);
+      $('pTitulo').textContent = 'Prueba gratis · ' + nombrePivot(eqId);
+      $('pHasta').innerHTML = est.vigente && est.vence && est.vence > S().hoy() ? '<span style="color:#B8731A;">Ojo: hoy está vigente hasta el ' + fecha(est.vence) + '. Si das una prueba más corta, esa fecha se acorta.</span>' : 'Elegí cuántos días.';
+      document.querySelectorAll('[data-prueba]').forEach(b => b.classList.remove('activo-prueba'));
+      $('pGuardar').disabled = true; $('modalPrueba').classList.add('visible');
+    }
+    document.querySelectorAll('[data-prueba]').forEach(b => b.addEventListener('click', () => {
+      pruebaDias = parseInt(b.dataset.prueba, 10);
+      document.querySelectorAll('[data-prueba]').forEach(x => { x.classList.toggle('green', x === b); });
+      $('pHasta').textContent = 'Queda habilitado hasta el ' + fecha(sumarDias(S().hoy(), pruebaDias)) + ' inclusive (' + pruebaDias + ' día' + (pruebaDias === 1 ? '' : 's') + ' de prueba).';
+      $('pGuardar').disabled = false;
+    }));
+    $('pCancelar').addEventListener('click', () => $('modalPrueba').classList.remove('visible'));
+    $('pGuardar').addEventListener('click', () => {
+      if (!pruebaDe || !pruebaDias) return; const v = sumarDias(S().hoy(), pruebaDias);
+      guardar(pruebaDe, { vence: v, plan: 'Prueba', notas: 'Prueba gratis de ' + pruebaDias + ' día' + (pruebaDias === 1 ? '' : 's') }, 'prueba de ' + pruebaDias + ' día' + (pruebaDias === 1 ? '' : 's'));
+      toast(nombrePivot(pruebaDe) + ': prueba gratis hasta el ' + fecha(v)); $('modalPrueba').classList.remove('visible');
+    });
 
     function abrir(eqId) {
       editando = eqId; const reg = S().registro(eqId) || {}, est = S().estado(eqId);
@@ -225,6 +271,7 @@
     function cerrar() { $('modalSusc').classList.remove('visible'); editando = null; }
     document.querySelectorAll('[data-mas]').forEach(b => b.addEventListener('click', () => { const v = $('sVence').value, base = v && v >= S().hoy() ? v : S().hoy(); $('sVence').value = sumarMeses(base, parseInt(b.dataset.mas, 10)); }));
     $('sSinFecha').addEventListener('click', () => { $('sVence').value = ''; });
+    document.querySelectorAll('[data-dias]').forEach(b => b.addEventListener('click', () => { const v = $('sVence').value, base = v && v >= S().hoy() ? v : S().hoy(); $('sVence').value = sumarDias(base, parseInt(b.dataset.dias, 10)); }));
     $('sCancelar').addEventListener('click', cerrar);
     $('sGuardar').addEventListener('click', () => {
       if (!editando) return; const v = $('sVence').value || null;
