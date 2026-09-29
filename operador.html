@@ -692,7 +692,8 @@
       .main > .crumb { display: none; }
       .main > .topbar { margin-bottom: 10px !important; padding-bottom: 8px !important; }
       .contenedor { max-width: 1240px !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
-        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "eventos agua" "eventos mant"; }
+        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "eventos agua" "eventos mant";
+        grid-template-rows: auto auto auto auto auto 1fr auto; }   /* el alto que sobra por la ficha de agua va abajo, no como hueco entre tarjetas */
       .contenedor > .header-operador { display: none !important; }
       .contenedor > #alertaSinEquipo { grid-area: alerta; }
       .contenedor > #selectorCard { grid-area: sel; margin-bottom: 10px !important; padding: 10px 14px !important; }
@@ -710,6 +711,16 @@
       #eventosSeccion #listaEventos { max-height: 190px; overflow-y: auto; }
       #fichaAguaCard .fa-svg { height: 200px; }
     }
+    /* Mantenimiento cerrado: una línea con el resumen; un toque lo abre */
+    .mant-det > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 2px 0; }
+    .mant-det > summary::-webkit-details-marker { display: none; }
+    .mant-sum-t { font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: #B8731A; }
+    .mant-sum-r { font-size: 13px; font-weight: 700; }
+    .mant-sum-v { margin-left: auto; font-size: 12px; font-weight: 700; color: #5B6167; border: 1px solid #E1E4E7; border-radius: 8px; padding: 4px 10px; background: #F7F8F9; }
+    .mant-det[open] .mant-sum-v { font-size: 0; }
+    .mant-det[open] .mant-sum-v::after { content: 'cerrar'; font-size: 12px; }
+    .mant-det[open] > summary { margin-bottom: 8px; }
+    .mant-det .mt-titulo > span:first-child { display: none; }   /* el título ya está en la línea del resumen */
   </style>
 </head>
 <body>
@@ -863,7 +874,6 @@
           <div class="reco-detalle" id="recoDetalle">—</div>
         </div>
         <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div></div>
-        <div class="card" id="mantCard" style="display:none;margin-top:12px;"><div id="mantEquipo"></div></div>
 
         <div class="botones-carga" id="botonesCarga" style="display:none;">
           <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
@@ -891,6 +901,9 @@
           </div>
           <div id="listaEventos"></div>
         </div>
+
+        <!-- Mantenimiento: último y cerrado (se abre con un toque); en PC va abajo de la ficha de agua -->
+        <div class="card" id="mantCard" style="display:none;margin-top:12px;"><div id="mantEquipo"></div></div>
 
       </div>
 
@@ -1539,7 +1552,14 @@
       const card = document.getElementById('mantCard'), div = document.getElementById('mantEquipo'); if (!card || !div || !window.SafiaMant) return;
       const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
       if (!eq || SafiaBalance.esSecano(eq)) { card.style.display = 'none'; return; }
-      div.innerHTML = SafiaMant.html(eq); card.style.display = 'block';
+      // Cerrado por defecto: el operador ve un resumen y lo abre con un toque (se conserva abierto si ya lo estaba)
+      const prev = div.querySelector('details.mant-det'), abierto = !!(prev && prev.open);
+      let s = null; try { s = SafiaMant.estado(eq); } catch (e) {}
+      const nV = s && s.vencidas ? s.vencidas.length : 0, nP = s && s.proximas ? s.proximas.length : 0;
+      const resumen = !s ? '' : s.sinPlan ? 'sin plan cargado' : nV ? nV + ' tarea' + (nV > 1 ? 's' : '') + ' vencida' + (nV > 1 ? 's' : '') : nP ? nP + ' tarea' + (nP > 1 ? 's' : '') + ' próxima' + (nP > 1 ? 's' : '') : 'todo al día';
+      const col = nV ? '#C0392B' : nP ? '#B8731A' : (s && s.sinPlan ? '#8C9196' : '#178029');
+      div.innerHTML = '<details class="mant-det"' + (abierto ? ' open' : '') + '><summary class="mant-sum"><span class="mant-sum-t">Mantenimiento del equipo</span><span class="mant-sum-r" style="color:' + col + ';">' + resumen + '</span><span class="mant-sum-v">ver</span></summary>' + SafiaMant.html(eq) + '</details>';
+      card.style.display = 'block';
     }
     window.addEventListener('safia:mantenimiento', () => { try { mostrarEventos(); } catch (e) {} });
 
