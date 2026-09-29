@@ -468,8 +468,12 @@
     var ponerSiembraSug=function(){ if(!window.SafiaClimaProyecto) return; var cv=fila.querySelector('.fc-cultivo').value, pasto=SafiaCasos.esPasto(cv); fila.querySelector('.fc-siembra').placeholder=pasto?'todo el año':SafiaClimaProyecto.siembraPorDefecto(cv, fila.querySelector('.fc-epoca').value); fila.querySelector('.fc-siembra').disabled=pasto; };
     fila.querySelector('.fc-epoca').addEventListener('change',function(){ fila.dataset.epocaAuto=''; ponerSiembraSug(); }); fila.querySelector('.fc-cultivo').addEventListener('change',ponerSiembraSug); ponerSiembraSug();
     // la época sale de la fecha de siembra si quedó en "Cualquiera" (o si la puso SAFIA): soja 20/09 = primavera/verano, maíz 25/01 = zafriña (verano/otoño)
-    var epocaDeFecha=function(){ if(!window.SafiaClimaProyecto||!SafiaClimaProyecto.epocaPorSiembra) return; var sel=fila.querySelector('.fc-epoca'), e=SafiaClimaProyecto.epocaPorSiembra(fila.querySelector('.fc-siembra').value); if(!e) return; if(sel.value===''||fila.dataset.epocaAuto==='1'){ sel.value=e; fila.dataset.epocaAuto='1'; ponerSiembraSug(); } };
-    fila.querySelector('.fc-siembra').addEventListener('input',epocaDeFecha); fila.querySelector('.fc-siembra').addEventListener('change',epocaDeFecha); epocaDeFecha();
+    var AYUDA_SIEMBRA='sin año: se simula en cada uno de los últimos 10 años';
+    // si la época elegida a mano no corresponde a la fecha, se avisa (no se cambia sola)
+    var avisoEpoca=function(){ var ay=fila.querySelector('.fc-siembra-ayuda'), sel=fila.querySelector('.fc-epoca'), s=fila.querySelector('.fc-siembra').value, e=window.SafiaClimaProyecto&&SafiaClimaProyecto.epocaPorSiembra?SafiaClimaProyecto.epocaPorSiembra(s):null;
+      if(e && sel.value && sel.value!==e){ ay.innerHTML='<b style="color:#B3261E;">El '+esc(s)+' corresponde a '+esc(e)+'</b>, no a '+esc(sel.value)+': revisá la época'; } else ay.textContent=AYUDA_SIEMBRA; };
+    var epocaDeFecha=function(){ if(!window.SafiaClimaProyecto||!SafiaClimaProyecto.epocaPorSiembra) return; var sel=fila.querySelector('.fc-epoca'), e=SafiaClimaProyecto.epocaPorSiembra(fila.querySelector('.fc-siembra').value); if(e && (sel.value===''||fila.dataset.epocaAuto==='1')){ sel.value=e; fila.dataset.epocaAuto='1'; ponerSiembraSug(); } avisoEpoca(); };
+    fila.querySelector('.fc-siembra').addEventListener('input',epocaDeFecha); fila.querySelector('.fc-siembra').addEventListener('change',epocaDeFecha); fila.querySelector('.fc-epoca').addEventListener('change',avisoEpoca); epocaDeFecha();
     rotularFila(fila);
     fila.querySelector('.fc-quitar').addEventListener('click',function(){
       if(document.querySelectorAll('.fila-cultivo').length<=1){ toast('Dejá al menos un cultivo',true); return; }
