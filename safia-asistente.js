@@ -3,7 +3,7 @@
    Chat que responde con los datos reales de SAFIA. La IA vive en la función safia-asistente (servidor, con la llave);
    las HERRAMIENTAS se ejecutan acá, en el navegador, sobre los datos que este usuario ya ve con su rol (un cliente: lo
    suyo y los lotes de la zona sin nombres). Así los números los calcula SAFIA, no la IA, y nadie ve lo que no debe.
-   Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, interpretar_suelo, mis_campos.
+   Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, agua_hoy, interpretar_suelo, mis_campos.
    Uso: SafiaAsistente.montar(elemento). */
 (function () {
   'use strict';
@@ -153,13 +153,73 @@
         lectura: inter.map(function (x) { return { parametro: x.n, valor: x.valor, unidad: x.unidad, categoria: x.categoria, estado: x.estado, texto: x.texto }; }),
         recomendaciones: recs.map(function (r) { return { tema: r.titulo, detalle: r.detalle }; }), fuente: 'Manual de Calagem e Adubação RS/SC 2016 y Embrapa (motor agronómico de SAFIA)' };
     },
+    agua_hoy: function (i) {
+      // Mismo cálculo que la ficha de agua del Operador: clima de 92 días + pronóstico → SafiaBalance.simular → SafiaFichaAgua.proximoRiego
+      var B = window.SafiaBalance, K = window.SafiaClima, FA = window.SafiaFichaAgua;
+      if (!B || !K) return { error: 'Módulo de agua no disponible en esta página' };
+      var campo = i.campo ? campoPorNombre(i.campo) : null;
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      var cps = propios('campos'), cams = propios('campanas'), evs = propios('eventos');
+      var lista = propios('equipos').filter(function (e) { return (!campo || String(e.campoId) === String(campo.id)) && (!i.lote || norm(e.nombre).indexOf(norm(i.lote)) >= 0); })
+        .map(function (e) { return { e: e, c: cps.find(function (x) { return String(x.id) === String(e.campoId); }), cam: cams.find(function (x) { return String(x.equipoId) === String(e.id) && x.estado === 'Activa'; }) }; });
+      if (!i.campo && !i.lote) lista = lista.filter(function (x) { return x.cam; });   // sin filtro: solo los lotes en campaña
+      if (!lista.length) return { error: (i.lote || i.campo) ? 'No encontré ese lote o pivot.' : 'Ningún lote tiene una campaña activa.', lotes: propios('equipos').map(function (e) { var c = cps.find(function (x) { return String(x.id) === String(e.campoId); }); return (c ? c.nombre + ' · ' : '') + e.nombre; }) };
+      var omitidos = lista.length > 8 ? lista.length - 8 : 0; lista = lista.slice(0, 8);
+      var hoyK = B.hoyLocal(), climas = {};
+      function clima(c) {
+        if (!climas[c.id]) climas[c.id] = K.obtenerClima({ lat: c.latitud, lon: c.longitud, daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min,precipitation_probability_max', pastDays: 92, forecastDays: 7, cacheKey: 'campo:' + c.id });
+        return climas[c.id];
+      }
+      function uno(x) {
+        var e = x.e, c = x.c, cam = x.cam, cu = cam && cam.cultivos && cam.cultivos[0];
+        var base = { campo: c ? c.nombre : null, lote: e.nombre, tipo: B.esSecano(e) ? 'secano' : (e.tipo || 'pivote'), campana: cam ? cam.nombre : null, cultivo: cu ? cu.cultivo : null, variedad: cu ? (cu.variedad || null) : null, siembra: cu ? (cu.fechaSiembra || null) : null };
+        var mios = evs.filter(function (v) { return String(v.equipoId) === String(e.id) && (v.tipo === 'riego' || v.tipo === 'lluvia'); }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+        var ur = mios.filter(function (v) { return v.tipo === 'riego'; })[0], ul = mios.filter(function (v) { return v.tipo === 'lluvia'; })[0];
+        base.ultimo_riego_cargado = ur ? { fecha: B.claveDia(ur.fecha), mm: num(ur.cantidad) } : null;
+        base.ultima_lluvia_cargada = ul ? { fecha: B.claveDia(ul.fecha), mm: num(ul.cantidad) } : null;
+        if (!c || num(c.latitud) == null || num(c.longitud) == null) return Object.assign(base, { error: 'El campo no tiene coordenada: no se puede traer el clima.' });
+        return clima(c).then(function (rc) {
+          if (!rc || !rc.datos) return Object.assign(base, { error: 'No se pudo traer el clima (' + ((rc && rc.error && rc.error.tipo) || 'sin datos') + ').' });
+          var d = rc.datos.daily, ks = d.time.map(B.claveDia), ih = ks.indexOf(hoyK); if (ih < 0) ih = 0;
+          var pron = [];
+          for (var j = ih; j < ks.length && j < ih + 7; j++) pron.push({ fecha: ks[j], lluvia_mm: r1(d.precipitation_sum[j] || 0), prob_lluvia_pct: d.precipitation_probability_max ? d.precipitation_probability_max[j] : null, t_max: r0(d.temperature_2m_max && d.temperature_2m_max[j]), t_min: r0(d.temperature_2m_min && d.temperature_2m_min[j]), eto_mm: r1(d.et0_fao_evapotranspiration && d.et0_fao_evapotranspiration[j]) });
+          base.pronostico_7_dias = pron;
+          base.lluvia_ultimos_7_dias_mm = r0(ks.reduce(function (s, k, j) { return s + (j < ih && j >= ih - 7 ? (d.precipitation_sum[j] || 0) : 0); }, 0));
+          if (rc.desactualizado) base.aviso = 'Sin conexión al clima: datos guardados del ' + (rc.fechaCache || 'último día disponible') + '.';
+          if (base.tipo === 'secano') return Object.assign(base, { recomendacion: 'Lote de secano: no se riega; el agua es la que llueve.' });
+          if (!cu) return Object.assign(base, { recomendacion: 'Sin campaña activa en este lote: no hay cultivo para calcular el balance.' });
+          var kcDef = B.obtenerCultivoKc(cu.cultivo);
+          var r = B.simular({ campo: c, daily: d, eventos: evs, equipoId: e.id, equipo: e, kcDef: kcDef, fechaSiembra: cu.fechaSiembra, diasFuturo: 4, asumirRiegoRecomendado: false });
+          var U = r.umbrales || B.UMBRALES, p = FA ? FA.proximoRiego(r, e) : { titulo: r.recomendacion.regar ? 'Regar hoy: ' + r.recomendacion.mm + ' mm' : 'Sin riego hoy', detalle: '' };
+          var tp = r.totalesPasado || {}, ult7 = (r.pasado || []).slice(-7);
+          return Object.assign(base, {
+            recomendacion: p.titulo, detalle: p.detalle || null,
+            agua_util_hoy_pct: r0(r.porcentajeHoy), regar_por_debajo_de_pct: U.CRITICO, estres_por_debajo_de_pct: U.URGENTE,
+            agua_disponible_mm: r0(r.aguaDisponibleHoy), reserva_total_raiz_mm: r0(r.tawHoy), falta_para_capacidad_campo_mm: r0(r.deficitHastaCC),
+            lamina_sugerida_hoy_mm: r.recomendacion.mm || 0, eficiencia_riego: r.eficiencia,
+            dias_desde_siembra: r.etapaHoy.dds, etapa: r.etapaHoy.nombre || null, etapa_critica: !!r.etapaHoy.critica, raiz_cm: r.etapaHoy.zr ? Math.round(r.etapaHoy.zr * 100) : null, kc_hoy: r.etapaHoy.kc,
+            consumo_cultivo_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.etcDia || 0); }, 0)), riego_cargado_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.riegoBruto || 0); }, 0)),
+            desde_siembra: { lluvia_mm: r0(tp.lluviaBruta), riego_bruto_mm: r0(tp.riegoBruto), consumo_etc_mm: r0(tp.etc), dias_con_estres: tp.diasEstres || 0 },
+            proximos_dias: (r.dias || []).map(function (v) { return { fecha: B.claveDia(v.fecha), agua_util_pct: r0(v.porcentajeAAU), lluvia_mm: r1(v.lluviaBruta), estado: v.estado, lamina_si_toca_mm: v.mmRegar || 0 }; }),
+            humedad_medida_con: r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad' : (r.fuentes && r.fuentes.estacion ? 'balance con la estación del campo' : 'balance FAO-56 con clima estimado (lluvia CHIRPS corregida, pronóstico Open-Meteo)'),
+            suelo: r.suelo && r.suelo.origen, sin_cultivo_en_tabla_fao: !kcDef
+          });
+        }, function (er) { return Object.assign(base, { error: String((er && er.message) || er) }); });
+      }
+      return Promise.all(lista.map(function (x) { try { return Promise.resolve(uno(x)); } catch (er) { return Promise.resolve({ lote: x.e.nombre, error: String(er.message || er) }); } })).then(function (lotes) {
+        return { hoy: hoyK, lotes: lotes, lotes_no_mostrados: omitidos || undefined,
+          fuente: 'ficha de agua de SAFIA: balance diario FAO-56 desde la siembra con los riegos y lluvias cargados, lluvia pasada CHIRPS (o estación/manual) y pronóstico Open-Meteo; el mismo cálculo que ve el Operador',
+          importante: 'La humedad es calculada, no medida (salvo sonda). Si no se cargaron los riegos hechos, el suelo aparece más seco de lo real.' };
+      });
+    },
     mis_campos: function () {
-      var cl = propios('clientes'), cs = casos(), an = propios('analisis_suelo');
+      var cl = propios('clientes'), cs = casos(), an = propios('analisis_suelo'), eqs = propios('equipos'), cams = propios('campanas');
       return { campos: propios('campos').map(function (c) {
         var cli = cl.find(function (x) { return String(x.id) === String(c.clienteId); });
         return { campo: c.nombre, cliente: cli ? cli.nombre : null, localidad: c.localidad || null, departamento: c.departamento || null, region: C() ? C().regionNombre(C().region({ departamento: c.departamento, pais: c.pais, lat: num(c.latitud), lon: num(c.longitud) })) : null,
           superficie_ha: num(c.superficie), coordenada: c.latitud && c.longitud ? c.latitud + ', ' + c.longitud : null, tiene_analisis_suelo: an.some(function (a) { return String(a.campoId) === String(c.id); }),
-          campanas_cosechadas: cs.filter(function (x) { return String(x.campoId) === String(c.id); }).length, es_proyecto: !!c.proyecto };
+          campanas_cosechadas: cs.filter(function (x) { return String(x.campoId) === String(c.id); }).length, es_proyecto: !!c.proyecto,
+          lotes: eqs.filter(function (e) { return String(e.campoId) === String(c.id); }).map(function (e) { var k = cams.find(function (x) { return String(x.equipoId) === String(e.id) && x.estado === 'Activa'; }), cu = k && k.cultivos && k.cultivos[0]; return { lote: e.nombre, tipo: e.tipo === 'secano' ? 'secano' : (e.tipo || 'pivote'), campana_activa: k ? [k.nombre, cu && cu.cultivo, cu && cu.variedad, cu && cu.fechaSiembra ? 'siembra ' + cu.fechaSiembra : null].filter(Boolean).join(' · ') : null }; }) };
       }) };
     }
   };
@@ -189,7 +249,7 @@
       return r.data;
     });
   }
-  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos' };
+  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos' };
   function preguntar(texto, al) {
     if (ocupado || !texto.trim()) return Promise.resolve();
     ocupado = true;
@@ -252,7 +312,7 @@
   }
 
   /* ---------- pantalla ---------- */
-  var SUGERENCIAS = ['¿Qué variedad de soja rindió más con riego en la Región Oriental?', '¿Con cuántos mm de agua se hizo el mejor maíz del banco?', '¿Qué le falta al suelo de mi campo para llegar a 5.000 kg de soja?', '¿Cuánto riego lleva la soja en Mariscal Estigarribia y cuánto rinde en secano?', '¿Cuánto rinden la soja y el maíz con riego y en secano en Boquerón según la referencia?'];
+  var SUGERENCIAS = ['¿Tengo que regar hoy? ¿Viene lluvia?', '¿Qué variedad de soja rindió más con riego en la Región Oriental?', '¿Con cuántos mm de agua se hizo el mejor maíz del banco?', '¿Qué le falta al suelo de mi campo para llegar a 5.000 kg de soja?', '¿Cuánto riego lleva la soja en Mariscal Estigarribia y cuánto rinde en secano?', '¿Cuánto rinden la soja y el maíz con riego y en secano en Boquerón según la referencia?'];
   function montar(el) {
     if (!el) return;
     el.innerHTML = '<div id="asHist" style="display:flex;flex-direction:column;gap:12px;"></div>' +

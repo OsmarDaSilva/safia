@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-asistente (v1)
+// SAFIA · Edge Function: safia-asistente (v2: agua_hoy)
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
 // Arquitectura: esta función solo habla con Claude (la llave vive acá, como secreto). Las HERRAMIENTAS se ejecutan en el
 // navegador del usuario (safia-asistente.js), sobre los datos que ese usuario ya puede ver con su rol: un cliente ve lo
@@ -26,7 +26,8 @@ Reglas de oro:
 6. Privacidad: no reveles nombres de otros productores. Si un caso viene como "Lote N de ..." o sin nombre, nombralo así. Solo usás nombres propios que la herramienta devuelve para los campos del usuario.
 7. Unidades: grano en kg/ha, ensilaje en toneladas de materia verde por ha, pasto en kg de materia seca por ha. Agua en mm (1 mm sobre 1 ha son 10 m³).
 8. Respondé en español de Paraguay, simple y directo, como un agrónomo que le explica a un productor: primero la respuesta, después el detalle y de dónde sale. Usá tablas cortas cuando compares lotes, variedades o zonas. Sin emojis. No repitas la pregunta.
-9. Si la pregunta no es de agronomía, riego, clima, suelos o del negocio del campo, decí amablemente que no es tu tema.`;
+9. Riego del día: SAFIA sí tiene el pronóstico de los próximos 7 días y la humedad del suelo calculada de cada lote en campaña (la misma ficha de agua que ve el Operador). Para "¿riego hoy?", "¿cuándo riego?", "¿va a llover?" o "¿cómo está el agua del lote?" usá agua_hoy; si no dice qué campo o lote, llamala sin filtro y respondé por cada lote en campaña. Primero la decisión (regar hoy X mm, próximo riego tal día o no regar porque viene lluvia) y después el porqué: % de agua útil hoy contra el umbral del cultivo, etapa, lluvia prevista y último riego cargado. Aclará que la humedad es calculada salvo que haya sonda, y que si no se cargaron los riegos ya hechos el suelo aparece más seco de lo real.
+10. Si la pregunta no es de agronomía, riego, clima, suelos o del negocio del campo, decí amablemente que no es tu tema.`;
 
 // Las herramientas se describen acá (fijas, no las cambia el navegador) y se ejecutan en el navegador.
 const FILTROS = {
@@ -74,8 +75,13 @@ const HERRAMIENTAS = [
     input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario.' }, cultivo: FILTROS.cultivo, valores: { type: 'object', description: 'Valores del análisis si no es de un campo: ph, mo (%), p (mg/dm3), k, ca, mg, cic (cmolc/dm3), satBases (%), arcilla (%).', properties: { ph: { type: 'number' }, mo: { type: 'number' }, p: { type: 'number' }, k: { type: 'number' }, ca: { type: 'number' }, mg: { type: 'number' }, cic: { type: 'number' }, satBases: { type: 'number' }, arcilla: { type: 'number' } } }, rinde_objetivo: { type: 'number', description: 'Rinde objetivo en kg/ha, opcional.' } }, required: ['cultivo'] },
   },
   {
+    name: 'agua_hoy',
+    description: 'Estado del agua HOY en los lotes en campaña del usuario y qué hacer: % de agua útil en la raíz, si hay que regar hoy y cuántos mm, o cuándo toca el próximo riego, o si no conviene regar porque viene lluvia; más el pronóstico de 7 días (lluvia, probabilidad, temperaturas), la etapa del cultivo, el último riego y la última lluvia cargados. Es el mismo cálculo de la ficha de agua del Operador (balance FAO-56 desde la siembra). Sin campo ni lote devuelve todos los lotes con campaña activa (hasta 8).',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
+  },
+  {
     name: 'mis_campos',
-    description: 'Lista los campos que el usuario puede ver en SAFIA: nombre, cliente, localidad, departamento, región, superficie, coordenada, si tiene análisis de suelo y cuántas campañas cosechadas tiene.',
+    description: 'Lista los campos que el usuario puede ver en SAFIA: nombre, cliente, localidad, departamento, región, superficie, coordenada, si tiene análisis de suelo, cuántas campañas cosechadas tiene y sus lotes o pivots con la campaña activa de cada uno.',
     input_schema: { type: 'object', properties: {} },
   },
 ];
