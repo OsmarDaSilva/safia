@@ -249,6 +249,17 @@
     for (var k = 0; k < n; k++) { var j = Math.min(i + k, etcs.length - 1), f = (k === n - 1 && dias % 1 > 0) ? dias % 1 : 1; s += f * ((etcs[j] || 0) - (lluvias[j] || 0)); }
     return Math.max(0, s);
   }
+  // Umbrales de MANEJO del riego (decisión de Osmar, 29-sep-2026, comparando con FieldNET Advisor: amarillo 58→45 %):
+  //  - estrés para decidir el riego: nunca por debajo del 45 % de agua útil (agotamiento máx. 55 %). La FAO deja gastar
+  //    más cuando el consumo es bajo (p = p_tabla + 0,04·(5 − ETc)); para regar se usa el límite más prudente.
+  //    La física del cultivo (Ks y pérdida de rinde FAO-33) sigue con el p de la FAO: esto cambia el manejo, no el cálculo del rinde.
+  //  - arranque del pivot: el consumo durante la vuelta, y como mínimo 15 puntos arriba del estrés (≈ 60 %).
+  var P_MAX_MANEJO = 0.55, BANDA_MIN_ARRANQUE = 15;
+  function umbralManejo(taw, p, gasto) {
+    var estres = Math.max(Math.round((1 - P_MAX_MANEJO) * 100), Math.round((1 - p) * 100));
+    var drE = taw * (1 - estres / 100), drA = Math.max(0, Math.min(drE - (gasto || 0), taw * (1 - Math.min(100, estres + BANDA_MIN_ARRANQUE) / 100)));
+    return { estresPct: estres, drEstres: drE, drArranque: drA, arranquePct: Math.min(100, Math.round(taw > 0 ? (1 - drA / taw) * 100 : estres)) };
+  }
   // Agotamiento (mm) al que hay que prender el pivot en el día i
   function arranquePivot(raw, ef, capB, etcs, lluvias, i) {
     var lam = laminaVuelta(raw, ef), dias = capB > 0 ? lam / capB : VUELTA_SUPUESTA_DIAS, g = gastoEnVuelta(etcs, lluvias, i, dias);
@@ -502,7 +513,12 @@
     // El margen es el consumo durante la vuelta, SIN restar la lluvia prevista: la lluvia ya entra en la proyección del suelo
     // (corre la fecha de arranque); restarla también del margen la contaría dos veces y dejaría sin margen si no llueve.
     var sinLluvia = etcF.map(function () { return 0; });
-    function arranqueEn(i2, prm2) { return eficiencia > 0 ? arranquePivot(prm2.raw, eficiencia, capB, etcF, sinLluvia, i2) : { dr: prm2.raw, dias: null, lamina: null, gasto: 0, supuesto: false }; }
+    function arranqueEn(i2, prm2) {
+      var e0 = Math.round((1 - prm2.p) * 100);
+      if (!(eficiencia > 0)) return { dr: prm2.raw, drEstres: prm2.raw, estresPct: e0, arranquePct: e0, dias: null, lamina: null, gasto: 0, supuesto: false };
+      var a = arranquePivot(prm2.raw, eficiencia, capB, etcF, sinLluvia, i2), m = umbralManejo(prm2.taw, prm2.p, a.gasto);
+      return Object.assign(a, { dr: m.drArranque, drEstres: m.drEstres, estresPct: m.estresPct, arranquePct: m.arranquePct });
+    }
 
     for (var i = inicio; i < claves.length && i < indiceHoy + diasFuturo; i++) {
       var k = claves[i], prm = prmDe(i), esPasado = i < indiceHoy, esHoy = i === indiceHoy;
@@ -529,8 +545,9 @@
       }
 
       // Día de hoy o futuro: estado y recomendación
-      var disponible = prm.taw - dr, pct = prm.taw > 0 ? disponible / prm.taw * 100 : 0, estresDia = Math.round((1 - prm.p) * 100);
-      var arrDia = conCultivo ? arranqueEn(i, prm) : { dr: prm.raw }, critico = Math.max(estresDia, Math.min(100, Math.round(prm.taw > 0 ? (1 - arrDia.dr / prm.taw) * 100 : estresDia)));
+      var disponible = prm.taw - dr, pct = prm.taw > 0 ? disponible / prm.taw * 100 : 0;
+      var arrDia = conCultivo ? arranqueEn(i, prm) : { dr: prm.raw, estresPct: Math.round((1 - prm.p) * 100), arranquePct: Math.round((1 - prm.p) * 100) };
+      var estresDia = arrDia.estresPct, critico = Math.max(estresDia, arrDia.arranquePct);
       var estado, mmRegar = 0, mmRegarTotal = 0, drenajeDia = paso.dp;
       if (lluvia.mm >= 10) estado = 'lluvia';
       else if (dr > arrDia.dr) {
@@ -561,8 +578,8 @@
     var tawHoy = prmHoy.taw, aguaHoy = Math.max(0, tawHoy - drHoy), pctHoy = tawHoy > 0 ? aguaHoy / tawHoy * 100 : 0;
     var pmpHoy = suelo.pmp / 100 * prmHoy.zr * 1000;
     // Hoy: se prende el pivot al llegar al punto de arranque (no al de estrés); ver arranquePivot
-    var estresHoy = Math.round((1 - prmHoy.p) * 100), arrHoy = conCultivo ? arranqueEn(indiceHoy, prmHoy) : { dr: prmHoy.raw, dias: null, supuesto: false };
-    var arranqueHoy = Math.max(estresHoy, Math.min(100, Math.round(tawHoy > 0 ? (1 - arrHoy.dr / tawHoy) * 100 : estresHoy)));
+    var arrHoy = conCultivo ? arranqueEn(indiceHoy, prmHoy) : { dr: prmHoy.raw, drEstres: prmHoy.raw, estresPct: Math.round((1 - prmHoy.p) * 100), arranquePct: Math.round((1 - prmHoy.p) * 100), dias: null, supuesto: false };
+    var estresHoy = arrHoy.estresPct, arranqueHoy = Math.max(estresHoy, arrHoy.arranquePct);
     var estadoHoy = 'ok', regar = false, mmHoy = 0, mmTotalHoy = 0;
     if (drHoy > arrHoy.dr) { regar = true; estadoHoy = 'regar'; if (eficiencia > 0) { mmTotalHoy = Math.ceil(drHoy / eficiencia / 5) * 5; mmHoy = Math.max(10, Math.min(35, mmTotalHoy)); } }
     else if (pctHoy < arranqueHoy + 10) estadoHoy = 'atencion';
@@ -573,8 +590,9 @@
     var arrancarEl = null, venceEl = null, dP = drHoy, etcMax = 0;
     for (var j = indiceHoy; j < claves.length; j++) {
       var pj = prmF[j] || prmDe(j); dP = Math.min(dP, pj.taw);
-      if (conCultivo && arrancarEl == null && dP > arranqueEn(j, pj).dr) arrancarEl = claves[j];
-      if (venceEl == null && dP > pj.raw) venceEl = claves[j];
+      var aj = conCultivo ? arranqueEn(j, pj) : { dr: pj.raw, drEstres: pj.raw };
+      if (conCultivo && arrancarEl == null && dP > aj.dr) arrancarEl = claves[j];
+      if (venceEl == null && dP > aj.drEstres) venceEl = claves[j];
       if (j < indiceHoy + 7) etcMax = Math.max(etcMax, pj.etc);
       dP = pasoDia(dP, pj, llF[j] + (idx.riego[claves[j]] || 0) * eficiencia).dr;
     }
@@ -604,7 +622,7 @@
       sonda: ultimaSonda ? Object.assign({}, ultimaSonda, { antiguedadDias: diasEntre(ultimaSonda.fecha, claveHoy) }) : null,
       pastura: pasturaInfo,
       fuentes: fuentes,
-      recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta, enEstres: drHoy > prmHoy.raw, pivot: pivot },
+      recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta, enEstres: drHoy > (arrHoy.drEstres != null ? arrHoy.drEstres : prmHoy.raw), pivot: pivot },
       // Como WaterTrend de FieldNET: consumo del cultivo y lluvia prevista acumulados (7 días y todo el pronóstico)
       pronostico: (function () {
         var s = function (n) { var e = 0, l = 0, d = 0; for (var j = indiceHoy; j < claves.length && j < indiceHoy + n; j++) { e += etcF[j] || 0; l += llF[j] || 0; d++; } return { dias: d, consumoMM: Math.round(e), lluviaMM: Math.round(l), balanceMM: Math.round(l - e) }; };
@@ -627,8 +645,9 @@
     indexarEventos: indexarEventos, resolverLluviaDia: resolverLluviaDia, estacionDelCampo: estacionDelCampo,
     simular: simular,
     capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
+    umbralManejo: umbralManejo, P_MAX_MANEJO: P_MAX_MANEJO, BANDA_MIN_ARRANQUE: BANDA_MIN_ARRANQUE,
     ndviGuardado: ndviGuardado, factoresSatelite: factoresSatelite, kcbSatelite: kcbSatelite, extremosNdvi: extremosNdvi, prepararSatelite: prepararSatelite, ALTURA_CULTIVO: ALTURA_CULTIVO,
-    version: '2.2.0'
+    version: '2.3.0'
   };
 
   root.SafiaBalance = SafiaBalance;

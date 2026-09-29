@@ -62,6 +62,7 @@
       '<tr><td>' + chip(COL.estres, 'Estrés') + '</td><td>La planta cierra estomas y se pierde rinde (más en floración y llenado).</td><td><b>Regar ya.</b></td></tr>' +
       '</tbody></table>';
     h += '<h3>3. Por qué el pivot se prende antes del estrés</h3><p>Un pivot no moja todo el lote a la vez: tarda días en dar la vuelta. SAFIA calcula para cada pivot <b>cuánto va a consumir el cultivo mientras el pivot da la vuelta</b> y lo suma al punto de estrés. Así sale la raya <b>"arrancar el pivot"</b>. Es la misma idea de FieldNET Advisor: <i>arrancar = cuándo vence − lo que tarda la vuelta</i>.</p>' + dibujo() +
+      '<p class="mr-nota">Para decidir el riego, SAFIA nunca pone el estrés por debajo del 45 % de agua útil y la raya de arranque queda por lo menos 15 puntos más arriba (60 % o más), como la barra de FieldNET Advisor. En floración y llenado las dos suben solas.</p>' +
       '<p class="mr-nota">La raya de arranque se mueve sola: sube cuando hace calor y el cultivo consume mucho, y sube si el pivot es lento. La lluvia del pronóstico no baja la raya (por si no llega): corre la fecha de arranque para más adelante y, si es mucha, aparece "No regar: viene lluvia".</p>';
     h += '<h3>4. De dónde sale el cálculo</h3><div class="mr-g">' +
       '<div><b>Clima</b>Lluvia medida por satélite (CHIRPS), la estación del campo si hay, o el pluviómetro cargado; evaporación del día (Penman-Monteith FAO-56); pronóstico de 16 días.</div>' +

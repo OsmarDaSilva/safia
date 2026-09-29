@@ -173,10 +173,15 @@
         // Punto de arranque del pivot (mismo cálculo que Operación: SafiaBalance.arranquePivot): antes del estrés, según lo que tarda la vuelta
         var ef = res.eficiencia == null ? 1 : res.eficiencia, capB = ef > 0 && SB().capacidadBruta ? SB().capacidadBruta(lote) : null;
         var etcs = res.dias.map(function (x) { return x.etc; }), lls = res.dias.map(function (x) { return x.pronostico ? x.lluvia : 0; });
-        var arrEn = function (x, i) { return ef > 0 && SB().arranquePivot ? SB().arranquePivot(x.raw, ef, capB, etcs, [], i + 1) : { dr: x.raw, dias: null }; };
+        // mismos umbrales de manejo que Operación (SafiaBalance.umbralManejo: estrés ≥ 45 %, arranque ≥ estrés + 15)
+        var arrEn = function (x, i) {
+          if (!(ef > 0) || !SB().arranquePivot) return { dr: x.raw, drEstres: x.raw, dias: null };
+          var a = SB().arranquePivot(x.raw, ef, capB, etcs, [], i + 1), m = SB().umbralManejo ? SB().umbralManejo(x.taw, x.taw > 0 ? x.raw / x.taw : 0.5, a.gasto) : null;
+          return m ? Object.assign(a, { dr: m.drArranque, drEstres: m.drEstres }) : Object.assign(a, { drEstres: x.raw });
+        };
         var iUlt = res.dias.indexOf(ult), arrU = ult ? arrEn(ult, iUlt) : null;
         var futuros = res.dias.filter(function (x) { return x.pronostico; }), cruce = futuros.find(function (x) { return x.dr > arrEn(x, res.dias.indexOf(x)).dr; });
-        res.hoy = ult ? { fecha: ult.fecha, dds: ult.dds, etapa: ult.etapa, disponible: ult.disponible, dr: ult.dr, raw: ult.raw, taw: ult.taw, ks: ult.ks, faltaParaRecarga: Math.round(arrU.dr - ult.dr), faltaParaEstres: Math.round(ult.raw - ult.dr), vueltaDias: arrU.dias != null ? Math.round(arrU.dias * 10) / 10 : null } : null;
+        res.hoy = ult ? { fecha: ult.fecha, dds: ult.dds, etapa: ult.etapa, disponible: ult.disponible, dr: ult.dr, raw: ult.raw, taw: ult.taw, ks: ult.ks, faltaParaRecarga: Math.round(arrU.dr - ult.dr), faltaParaEstres: Math.round(arrU.drEstres - ult.dr), vueltaDias: arrU.dias != null ? Math.round(arrU.dias * 10) / 10 : null } : null;
         res.pronostico = { dias: futuros.length, lluvia: Math.round(futuros.reduce(function (a, x) { return a + x.lluvia; }, 0)), etc: Math.round(futuros.reduce(function (a, x) { return a + x.etc; }, 0)), cruzaRecarga: cruce ? cruce.fecha : null, mmParaLlegarACC: ult ? Math.round(ult.dr) : null };
       }
       return res;
