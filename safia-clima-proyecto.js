@@ -177,29 +177,46 @@
     var ok = lista.filter(function (x) { return x && !x.error; });
     var h = '';
     if (!ok.length) return '<div class="note">' + esc((lista[0] && lista[0].error) || 'Sin cultivos para simular.') + '</div>';
-    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo · siembra</th><th class="r">Lluvia en el ciclo</th><th class="r">Consumo del cultivo (ETc)</th><th class="r">Riego neto</th><th class="r">Riego bruto</th><th class="r">Pico de consumo</th><th class="r">Sin riego rendiría</th></tr></thead><tbody>' +
+    h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo · siembra</th><th class="r">Lluvia en el ciclo</th><th class="r" style="white-space:normal;">Consumo del cultivo (ETc)</th><th class="r">Riego neto</th><th class="r">Riego bruto</th><th class="r" style="white-space:normal;">Pico de consumo</th><th class="r" style="white-space:normal;">Sin riego rendiría</th></tr></thead><tbody>' +
       ok.map(function (x) {
-        return '<tr><td><b>' + esc(x.cultivo) + '</b><div class="sub">' + (x.perenne ? 'todo el año' : 'siembra ' + esc(x.siembra) + ' · ' + x.dias + ' días') + ' · ' + x.n + ' ' + (x.perenne ? 'años' : 'zafras') + '</div></td>' +
+        return '<tr><td style="white-space:normal;min-width:140px;"><b>' + esc(x.cultivo) + '</b><div class="sub">' + (x.perenne ? 'todo el año' : 'siembra ' + esc(x.siembra) + ' · ' + x.dias + ' días') + '<br>' + x.n + ' ' + (x.perenne ? 'años' : 'zafras') + '</div></td>' +
           '<td class="r">' + fmt(x.lluvia, 0) + ' mm</td><td class="r">' + fmt(x.etc, 0) + ' mm</td>' +
-          '<td class="r"><b>' + fmt(x.riegoNeto, 0) + ' mm</b><div class="sub">8 de cada 10: hasta ' + fmt(x.riegoNetoP80, 0) + ' · peor ' + fmt(x.peor.riegoNeto, 0) + ' (' + esc(x.peor.etiqueta) + ')</div></td>' +
+          '<td class="r" style="white-space:normal;min-width:150px;"><b>' + fmt(x.riegoNeto, 0) + ' mm</b><div class="sub">8 de cada 10: hasta ' + fmt(x.riegoNetoP80, 0) + '<br>peor ' + fmt(x.peor.riegoNeto, 0) + ' (' + esc(x.peor.etiqueta) + ')</div></td>' +
           '<td class="r"><b>' + fmt(x.riegoBruto, 0) + ' mm</b><div class="sub">eficiencia ' + fmt(x.eficiencia * 100, 0) + ' %</div></td>' +
-          '<td class="r">' + fmt(x.pico7, 1) + ' mm/día<div class="sub">promedio de 7 días</div></td>' +
-          '<td class="r" style="white-space:normal;"><b style="color:' + (x.rindeRelSecano < 0.8 ? '#B3261E' : '#8B6F00') + ';">' + fmt(x.rindeRelSecano * 100, 0) + ' %</b><div class="sub">del potencial · peor zafra ' + fmt(x.rindeRelSecanoMin * 100, 0) + ' %</div></td></tr>';
+          '<td class="r" style="white-space:normal;">' + fmt(x.pico7, 1) + ' mm/día<div class="sub">promedio de 7 días</div></td>' +
+          '<td class="r" style="white-space:normal;min-width:130px;"><b style="color:' + (x.rindeRelSecano < 0.8 ? '#B3261E' : '#8B6F00') + ';">' + fmt(x.rindeRelSecano * 100, 0) + ' %</b><div class="sub">del potencial · peor zafra ' + fmt(x.rindeRelSecanoMin * 100, 0) + ' %</div></td></tr>';
       }).join('') + '</tbody></table></div></div>';
     // volúmenes de agua a prever para la superficie del proyecto (1 mm sobre 1 ha = 10 m³); el diseño de pozos y reservorio es del proyecto
     var ha = num(op.superficieHa), M = function (mm) { return ha > 0 ? fmt(mm * 10 * ha, 0) + ' m³' : fmt(mm, 0) + ' mm'; };
+    // los cultivos de la MISMA época no pueden ir juntos en la misma tierra el mismo año: se reparten el área en partes iguales
+    // (misma regla que la economía del riego); los de épocas distintas van uno detrás del otro en toda la superficie
+    var porEpoca = {}; ok.forEach(function (x) { var k = norm(x.epoca || 'sin época'); (porEpoca[k] = porEpoca[k] || []).push(x); });
+    var parte = function (x) { return 1 / porEpoca[norm(x.epoca || 'sin época')].length; };
+    var compartidas = Object.keys(porEpoca).map(function (k) { return porEpoca[k]; }).filter(function (g) { return g.length > 1; });
+    var Mp = function (mm, x) { return M(mm * parte(x)); };
+    var haDe = function (x) { return ha > 0 ? fmt(ha * parte(x), 0) + ' ha' : (parte(x) < 1 ? fmt(parte(x) * 100, 0) + ' % del área' : 'toda el área'); };
+    var totalDe = function (k) { return ok.reduce(function (a, x) { return a + (typeof k === 'function' ? k(x) : x[k]) * parte(x); }, 0); };
     h += '<div style="font-weight:700;margin-top:14px;">Agua a prever' + (ha > 0 ? ' para ' + fmt(ha, 0) + ' ha' : '') + '</div>';
     if (!(ha > 0)) h += '<div class="muted" style="font-size:12px;margin:2px 0 4px;">Cargá la superficie a regar (paso 0) para verlo en metros cúbicos; mientras tanto va en mm (1 mm sobre 1 ha = 10 m³).</div>';
     h += '<div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo</th><th class="r">Por ciclo, promedio</th><th class="r">8 de cada 10 zafras</th><th class="r">Zafra más seca</th><th class="r">Día de más consumo</th></tr></thead><tbody>' +
-      ok.map(function (x) { return '<tr><td><b>' + esc(x.cultivo) + '</b></td><td class="r"><b>' + M(x.riegoBruto) + '</b></td><td class="r">' + M(x.riegoBrutoP80) + '</td><td class="r">' + M(x.peor.riegoBruto) + '<div class="sub">' + esc(x.peor.etiqueta) + '</div></td><td class="r">' + M(x.pico7 / x.eficiencia) + '<div class="sub">por día (' + fmt(x.pico7, 1) + ' mm de consumo)</div></td></tr>'; }).join('') +
-      '</tbody></table></div></div>';
+      ok.map(function (x) { return '<tr><td><b>' + esc(x.cultivo) + '</b><div class="sub">' + haDe(x) + '</div></td><td class="r"><b>' + Mp(x.riegoBruto, x) + '</b></td><td class="r">' + Mp(x.riegoBrutoP80, x) + '</td><td class="r">' + Mp(x.peor.riegoBruto, x) + '<div class="sub">' + esc(x.peor.etiqueta) + '</div></td><td class="r">' + Mp(x.pico7 / x.eficiencia, x) + '<div class="sub">por día (' + fmt(x.pico7, 1) + ' mm de consumo)</div></td></tr>'; }).join('') +
+      (ok.length > 1 ? '<tr><td><b>Todo el proyecto</b><div class="sub">por año</div></td><td class="r"><b>' + M(totalDe('riegoBruto')) + '</b></td><td class="r">' + M(totalDe('riegoBrutoP80')) + '</td><td class="r">' + M(totalDe(function (x) { return x.peor.riegoBruto; })) + '<div class="sub">sumando la peor de cada uno</div></td><td class="r">' + M(compartidas.length ? totalDe(function (x) { return x.pico7 / x.eficiencia; }) : Math.max.apply(null, ok.map(function (x) { return x.pico7 / x.eficiencia; }))) + '<div class="sub">' + (compartidas.length ? 'los de la misma época a la vez' : 'el mayor, van en épocas distintas') + '</div></td></tr>' : '') +
+      '</tbody></table></div></div>' +
+      (compartidas.length ? '<div class="muted" style="font-size:12px;margin-top:4px;">' + compartidas.map(function (g) { return g.map(function (x) { return esc(x.cultivo); }).join(' y ') + ' van en la misma época: no pueden ir juntos en la misma tierra el mismo año, así que se supone ' + (g.length === 2 ? 'la mitad' : 'una parte igual') + ' del área para cada uno (igual que en la economía del riego)'; }).join('. ') + '. Los cultivos de épocas distintas van uno detrás del otro en toda la superficie.</div>' : '');
     // mes por mes (riego bruto promedio), para planificar la reserva de agua
     var usados = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].filter(function (i) { return ok.some(function (x) { return x.porMesBruto[i] >= 0.5; }); });
+    // orden de la zafra (p. ej. Oct → Feb), no del calendario: arranca en el mes con riego que sigue al hueco sin riego más largo
+    if (usados.length && usados.length < 12) {
+      var ini = usados[0], hueco = -1;
+      usados.forEach(function (u, j) { var sig = usados[(j + 1) % usados.length], h = (sig - u + 12) % 12 || 12; if (h > hueco) { hueco = h; ini = sig; } });
+      usados.sort(function (a, b) { return ((a - ini + 12) % 12) - ((b - ini + 12) % 12); });
+    }
     if (usados.length) {
-      var tot = function (i) { return ok.reduce(function (a, x) { return a + x.porMesBruto[i]; }, 0); };
-      h += '<div style="font-weight:600;font-size:13px;margin-top:10px;">Mes por mes (promedio de las zafras)</div><div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo</th>' + usados.map(function (i) { return '<th class="r">' + MESES[i] + '</th>'; }).join('') + '</tr></thead><tbody>' +
-        ok.map(function (x) { return '<tr><td>' + esc(x.cultivo) + '</td>' + usados.map(function (i) { return '<td class="r">' + (x.porMesBruto[i] >= 0.5 ? M(x.porMesBruto[i]) : '<span class="muted">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('') +
-        (ok.length > 1 ? '<tr><td><b>Todos</b><div class="sub">si van en la misma superficie</div></td>' + usados.map(function (i) { return '<td class="r"><b>' + M(tot(i)) + '</b></td>'; }).join('') + '</tr>' : '') +
+      var tot = function (i) { return ok.reduce(function (a, x) { return a + x.porMesBruto[i] * parte(x); }, 0); };
+      var Mm = function (mm) { return ha > 0 ? fmt(mm * 10 * ha / 1000, 0) : fmt(mm, 0); };
+      h += '<div style="font-weight:600;font-size:13px;margin-top:10px;">Mes por mes (promedio de las zafras, ' + (ha > 0 ? 'miles de m³' : 'mm') + ')</div><div class="tablewrap" style="margin-top:6px;"><div class="tablescroll"><table class="tbl"><thead><tr><th>Cultivo</th>' + usados.map(function (i) { return '<th class="r">' + MESES[i] + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        ok.map(function (x) { return '<tr><td>' + esc(x.cultivo) + '<div class="sub">' + haDe(x) + '</div></td>' + usados.map(function (i) { return '<td class="r">' + (x.porMesBruto[i] >= 0.5 ? Mm(x.porMesBruto[i] * parte(x)) : '<span class="muted">—</span>') + '</td>'; }).join('') + '</tr>'; }).join('') +
+        (ok.length > 1 ? '<tr><td><b>Todo el proyecto</b></td>' + usados.map(function (i) { return '<td class="r"><b>' + Mm(tot(i)) + '</b></td>'; }).join('') + '</tr>' : '') +
         '</tbody></table></div></div>';
     }
     h += '<div class="muted" style="font-size:11px;margin-top:6px;">Agua bruta que tiene que salir del equipo (eficiencia ' + fmt(ok[0].eficiencia * 100, 0) + ' %). Cuántos pozos, qué caudal y qué reservorio hacen falta para tener esa agua cuando se la necesita lo resuelve el proyecto de riego.</div>';
