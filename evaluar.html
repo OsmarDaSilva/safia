@@ -459,14 +459,17 @@
       '<div class="field"><label>Cultivo</label><select class="fc-cultivo">'+opcionesCultivo(cultivo)+'</select></div>'+
       '<div class="field"><label>Finalidad</label><select class="fc-finalidad">'+opcionesFinalidad(cultivo, finalidad)+'</select></div>'+
       '<div class="field"><label>Época de siembra</label><select class="fc-epoca"><option value="">Cualquiera</option><option'+(epoca==='Primavera/Verano'?' selected':'')+'>Primavera/Verano</option><option'+(epoca==='Verano/Otoño'?' selected':'')+'>Verano/Otoño</option><option'+(epoca==='Otoño/Invierno'?' selected':'')+'>Otoño/Invierno</option></select></div>'+
-      '<div class="field"><label>Siembra (día/mes)</label><input type="text" class="fc-siembra" inputmode="numeric" maxlength="5" value="'+esc(siembra||'')+'"><div class="fc-siembra-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;">para calcular el riego</div></div>'+
+      '<div class="field"><label>Siembra (día/mes)</label><input type="text" class="fc-siembra" inputmode="numeric" maxlength="5" value="'+esc(siembra||'')+'"><div class="fc-siembra-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;">sin año: se simula en cada uno de los últimos 10 años</div></div>'+
       '<div class="field"><label>Producción esperada (<span class="fc-unidad" style="text-transform:none;"></span>)</label><input type="number" step="any" class="fc-objetivo" value="'+obj0+'"><div class="fc-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;"></div></div>'+
       '<div class="field"><label>&nbsp;</label><button type="button" class="btn danger fc-quitar" title="Quitar este cultivo">Quitar</button></div>';
     fila.querySelector('.fc-cultivo').addEventListener('change',function(){ fila.querySelector('.fc-finalidad').innerHTML=opcionesFinalidad(this.value, fila.querySelector('.fc-finalidad').value); rotularFila(fila); });
     fila.querySelector('.fc-finalidad').addEventListener('change',function(){ rotularFila(fila); });
     // fecha de siembra sugerida por la época (se usa si no se escribe otra)
     var ponerSiembraSug=function(){ if(!window.SafiaClimaProyecto) return; var cv=fila.querySelector('.fc-cultivo').value, pasto=SafiaCasos.esPasto(cv); fila.querySelector('.fc-siembra').placeholder=pasto?'todo el año':SafiaClimaProyecto.siembraPorDefecto(cv, fila.querySelector('.fc-epoca').value); fila.querySelector('.fc-siembra').disabled=pasto; };
-    fila.querySelector('.fc-epoca').addEventListener('change',ponerSiembraSug); fila.querySelector('.fc-cultivo').addEventListener('change',ponerSiembraSug); ponerSiembraSug();
+    fila.querySelector('.fc-epoca').addEventListener('change',function(){ fila.dataset.epocaAuto=''; ponerSiembraSug(); }); fila.querySelector('.fc-cultivo').addEventListener('change',ponerSiembraSug); ponerSiembraSug();
+    // la época sale de la fecha de siembra si quedó en "Cualquiera" (o si la puso SAFIA): soja 20/09 = primavera/verano, maíz 25/01 = zafriña (verano/otoño)
+    var epocaDeFecha=function(){ if(!window.SafiaClimaProyecto||!SafiaClimaProyecto.epocaPorSiembra) return; var sel=fila.querySelector('.fc-epoca'), e=SafiaClimaProyecto.epocaPorSiembra(fila.querySelector('.fc-siembra').value); if(!e) return; if(sel.value===''||fila.dataset.epocaAuto==='1'){ sel.value=e; fila.dataset.epocaAuto='1'; ponerSiembraSug(); } };
+    fila.querySelector('.fc-siembra').addEventListener('input',epocaDeFecha); fila.querySelector('.fc-siembra').addEventListener('change',epocaDeFecha); epocaDeFecha();
     rotularFila(fila);
     fila.querySelector('.fc-quitar').addEventListener('click',function(){
       if(document.querySelectorAll('.fila-cultivo').length<=1){ toast('Dejá al menos un cultivo',true); return; }
@@ -477,7 +480,7 @@
   function leerFilasCultivo(){
     return [...document.querySelectorAll('.fila-cultivo')].map(function(f){
       var u=unidadFila(f), o=num(f.querySelector('.fc-objetivo').value);
-      return { cultivo:f.querySelector('.fc-cultivo').value.trim(), finalidad:f.querySelector('.fc-finalidad').value||SafiaCasos.finalidadNombre(SafiaCasos.finalidadesPara(f.querySelector('.fc-cultivo').value)[0]), epoca:f.querySelector('.fc-epoca').value||null, siembra:f.querySelector('.fc-siembra').value.trim()||null, objetivoKgHa:o==null?null:Math.round(o*u.factor), unidad:u.corto };
+      return { cultivo:f.querySelector('.fc-cultivo').value.trim(), finalidad:f.querySelector('.fc-finalidad').value||SafiaCasos.finalidadNombre(SafiaCasos.finalidadesPara(f.querySelector('.fc-cultivo').value)[0]), epoca:f.querySelector('.fc-epoca').value||(window.SafiaClimaProyecto&&SafiaClimaProyecto.epocaPorSiembra?SafiaClimaProyecto.epocaPorSiembra(f.querySelector('.fc-siembra').value):null)||null, siembra:f.querySelector('.fc-siembra').value.trim()||null, objetivoKgHa:o==null?null:Math.round(o*u.factor), unidad:u.corto };
     }).filter(function(x){ return x.cultivo; });
   }
   document.getElementById('btnAgregarCultivo').addEventListener('click',function(){ agregarFilaCultivo('', '', '', ''); });

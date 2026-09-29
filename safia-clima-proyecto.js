@@ -103,6 +103,11 @@
     var e = SIEMBRA_EPOCA[norm(epoca)]; if (e) return e;
     return /trigo|avena|cebada|canola|nabo/.test(norm(cultivo)) ? '15/05' : '01/10';
   }
+  // Época según la fecha de siembra (Paraguay): ago–dic primavera/verano (zafra), ene–mar verano/otoño (zafriña), abr–jul otoño/invierno
+  function epocaPorSiembra(s) {
+    var d = parseDM(s); if (!d) return null;
+    return d.m >= 8 ? 'Primavera/Verano' : (d.m <= 3 ? 'Verano/Otoño' : 'Otoño/Invierno');
+  }
   function parseDM(s) { var m = String(s || '').match(/^\s*(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*$/); if (!m) return null; var d = +m[1], mo = +m[2]; if (mo < 1 || mo > 12 || d < 1 || d > 31) return null; return { d: d, m: mo }; }
   function textura(suelo) {
     var b = B(); if (!b) return null;
@@ -376,5 +381,5 @@
       '<b>El riego, los volúmenes de agua y la economía de este proyecto se calculan con Penman-Monteith</b>; la columna de Thornthwaite sirve para comparar con un balance hídrico hecho con ese método.</div>';
   }
 
-  window.SafiaClimaProyecto = { mapaSVG: mapaSVG, mapaHTML: mapaHTML, historico: historico, resumir: resumir, graficoSVG: graficoSVG, riego: riego, caudal: caudal, haConCaudal: haConCaudal, siembraPorDefecto: siembraPorDefecto, climaHTML: climaHTML, riegoHTML: riegoHTML, laminaAnualProyecto: laminaAnualProyecto, etoThornthwaite: etoThornthwaite, comparacionMetodos: comparacionMetodos, metodosHTML: metodosHTML };
+  window.SafiaClimaProyecto = { mapaSVG: mapaSVG, mapaHTML: mapaHTML, historico: historico, resumir: resumir, graficoSVG: graficoSVG, riego: riego, caudal: caudal, haConCaudal: haConCaudal, siembraPorDefecto: siembraPorDefecto, epocaPorSiembra: epocaPorSiembra, climaHTML: climaHTML, riegoHTML: riegoHTML, laminaAnualProyecto: laminaAnualProyecto, etoThornthwaite: etoThornthwaite, comparacionMetodos: comparacionMetodos, metodosHTML: metodosHTML };
 })();
