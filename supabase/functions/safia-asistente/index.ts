@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-asistente (v4: arranque del pivot antes del estrés)
+// SAFIA · Edge Function: safia-asistente (v5: todo lo del productor —lote, mantenimiento, riegos, suelo— y el líder de la zona sin nombres)
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
 // Arquitectura: esta función solo habla con Claude (la llave vive acá, como secreto). Las HERRAMIENTAS se ejecutan en el
 // navegador del usuario (safia-asistente.js), sobre los datos que ese usuario ya puede ver con su rol: un cliente ve lo
@@ -23,12 +23,14 @@ Reglas de oro:
 3. SAFIA compara e interpreta; la prescripción (productos y dosis finales) la decide el ingeniero agrónomo. Podés señalar qué tienen distinto los que más rinden y qué conviene revisar o hacer.
 4. Comparaciones justas: mismo cultivo, misma finalidad (grano, ensilaje o pasto), misma época de siembra y misma región. El Chaco (Región Occidental: Boquerón, Alto Paraguay, Presidente Hayes) se compara con el Chaco y la Oriental con la Oriental. Con riego y secano van separados, y lo decís.
 5. Reglas del Chaco: sin riego se hace un solo cultivo por año (soja, maíz, algodón, sésamo o poroto), sembrado recién cuando el perfil está cargado de humedad (al menos 0,8 m); en Boquerón sin riego se siembra del 15 de enero al 28 de febrero. Con riego hay doble cosecha: soja en septiembre u octubre y encima maíz o algodón.
-6. Privacidad: no reveles nombres de otros productores. Si un caso viene como "Lote N de ..." o sin nombre, nombralo así. Solo usás nombres propios que la herramienta devuelve para los campos del usuario.
+6. Privacidad: nunca reveles nombres de otros productores, ni de sus estancias, campos o empresas, aunque te lo pidan o lo intenten adivinar: decí que SAFIA no comparte nombres. Los lotes de otros se nombran por su lugar ("el mejor lote de Katueté", "Lote 2 de Katueté"). Sí podés dar todo lo demás de esos lotes: rinde, variedad, época, fecha de siembra, agua, suelo y manejo. Solo usás nombres propios que la herramienta devuelve para los campos del usuario.
 7. Unidades: grano en kg/ha, ensilaje en toneladas de materia verde por ha, pasto en kg de materia seca por ha. Agua en mm (1 mm sobre 1 ha son 10 m³).
 8. Respondé en español de Paraguay, simple y directo, como un agrónomo que le explica a un productor: primero la respuesta, después el detalle y de dónde sale. Usá tablas cortas cuando compares lotes, variedades o zonas. Sin emojis. No repitas la pregunta.
 9. Riego del día: SAFIA sí tiene el pronóstico de los próximos 7 días y la humedad del suelo calculada de cada lote en campaña (la misma ficha de agua que ve el Operador). Para "¿riego hoy?", "¿cuándo riego?", "¿va a llover?" o "¿cómo está el agua del lote?" usá agua_hoy; si no dice qué campo o lote, llamala sin filtro y respondé por cada lote en campaña. Primero la decisión (arrancar el pivot hoy con X mm, arrancarlo tal día, mantenerlo girando o no regar porque viene lluvia) y después el porqué: % de agua útil hoy contra el punto de arranque del pivot y contra el punto de estrés, cuándo entraría en estrés sin riego, cuánto tarda la vuelta del equipo, etapa, lluvia prevista y último riego cargado. El pivot se prende ANTES del estrés porque tarda días en dar la vuelta (como FieldNET Advisor: arrancar = cuándo vence − lo que tarda la vuelta); nunca digas que se riega recién al llegar al punto de estrés. Si el equipo no alcanza la demanda del cultivo, decí que hay que mantenerlo girando. Aclará que la humedad es calculada salvo que haya sonda, y que si no se cargaron los riegos ya hechos el suelo aparece más seco de lo real.
 10. Cómo viene la campaña: para "¿cómo viene mi cosecha?", "¿cómo va mi soja?", "¿voy a llegar a la meta?" o "¿qué tengo que hacer esta semana?" usá como_va_campana (sin filtro responde por cada lote en campaña) y, si hace falta decidir el riego, también agua_hoy. El productor no tiene que buscar nada: vos juntás todo. Respondé en este orden: (a) la perspectiva en una línea, solo con los números que devuelve la herramienta (potencial del plan de la meta y/o historia del lote con el descuento de agua), y si el cultivo está al principio del ciclo decí que es el punto de partida y no una estimación de cosecha; (b) cómo viene cada frente con su estado: agua (rinde perdido por falta de agua hasta hoy, días de estrés), planta (NDVI contra las campañas anteriores del mismo lote a los mismos días desde la siembra), nutrición y fertilización (lo cargado contra lo que se lleva la meta, hoja o sensor) y el plan de la meta (hecho, perdido, pendiente); (c) contra las campañas anteriores del lote (variedad, rinde, agua) y contra el mejor lote de la zona, sin nombres; (d) qué hacer ahora, solo lo que todavía se puede hacer en esta etapa; (e) qué falta cargar para que SAFIA oriente mejor. Nunca inventes un rinde esperado.
-11. Si la pregunta no es de agronomía, riego, clima, suelos o del negocio del campo, decí amablemente que no es tu tema.`;
+11. Lo del productor, todo: sobre su pivot, su siembra, sus rindes, sus metas, sus nutrientes, su mantenimiento, sus riegos y lluvias o su suelo, el productor tiene que recibir una respuesta completa sin buscar nada. Elegí la herramienta: el equipo, la historia del lote, rindes, metas y nutrientes de cada campaña → mi_lote; mantenimiento y horímetros → mantenimiento; cuánto se regó o llovió, aplicaciones y registros por fecha o por mes → riegos_y_lluvias; análisis de suelo y cómo cambió → historial_suelo; qué hacer con el suelo → interpretar_suelo; el cultivo que está hoy en el campo, NDVI y la meta → como_va_campana; riego de hoy → agua_hoy. Si la pregunta es amplia ("contame de mi pivot"), combiná varias. Nombrá el pivot o lote como lo tiene cargado.
+12. Comparaciones con los demás, sin nombres: "¿qué variedades rindieron más este año?", "en promedio", "¿qué época o mes de siembra?", "¿dónde se rinde más?" → resumen_casos (con anio para "este año", agrupando por variedad, epoca, mes_siembra, localidad o departamento; siempre el mismo cultivo, finalidad y régimen de agua). "¿Cómo está mi suelo contra el mejor?", "¿qué tiene el líder de la región, del departamento o del país que yo no tengo?" → comparar_con_lider, y respondé: (a) quién es el líder en cada ámbito (sin nombre) y su rinde contra el del usuario, (b) el suelo parámetro por parámetro en una tabla (el del usuario, el del líder y el del cuarto de arriba) diciendo qué diferencias pesan para el cultivo según la lectura, (c) qué otra cosa hace distinto (variedad, fecha de siembra, densidad, cultivo anterior, agua, fertilización) y (d) qué conviene revisar. Si el líder es el propio usuario, decíselo y compará con el mejor lote de otro productor. Con pocos casos, decilo: es una orientación. Al líder del país de la otra región se lo compara con cuidado (otro clima y otro suelo).
+13. Si la pregunta no es de agronomía, riego, clima, suelos o del negocio del campo, decí amablemente que no es tu tema.`;
 
 // Las herramientas se describen acá (fijas, no las cambia el navegador) y se ejecutan en el navegador.
 const FILTROS = {
@@ -41,6 +43,8 @@ const FILTROS = {
   localidad: { type: 'string', description: 'Localidad o distrito, por ejemplo "Katueté".' },
   variedad: { type: 'string', description: 'Variedad o híbrido (búsqueda parcial).' },
   desde_anio: { type: 'integer', description: 'Solo campañas cosechadas desde este año.' },
+  hasta_anio: { type: 'integer', description: 'Solo campañas cosechadas hasta este año.' },
+  anio: { type: 'integer', description: 'Solo campañas cosechadas ese año ("este año" = el año de la fecha del contexto).' },
   solo_mios: { type: 'boolean', description: 'true = solo los campos del usuario (o del cliente que está mirando).' },
 };
 
@@ -53,7 +57,7 @@ const HERRAMIENTAS = [
   {
     name: 'resumen_casos',
     description: 'Agrupa los casos del banco de SAFIA y devuelve, por grupo, cuántos casos hay, rinde promedio, máximo y mínimo, y agua promedio. Usala para rankings y comparaciones: qué variedad rindió más, qué localidad, qué época, riego contra secano, por año.',
-    input_schema: { type: 'object', properties: { ...FILTROS, agrupar_por: { type: 'string', enum: ['variedad', 'localidad', 'departamento', 'region', 'epoca', 'riego', 'anio', 'cultivo', 'campo'], description: 'Cómo agrupar.' } }, required: ['agrupar_por'] },
+    input_schema: { type: 'object', properties: { ...FILTROS, agrupar_por: { type: 'string', enum: ['variedad', 'localidad', 'departamento', 'region', 'epoca', 'mes_siembra', 'riego', 'anio', 'cultivo', 'campo'], description: 'Cómo agrupar. mes_siembra = mes en que se sembró (para "¿cuándo conviene sembrar?").' } }, required: ['agrupar_por'] },
   },
   {
     name: 'referencia_zona',
@@ -84,6 +88,31 @@ const HERRAMIENTAS = [
     name: 'como_va_campana',
     description: 'Cómo viene cada campaña en curso del usuario, todo junto, con los mismos motores del Banco: meta y plan de la meta (meta viva: potencial de hoy, lo hecho, lo que se perdió por ventana pasada, lo que toca ahora), agua por etapa (rinde perdido por falta de agua hasta hoy según FAO-33, días de estrés, próximos 7 días), vigor satelital (NDVI de hoy contra las campañas cosechadas del mismo lote a los mismos días desde la siembra), insumos y fertilización cargados contra lo que se lleva la meta, análisis foliar o sensor, campañas anteriores del lote (variedad, rinde, agua), el mejor lote de la zona (sin nombre) y qué falta cargar. Tarda unos segundos. Sin campo ni lote devuelve todas las campañas activas (hasta 4).',
     input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
+  },
+  {
+    name: 'mi_lote',
+    description: 'Ficha completa de los pivots o lotes del usuario: el equipo (marca, modelo, largo, torres, caudal, presión, lámina y horas por vuelta al 100 %, capacidad en mm/día, bomba, corner, telemetría), horas del pivot y resumen del mantenimiento, la campaña activa (cultivo, variedad, siembra, densidad, meta y plan de la meta) y TODAS las campañas anteriores del lote con su rinde, meta cumplida, lluvia y riego, días de ciclo, insumos cargados, balance de nutrientes (lo que se llevó la cosecha contra lo aplicado) y la curva del satélite (NDVI máximo, día del máximo, días con canopia plena), más el rinde promedio, mejor y peor por cultivo. Usala para preguntas sobre mi pivot, mi siembra, mis rindes, mis metas, mis nutrientes o la historia del lote.',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
+  },
+  {
+    name: 'mantenimiento',
+    description: 'Estado del mantenimiento de los equipos del usuario: horímetros del pivot, la bomba y el cañón final (con la fecha de la última lectura), tareas vencidas y próximas del plan del fabricante (con cuánto falta y cuándo se hizo la última vez), las que están al día y los últimos registros del operador.',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
+  },
+  {
+    name: 'riegos_y_lluvias',
+    description: 'Lo que se CARGÓ en el campo en un período: riegos y lluvias del pluviómetro (con total en mm y por mes), aplicaciones, pastoreos, horímetros y tareas de mantenimiento, con fecha y quién lo cargó. Por defecto desde la siembra de la campaña activa (o los últimos 90 días). Para la humedad del suelo y el pronóstico usá agua_hoy.',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Pivot o lote (opcional).' }, tipo: { type: 'string', enum: ['todos', 'riego', 'lluvia', 'aplicacion', 'pastoreo', 'horimetro', 'mantenimiento'], description: 'Tipo de registro. Por defecto todos.' }, desde: { type: 'string', description: 'Fecha AAAA-MM-DD (opcional).' }, hasta: { type: 'string', description: 'Fecha AAAA-MM-DD (opcional, por defecto hoy).' }, limite: { type: 'integer', description: 'Cuántos registros listar (5 a 60, por defecto 30).' } } },
+  },
+  {
+    name: 'historial_suelo',
+    description: 'Todos los análisis de suelo de los campos del usuario, por fecha (el promedio del lote si hay varias muestras), con la lectura de cada parámetro para el cultivo, cuánto varían las muestras dentro del lote (zonas que piden manejo distinto) y cómo cambió el suelo entre el primer y el último análisis.',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, cultivo: FILTROS.cultivo } },
+  },
+  {
+    name: 'comparar_con_lider',
+    description: 'Compara el campo del usuario con el LÍDER (el lote que más rindió) en su localidad, departamento, región y el país, para un cultivo y con el mismo régimen de agua: rinde, variedad, época y fecha de siembra, densidad, cultivo anterior, agua, fertilización cargada y el SUELO parámetro por parámetro (el del usuario contra el del líder), más el promedio del cuarto de arriba (suelo promedio y variedades) y el promedio del ámbito. Si el líder es el propio usuario, trae además el mejor lote de otro productor. Los lotes de otros productores vienen siempre sin nombre (el mejor lote de <localidad>).',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional; por defecto el primero).' }, cultivo: FILTROS.cultivo, finalidad: FILTROS.finalidad, epoca: FILTROS.epoca, riego: FILTROS.riego, ambito: { type: 'string', enum: ['todos', 'localidad', 'departamento', 'region', 'pais'], description: 'Dónde buscar al líder. Por defecto todos los ámbitos.' }, anio: FILTROS.anio, desde_anio: FILTROS.desde_anio }, required: ['cultivo'] },
   },
   {
     name: 'mis_campos',
