@@ -1321,11 +1321,19 @@
         // Cómo se calculó: suelo, etapa, fuente de la humedad (modelo / sonda / estación)
         if (r.recomendacion.mmTotal > r.recomendacion.mm && !SafiaBalance.esSecano(equipo)) detalle.innerHTML += ` En total faltan <strong>${r.recomendacion.mmTotal} mm</strong> para llegar a capacidad de campo: repartirlos en más de una pasada.`;
         const fuenteHum = r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad (' + r.sonda.valor.toFixed(1) + ' % vol)' : (r.fuentes.estacion ? 'balance con lluvia y ET0 de la estación' : 'balance con clima estimado');
-        detalle.innerHTML += `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, arrancar el pivot al ${U.CRITICO} %, estrés bajo ${U.URGENTE} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco; punto de arranque según lo que tarda la vuelta del equipo (NCH-20, como FieldNET Advisor).</div>`;
-        if (r.pastura) detalle.innerHTML += SafiaPasturas.htmlTemperatura(r.pastura);
-        detalle.innerHTML += SafiaBalance.notaFallbackSuelo(r.suelo);
-        // Ficha de agua: medidor con aguja, próximo riego y el gráfico día por día (mismo motor)
-        try { const fa = document.getElementById('fichaAgua'); if (fa && window.SafiaFichaAgua) { fa.innerHTML = SafiaFichaAgua.html(r, { equipo }); document.getElementById('fichaAguaCard').style.display = fa.innerHTML ? 'block' : 'none'; } } catch (e) { console.warn('[SAFIA] ficha de agua:', e); }
+        const notas = `<div style="margin-top:6px;font-size:11px;color:#8C9196;line-height:1.35;">Suelo: ${r.suelo.origen}. ${r.etapaHoy.dds != null ? 'Día ' + r.etapaHoy.dds + ' · ' + r.etapaHoy.nombre.toLowerCase() + (r.etapaHoy.critica ? ' (etapa crítica)' : '') + ' · raíz ' + Math.round(r.etapaHoy.zr * 100) + ' cm · ' : ''}reserva ${Math.round(r.tawHoy)} mm, arrancar el pivot al ${U.CRITICO} %, estrés bajo ${U.URGENTE} %. Humedad: ${fuenteHum}. Método FAO-56, el mismo del Banco; punto de arranque según lo que tarda la vuelta del equipo (NCH-20, como FieldNET Advisor).</div>`
+          + (r.pastura ? SafiaPasturas.htmlTemperatura(r.pastura) : '') + SafiaBalance.notaFallbackSuelo(r.suelo);
+        detalle.innerHTML += notas;
+        // Ficha de agua: medidor con aguja, próximo riego y el gráfico día por día (mismo motor).
+        // Un solo aviso: si la ficha se muestra, la tarjeta de la izquierda se oculta y su nota técnica pasa al pie de la ficha.
+        try {
+          const fa = document.getElementById('fichaAgua');
+          if (fa && window.SafiaFichaAgua) {
+            fa.innerHTML = SafiaFichaAgua.html(r, { equipo });
+            document.getElementById('fichaAguaCard').style.display = fa.innerHTML ? 'block' : 'none';
+            if (fa.innerHTML) { fa.insertAdjacentHTML('beforeend', notas); card.className = 'reco-card'; }
+          }
+        } catch (e) { console.warn('[SAFIA] ficha de agua:', e); }
 
       } catch (error) {
         // La red ya la maneja SafiaClima (sin internet / 502 / caché). Acá solo

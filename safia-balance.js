@@ -253,11 +253,14 @@
   //  - estrés para decidir el riego: nunca por debajo del 45 % de agua útil (agotamiento máx. 55 %). La FAO deja gastar
   //    más cuando el consumo es bajo (p = p_tabla + 0,04·(5 − ETc)); para regar se usa el límite más prudente.
   //    La física del cultivo (Ks y pérdida de rinde FAO-33) sigue con el p de la FAO: esto cambia el manejo, no el cálculo del rinde.
-  //  - arranque del pivot: el consumo durante la vuelta, y como mínimo 15 puntos arriba del estrés (≈ 60 %).
-  var P_MAX_MANEJO = 0.55, BANDA_MIN_ARRANQUE = 15;
+  //  - arranque del pivot (Osmar, 29-sep: "mantener el agua en el verde"): nunca por debajo del 70 % de agua útil; si el
+  //    consumo durante la vuelta lo pide, más arriba (estrés + consumo de la vuelta; ~75 % con consumo medio, 100 % en pico
+  //    = mantener girando). Así el pivot se prende al salir del verde y el último sector no baja de ~60–65 % en la vuelta.
+  var P_MAX_MANEJO = 0.55, ARRANQUE_MIN_PCT = 70, BANDA_MIN_ARRANQUE = 15;
   function umbralManejo(taw, p, gasto) {
     var estres = Math.max(Math.round((1 - P_MAX_MANEJO) * 100), Math.round((1 - p) * 100));
-    var drE = taw * (1 - estres / 100), drA = Math.max(0, Math.min(drE - (gasto || 0), taw * (1 - Math.min(100, estres + BANDA_MIN_ARRANQUE) / 100)));
+    var minArr = Math.min(100, Math.max(ARRANQUE_MIN_PCT, estres + BANDA_MIN_ARRANQUE));
+    var drE = taw * (1 - estres / 100), drA = Math.max(0, Math.min(drE - (gasto || 0), taw * (1 - minArr / 100)));
     return { estresPct: estres, drEstres: drE, drArranque: drA, arranquePct: Math.min(100, Math.round(taw > 0 ? (1 - drA / taw) * 100 : estres)) };
   }
   // Agotamiento (mm) al que hay que prender el pivot en el día i
@@ -645,7 +648,7 @@
     indexarEventos: indexarEventos, resolverLluviaDia: resolverLluviaDia, estacionDelCampo: estacionDelCampo,
     simular: simular,
     capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
-    umbralManejo: umbralManejo, P_MAX_MANEJO: P_MAX_MANEJO, BANDA_MIN_ARRANQUE: BANDA_MIN_ARRANQUE,
+    umbralManejo: umbralManejo, P_MAX_MANEJO: P_MAX_MANEJO, BANDA_MIN_ARRANQUE: BANDA_MIN_ARRANQUE, ARRANQUE_MIN_PCT: ARRANQUE_MIN_PCT,
     ndviGuardado: ndviGuardado, factoresSatelite: factoresSatelite, kcbSatelite: kcbSatelite, extremosNdvi: extremosNdvi, prepararSatelite: prepararSatelite, ALTURA_CULTIVO: ALTURA_CULTIVO,
     version: '2.3.0'
   };
