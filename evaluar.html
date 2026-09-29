@@ -561,13 +561,18 @@
     var dia=h*((1-g)*c.kw*c.tarifa+(g>0?g*c.genLh*c.gasoil:0)), mmDia=c.lamina*h/24;
     return { usdMmHa:dia/(mmDia*c.ha), usdDia:dia, mmDia:mmDia, kwhPorM3: c.kw/(c.lamina*10*c.ha/24) };
   }
+  // Referencia de costo del riego por hectárea (Irrigar, Osmar 29-sep-2026): Chaco 5.000–6.000 (pozos y reservorio con
+  // geomembrana); Oriental ~3.000 (agua superficial, casi sin pozos). Solo orienta: la inversión real la carga cada proyecto.
+  var INV_REF_HA={ occidental:{ min:5000, max:6000, txt:'Chaco: US$ 5.000 a 6.000 por ha (pozos y reservorio con geomembrana)' }, oriental:{ min:3000, max:3000, txt:'Oriental: unos US$ 3.000 por ha (agua superficial, casi sin pozos)' } };
+  function invRefHa(){ if(!window.SafiaCasos||!SafiaCasos.region) return null; var r=SafiaCasos.region({ departamento:$('pDepto').value.trim(), pais:$('pPais').value, lat:num($('pLat').value), lon:num($('pLon').value) }); return r&&INV_REF_HA[r]?Object.assign({ region:r },INV_REF_HA[r]):null; }
   function syncInversion(){
     var modo=$('pInvModo').value, partes=invPartes(), sup=num($('evCampoSup').value);
     $('pInvPartes').style.display=modo==='partes'?'':'none';
     $('pInversion').readOnly=modo==='partes';
     if(modo==='partes'){ var t=partes?Object.keys(partes).reduce(function(a,k){ return a+partes[k]; },0):null; $('pInversion').value=t!=null?Math.round(t):''; }
     var inv=num($('pInversion').value);
-    $('pInvHint').textContent=inv>0?(sup>0?'US$ '+fmt(inv/sup,0)+' por ha regada':'cargá las hectáreas a regar para verlo por ha')+(modo==='partes'?' · suma de las partes':''):'';
+    var ref=invRefHa();
+    $('pInvHint').textContent=(inv>0?(sup>0?'US$ '+fmt(inv/sup,0)+' por ha regada':'cargá las hectáreas a regar para verlo por ha')+(modo==='partes'?' · suma de las partes':'')+' · ':'')+(ref?'Referencia de Irrigar, '+ref.txt:'');
   }
   function syncEnergia(){
     var modo=$('pEnergiaModo').value;
@@ -582,13 +587,15 @@
   ['pInvModo'].forEach(function(id){ $(id).addEventListener('change',function(){ syncInversion(); pintarEconomia(); }); });
   document.querySelectorAll('.pInvParte').forEach(function(el){ el.addEventListener('input',function(){ syncInversion(); pintarEconomia(); }); });
   $('pInversion').addEventListener('input',function(){ syncInversion(); });
+  ['pDepto','pLat','pLon','pGps'].forEach(function(id){ var el=$(id); if(el){ el.addEventListener('change',syncInversion); el.addEventListener('input',syncInversion); } });
+  setTimeout(syncInversion,0);
   $('pEnergiaModo').addEventListener('change',function(){ syncEnergia(); pintarEconomia(); });
   document.querySelectorAll('.pEc').forEach(function(el){ el.addEventListener('input',function(){ syncEnergia(); pintarEconomia(); }); });
   function pintarEconomia(){
     var out=document.getElementById('rEconomia'); if(!out||!window.SafiaEconomiaRiego) return;
     if(!refsListas||!riegoListo) return;
     var r=SafiaEconomiaRiego.calcular({ cultivos: ultimasFilas.map(function(f,i){ var sim=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(f.cultivo) && (l.epoca||null)===(f.epoca||null); })||null; return { cultivo:f.cultivo, finalidad:f.finalidad, epoca:f.epoca, ref:ultimasRefs[i]||null, riego:sim }; }),
-      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), inversionPartes:document.getElementById('pInvModo').value==='partes'?invPartes():null, vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:document.getElementById('pEnergiaModo').value==='base'?null:num(document.getElementById('pEnergiaMm').value), energiaModo:document.getElementById('pEnergiaModo').value, situacion:document.getElementById('pSituacion').value });
+      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), inversionRefHa:invRefHa(), inversionPartes:document.getElementById('pInvModo').value==='partes'?invPartes():null, vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:document.getElementById('pEnergiaModo').value==='base'?null:num(document.getElementById('pEnergiaMm').value), energiaModo:document.getElementById('pEnergiaModo').value, situacion:document.getElementById('pSituacion').value });
     out.innerHTML=SafiaEconomiaRiego.html(r);
   }
   function llenarPotAgua(){ document.querySelectorAll('.pot-agua').forEach(function(el){ var x=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(el.getAttribute('data-cultivo')); }); el.textContent = x ? Math.round(x.rindeRelSecano*100)+' %' : (ultimoRiego.length ? '—' : '…'); }); }
