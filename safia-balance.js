@@ -222,7 +222,19 @@
           .then(function (r) { var d = r && r.data; if (d && d.ok && d.serie) mezclarNdvi(e.id, d.serie); }).catch(function () {});
       }));
     });
-    return conTiempo(opciones.esperarSatelite ? pedir : leer, opciones.esperaMs || 6000);
+    // Estación meteorológica del campo (Metos/FieldClimate): trae lo medido (lluvia, ET0 del día, sonda) cada 3 horas como
+    // mucho. Con esos datos el balance usa la ET0 y la lluvia MEDIDAS en el campo en lugar de las estimadas (estacionDelCampo).
+    var est = root.SafiaSensores && root.SafiaSensores.sincronizarCampo ? root.SafiaSensores : null, pEst = Promise.resolve();
+    if (est && !opciones.sinEstacion) {
+      var idsCampo = {}; lista.forEach(function (e) { if (e.campoId != null) idsCampo[String(e.campoId)] = 1; });
+      var ahora = Date.now();
+      pEst = Promise.all(leerLS('campos').filter(function (c) { return c && c.estacionId && idsCampo[String(c.id)]; }).map(function (c) {
+        var m = 'estacion_sync_' + String(c.id), prev = 0;
+        try { prev = +(localStorage.getItem(m) || 0); if (ahora - prev < 3 * 3600 * 1000) return null; localStorage.setItem(m, String(ahora)); } catch (x) { return null; }
+        return Promise.resolve(est.sincronizarCampo(c)).catch(function () { try { localStorage.setItem(m, String(prev)); } catch (y) {} });
+      }));
+    }
+    return conTiempo(Promise.all([opciones.esperarSatelite ? pedir : leer, pEst]), opciones.esperaMs || 8000);
   }
   function capacidadBruta(eq) {
     var dt = (eq && eq.datosTecnicos) || {}, c = num(dt.capacidad);
