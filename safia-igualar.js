@@ -49,11 +49,17 @@
     if (f.riego !== 'todos') l = l.filter(function (c) { return (c.riego !== false) === (base.riego !== false); });
     if (f.ambito === 'localidad') l = l.filter(function (c) { return base.localidad && norm(c.localidad) === norm(base.localidad); });
     else if (f.ambito === 'departamento') l = l.filter(function (c) { return base.departamento && norm(c.departamento) === norm(base.departamento); });
+    else if (f.ambito === 'region') { var rb = regionDe(base); l = l.filter(function (c) { return rb && regionDe(c) === rb; }); }
     return l.sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
   }
+  // Región de Paraguay (SafiaCasos.region): el Chaco se compara con el Chaco y la Oriental con la Oriental
+  function regionDe(x) { return window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region(x) : null; }
+  function regionTxt(x) { return window.SafiaCasos && SafiaCasos.regionNombre ? SafiaCasos.regionNombre(regionDe(x)) : ''; }
   function ambitoInicial(base, casos, riego) {
     if (candidatos(base, casos, { ambito: 'localidad', riego: riego }).length) return 'localidad';
     if (candidatos(base, casos, { ambito: 'departamento', riego: riego }).length) return 'departamento';
+    // aunque no haya lotes en su región, no se sale a buscar a la otra: el que quiera mirar todo el banco lo elige
+    if (regionDe(base)) return 'region';
     return 'todo';
   }
 
@@ -73,7 +79,7 @@
       '<div class="muted" style="font-size:12px;margin-bottom:8px;">Lotes reales del banco de SAFIA, del mismo cultivo y la misma finalidad, ordenados por rinde. Elegí uno para copiar su material y su época y ver qué le falta a tu tierra para rendir lo mismo. Los lotes de otros productores se muestran sin nombre.</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:8px;">' +
       '<div class="field" style="min-width:220px;"><label>Dónde buscar</label><select data-ig="ambito">' +
-      [['localidad', 'Tu localidad' + (base.localidad ? ' (' + base.localidad + ')' : '')], ['departamento', 'Tu departamento' + (base.departamento ? ' (' + base.departamento + ')' : '')], ['todo', 'Todo el banco de SAFIA']].map(function (o) { return '<option value="' + o[0] + '"' + (f.ambito === o[0] ? ' selected' : '') + '>' + esc(o[1]) + ' · ' + n(o[0]) + ' lote(s)</option>'; }).join('') + '</select></div>' +
+      [['localidad', 'Tu localidad' + (base.localidad ? ' (' + base.localidad + ')' : '')], ['departamento', 'Tu departamento' + (base.departamento ? ' (' + base.departamento + ')' : '')]].concat(regionDe(base) ? [['region', 'Tu región (' + regionTxt(base) + ')']] : []).concat([['todo', 'Todo el banco de SAFIA (Chaco y Oriental)']]).map(function (o) { return '<option value="' + o[0] + '"' + (f.ambito === o[0] ? ' selected' : '') + '>' + esc(o[1]) + ' · ' + n(o[0]) + ' lote(s)</option>'; }).join('') + '</select></div>' +
       '<div class="field" style="min-width:220px;"><label>Riego</label><select data-ig="riego"><option value="igual"' + (f.riego === 'igual' ? ' selected' : '') + '>Solo lotes ' + (regimen === 'secano' ? 'de secano' : 'con riego') + ', como el tuyo</option><option value="todos"' + (f.riego === 'todos' ? ' selected' : '') + '>Con riego y de secano</option></select></div>' +
       (lista.length ? '<button type="button" class="btn green" data-ig="mejor">Igualar al mejor (' + fmt(lista[0].rindeKgHa, 0) + ' kg/ha)</button>' : '') + '</div>';
     if (!lista.length) {
@@ -254,14 +260,14 @@
       suelo: o.suelo || null, epoca: o.epoca || null, siembra: siembraISO, variedad: '', rindeKgHa: partida, manejo: null, rotacion: null, clima: null, aguaTotalMM: null };
     var filtros = { riego: 'igual', ambito: ambitoInicial(base, o.casos || [], 'igual') };
     var lista = candidatos(base, o.casos || [], filtros), lider = lista[0] || null;
-    var nomAmb = filtros.ambito === 'localidad' ? (o.localidad || 'la localidad') : (filtros.ambito === 'departamento' ? (o.departamento || 'el departamento') : 'todo el banco de SAFIA');
+    var nomAmb = filtros.ambito === 'localidad' ? (o.localidad || 'la localidad') : (filtros.ambito === 'departamento' ? (o.departamento || 'el departamento') : (filtros.ambito === 'region' ? 'la ' + regionTxt(base) : 'todo el banco de SAFIA'));
     var h = '<div class="card" style="margin-bottom:14px;"><div class="card-h"><h3>Potencial con riego y cómo llegar al líder</h3><span class="muted">' + esc(o.cultivo) + ' · ' + esc(SafiaCasos.finalidadTexto(o.finalidad).toLowerCase()) + '</span></div>';
     h += '<div class="statbar" style="margin:0 0 10px;">' +
       '<div class="stat"><div class="sl">Con riego, manejo promedio</div><div class="sv">' + (partida ? F(partida) : '—') + '</div><div class="ss">' + (partida ? u.corto + ' · ' + esc(deDonde) : 'sin referencia con riego ni casos') + '</div></div>' +
       '<div class="stat"><div class="sl">Líder de ' + esc(nomAmb) + '</div><div class="sv green">' + (lider ? F(lider.rindeKgHa) : '—') + '</div><div class="ss">' + (lider ? u.corto + ' · ' + esc(etiqueta(lider, base)) + ' · ' + esc(zafra(lider)) : 'todavía no hay lotes con riego de este cultivo') + '</div></div>' +
       (o.ref && o.ref.secano ? '<div class="stat"><div class="sl">Zona en secano</div><div class="sv">' + F(o.ref.secano) + '</div><div class="ss">' + u.corto + '</div></div>' : '') +
       '<div class="stat"><div class="sl">Sin riego, por falta de agua</div><div class="sv pot-agua" data-cultivo="' + esc(o.cultivo) + '">…</div><div class="ss">rendiría este % del potencial en este clima</div></div></div>';
-    if (!lider) return h + '<div class="note">Todavía no hay lotes de ' + esc(o.cultivo).toLowerCase() + ' con riego (misma finalidad) en el banco de SAFIA para comparar. A medida que se cierren campañas van a aparecer.</div>' + (window.SafiaMateriales ? SafiaMateriales.recomendacionHTML(base, null) : '') + '</div>';
+    if (!lider) return h + '<div class="note">Todavía no hay lotes de ' + esc(o.cultivo).toLowerCase() + ' con riego (misma finalidad) ' + (filtros.ambito === 'region' ? 'en la ' + esc(regionTxt(base)) + '. Los de la otra región no se usan para igualar: otro clima y otro suelo' : 'en el banco de SAFIA para comparar') + '. A medida que se cierren campañas van a aparecer.</div>' + (window.SafiaMateriales ? SafiaMateriales.recomendacionHTML(base, null) : '') + '</div>';
     if (!partida) return h + '<div class="note">Sin referencia de la zona con riego ni casos parecidos, SAFIA no tiene un punto de partida para medir la distancia al líder.</div>' + (window.SafiaMateriales ? SafiaMateriales.recomendacionHTML(base, lider) : '') + '</div>';
     if (lider.rindeKgHa <= partida) {
       h += '<div class="note ok">Con riego y el manejo promedio de la zona ya se llegaría al nivel del líder de ' + esc(nomAmb) + ' (' + F(lider.rindeKgHa) + ' ' + u.corto + '). Lo que sigue es cuidar el suelo y el manejo para sostenerlo.</div>';

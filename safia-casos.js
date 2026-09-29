@@ -35,6 +35,27 @@
     return 'Otoño/Invierno';
   }
 
+  // Región de Paraguay: Occidental = Chaco (Boquerón, Alto Paraguay, Presidente Hayes); Oriental = los otros 14 departamentos.
+  // Clima y suelo son otros: el Chaco se compara con el Chaco y la Oriental con la Oriental. Fuera de Paraguay: sin región.
+  var DEP_OCCIDENTAL = /boquer|alto paraguay|hayes/;
+  // río Paraguay (lat, lon) de norte a sur hasta Asunción; al sur de Asunción la otra orilla ya es Argentina
+  var RIO_PY = [[-19.3, -57.75], [-20.2, -58.17], [-21.05, -57.88], [-22.3, -57.93], [-23.4, -57.45], [-24.1, -57.55], [-25.1, -57.55], [-25.3, -57.67]];
+  function region(x) {
+    if (!x) return null;
+    var pais = String(x.pais || 'Paraguay').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    if (pais && pais !== 'paraguay') return null;
+    var d = String(x.departamento || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    if (d) return DEP_OCCIDENTAL.test(d) ? 'occidental' : 'oriental';
+    var lat = num(x.lat), lon = num(x.lon);
+    if (lat == null || lon == null) return null;
+    if (lat < -25.3) return 'oriental';
+    for (var i = 0; i < RIO_PY.length - 1; i++) {
+      var a = RIO_PY[i], b = RIO_PY[i + 1];
+      if (lat <= a[0] && lat >= b[0]) { var t = (lat - a[0]) / (b[0] - a[0]); return lon < a[1] + t * (b[1] - a[1]) ? 'occidental' : 'oriental'; }
+    }
+    return lon < -58 ? 'occidental' : 'oriental';
+  }
+  function regionNombre(r) { return r === 'occidental' ? 'Región Occidental (Chaco)' : (r === 'oriental' ? 'Región Oriental' : ''); }
   function distanciaKm(a, b) {
     if (!a || !b || a.lat == null || a.lon == null || b.lat == null || b.lon == null) return null;
     var R = 6371, r = Math.PI / 180;
@@ -303,6 +324,9 @@
       if (opciones.riego === false && c.riego !== false) return false;
       return true;
     });
+    // misma región (Chaco con Chaco, Oriental con Oriental): los de la otra región no entran ni como información
+    var regP = opciones.mismaRegion === false ? null : region(prospecto), otraRegion = 0;
+    if (regP) candidatos = candidatos.filter(function (c) { var rc = region(c); if (rc && rc !== regP) { otraRegion++; return false; } return true; });
 
     var puntuados = candidatos.map(function (c) {
       var dKm = distanciaKm(prospecto, c);
@@ -373,7 +397,7 @@
 
     return {
       similares: fueraDeRadio ? puntuados.slice(0, maxCasos) : top,
-      fueraDeRadio: fueraDeRadio, radioKm: radioKm,
+      fueraDeRadio: fueraDeRadio, radioKm: radioKm, region: regP, regionNombre: regionNombre(regP), casosOtraRegion: otraRegion,
       masCercano: masCercano ? { km: masCercano.distanciaKm, localidad: masCercano.caso.localidad || '', campo: masCercano.caso.campo || '' } : null,
       totalCandidatos: candidatos.length,
       potencial: potencial,
@@ -724,7 +748,7 @@
     normLoc: normLoc,
     nombreLocalidad: nombreLocalidad,
     climaDelCiclo: climaDelCiclo,
-    evaluar: evaluar,
+    evaluar: evaluar, region: region, regionNombre: regionNombre,
     distanciaKm: distanciaKm,
     epocaDeSiembra: epocaDeSiembra,
     PARAMS_SUELO: PARAMS_SUELO

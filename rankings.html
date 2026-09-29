@@ -93,6 +93,7 @@
 
       <div class="toolbar no-print">
         <div class="filter"><span class="fl">País</span><select id="fPais"></select></div>
+        <div class="filter"><span class="fl">Región</span><select id="fRegion"><option value="">Todo el país</option><option value="oriental">Región Oriental</option><option value="occidental">Región Occidental (Chaco)</option></select></div>
         <div class="filter"><span class="fl">Cultivo</span><select id="fCultivo"></select></div>
         <div class="filter"><span class="fl">Finalidad</span><select id="fFinalidad"></select></div>
         <div class="filter"><span class="fl">Riego</span><select id="fRiego"><option value="riego">Con riego</option><option value="secano">Secano</option><option value="ambos">Ambos</option></select></div>
@@ -169,13 +170,17 @@
     var lf=Object.keys(fins).sort(); opciones('fFinalidad', lf, 'Todas');
     var grano=lf.filter(function(x){return /grano/i.test(x);})[0]; if(grano && !document.getElementById('fFinalidad').value) document.getElementById('fFinalidad').value=grano;
   }
-  ['fPais','fCultivo','fFinalidad','fRiego','fFuente'].forEach(function(id){ document.getElementById(id).addEventListener('change',render); });
+  ['fPais','fRegion','fCultivo','fFinalidad','fRiego','fFuente'].forEach(function(id){ document.getElementById(id).addEventListener('change',render); });
+  // la región solo existe en Paraguay: con otro país el filtro se apaga
+  function ajustarRegion(){ var s=document.getElementById('fRegion'), py=norm(document.getElementById('fPais').value)==='paraguay'; s.disabled=!py; if(!py) s.value=''; }
+  document.getElementById('fPais').addEventListener('change',ajustarRegion);
 
   function filtradas(){
-    var pais=document.getElementById('fPais').value, cul=document.getElementById('fCultivo').value, fin=document.getElementById('fFinalidad').value;
+    var pais=document.getElementById('fPais').value, cul=document.getElementById('fCultivo').value, fin=document.getElementById('fFinalidad').value, reg=document.getElementById('fRegion').value;
     var riego=document.getElementById('fRiego').value, fuente=document.getElementById('fFuente').value;
     return filas.filter(function(f){
       if(pais && norm(f.pais)!==norm(pais)) return false;
+      if(reg && window.SafiaCasos && SafiaCasos.region && SafiaCasos.region({ departamento:f.departamento, pais:f.pais })!==reg) return false;
       if(cul && norm(nombreCultivo(f.cultivo))!==norm(cul)) return false;
       if(fin && f.finalidad && norm(f.finalidad)!==norm(fin)) return false;
       if(riego==='riego' && !f.riego) return false;
