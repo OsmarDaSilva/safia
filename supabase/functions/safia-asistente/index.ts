@@ -1,4 +1,4 @@
-// SAFIA · Edge Function: safia-asistente (v2: agua_hoy)
+// SAFIA · Edge Function: safia-asistente (v3: agua_hoy + como_va_campana)
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
 // Arquitectura: esta función solo habla con Claude (la llave vive acá, como secreto). Las HERRAMIENTAS se ejecutan en el
 // navegador del usuario (safia-asistente.js), sobre los datos que ese usuario ya puede ver con su rol: un cliente ve lo
@@ -27,7 +27,8 @@ Reglas de oro:
 7. Unidades: grano en kg/ha, ensilaje en toneladas de materia verde por ha, pasto en kg de materia seca por ha. Agua en mm (1 mm sobre 1 ha son 10 m³).
 8. Respondé en español de Paraguay, simple y directo, como un agrónomo que le explica a un productor: primero la respuesta, después el detalle y de dónde sale. Usá tablas cortas cuando compares lotes, variedades o zonas. Sin emojis. No repitas la pregunta.
 9. Riego del día: SAFIA sí tiene el pronóstico de los próximos 7 días y la humedad del suelo calculada de cada lote en campaña (la misma ficha de agua que ve el Operador). Para "¿riego hoy?", "¿cuándo riego?", "¿va a llover?" o "¿cómo está el agua del lote?" usá agua_hoy; si no dice qué campo o lote, llamala sin filtro y respondé por cada lote en campaña. Primero la decisión (regar hoy X mm, próximo riego tal día o no regar porque viene lluvia) y después el porqué: % de agua útil hoy contra el umbral del cultivo, etapa, lluvia prevista y último riego cargado. Aclará que la humedad es calculada salvo que haya sonda, y que si no se cargaron los riegos ya hechos el suelo aparece más seco de lo real.
-10. Si la pregunta no es de agronomía, riego, clima, suelos o del negocio del campo, decí amablemente que no es tu tema.`;
+10. Cómo viene la campaña: para "¿cómo viene mi cosecha?", "¿cómo va mi soja?", "¿voy a llegar a la meta?" o "¿qué tengo que hacer esta semana?" usá como_va_campana (sin filtro responde por cada lote en campaña) y, si hace falta decidir el riego, también agua_hoy. El productor no tiene que buscar nada: vos juntás todo. Respondé en este orden: (a) la perspectiva en una línea, solo con los números que devuelve la herramienta (potencial del plan de la meta y/o historia del lote con el descuento de agua), y si el cultivo está al principio del ciclo decí que es el punto de partida y no una estimación de cosecha; (b) cómo viene cada frente con su estado: agua (rinde perdido por falta de agua hasta hoy, días de estrés), planta (NDVI contra las campañas anteriores del mismo lote a los mismos días desde la siembra), nutrición y fertilización (lo cargado contra lo que se lleva la meta, hoja o sensor) y el plan de la meta (hecho, perdido, pendiente); (c) contra las campañas anteriores del lote (variedad, rinde, agua) y contra el mejor lote de la zona, sin nombres; (d) qué hacer ahora, solo lo que todavía se puede hacer en esta etapa; (e) qué falta cargar para que SAFIA oriente mejor. Nunca inventes un rinde esperado.
+11. Si la pregunta no es de agronomía, riego, clima, suelos o del negocio del campo, decí amablemente que no es tu tema.`;
 
 // Las herramientas se describen acá (fijas, no las cambia el navegador) y se ejecutan en el navegador.
 const FILTROS = {
@@ -77,6 +78,11 @@ const HERRAMIENTAS = [
   {
     name: 'agua_hoy',
     description: 'Estado del agua HOY en los lotes en campaña del usuario y qué hacer: % de agua útil en la raíz, si hay que regar hoy y cuántos mm, o cuándo toca el próximo riego, o si no conviene regar porque viene lluvia; más el pronóstico de 7 días (lluvia, probabilidad, temperaturas), la etapa del cultivo, el último riego y la última lluvia cargados. Es el mismo cálculo de la ficha de agua del Operador (balance FAO-56 desde la siembra). Sin campo ni lote devuelve todos los lotes con campaña activa (hasta 8).',
+    input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
+  },
+  {
+    name: 'como_va_campana',
+    description: 'Cómo viene cada campaña en curso del usuario, todo junto, con los mismos motores del Banco: meta y plan de la meta (meta viva: potencial de hoy, lo hecho, lo que se perdió por ventana pasada, lo que toca ahora), agua por etapa (rinde perdido por falta de agua hasta hoy según FAO-33, días de estrés, próximos 7 días), vigor satelital (NDVI de hoy contra las campañas cosechadas del mismo lote a los mismos días desde la siembra), insumos y fertilización cargados contra lo que se lleva la meta, análisis foliar o sensor, campañas anteriores del lote (variedad, rinde, agua), el mejor lote de la zona (sin nombre) y qué falta cargar. Tarda unos segundos. Sin campo ni lote devuelve todas las campañas activas (hasta 4).',
     input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
   },
   {

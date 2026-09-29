@@ -3,7 +3,7 @@
    Chat que responde con los datos reales de SAFIA. La IA vive en la función safia-asistente (servidor, con la llave);
    las HERRAMIENTAS se ejecutan acá, en el navegador, sobre los datos que este usuario ya ve con su rol (un cliente: lo
    suyo y los lotes de la zona sin nombres). Así los números los calcula SAFIA, no la IA, y nadie ve lo que no debe.
-   Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, agua_hoy, interpretar_suelo, mis_campos.
+   Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, agua_hoy, como_va_campana, interpretar_suelo, mis_campos.
    Uso: SafiaAsistente.montar(elemento). */
 (function () {
   'use strict';
@@ -82,6 +82,117 @@
     // el análisis más nuevo; si ese día hay varias muestras, el promedio de la parcela que arma SAFIA (esPromedio)
     var l = propios('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campo.id); }).sort(function (a, b) { return String(b.fecha || '').localeCompare(String(a.fecha || '')) || ((b.esPromedio ? 1 : 0) - (a.esPromedio ? 1 : 0)); });
     return l[0] || null;
+  }
+
+  /* ---------- campaña en curso (lo que muestra el Banco, sin abrirlo) ---------- */
+  // Los módulos del Banco (agua por etapa, satélite, hoja, seguimiento) leen a través de SafiaBanco: acá un puente
+  // de solo lectura con el campo de la consulta. guardar no escribe nada: el asistente nunca cambia datos.
+  var campoPuente = null;
+  function puente(campo) {
+    if (!window.SafiaBanco || window.SafiaBanco._asistente) window.SafiaBanco = { _asistente: true, campoActual: function () { return campoPuente; }, leer: propios, guardar: function () {}, toast: function () {}, refrescar: function () {} };
+    campoPuente = campo;
+  }
+  var NOMBRE_ETAPA = { pre: 'antes de sembrar', veg: 'vegetativa', flor: 'floración', llen: 'llenado de grano', mad: 'maduración' };
+  var SEMAFORO = { verde: 'bien', ambar: 'atención', rojo: 'problema', gris: 'sin datos suficientes' };
+  function dias(a, b) { return Math.round((new Date(String(b).slice(0, 10) + 'T12:00:00') - new Date(String(a).slice(0, 10) + 'T12:00:00')) / 86400000); }
+  function campanaEnCurso(x, hoyK) {
+    var e = x.e, c = x.c, cam = x.cam, cu = x.cu, idx = x.idx, siembra = cu.fechaSiembra ? String(cu.fechaSiembra).slice(0, 10) : null;
+    puente(c);
+    var falta = [];
+    var r = { campo: c ? c.nombre : null, lote: e.nombre, superficie_ha: num(cu.superficie) || num(e.superficie), campana: cam.nombre || null, cultivo: cu.cultivo, variedad: cu.variedad || null, finalidad: cu.finalidad || null,
+      siembra: siembra, dias_desde_siembra: siembra ? dias(siembra, hoyK) : null, cosecha_estimada: cu.fechaCosecha || null, densidad: cu.densidad || null, cultivo_anterior: cu.cultivoAnterior || null, sistema_siembra: cu.sistemaSiembra || null,
+      meta_kg_ha: num(cu.rendimientoObj) };
+    if (!siembra) { r.aviso = 'La campaña no tiene fecha de siembra: sin ella no se puede seguir el ciclo.'; return Promise.resolve(r); }
+    var tareas = [];
+
+    // 1) Agua por etapa (FAO-56 + FAO-33): cuánto rinde costó la falta de agua hasta hoy y qué viene
+    var ag = null;
+    if (window.SafiaAgua && c) {
+      var ca = SafiaAgua.campanasDelLote(e.id).find(function (k) { return k.id === String(cam.id) + '_' + idx; });
+      if (ca) tareas.push(SafiaAgua.calcular(c, e, ca).then(function (res) {
+        var reales = res.dias.filter(function (d) { return !d.pronostico; });
+        ag = { perdidaPct: res.perdidaPct, etapa: reales.length ? reales[reales.length - 1].etapa : null };
+        r.agua = { rinde_perdido_por_agua_hasta_hoy_pct: res.perdidaPct, dias_con_estres: reales.filter(function (d) { return d.ks < 1; }).length, etapa_hoy: NOMBRE_ETAPA[ag.etapa] || ag.etapa,
+          por_etapa: res.etapas.filter(function (s) { return s.dias > 0; }).map(function (s) { return { etapa: s.n, dias: s.dias, demanda_mm: s.etc, uso_mm: s.eta, deficit_pct: s.deficitPct, dias_estres: s.diasEstres, lluvia_mm: s.lluvia, riego_mm: s.riego, rinde_perdido_pct: s.perdidaPct }; }),
+          episodios_de_falta: (res.episodios || []).map(function (p) { return { desde: p.desde, hasta: p.hasta, dias: p.dias, etapa: NOMBRE_ETAPA[p.etapa] || p.etapa }; }),
+          hoy: res.hoy ? { agua_disponible_mm: r0(res.hoy.disponible), capacidad_mm: r0(res.hoy.taw), puede_gastar_antes_de_regar_mm: res.hoy.faltaParaRecarga, en_estres: res.hoy.ks < 1 } : null,
+          proximos_7_dias: res.pronostico ? { lluvia_mm: res.pronostico.lluvia, demanda_mm: res.pronostico.etc, llega_al_punto_de_riego: res.pronostico.cruzaRecarga } : null,
+          lluvia_de: res.lluviaDeEventos ? 'lluvias cargadas del lote' : 'clima estimado (CHIRPS/Open-Meteo): el lote no tiene lluvias cargadas en la campaña' };
+        if (!res.lluviaDeEventos) falta.push('lluvias medidas en el pluviómetro del campo (Operador o Eventos)');
+      }, function () { r.agua = { error: 'No se pudo traer el clima para el balance por etapa.' }; }));
+    }
+
+    // 2) Vigor satelital: la campaña de hoy contra las cosechadas del mismo lote, a los mismos días desde la siembra
+    if (window.SafiaNDVI && c) {
+      tareas.push(Promise.resolve(SafiaNDVI.cargarDeTabla()).catch(function () {}).then(function () {
+        if (!e.poligono || !e.poligono.partes) { r.satelite = { sin_datos: 'El lote no tiene polígono cargado: sin él no hay NDVI (Equipos y lotes → KML o dibujar).' }; falta.push('el polígono del lote para el satélite'); return; }
+        var serie = SafiaNDVI.serieDe(e.id) || [], camps = SafiaNDVI.campanasDelLote(e.id);
+        var abierta = camps.find(function (k) { return k.id === String(cam.id) + '_' + idx; });
+        var cv = abierta ? SafiaNDVI.curvaDe(abierta, serie) : { puntos: [] }, ult = cv.puntos[cv.puntos.length - 1];
+        var ultima = serie.length ? serie[serie.length - 1].fecha : null;
+        r.satelite = { pasadas_desde_siembra: cv.puntos.length, ultima_pasada_guardada: ultima, dias_sin_pasada: ultima ? dias(ultima, hoyK) : null };
+        if (ultima && dias(ultima, hoyK) > 10) falta.push('traer las pasadas nuevas del satélite (Banco → Vigor satelital → Traer del satélite)');
+        if (!ult) { r.satelite.nota = 'Todavía no hay pasadas del satélite desde la siembra.'; return; }
+        r.satelite.hoy = { fecha: ult.fecha, dia_desde_siembra: ult.dds, ndvi: r1(ult.ndvi * 100) / 100 };
+        if (ult.dds < 20) r.satelite.nota = 'Con menos de 20 días desde la siembra el NDVI es casi todo suelo: todavía no sirve para comparar.';
+        r.satelite.mismas_fechas_otras_campanas = camps.filter(function (k) { return !k.abierta && k.rinde && norm(k.cultivo) === norm(cu.cultivo); }).map(function (k) {
+          var kc = SafiaNDVI.curvaDe(k, serie), v = SafiaNDVI.ndviEnDia(kc, ult.dds);
+          return { campana: k.nombre, siembra: k.siembra, variedad: k.variedad || null, rinde_kg_ha: r0(k.rinde), ndvi_al_mismo_dia: v == null ? null : Math.round(v * 100) / 100, diferencia_hoy_pct: v ? Math.round((ult.ndvi - v) / v * 100) : null, ndvi_maximo: kc.max == null ? null : Math.round(kc.max * 100) / 100, dia_del_maximo: kc.diaMax, dias_canopia_plena: kc.diasPlenos };
+        });
+      }));
+    }
+
+    return Promise.all(tareas).then(function () {
+      // 3) Meta viva: ¿la meta guardada sigue alcanzable con lo que ya pasó?
+      var u = { campanaId: cam.id, idx: idx, campana: cam, cultivo: cu };
+      if (cu.planMeta && window.SafiaSeguimiento) {
+        var mv = SafiaSeguimiento.metaViva(u, ag);
+        if (mv) r.meta_viva = { meta_kg_ha: mv.meta, parte_de_kg_ha: mv.base, potencial_hoy_kg_ha: { min: mv.min, max: mv.max }, estado: SEMAFORO[mv.k], sabe_que_se_hizo: mv.sabemos, etapa: NOMBRE_ETAPA[mv.etapa] || mv.etapa,
+          plan_hecho: mv.hechos + ' de ' + mv.total, descuento_por_agua_pct: mv.agua || 0,
+          perdido_por_ventana_pasada: mv.perdidos.map(function (p) { return { item: p.it.nombre, rinde_que_se_pierde_pct: Math.round(p.ap[0] * 100) + '-' + Math.round(p.ap[1] * 100) }; }),
+          toca_ahora: mv.ahora.map(function (a) { return { item: a.it.nombre, accion: a.it.accion }; }),
+          proximos: mv.futuros.slice(0, 5).map(function (f) { return f.it.nombre; }),
+          nutricion: mv.nutri ? mv.nutri.texto : null, metodo: 'plan de la meta (Motor 8): el potencial baja por lo que ya no se puede hacer y por el agua (FAO-33)' };
+      } else if (r.meta_kg_ha) r.meta_viva = { nota: 'Hay meta (' + r.meta_kg_ha + ' kg/ha) pero sin plan guardado: armarlo en Banco → Meta de rinde para saber si sigue alcanzable.' };
+
+      // 4) Fertilización e insumos cargados, y el balance de nutrientes contra la meta
+      var ins = (cam.insumos || []).filter(function (k) { return k.cultivoIdx == null || k.cultivoIdx === idx; });
+      var man = window.SafiaInsumos ? SafiaInsumos.resumen(ins, [], cam.manejoCompleto) : null;
+      r.insumos = { cargados: ins.length, manejo_marcado_completo: !!cam.manejoCompleto, productos: ins.slice(0, 20).map(function (k) { return [k.producto || k.categoria, k.dosis ? k.dosis + ' ' + (k.unidad || '') : null, k.etapa || k.metodo || null].filter(Boolean).join(' · '); }), npk_kg_ha: man && man.npk ? man.npk : null };
+      if (!ins.length && !cam.manejoCompleto) falta.push('los insumos de la campaña (semilla, fertilización, aplicaciones): Campañas → Manejo e insumos o la ficha');
+      var bal = window.SafiaNutrientes ? SafiaNutrientes.balanceCampana(cam, idx) : null;
+      if (bal && bal.exportado) r.nutrientes_para_la_meta = { se_lleva_kg_ha: { p2o5: r0(bal.exportado.p2o5), k2o: r0(bal.exportado.k2o) }, aplicado_kg_ha: bal.aplicado ? { p2o5: r0(bal.aplicado.p2o5), k2o: r0(bal.aplicado.k2o) } : null, fuente: 'exportación por tonelada IPNI/INTA' };
+
+      // 5) Hoja / sensor desde la siembra
+      if (window.SafiaFoliar) {
+        var fol = SafiaFoliar.lista().filter(function (a) { return String(a.equipoId || '') === String(e.id) && String(a.fecha) >= siembra; });
+        if (fol.length) { var a = fol[fol.length - 1], li = SafiaFoliar.interpretar(a); r.hoja = { fecha: a.fecha, tipo: a.tipo === 'sensor' ? 'sensor (Dualex/SPAD)' : 'análisis foliar', bajos: li.filter(function (k) { return k.estado === 'bajo' || k.estado === 'limite'; }).map(function (k) { return { nutriente: k.n, valor: k.valor, estado: k.estado, texto: k.texto }; }), fuente: 'rangos Embrapa / Fertilizar' }; }
+        else { r.hoja = { nota: 'Sin análisis foliar ni lectura de sensor en esta campaña.' }; var dd = r.dias_desde_siembra; if (dd != null && dd >= 45) falta.push('un análisis foliar en floración (soja: 3er trifolio) o una lectura con Dualex/SPAD'); }
+      }
+
+      // 6) Campañas cosechadas del mismo lote y del mismo cultivo (cómo le fue antes y por qué)
+      var ant = casos().filter(function (k) { return String(k.equipoId) === String(e.id) && mismoCultivo(k.cultivo, cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
+      r.campanas_anteriores_del_lote = ant.slice(0, 6).map(function (k) { return { campana: k.campana, variedad: k.variedad || null, siembra: k.siembra, rinde_kg_ha: r0(k.rindeKgHa), lluvia_mm: r0(k.lluviaMM), riego_mm: r0(k.riegoMM), dias_ciclo: k.dias }; });
+      var rs = ant.map(function (k) { return num(k.rindeKgHa); }).filter(function (v) { return v; });
+
+      // 7) El mejor lote de la zona: mismo cultivo, finalidad, época y régimen de agua (sin nombres de otros productores)
+      var ep = C() ? C().epocaDeSiembra(siembra) : null, conRiego = !(window.SafiaBalance && SafiaBalance.esSecano(e));
+      var zona = c && C() ? casos().filter(function (k) { return String(k.equipoId) !== String(e.id) && mismoCultivo(k.cultivo, cu.cultivo) && (!ep || k.epoca === ep) && (k.riego !== false) === conRiego && C().normLoc(k.localidad) === C().normLoc(c.localidad) && C().grupoFinalidad(k.cultivo, k.finalidad) === C().grupoFinalidad(cu.cultivo, cu.finalidad); }) : [];
+      zona.sort(function (a, b) { return b.rindeKgHa - a.rindeKgHa; });
+      r.mejores_de_la_zona = { ambito: c ? (c.localidad || c.departamento) : null, epoca: ep, con_riego: conRiego, casos: zona.length, mejores: zona.slice(0, 3).map(function (k) { return { quien: 'Lote de ' + (k.localidad || k.departamento || 'la zona') + ' (sin nombre: regla de SAFIA)', variedad: k.variedad || null, siembra: k.siembra, rinde_kg_ha: r0(k.rindeKgHa), agua_total_mm: r0(k.aguaTotalMM) }; }) };
+
+      // 8) Perspectiva: solo con lo calculado (plan de la meta o historia del lote), nunca inventada
+      var persp = { etapa: ag && ag.etapa ? NOMBRE_ETAPA[ag.etapa] : null };
+      if (r.meta_viva && r.meta_viva.potencial_hoy_kg_ha) persp.potencial_segun_plan_de_la_meta_kg_ha = r.meta_viva.potencial_hoy_kg_ha;
+      if (rs.length) {
+        var prom = rs.reduce(function (s, v) { return s + v; }, 0) / rs.length, mej = Math.max.apply(null, rs), fac = ag && ag.perdidaPct ? 1 - ag.perdidaPct / 100 : 1;
+        persp.historia_del_lote = { campanas: rs.length, promedio_kg_ha: r0(prom), mejor_kg_ha: r0(mej), con_el_descuento_de_agua_hasta_hoy_kg_ha: { promedio: Math.round(prom * fac / 10) * 10, mejor: Math.round(mej * fac / 10) * 10 } };
+      }
+      persp.nota = (r.dias_desde_siembra != null && r.dias_desde_siembra < 45 ? 'Faltan casi todas las etapas que definen el rinde (floración y llenado): la perspectiva de hoy es el punto de partida, no una estimación de cosecha. ' : '') + 'Se afina con cada lluvia, riego, pasada del satélite e insumo que se carga.';
+      r.perspectiva = persp;
+      r.falta_cargar = falta;
+      return r;
+    });
   }
 
   /* ---------- herramientas ---------- */
@@ -212,6 +323,31 @@
           importante: 'La humedad es calculada, no medida (salvo sonda). Si no se cargaron los riegos hechos, el suelo aparece más seco de lo real.' };
       });
     },
+    como_va_campana: function (i) {
+      // "¿Cómo viene mi cosecha?": junta lo que el Banco muestra en varias pestañas, con los mismos motores
+      // (meta viva, agua por etapa FAO-56/FAO-33, vigor satelital, foliar, insumos y balance de nutrientes, campañas anteriores del lote, mejor de la zona)
+      var campo = i.campo ? campoPorNombre(i.campo) : null;
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      var cps = propios('campos'), lista = [];
+      propios('campanas').forEach(function (cam) {
+        if (cam.estado !== 'Activa') return;
+        var e = propios('equipos').find(function (x) { return String(x.id) === String(cam.equipoId); }); if (!e) return;
+        var c = cps.find(function (x) { return String(x.id) === String(e.campoId); });
+        if (campo && (!c || String(c.id) !== String(campo.id))) return;
+        if (i.lote && norm(e.nombre).indexOf(norm(i.lote)) < 0) return;
+        (cam.cultivos || []).forEach(function (cu, idx) { if (cu && cu.cultivo && !num(cu.rendimientoReal)) lista.push({ e: e, c: c, cam: cam, cu: cu, idx: idx }); });
+      });
+      if (!lista.length) return { error: 'No hay campañas activas' + (campo ? ' en ' + campo.nombre : '') + (i.lote ? ' para ese lote' : '') + '.' };
+      var omitidos = lista.length > 4 ? lista.length - 4 : 0; lista = lista.slice(0, 4);
+      var hoyK = window.SafiaBalance ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10);
+      var out = [];
+      return lista.reduce(function (p, x) { return p.then(function () { return campanaEnCurso(x, hoyK).then(function (r) { out.push(r); }, function (er) { out.push({ lote: x.e.nombre, error: String((er && er.message) || er) }); }); }); }, Promise.resolve())
+        .then(function () {
+          return { hoy: hoyK, campanas: out, no_mostradas: omitidos || undefined,
+            fuentes: 'meta viva y plan de la meta (Motor 8, Banco → Meta de rinde); agua por etapa: balance diario FAO-56 + rinde relativo FAO-33 (Doorenbos & Kassam, Ky por etapa), lluvia CHIRPS corregida o la cargada; vigor: NDVI Sentinel-2 (Copernicus); hoja: rangos Embrapa/Fertilizar; exportación de nutrientes IPNI/INTA; campañas cosechadas reales del banco',
+            importante: 'Todo es orientativo y depende de lo cargado: lo que no está cargado (insumos, riegos, lluvias, análisis) SAFIA no lo sabe, y "no cargado" no es "no hecho".' };
+        });
+    },
     mis_campos: function () {
       var cl = propios('clientes'), cs = casos(), an = propios('analisis_suelo'), eqs = propios('equipos'), cams = propios('campanas');
       return { campos: propios('campos').map(function (c) {
@@ -249,7 +385,7 @@
       return r.data;
     });
   }
-  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos' };
+  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos' };
   function preguntar(texto, al) {
     if (ocupado || !texto.trim()) return Promise.resolve();
     ocupado = true;
@@ -312,7 +448,7 @@
   }
 
   /* ---------- pantalla ---------- */
-  var SUGERENCIAS = ['¿Tengo que regar hoy? ¿Viene lluvia?', '¿Qué variedad de soja rindió más con riego en la Región Oriental?', '¿Con cuántos mm de agua se hizo el mejor maíz del banco?', '¿Qué le falta al suelo de mi campo para llegar a 5.000 kg de soja?', '¿Cuánto riego lleva la soja en Mariscal Estigarribia y cuánto rinde en secano?', '¿Cuánto rinden la soja y el maíz con riego y en secano en Boquerón según la referencia?'];
+  var SUGERENCIAS = ['¿Cómo viene mi cosecha?', '¿Tengo que regar hoy? ¿Viene lluvia?', '¿Qué variedad de soja rindió más con riego en la Región Oriental?', '¿Con cuántos mm de agua se hizo el mejor maíz del banco?', '¿Qué le falta al suelo de mi campo para llegar a 5.000 kg de soja?', '¿Cuánto riego lleva la soja en Mariscal Estigarribia y cuánto rinde en secano?', '¿Cuánto rinden la soja y el maíz con riego y en secano en Boquerón según la referencia?'];
   function montar(el) {
     if (!el) return;
     el.innerHTML = '<div id="asHist" style="display:flex;flex-direction:column;gap:12px;"></div>' +
@@ -338,6 +474,8 @@
     txt.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } });
     el.querySelectorAll('[data-sug]').forEach(function (b) { b.addEventListener('click', function () { txt.value = b.textContent; enviar(); }); });
     el.querySelector('#asNueva').addEventListener('click', function () { nueva(); hist.innerHTML = ''; el.querySelector('#asSug').style.display = 'flex'; txt.focus(); });
+    // asistente.html?q=... abre con la pregunta ya hecha (para enlazarla desde otras pantallas)
+    try { var q = new URLSearchParams(location.search).get('q'); if (q && q.trim()) { history.replaceState(null, '', location.pathname); txt.value = q.slice(0, 500); setTimeout(enviar, 400); } } catch (e) {}
   }
 
   window.SafiaAsistente = { montar: montar, preguntar: preguntar, nueva: nueva, ejecutar: ejecutar, md: md };
