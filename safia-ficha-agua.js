@@ -30,7 +30,7 @@
     if (n === 1) return 'mañana';
     return DIAS[d.getDay()] + ' ' + fmtF(f);
   }
-  var COL = { estres: '#C0392B', regar: '#E67E22', atencion: '#D4A24C', optimo: '#178029', lleno: '#2E72C8', gris: '#8C9196', bajo: '#F5C400', alto: '#2BA9D6', exceso: '#2E72C8' };
+  var COL = { estres: '#C0392B', regar: '#E67E22', atencion: '#D4A24C', optimo: '#178029', lleno: '#2E72C8', gris: '#8C9196', bajo: '#FFFF00', alto: '#2BA9D6', exceso: '#2E72C8' };
 
   // Umbrales del cultivo (el motor los trae; si falta alguno, los generales)
   function umbrales(r) {
