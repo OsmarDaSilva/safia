@@ -174,7 +174,7 @@
     if (!nombre) { mensaje('Poné tu nombre.'); return; }
     if (pass.length < 6) { mensaje('La contraseña tiene que tener al menos 6 caracteres.'); return; }
     var b = document.getElementById('botonCrear'); ocupado(b, 'Creando', true);
-    sb().auth.signUp({ email: email, password: pass, options: { data: { nombre: nombre, app: 'safia', telefono: telefono, solicitud: solicitud } } }).then(function (r) {
+    sb().auth.signUp({ email: email, password: pass, options: { emailRedirectTo: location.origin + '/login.html', data: { nombre: nombre, app: 'safia', telefono: telefono, solicitud: solicitud } } }).then(function (r) {
       ocupado(b, '', false);
       if (r.error) {
         var m = (r.error.message || '').toLowerCase();
