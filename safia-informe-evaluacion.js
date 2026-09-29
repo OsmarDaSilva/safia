@@ -41,7 +41,7 @@
   function cargarReferencias() {
     if (!window.safiaSupabase) return Promise.resolve();
     return Promise.all([
-      window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,anio,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha').then(function (r) { refProd = r.data || []; }, function () { refProd = []; }),
+      window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,anio,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha,costo_final_ha,costo_insumos_ha,costo_maquinas_ha,costo_fletes_ha,alquiler_ha,energia_ha,mantenimiento_ha').then(function (r) { refProd = r.data || []; }, function () { refProd = []; }),
       window.safiaSupabase.from('safia_ref_forraje_mensual').select('region,tipo_pastura,forma_producida,anio,ene,feb,mar,abr,may,jun,jul,ago,sep,oct,nov,dic').then(function (r) { refForraje = r.data || []; }, function () { refForraje = []; })
     ]);
   }
@@ -100,7 +100,7 @@
     }
     var a = ambitoRef(); if (!a) return null;
     var rr = SafiaCasos.refRegional(a.filas, cultivo, epoca, finalidad); if (!rr) return null;
-    return { riego: rr.riego, secano: rr.secano, n: rr.n, epoca: rr.epoca, ambito: a.nombre, nivel: a.nivel };
+    return { riego: rr.riego, secano: rr.secano, n: rr.n, epoca: rr.epoca, ambito: a.nombre, nivel: a.nivel, costoRiego: rr.costoRiego, costoSecano: rr.costoSecano, costosRiego: rr.costosRiego, costosSecano: rr.costosSecano };
   }
   function unidad(c) { return SafiaCasos.unidadDe(c.cultivo, c.finalidad); }
   function U(v, u) { return SafiaCasos.enUnidad(v, u); }
@@ -108,7 +108,7 @@
   function potenciales() {
     var u = ubic(), s = suelo(), casos = window.SafiaCasos ? SafiaCasos.armarCasos() : [];
     return cultivos().map(function (c) {
-      var p = { lat: u.lat, lon: u.lon, altitud: u.altitud, suelo: tieneSuelo(s) ? s : null, cultivo: c.cultivo, finalidad: c.finalidad || null, epoca: c.epoca || null, objetivoKgHa: num(c.objetivoKgHa) };
+      var p = { lat: u.lat, lon: u.lon, altitud: u.altitud, suelo: tieneSuelo(s) ? s : null, cultivo: c.cultivo, finalidad: c.finalidad || null, epoca: c.epoca || null, siembra: c.siembra || null, objetivoKgHa: num(c.objetivoKgHa), departamento: u.depto || null, localidad: u.localidad || null, pais: u.pais || 'Paraguay' };
       var r = window.SafiaCasos ? SafiaCasos.evaluar(p, casos, { maxCasos: 5, radioKm: 300, riego: true }) : { similares: [], potencial: null };
       return { c: c, p: p, r: r, u: unidad(c), ref: refCultivo(c.cultivo, c.epoca, c.finalidad) };
     });
@@ -159,8 +159,17 @@
     P.forEach(function (x) { var g = grupos[x.u.corto]; if (!g) { g = grupos[x.u.corto] = []; orden.push(x.u.corto); } if (g.indexOf(x.u.largo) === -1) g.push(x.u.largo); });
     return orden.length ? 'Unidades: ' + orden.map(function (c) { return c + ' = ' + grupos[c].join(' o '); }).join('; ') + '.' : '';
   }
+  var ECO = null;
   function conclusiones(P, LA, LS) {
     var out = [];
+    var E = ECO;
+    if (E && E.ok && E.ok.length && E.superficieHa > 0) {
+      var usdT = function (v) { return 'US$ ' + fmt(v, 0); };
+      var txt = '<b>Economía:</b> con ' + fmt(E.superficieHa, 0) + ' ha, con riego el proyecto deja <b>' + usdT(E.anualR) + ' por año</b>' + (E.situacion === 'nuevo' ? '' : ' contra ' + usdT(E.anualS) + ' en secano (el riego agrega <b>' + usdT(E.anualAgrega) + '</b>)') + (E.proyecto ? '; la energía del riego cuesta ' + usdT(E.proyecto.energiaR) + ' por año' : '') + '. ';
+      if (E.inversionUSD > 0) txt += 'La inversión de <b>' + usdT(E.inversionUSD) + '</b> (' + usdT(E.inversionHa) + ' por ha) ' + (E.recupero != null ? 'se recupera en <b>' + fmt(E.recupero, 1) + ' años</b>' + (E.tir != null ? ', con una tasa interna de retorno de <b>' + fmt(E.tir * 100, 1) + ' %</b> a ' + E.horizonte + ' años' : '') + '.' : 'no se paga con estos números: revisar precios, costos y rindes.');
+      else if (E.inversionRefHa && E.anualPaga > 0) txt += 'Con la referencia de Irrigar (' + esc(E.inversionRefHa.txt) + ') se recuperaría en ' + fmt(E.inversionRefHa.min * E.superficieHa / E.anualPaga, 1) + (E.inversionRefHa.max !== E.inversionRefHa.min ? ' a ' + fmt(E.inversionRefHa.max * E.superficieHa / E.anualPaga, 1) : '') + ' años (orientativo: falta la inversión real).';
+      out.push(txt);
+    }
     if (LA) out.push('<b>Agua:</b> ' + esc(LA.L.veredicto.titulo) + '. ' + esc(LA.L.veredicto.k === 'grave' ? (LA.L.veredicto.motivos || [LA.L.veredicto.detalle])[0] : (LA.L.plan[0] ? LA.L.plan.slice(0, 3).map(function (p) { return p.t; }).join('; ') : '')) + '.');
     else out.push('<b>Agua:</b> falta el análisis del agua de la fuente de riego; es lo primero a resolver antes de invertir.');
     if (LS) out.push('<b>Suelo:</b> ' + (LS.limitan.length ? 'limita ' + esc(LS.limitan.join(', ')) + '. ' : 'sin limitantes fuertes. ') + esc(LS.recs.slice(0, 2).map(function (r) { return r.titulo; }).join('; ')) + '.');
@@ -248,6 +257,51 @@
     });
     return h;
   }
+  /* ---------- riego simulado de cada cultivo (mismo cálculo que Evaluar) ---------- */
+  function simulaciones() {
+    if (!hist || !window.SafiaClimaProyecto) return [];
+    var u = ubic();
+    return cultivos().map(function (c) { try { return SafiaClimaProyecto.riego(hist, { cultivo: c.cultivo, epoca: c.epoca, siembra: c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null, departamento: u.depto || null, lat: hist.lat, lon: hist.lon }); } catch (e) { return null; } });
+  }
+  /* ---------- economía del proyecto (SafiaEconomiaRiego, los mismos números que Evaluar) ---------- */
+  var INV_REF_HA = { occidental: { min: 5000, max: 6000, txt: 'Chaco: US$ 5.000 a 6.000 por ha (pozos y reservorio con geomembrana)' }, oriental: { min: 3000, max: 3000, txt: 'Oriental: unos US$ 3.000 por ha (agua superficial, casi sin pozos)' } };
+  function economia(P, sims) {
+    if (!window.SafiaEconomiaRiego || !ev) return null;
+    var u = ubic(), reg = window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region({ departamento: u.depto, pais: u.pais, lat: u.lat, lon: u.lon }) : null;
+    return SafiaEconomiaRiego.calcular({
+      cultivos: P.map(function (x, i) { return { cultivo: x.c.cultivo, finalidad: x.c.finalidad, epoca: x.c.epoca, ref: x.ref, riego: sims[i] || null }; }),
+      superficieHa: num(ev.superficieHa), inversionUSD: num(ev.inversionUSD), inversionPartes: ev.inversionPartes || null, vidaUtil: num(ev.vidaUtil),
+      energiaUSDmm: ev.energiaModo === 'base' ? null : num(ev.energiaUSDmm), energiaModo: ev.energiaModo || (ev.energiaUSDmm != null ? 'mm' : 'base'), situacion: ev.situacion,
+      inversionRefHa: reg && INV_REF_HA[reg] ? Object.assign({ region: reg }, INV_REF_HA[reg]) : null
+    });
+  }
+  function secEconomia(E) {
+    var h = '<h2 class="salto">Economía e inversión del proyecto</h2>';
+    if (!E) return h + '<div class="note">' + (climaEstado === 'cargando' ? 'Calculando con el clima del campo…' : 'Sin datos suficientes para la economía (hace falta la referencia de la zona con costos y el clima del campo).') + '</div>';
+    h += '<div class="sub" style="margin-bottom:6px;">Por hectárea y para todo el proyecto, con riego y en secano, con los precios vigentes de SAFIA. ' + (ev.situacion === 'nuevo' ? 'Campo nuevo: la inversión se paga con el margen completo con riego.' : 'El campo hoy produce en secano: la inversión se paga con lo que agrega el riego.') + '</div>';
+    h += SafiaEconomiaRiego.html(E).replace('grid-template-columns:repeat(auto-fit,minmax(560px,1fr))', 'grid-template-columns:minmax(0,1fr)');
+    var c = ev.energiaModo === 'calc' ? ev.energiaCalc : null;
+    if (c) h += '<h3>Cómo se calculó la energía</h3>' + tabla([{ t: 'Dato', w: 60 }, { t: 'Valor', r: 1, w: 40 }], [
+      ['Potencia por equipo', fmt(c.kw, 1) + ' kW'], ['Tarifa eléctrica', 'US$ ' + fmt(c.tarifa, 3) + ' por kWh'], ['Lámina del equipo en 24 h', fmt(c.lamina, 1) + ' mm'], ['Hectáreas por equipo', fmt(c.ha, 0) + ' ha'],
+      ['Horas de bombeo por día', fmt(c.horas || 24, 0)], ['Tiempo con generador', fmt(c.gen || 0, 0) + ' %' + (c.gen > 0 ? ' · ' + fmt(c.genLh, 0) + ' L/h a US$ ' + fmt(c.gasoil, 2) + ' el litro' : '')],
+      ['<b>Energía por mm y por ha</b>', '<b>US$ ' + fmt(num(ev.energiaUSDmm), 3) + '</b>']
+    ].map(function (r) { return '<tr>' + td(r[0]) + td(r[1], 1) + '</tr>'; })) + '<div class="sub">Costo por día = horas × [(1 − generador) × kW × tarifa + generador × litros por hora × precio del gasoil]; por mm y por ha = costo por día ÷ (mm por día × hectáreas del equipo).</div>';
+    return h;
+  }
+  /* ---------- cómo llegar al líder de la zona (SafiaIgualar, igual que Evaluar; sin nombres de productores) ---------- */
+  function secLider(P, sims) {
+    if (!window.SafiaIgualar || !SafiaIgualar.prospectoHTML) return '';
+    var casos = window.SafiaCasos ? SafiaCasos.armarCasos() : [], u = ubic(), h = '<h2 class="salto">Cómo llegar al líder de la zona</h2><div class="sub" style="margin-bottom:6px;">Para cada cultivo: el punto de partida con riego, el mejor lote con riego de la misma región (sin nombres), qué lo diferencia y el plan con costos para igualarlo.</div>';
+    P.forEach(function (x, i) {
+      var b = SafiaIgualar.prospectoHTML(Object.assign({}, x.p, { ref: x.ref, pot: x.r.potencial, casos: casos, campoId: ev.campoId, clienteId: ev.clienteId, localidad: u.localidad, departamento: u.depto, pais: u.pais }));
+      var s = sims[i];
+      b = b.replace(/<details(?![^>]*\sopen)/g, '<details open')                           // en papel todo abierto
+           .replace(/<button[^>]*>[\s\S]*?<\/button>/g, '')                               // sin botones (mapa, igualar)
+           .replace(/(class="sv pot-agua"[^>]*>)…/, '$1' + (s && !s.error ? fmt(s.rindeRelSecano * 100, 0) + ' %' : '—'));
+      h += '<div class="seccion">' + b + '</div>';
+    });
+    return h;
+  }
   function secZona() {
     var a = ambitoRef(), h = '<h2>La zona: referencia agrícola y forrajera</h2>';
     if (!a) h += '<div class="note">No hay registros de la referencia agrícola para esta localidad ni su departamento.</div>';
@@ -282,7 +336,7 @@
     var pasos = ['Confirmar el análisis del agua (y repetirlo si no pasa el control de calidad) y analizar el suelo en 0–20 y 20–40 cm, con sodio intercambiable si el agua tiene sodio.', 'Definir la superficie, la fuente de agua y su caudal, y el equipo (pivot, lámina y energía).', 'Corregir el suelo según las recomendaciones antes de la primera campaña.', 'Con el agua en la franja severa, hacer un lote piloto antes del proyecto completo (FAO 29, §1.4).', 'Una vez en marcha, SAFIA sigue el proyecto: balance de agua diario, satélite, análisis y cosecha, y compara con el potencial de este informe.'];
     var autor = $('autor').value.trim() || config.agronomo || '';
     var h = '<h2>Próximos pasos</h2><ol>' + pasos.map(function (p) { return '<li>' + p + '</li>'; }).join('') + '</ol>' +
-      '<div class="note info" style="font-size:11px;"><b>Supuestos y fuentes.</b> Clima: Open-Meteo, reanálisis ERA5, datos diarios de los últimos 10 años completos. Zona: referencia agrícola y forrajera de SAFIA (base de Irrigar). Potencial: casos reales con riego del banco de SAFIA a menos de 300 km (con menos de 3 casos es orientación). Suelo: Manual de Calagem e Adubação RS/SC 2016, Embrapa, CAPECO/IPTA. Agua: FAO Riego y Drenaje 29, USDA Manual 60, universidades e INTA (detalle en la sección del agua). SAFIA compara e interpreta; la prescripción y la decisión de inversión las toma el productor con su ingeniero agrónomo.</div>';
+      '<div class="note info" style="font-size:11px;"><b>Supuestos y fuentes.</b> Clima: lluvia CHIRPS (satélite + estaciones, comparada con la Dirección de Meteorología) y evapotranspiración Penman-Monteith FAO-56 (Open-Meteo, reanálisis ERA5), datos diarios de los últimos 10 años completos. Secano: siembra con el perfil cargado (Fundación IDEAGRO 2025). Economía: referencia de costos de la zona (base de Irrigar), precios vigentes de SAFIA y la inversión cargada del proyecto. Zona: referencia agrícola y forrajera de SAFIA (base de Irrigar). Potencial: casos reales con riego del banco de SAFIA a menos de 300 km (con menos de 3 casos es orientación). Suelo: Manual de Calagem e Adubação RS/SC 2016, Embrapa, CAPECO/IPTA. Agua: FAO Riego y Drenaje 29, USDA Manual 60, universidades e INTA (detalle en la sección del agua). SAFIA compara e interpreta; la prescripción y la decisión de inversión las toma el productor con su ingeniero agrónomo.</div>';
     if (autor || config.firma) h += '<div class="firma"><div class="bloque">' + (config.firma ? '<img src="' + config.firma + '" alt="firma">' : '<div style="height:40px;"></div>') + '<b>' + esc(autor) + '</b>' + (config.matricula ? '<div class="sub">' + esc(config.matricula) + '</div>' : '') + '<div class="sub">' + esc([config.empresa, config.telefono, config.correo].filter(Boolean).join(' · ')) + '</div></div></div>';
     return h + '<div class="pie"><span>Evaluación preparada con SAFIA con datos reales de la zona y del banco de casos.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
   }
@@ -291,13 +345,16 @@
   function armar() {
     var hoja = $('hoja');
     if (!ev) { hoja.innerHTML = '<div class="muted" style="padding:40px;text-align:center;">No hay evaluaciones guardadas. Guardá una en <a href="evaluar.html">Evaluar proyecto</a>.</div>'; return; }
-    var s = secciones(), P = potenciales(), LA = lecturaAgua(), LS = lecturaSuelo();
+    var s = secciones(), P = potenciales(), LA = lecturaAgua(), LS = lecturaSuelo(), sims = simulaciones(), E = hist ? economia(P, sims) : null;
+    ECO = E;
     var html = cabecera();
     if (s.resumen) html += secResumen(P, LA, LS);
     if (s.clima) html += secClima();
     if (s.suelo) html += secSuelo(LS);
     if (s.agua) html += secAgua(LA);
     if (s.potencial) html += secPotencial(P);
+    if (s.lider) html += secLider(P, sims);
+    if (s.economia) html += secEconomia(E);
     if (s.zona) html += secZona();
     html += secCierre();
     hoja.innerHTML = html;
