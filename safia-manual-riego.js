@@ -17,9 +17,10 @@
 
   // Dibujo didáctico: el agua del suelo baja día a día; el pivot se prende en "arrancar" para que el último sector no llegue a "estrés"
   function dibujo() {
+    var AMA = '#F5C400';
     var W = 640, H = 210, x0 = 44, x1 = 620, yv = function (p) { return 18 + (100 - p) / 100 * 150; };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="mr-svg" role="img" aria-label="Cómo baja el agua del suelo y cuándo arrancar el pivot">';
-    [[0, 44, COL.estres], [44, 70, COL.bajo], [70, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
+    [[0, 44, COL.estres], [44, 70, AMA], [70, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
     [[100, 'capacidad de campo (lleno)', COL.exceso], [70, 'arrancar el pivot', COL.bajo], [44, 'estrés: se pierde rinde', COL.estres]].forEach(function (l) {
       s += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + yv(l[0]) + '" y2="' + yv(l[0]) + '" stroke="' + l[2] + '" stroke-dasharray="5 4"/><text x="' + (x0 + 6) + '" y="' + (yv(l[0]) - 4) + '" font-size="11" fill="' + l[2] + '">' + l[1] + ' · ' + l[0] + ' %</text>';
     });

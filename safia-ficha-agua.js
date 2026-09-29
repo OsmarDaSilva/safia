@@ -30,7 +30,7 @@
     if (n === 1) return 'mañana';
     return DIAS[d.getDay()] + ' ' + fmtF(f);
   }
-  var COL = { estres: '#C0392B', regar: '#E67E22', atencion: '#D4A24C', optimo: '#178029', lleno: '#2E72C8', gris: '#8C9196', bajo: '#E0A800', alto: '#2BA9D6', exceso: '#2E72C8' };
+  var COL = { estres: '#C0392B', regar: '#E67E22', atencion: '#D4A24C', optimo: '#178029', lleno: '#2E72C8', gris: '#8C9196', bajo: '#F5C400', alto: '#2BA9D6', exceso: '#2E72C8' };
 
   // Umbrales del cultivo (el motor los trae; si falta alguno, los generales)
   function umbrales(r) {
@@ -45,6 +45,8 @@
   var ESC = 110;   // la barra va de 0 a 110: más allá de capacidad de campo (100 %) está el exceso, el agua que drena
   function pos(v) { return Math.max(0, Math.min(100, v / ESC * 100)); }
   var NOMBRE_BANDA = { estres: 'estrés', bajo: 'bajo: arrancar el pivot', optimo: 'óptimo', alto: 'alto', exceso: 'exceso: está drenando', regar: 'arrancar el pivot', atencion: 'atención', lleno: 'lleno' };
+  var COL_TXT = { bajo: '#9A7000', alto: '#1B86AD' };   // para texto sobre fondo blanco (el relleno claro no se lee)
+  function colTxt(b) { return COL_TXT[b] || COL[b]; }
   function cap(t) { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1); }
   function piv(r) { return (r && r.recomendacion && r.recomendacion.pivot) || null; }
   function diasTxt(d) { return d == null ? '' : (Math.round(d * 10) / 10).toLocaleString('es-PY') + ' día' + (d === 1 ? '' : 's'); }
@@ -58,7 +60,7 @@
       '<div class="fa-bandas">' + bs.map(function (b) { var w = Math.max(0, pos(b[2]) - pos(b[1])); return '<div class="fa-banda" style="width:' + w.toFixed(2) + '%;background:' + COL[b[0]] + ';" title="' + NOMBRE_BANDA[b[0]] + ' (' + b[1] + '–' + b[2] + ' %)"></div>'; }).join('') + '</div>' +
       '<div class="fa-marcas"><span style="left:0">0</span>' + [U.URGENTE, U.CRITICO, Math.max(U.CRITICO, 90)].filter(function (v, i, a) { return v > 3 && v < 93 && a.indexOf(v) === i && !a.slice(0, i).some(function (w) { return Math.abs(w - v) < 5; }); }).map(function (v) { return '<span style="left:' + pos(v).toFixed(1) + '%">' + v + '</span>'; }).join('') + '<span style="left:' + pos(100).toFixed(1) + '%">100 %</span></div>' +
       '</div>';
-    h += '<div class="fa-medidor-texto">Agua útil hoy: <b style="color:' + COL[banda] + ';">' + fmt(pct, 0) + ' %</b> (' + NOMBRE_BANDA[banda] + ') · ' + fmt(r.aguaDisponibleHoy, 0) + ' de ' + fmt(r.tawHoy, 0) + ' mm en la raíz' + (r.etapaHoy && r.etapaHoy.zr ? ' (' + fmt(r.etapaHoy.zr * 100, 0) + ' cm)' : '') + '. ' + (piv(r) && piv(r).vueltaDias ? 'Arrancar el pivot al ' + U.CRITICO + ' % (la vuelta tarda ' + diasTxt(piv(r).vueltaDias) + (piv(r).vueltaSupuesta ? ', supuesto: cargá la capacidad del equipo' : '') + ')' : 'Regar al ' + U.CRITICO + ' %') + ', estrés bajo ' + U.URGENTE + ' %.</div>';
+    h += '<div class="fa-medidor-texto">Agua útil hoy: <b style="color:' + colTxt(banda) + ';">' + fmt(pct, 0) + ' %</b> (' + NOMBRE_BANDA[banda] + ') · ' + fmt(r.aguaDisponibleHoy, 0) + ' de ' + fmt(r.tawHoy, 0) + ' mm en la raíz' + (r.etapaHoy && r.etapaHoy.zr ? ' (' + fmt(r.etapaHoy.zr * 100, 0) + ' cm)' : '') + '. ' + (piv(r) && piv(r).vueltaDias ? 'Arrancar el pivot al ' + U.CRITICO + ' % (la vuelta tarda ' + diasTxt(piv(r).vueltaDias) + (piv(r).vueltaSupuesta ? ', supuesto: cargá la capacidad del equipo' : '') + ')' : 'Regar al ' + U.CRITICO + ' %') + ', estrés bajo ' + U.URGENTE + ' %.</div>';
     return h;
   }
 
@@ -166,7 +168,7 @@
     var hoy = (r.dias || []).filter(function (d) { return d.esHoy; })[0] || (r.dias || [])[0] || {}, ayer = (r.pasado || [])[(r.pasado || []).length - 1] || null;
     var bs = bandas(U, true), agu = banda === 'exceso' ? 105 : pct;
     return '<div class="fa-mini">' +
-      '<div class="fa-mini-txt"><span style="color:' + COL[banda] + ';font-weight:800;">' + fmt(pct, 0) + ' %</span> agua útil' + (hoy.etcDia != null ? ' · ETc hoy ' + fmt(hoy.etcDia, 1) + ' mm' : '') + (ayer ? ' · lluvia ayer ' + fmt(ayer.lluviaBruta, 0) + ' mm' : '') + '</div>' +
+      '<div class="fa-mini-txt"><span style="color:' + colTxt(banda) + ';font-weight:800;">' + fmt(pct, 0) + ' %</span> agua útil' + (hoy.etcDia != null ? ' · ETc hoy ' + fmt(hoy.etcDia, 1) + ' mm' : '') + (ayer ? ' · lluvia ayer ' + fmt(ayer.lluviaBruta, 0) + ' mm' : '') + '</div>' +
       '<div class="fa-mini-barra">' + bs.map(function (b) { return '<i style="width:' + Math.max(0, pos(b[2]) - pos(b[1])).toFixed(2) + '%;background:' + COL[b[0]] + '"></i>'; }).join('') +
       '<b class="fa-mini-aguja" style="left:' + pos(agu).toFixed(1) + '%"></b></div></div>';
   }
