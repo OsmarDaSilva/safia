@@ -88,7 +88,7 @@
         <input type="text" id="correo" autocomplete="username" required placeholder="correo@ejemplo.com o tu usuario">
         <label for="contrasena">Contraseña</label>
         <input type="password" id="contrasena" autocomplete="current-password" required>
-        <div class="fila"><span></span><a class="link" onclick="mostrarVista('olvide')">Olvidé mi contraseña</a></div>
+        <div class="fila"><span></span><span class="link" style="cursor:default;color:#8C9196;font-weight:600;">¿Te olvidaste la contraseña? Pedile una nueva a Irrigar.</span></div>
         <button type="submit" id="botonEntrar">Entrar</button>
       </form>
       <p class="pie">Es el mismo usuario y contraseña de tus otras apps del grupo (SIGA / AGROinvest360).<br>¿Primera vez? <a onclick="mostrarVista('crear')">Creá tu cuenta</a> y Irrigar te aprueba el acceso.</p>
@@ -113,17 +113,6 @@
       <p class="pie">¿Ya tenés cuenta en SIGA o AGROinvest360? No hace falta otra: <a onclick="mostrarVista('entrar')">entrá con esa</a> y el pedido de acceso a SAFIA se genera solo.</p>
     </div>
 
-    <!-- OLVIDÉ MI CONTRASEÑA -->
-    <div class="vista" id="vistaOlvide">
-      <p class="sub">Te mandamos un correo con un enlace para elegir una contraseña nueva. Si entrás con un usuario sin correo, pedile la contraseña nueva a Irrigar.</p>
-      <form id="formOlvide">
-        <label for="oCorreo">Correo</label>
-        <input type="email" id="oCorreo" autocomplete="username" required>
-        <button type="submit" id="botonOlvide">Enviar enlace</button>
-      </form>
-      <p class="pie"><a onclick="mostrarVista('entrar')">Volver a entrar</a></p>
-    </div>
-
     <!-- NUEVA CONTRASEÑA (llega desde el enlace del correo) -->
     <div class="vista" id="vistaNueva">
       <p class="sub">Elegí tu contraseña nueva.</p>
@@ -143,14 +132,14 @@
   function limpiar() { caja.className = 'msg'; }
   function mostrarVista(v) {
     limpiar();
-    ['entrar', 'crear', 'olvide', 'nueva'].forEach(function (k) { document.getElementById('vista' + k.charAt(0).toUpperCase() + k.slice(1)).classList.toggle('activa', k === v); });
-    document.getElementById('tabEntrar').classList.toggle('on', v === 'entrar' || v === 'olvide');
+    ['entrar', 'crear', 'nueva'].forEach(function (k) { document.getElementById('vista' + k.charAt(0).toUpperCase() + k.slice(1)).classList.toggle('activa', k === v); });
+    document.getElementById('tabEntrar').classList.toggle('on', v === 'entrar');
     document.getElementById('tabCrear').classList.toggle('on', v === 'crear');
     document.getElementById('tabs').style.display = v === 'nueva' ? 'none' : 'flex';
   }
   function sb() { return window.safiaSupabase; }
   function ocupado(boton, texto, si) { boton.disabled = si; boton.textContent = si ? texto + '…' : boton.dataset.txt; }
-  ['botonEntrar', 'botonCrear', 'botonOlvide', 'botonNueva'].forEach(function (id) { var b = document.getElementById(id); b.dataset.txt = b.textContent; });
+  ['botonEntrar', 'botonCrear', 'botonNueva'].forEach(function (id) { var b = document.getElementById(id); b.dataset.txt = b.textContent; });
 
   // ¿Vengo del enlace de "olvidé mi contraseña"? (Supabase manda #access_token=...&type=recovery)
   var esRecuperacion = /type=recovery/.test(location.hash) || /reset=1/.test(location.search);
@@ -189,12 +178,12 @@
       ocupado(b, '', false);
       if (r.error) {
         var m = (r.error.message || '').toLowerCase();
-        if (/already|registered|exists/.test(m)) { mensaje('Ese correo ya tiene cuenta (por ejemplo en SIGA o AGROinvest360). Entrá con esa contraseña: el pedido de acceso a SAFIA se genera solo. Si no la recordás, usá "Olvidé mi contraseña".', 'warn'); mostrarVista('entrar'); document.getElementById('correo').value = email; mensaje('Ese correo ya tiene cuenta. Entrá con tu contraseña o recuperala con "Olvidé mi contraseña".', 'warn'); return; }
+        if (/already|registered|exists/.test(m)) { mensaje('Ese correo ya tiene cuenta (por ejemplo en SIGA o AGROinvest360). Entrá con esa contraseña: el pedido de acceso a SAFIA se genera solo. Si no la recordás, pedile una nueva a Irrigar.', 'warn'); mostrarVista('entrar'); document.getElementById('correo').value = email; mensaje('Ese correo ya tiene cuenta. Entrá con tu contraseña; si no la recordás, pedile una nueva a Irrigar.', 'warn'); return; }
         mensaje('No se pudo crear la cuenta: ' + r.error.message); return;
       }
       // Supabase devuelve identities vacío cuando el correo ya existía (sin decirlo, por seguridad)
       var u = r.data && r.data.user;
-      if (u && Array.isArray(u.identities) && u.identities.length === 0) { mostrarVista('entrar'); document.getElementById('correo').value = email; mensaje('Ese correo ya tiene cuenta. Entrá con tu contraseña o recuperala con "Olvidé mi contraseña".', 'warn'); return; }
+      if (u && Array.isArray(u.identities) && u.identities.length === 0) { mostrarVista('entrar'); document.getElementById('correo').value = email; mensaje('Ese correo ya tiene cuenta. Entrá con tu contraseña; si no la recordás, pedile una nueva a Irrigar.', 'warn'); return; }
       if (r.data && r.data.session) {
         // sin confirmación de correo: entra directo y la app le muestra "pendiente de aprobación"
         try { localStorage.setItem('safia_usuario', JSON.stringify({ id: u.id, email: email, nombre: nombre, rol: 'cliente', estado: 'pendiente' })); } catch (e) {}
@@ -205,18 +194,7 @@
     }).catch(function () { ocupado(b, '', false); mensaje('No se pudo conectar. Revisá tu internet y volvé a intentar.'); });
   });
 
-  // OLVIDÉ MI CONTRASEÑA
-  document.getElementById('formOlvide').addEventListener('submit', function (ev) {
-    ev.preventDefault(); limpiar();
-    if (!sb()) { mensaje('No hay conexión a internet.'); return; }
-    var email = document.getElementById('oCorreo').value.trim(), b = document.getElementById('botonOlvide'); ocupado(b, 'Enviando', true);
-    var destino = location.href.split('#')[0].split('?')[0] + '?reset=1';
-    sb().auth.resetPasswordForEmail(email, { redirectTo: destino }).then(function (r) {
-      ocupado(b, '', false);
-      if (r.error) { mensaje('No se pudo enviar: ' + r.error.message); return; }
-      mensaje('Listo: si ese correo tiene cuenta, te llega un enlace para elegir la contraseña nueva (mirá también el spam).', 'ok');
-    }).catch(function () { ocupado(b, '', false); mensaje('No se pudo conectar.'); });
-  });
+  // Sin "Olvidé mi contraseña": la contraseña nueva la pone el administrador en Usuarios (decisión de Osmar, 29-sep-2026)
 
   // NUEVA CONTRASEÑA (con la sesión que trae el enlace del correo)
   document.getElementById('formNueva').addEventListener('submit', function (ev) {
@@ -227,7 +205,7 @@
     var b = document.getElementById('botonNueva'); ocupado(b, 'Guardando', true);
     sb().auth.updateUser({ password: p1 }).then(function (r) {
       ocupado(b, '', false);
-      if (r.error) { mensaje('No se pudo guardar: ' + r.error.message + '. Pedí un enlace nuevo con "Olvidé mi contraseña".'); return; }
+      if (r.error) { mensaje('No se pudo guardar: ' + r.error.message + '. Pedile una contraseña nueva a Irrigar.'); return; }
       mensaje('Contraseña guardada. Entrando…', 'ok');
       setTimeout(function () { location.replace('index.html'); }, 900);
     }).catch(function () { ocupado(b, '', false); mensaje('No se pudo conectar.'); });
