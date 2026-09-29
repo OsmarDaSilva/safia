@@ -3,7 +3,7 @@
 
 > Documento de referencia del proyecto. Ubicar en la raíz del repositorio.
 > Toda decisión de producto, diseño y código debe ser coherente con este documento.
-> Versión 1.1 — 22 de septiembre de 2026
+> Versión 1.2 — 29 de septiembre de 2026 (visión ampliada de Osmar: agrónomo inteligente y evaluador de inversiones para América Latina)
 
 ---
 
@@ -14,6 +14,11 @@ SAFIA es un producto de riego que, mientras ayuda a regar, **construye un banco 
 **Principio rector: el riego es el producto, el banco de datos es el activo.** Cuantos más clientes riegan con SAFIA, mejor analiza, mejor recomienda y mejor vende Irrigar.
 
 **Segundo principio: SAFIA compara, el agrónomo prescribe.** SAFIA muestra señales fundadas en casos reales ("los que más rinden tienen este suelo; el tuyo difiere en esto"). Cuánto encalar, cuánto fertilizar o cuánto regar lo decide el criterio agronómico. Nunca se promete una receta automática.
+
+**Visión ampliada (Osmar, 29-sep-2026): SAFIA es un agrónomo inteligente.** Además de regar bien y recomendar un buen riego, SAFIA tiene que:
+1. **Evaluar proyectos de inversión en riego en cualquier rincón de América Latina** y demostrarle al futuro inversor la viabilidad: inversión total (o por partes), costos totales o con la energía aparte, margen, payback y TIR, con la producción real de su región (georreferenciada: clientes y producciones cercanas de la misma región agroclimática), su análisis de suelo y de agua, su lluvia y su clima, las variedades y la época de siembra.
+2. **Dar la mejor receta**: comparar con las mayores producciones de su zona (suelo, agua, riego, lluvia, tipo de suelo, variedad, época) y decir qué plantar, cuándo y cómo mejorar.
+3. **Responder preguntas y recomendar decisiones basadas en datos reales** (el Asistente IA agronómico), siempre con la fuente y el número de casos.
 
 **Tercer principio: honestidad con los datos.** SAFIA dice siempre en cuántos casos se basa y de dónde sale cada número (medido, cargado a mano o estimado). Con pocos casos avisa que es una orientación, no una predicción.
 
@@ -239,7 +244,26 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 - **Calidad de carga:** nombres de localidad o variedad inconsistentes rompen las comparaciones. Mitigación: listas para elegir, normalización de acentos, lectura por IA.
 - **Dependencia de la llave de IA:** si vence, la lectura automática cae (no el resto). Mitigación: la llave válida vive en `mi-app-agroinvest360/.env`; Supabase no la muestra una vez guardada.
 
-## 11. Próximos pasos
+## 11. Hoja de ruta de la visión ampliada (29-sep-2026)
+
+Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador de inversiones para América Latina:
+
+| Pieza | Estado |
+|---|---|
+| Clima de cualquier coordenada: lluvia CHIRPS (validada con la DMH) + ETo Penman-Monteith, 10 años | ✅ (CHIRPS cubre de 50° S a 50° N) |
+| Riego por cultivo día por día, volúmenes, pico, 8 de cada 10 años, año seco | ✅ |
+| Secano realista (siembra con el perfil cargado, IDEAGRO 2025) | ✅ |
+| Economía por cultivo: costos completos, energía por mm, reposición, payback y TIR | ✅ por proyecto (inversión total) |
+| Inversión por partes (equipo, pozos, reservorio, eléctrica, obras) y calculadora de energía US$/mm (kW, tarifa, horas, generador) | ⬜ |
+| Informe PDF para el inversor con potencial, "igualar al mejor" y economía | ⬜ parcial (clima, riego, suelo, agua ya están) |
+| Comparar solo dentro de la misma región (Chaco / Oriental) | ✅ Paraguay; ⬜ zonas agroclimáticas del resto de América Latina |
+| Referencia regional de producción y costos | ✅ Paraguay; ⬜ Brasil, Argentina, Bolivia y demás (fuentes oficiales por país) |
+| Moneda y precios por país | ⬜ |
+| Mejor receta: igualar al líder, materiales, fertilidad, época | ✅ Paraguay |
+| Pasturas bajo riego con carga animal (balance de materia seca, % del peso vivo, carga por mes) | ⬜ |
+| Asistente IA agronómico sobre el banco (responde con la fuente y el N de casos) | ⬜ |
+
+## 12. Próximos pasos
 
 1. Cargar 4–6 clientes completos (Irrigar) para darle fuerza estadística al banco.
 3. Sincronización por registro → permisos por rol → acceso a encargados y operadores.
