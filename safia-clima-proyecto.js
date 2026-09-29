@@ -122,8 +122,8 @@
      o se pierde y el costo corre igual (Osmar, 29-sep-2026).
      Criterio (Fundación IDEAGRO, Guía de Producción Sostenible de Cultivos Extensivos para el Chaco Paraguayo, 2025,
      caps. 2-4): sembrar con humedad en el perfil de al menos 0,8 m (ideal 1,5 m) y con la humedad de la superficie unida a la
-     del perfil (lluvia reciente). Ventanas del Chaco Central (Boquerón): soja 15/12–15/03 (óptima 15/01–15/02), maíz
-     15/01–28/02; antes, el calor de enero es "altamente riesgoso". Fuera de Boquerón: desde la fecha elegida, esperando la
+     del perfil (lluvia reciente). Ventana del Chaco Central (Boquerón) sin riego: soja, maíz y algodón del 15/01 al
+     28/02 (Osmar; IDEAGRO: soja óptima 15/01–15/02, maíz 15/01–28/02, antes el calor de enero es "altamente riesgoso"). Fuera de Boquerón: desde la fecha elegida, esperando la
      carga del perfil hasta 75 días.
      Barbecho: desde el 1 de julio con el perfil seco (después de la cosecha anterior). La lluvia moja primero la capa de
      superficie (10 cm) y lo que sobra baja al perfil; la superficie se seca por evaporación de suelo desnudo en dos etapas
@@ -146,9 +146,10 @@
     // temporada: soja/maíz de verano o zafriña se siembran entre agosto y marzo; s = año en que arranca el barbecho
     var verano = dm.m >= 8 || dm.m <= 3, s = dm.m >= 8 ? y : y - 1;
     var elegida = y + '-' + String(dm.m).padStart(2, '0') + '-' + String(dm.d).padStart(2, '0');
-    if (verano && esBoqueron(o) && (cu === 'soja' || cu === 'maiz')) {
-      return cu === 'soja' ? { barbecho: s + '-07-01', desde: s + '-12-15', hasta: (s + 1) + '-03-15', fuente: 'ideagro' }
-                           : { barbecho: s + '-07-01', desde: (s + 1) + '-01-15', hasta: (s + 1) + '-02-28', fuente: 'ideagro' };
+    // Boquerón sin riego: soja, maíz o algodón solo del 15/01 al 28/02, marzo ya no (Osmar, 29-sep-2026; IDEAGRO da el
+    // mismo inicio para maíz y la óptima de soja 15/01–15/02). Con riego: soja en septiembre–octubre y encima maíz o algodón.
+    if (verano && esBoqueron(o) && (cu === 'soja' || cu === 'maiz' || /algod/.test(norm(o.cultivo)))) {
+      return { barbecho: s + '-07-01', desde: (s + 1) + '-01-15', hasta: (s + 1) + '-02-28', fuente: 'boqueron' };
     }
     return { barbecho: verano ? s + '-07-01' : y + '-01-01', desde: elegida, hasta: sumarDiasISO(elegida, 75), fuente: 'perfil' };
   }
@@ -186,7 +187,7 @@
     }
     var anios = Object.keys(porAnio); if (!anios.length) return null;
     var sembrados = anios.filter(function (a) { return porAnio[a].sembro; });
-    var doy = sembrados.map(function (a) { var t = new Date(porAnio[a].fecha + 'T12:00:00Z'), ini = new Date(Date.UTC(+porAnio[a].ventana.barbecho.slice(0, 4), 6, 1)); return Math.round((t - ini) / 864e5); }).sort(function (p, q) { return p - q; });
+    var doy = sembrados.map(function (a) { var t = new Date(porAnio[a].fecha + 'T12:00:00Z'), ini = new Date(Date.UTC(+porAnio[a].ventana.barbecho.slice(0, 4), 6, 1, 12)); return Math.round((t - ini) / 864e5); }).sort(function (p, q) { return p - q; });
     var fechaDe = function (n) { var t = new Date(Date.UTC(2001, 6, 1) + n * 864e5); return String(t.getUTCDate()).padStart(2, '0') + '/' + String(t.getUTCMonth() + 1).padStart(2, '0'); };
     return { porAnio: porAnio, n: anios.length, nSembro: sembrados.length, nSinCarga: anios.filter(function (a) { return porAnio[a].sembro && !porAnio[a].cargado; }).length, fuente: porAnio[anios[0]].ventana.fuente,
       fechaTipica: doy.length ? fechaDe(doy[Math.floor(doy.length / 2)]) : null, fechaPrimera: doy.length ? fechaDe(doy[0]) : null, fechaUltima: doy.length ? fechaDe(doy[doy.length - 1]) : null };
@@ -316,7 +317,7 @@
     var sinKc = lista.filter(function (x) { return x && x.error; });
     if (sinKc.length) h += '<div class="note" style="margin-top:8px;">' + sinKc.map(function (x) { return esc(x.error); }).join('<br>') + '.</div>';
     var supuesto = ok.some(function (x) { return x.texturaSupuesta; });
-    h += '<div class="muted" style="font-size:11px;margin-top:8px;line-height:1.5;">Simulación día por día de cada zafra con el clima real de la coordenada (FAO-56: Kc por etapa del catálogo FAO de SAFIA, raíz que crece, agua disponible del suelo ' + (supuesto ? '<b>franco supuesto (falta el análisis con arcilla)</b>' : esc(ok[0].textura.toLowerCase()) + ' según el análisis') + ', riego cuando se consume el agua fácilmente disponible). Riego neto = lo que tiene que llegar al suelo; bruto = neto ÷ eficiencia del equipo. "Sin riego rendiría" = rinde relativo por falta de agua en secano (FAO-33, Ky del cultivo); no incluye otras pérdidas. En secano la siembra no es en la fecha del riego: se espera a tener el perfil mojado al menos 0,8 m y la superficie húmeda (Fundación IDEAGRO, guía para el Chaco 2025); en Boquerón dentro de su ventana (soja 15/12–15/03, maíz 15/01–28/02), en otras zonas desde la fecha elegida hasta 75 días después. El perfil se carga en el barbecho desde el 1 de julio, con la evaporación del suelo desnudo de FAO-56 (Tabla 19); con rastrojo se carga antes. Si el perfil no se carga en la ventana, igual se siembra con la última lluvia (el productor de secano siembra todos los años) y ese año rinde poco o se pierde. No incluye escurrimiento ni napa. El pico define el caudal: 1 mm sobre 1 ha son 10 m³.</div>';
+    h += '<div class="muted" style="font-size:11px;margin-top:8px;line-height:1.5;">Simulación día por día de cada zafra con el clima real de la coordenada (FAO-56: Kc por etapa del catálogo FAO de SAFIA, raíz que crece, agua disponible del suelo ' + (supuesto ? '<b>franco supuesto (falta el análisis con arcilla)</b>' : esc(ok[0].textura.toLowerCase()) + ' según el análisis') + ', riego cuando se consume el agua fácilmente disponible). Riego neto = lo que tiene que llegar al suelo; bruto = neto ÷ eficiencia del equipo. "Sin riego rendiría" = rinde relativo por falta de agua en secano (FAO-33, Ky del cultivo); no incluye otras pérdidas. En secano la siembra no es en la fecha del riego: se espera a tener el perfil mojado al menos 0,8 m y la superficie húmeda (Fundación IDEAGRO, guía para el Chaco 2025); en Boquerón entre el 15/01 y el 28/02 (soja, maíz y algodón; marzo ya no), en otras zonas desde la fecha elegida hasta 75 días después. El perfil se carga en el barbecho desde el 1 de julio, con la evaporación del suelo desnudo de FAO-56 (Tabla 19); con rastrojo se carga antes. Si el perfil no se carga en la ventana, igual se siembra con la última lluvia (el productor de secano siembra todos los años) y ese año rinde poco o se pierde. No incluye escurrimiento ni napa. El pico define el caudal: 1 mm sobre 1 ha son 10 m³.</div>';
     return h;
   }
   // Riego anual bruto de todo el proyecto (para el cálculo de yeso y ácido del análisis de agua)
