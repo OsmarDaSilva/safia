@@ -41,7 +41,9 @@
   // Franjas con los mismos nombres que FieldNET NextGen: Estrés, Bajo (arrancar el pivot), Óptimo, Alto, Exceso (drena)
   function drenaReciente(r) { var p = (r && r.pasado) || [], ult = p[p.length - 1], hoy = ((r && r.dias) || []).filter(function (d) { return d.esHoy; })[0]; return !!((ult && ult.drenaje > 1) || (hoy && hoy.drenaje > 1)); }
   function bandaDe(pct, U, r) { return pct < U.URGENTE ? 'estres' : pct < U.CRITICO ? 'bajo' : pct < Math.max(U.CRITICO, 90) ? 'optimo' : (pct >= 95 && drenaReciente(r) ? 'exceso' : 'alto'); }
-  function bandas(U) { var o = Math.max(U.CRITICO, 90); return [['estres', 0, U.URGENTE], ['bajo', U.URGENTE, U.CRITICO], ['optimo', U.CRITICO, o], ['alto', o, 100]]; }
+  function bandas(U, conExceso) { var o = Math.max(U.CRITICO, 90), b = [['estres', 0, U.URGENTE], ['bajo', U.URGENTE, U.CRITICO], ['optimo', U.CRITICO, o], ['alto', o, 100]]; if (conExceso) b.push(['exceso', 100, ESC]); return b; }
+  var ESC = 110;   // la barra va de 0 a 110: más allá de capacidad de campo (100 %) está el exceso, el agua que drena
+  function pos(v) { return Math.max(0, Math.min(100, v / ESC * 100)); }
   var NOMBRE_BANDA = { estres: 'estrés', bajo: 'bajo: arrancar el pivot', optimo: 'óptimo', alto: 'alto', exceso: 'exceso: está drenando', regar: 'arrancar el pivot', atencion: 'atención', lleno: 'lleno' };
   function cap(t) { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1); }
   function piv(r) { return (r && r.recomendacion && r.recomendacion.pivot) || null; }
@@ -49,14 +51,13 @@
 
   /* ---------- 1. medidor con aguja ---------- */
   function medidor(r) {
-    var U = umbrales(r), pct = Math.max(0, Math.min(100, num(r.porcentajeHoy) || 0));
-    var bs = bandas(U);
+    var U = umbrales(r), pct = Math.max(0, Math.min(100, num(r.porcentajeHoy) || 0)), banda = bandaDe(pct, U, r);
+    var bs = bandas(U, true), agu = banda === 'exceso' ? 105 : pct;
     var h = '<div class="fa-medidor">' +
-      '<div class="fa-aguja" style="left:' + pct.toFixed(1) + '%;"><div class="fa-aguja-valor">' + fmt(pct, 0) + ' %</div><div class="fa-aguja-punta"></div></div>' +
-      '<div class="fa-bandas">' + bs.map(function (b) { var w = Math.max(0, b[2] - b[1]); return '<div class="fa-banda" style="width:' + w + '%;background:' + COL[b[0]] + ';" title="' + NOMBRE_BANDA[b[0]] + ' (' + b[1] + '–' + b[2] + ' %)"></div>'; }).join('') + '</div>' +
-      '<div class="fa-marcas"><span style="left:0">0</span>' + [U.URGENTE, U.CRITICO, Math.max(U.CRITICO, 90)].filter(function (v, i, a) { return v > 3 && v < 93 && a.indexOf(v) === i && !a.slice(0, i).some(function (w) { return Math.abs(w - v) < 5; }); }).map(function (v) { return '<span style="left:' + v + '%">' + v + '</span>'; }).join('') + '<span style="left:100%">100 %</span></div>' +
+      '<div class="fa-aguja" style="left:' + pos(agu).toFixed(1) + '%;"><div class="fa-aguja-valor">' + fmt(pct, 0) + ' %</div><div class="fa-aguja-punta"></div></div>' +
+      '<div class="fa-bandas">' + bs.map(function (b) { var w = Math.max(0, pos(b[2]) - pos(b[1])); return '<div class="fa-banda" style="width:' + w.toFixed(2) + '%;background:' + COL[b[0]] + ';" title="' + NOMBRE_BANDA[b[0]] + ' (' + b[1] + '–' + b[2] + ' %)"></div>'; }).join('') + '</div>' +
+      '<div class="fa-marcas"><span style="left:0">0</span>' + [U.URGENTE, U.CRITICO, Math.max(U.CRITICO, 90)].filter(function (v, i, a) { return v > 3 && v < 93 && a.indexOf(v) === i && !a.slice(0, i).some(function (w) { return Math.abs(w - v) < 5; }); }).map(function (v) { return '<span style="left:' + pos(v).toFixed(1) + '%">' + v + '</span>'; }).join('') + '<span style="left:' + pos(100).toFixed(1) + '%">100 %</span><span style="left:100%">exceso</span></div>' +
       '</div>';
-    var banda = bandaDe(pct, U, r);
     h += '<div class="fa-medidor-texto">Agua útil hoy: <b style="color:' + COL[banda] + ';">' + fmt(pct, 0) + ' %</b> (' + NOMBRE_BANDA[banda] + ') · ' + fmt(r.aguaDisponibleHoy, 0) + ' de ' + fmt(r.tawHoy, 0) + ' mm en la raíz' + (r.etapaHoy && r.etapaHoy.zr ? ' (' + fmt(r.etapaHoy.zr * 100, 0) + ' cm)' : '') + '. ' + (piv(r) && piv(r).vueltaDias ? 'Arrancar el pivot al ' + U.CRITICO + ' % (la vuelta tarda ' + diasTxt(piv(r).vueltaDias) + (piv(r).vueltaSupuesta ? ', supuesto: cargá la capacidad del equipo' : '') + ')' : 'Regar al ' + U.CRITICO + ' %') + ', estrés bajo ' + U.URGENTE + ' %.</div>';
     return h;
   }
@@ -163,11 +164,11 @@
     estilos();
     var U = umbrales(r), pct = Math.max(0, Math.min(100, num(r.porcentajeHoy) || 0)), banda = bandaDe(pct, U, r);
     var hoy = (r.dias || []).filter(function (d) { return d.esHoy; })[0] || (r.dias || [])[0] || {}, ayer = (r.pasado || [])[(r.pasado || []).length - 1] || null;
-    var bs = bandas(U);
+    var bs = bandas(U, true), agu = banda === 'exceso' ? 105 : pct;
     return '<div class="fa-mini">' +
       '<div class="fa-mini-txt"><span style="color:' + COL[banda] + ';font-weight:800;">' + fmt(pct, 0) + ' %</span> agua útil' + (hoy.etcDia != null ? ' · ETc hoy ' + fmt(hoy.etcDia, 1) + ' mm' : '') + (ayer ? ' · lluvia ayer ' + fmt(ayer.lluviaBruta, 0) + ' mm' : '') + '</div>' +
-      '<div class="fa-mini-barra">' + bs.map(function (b) { return '<i style="width:' + Math.max(0, b[2] - b[1]) + '%;background:' + COL[b[0]] + '"></i>'; }).join('') +
-      '<b class="fa-mini-aguja" style="left:' + pct.toFixed(1) + '%"></b></div></div>';
+      '<div class="fa-mini-barra">' + bs.map(function (b) { return '<i style="width:' + Math.max(0, pos(b[2]) - pos(b[1])).toFixed(2) + '%;background:' + COL[b[0]] + '"></i>'; }).join('') +
+      '<b class="fa-mini-aguja" style="left:' + pos(agu).toFixed(1) + '%"></b></div></div>';
   }
 
   /* ---------- armado ---------- */
