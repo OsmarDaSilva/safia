@@ -274,7 +274,7 @@
     } catch (e) { img = ''; }
     var poly = G.contorno.map(function (p) { return X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1); }).join(' ');
     var id = 'pyclip' + Math.floor(Math.random() * 1e6);
-    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:620px;height:auto;font-family:inherit;background:#F7F8F9;border-radius:10px;">' +
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="display:block;margin:0 auto;width:100%;max-width:620px;height:auto;font-family:inherit;background:#F7F8F9;border-radius:10px;">' +
       '<defs><clipPath id="' + id + '"><polygon points="' + poly + '"/></clipPath></defs>' +
       (img ? '<image href="' + img + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none" clip-path="url(#' + id + ')" style="image-rendering:auto;"/>' : '') +
       '<polygon points="' + poly + '" fill="none" stroke="#3A3F44" stroke-width="1.4"/>' +
