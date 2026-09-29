@@ -178,6 +178,9 @@
     P.forEach(function (x) {
       var pot = x.r.potencial ? x.r.potencial.estimado : null, rie = x.ref ? x.ref.riego : null, sec = x.ref ? x.ref.secano : null, con = pot != null ? pot : rie;
       var uu = x.u.corto;
+      // secano de ESTE campo cuando la zona no lo representa (la economía ya lo decidió con la simulación del campo)
+      var ef = ECO && ECO.filas ? ECO.filas.find(function (f) { return !f.error && f.secanoCampo && norm(f.cultivo) === norm(x.c.cultivo); }) : null;
+      if (ef && con != null) { out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : '') + ':</b> con riego se espera ' + U(con, x.u) + ' ' + uu + '. La zona da ' + U(ef.kgSzona, x.u) + ' ' + uu + ' en secano, pero con el clima de este campo el perfil casi nunca se carga y en secano solo se llega a sembrar en ' + fmt(ef.fracSembro * 100, 0) + ' % de los años: el secano de este campo rinde en promedio unos ' + U(ef.kgS, x.u) + ' ' + uu + ' y el riego suma <b>+' + U(con - ef.kgS, x.u) + ' ' + uu + '</b>.' + (LA && LA.L.veredicto.k === 'grave' ? ' Con el agua actual esa producción no se alcanza.' : '')); return; }
       if (con != null && sec != null) out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : '') + ':</b> con riego se espera ' + U(con, x.u) + ' ' + uu + (pot != null ? ' (casos reales cercanos)' : (x.ref && x.ref.forraje ? ' (referencia forrajera)' : ' (zona con riego)')) + ' contra ' + U(sec, x.u) + ' ' + uu + ' en secano: <b>+' + U(con - sec, x.u) + ' ' + uu + '</b>.' + (LA && LA.L.veredicto.k === 'grave' ? ' Con el agua actual esa producción no se alcanza.' : ''));
       else if (con != null) {
         // sin referencia de secano en la zona: lo que rendiría sin riego sale de la simulación del agua de este campo (FAO-33)

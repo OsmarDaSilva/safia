@@ -53,7 +53,14 @@
       if (!f.precio) { f.error = 'sin precio vigente del grano'; return f; }
       // rindes
       f.kgR = ref.riego;
-      if (ref.secano) { f.kgS = ref.secano; f.secanoDe = 'zona en secano'; }
+      // Si en ESTE campo el secano no se llega a sembrar la mayoría de los años (perfil que no se carga), manda el campo:
+      // el promedio de la zona (del departamento) viene de lugares con más lluvia y no representa este campo.
+      var fracCampo = sim && sim.secano && sim.secano.n ? sim.secano.nSembro / sim.secano.n : null;
+      if (ref.secano && fracCampo != null && fracCampo < 0.5) {
+        f.kgS = Math.round(ref.riego * sim.rindeRelSecano); f.fracSembro = fracCampo; f.secanoCampo = true; f.kgSzona = ref.secano;
+        f.secanoDe = 'con el clima de este campo: en secano solo se llega a sembrar ' + sim.secano.nSembro + ' de ' + sim.secano.n + ' años (perfil que no se carga); la zona da ' + fmt(ref.secano, 0) + ' kg pero no representa este campo';
+      }
+      else if (ref.secano) { f.kgS = ref.secano; f.secanoDe = 'zona en secano'; }
       else if (sim) {
         f.kgS = Math.round(ref.riego * sim.rindeRelSecano); f.secanoDe = 'estimado con el clima del campo (FAO-33)';
         // años en que el perfil no se cargó y en secano no se siembra: sin ingreso y sin costo del cultivo
