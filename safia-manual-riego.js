@@ -17,7 +17,7 @@
 
   // Dibujo didáctico: el agua del suelo baja día a día; el pivot se prende en "arrancar" para que el último sector no llegue a "estrés"
   function dibujo() {
-    var AMA = '#FFFF00';
+    var AMA = '#FFCA1A';
     var W = 640, H = 210, x0 = 44, x1 = 620, yv = function (p) { return 18 + (100 - p) / 100 * 150; };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="mr-svg" role="img" aria-label="Cómo baja el agua del suelo y cuándo arrancar el pivot">';
     [[0, 44, COL.estres], [44, 70, AMA], [70, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
