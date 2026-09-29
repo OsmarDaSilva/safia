@@ -438,6 +438,8 @@
 <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
 <script src="safia-ficha-agua.js"></script>
+<script src="safia-manual-riego.js"></script>
+<script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'propietario', en: '.topbar-derecha' }); });</script>
 <script src="safia-mantenimiento.js"></script>
 <script>
   document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
@@ -749,7 +751,7 @@
       const rClima = await SafiaClima.obtenerClima({
         lat: campo.latitud, lon: campo.longitud,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
-        pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra; 7 de pronóstico para "arrancar el / vence el"
+        pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
         cacheKey: 'campo:' + campo.id
       });
       if (!rClima.datos) {
@@ -777,6 +779,7 @@
       const kcDef = SafiaBalance.obtenerCultivoKc(cul.cultivo) || fao.find(c=>c.nombre===cul.cultivo) || custom.find(c=>c.nombre===cul.cultivo);
 
       const eq = JSON.parse(localStorage.getItem("equipos")||"[]").find(e=>e.id===camp.equipoId);
+      try { if (eq && SafiaBalance.prepararSatelite) await SafiaBalance.prepararSatelite([eq]); } catch (e) {}   // consumo real del cultivo según el satélite
 
       // Balance unificado vía motor compartido (safia-balance.js):
       // humedad del suelo día a día, UNA fuente de lluvia por día (estación>

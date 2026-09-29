@@ -117,7 +117,8 @@
           episodios_de_falta: (res.episodios || []).map(function (p) { return { desde: p.desde, hasta: p.hasta, dias: p.dias, etapa: NOMBRE_ETAPA[p.etapa] || p.etapa }; }),
           hoy: res.hoy ? { agua_disponible_mm: r0(res.hoy.disponible), capacidad_mm: r0(res.hoy.taw), puede_gastar_antes_de_arrancar_el_pivot_mm: res.hoy.faltaParaRecarga, puede_gastar_antes_del_estres_mm: res.hoy.faltaParaEstres, vuelta_del_pivot_dias: res.hoy.vueltaDias, en_estres: res.hoy.ks < 1 } : null,
           proximos_7_dias: res.pronostico ? { lluvia_mm: res.pronostico.lluvia, demanda_mm: res.pronostico.etc, llega_al_punto_de_arranque_del_pivot: res.pronostico.cruzaRecarga } : null,
-          lluvia_de: res.lluviaDeEventos ? 'lluvias cargadas del lote' : 'clima estimado (CHIRPS/Open-Meteo): el lote no tiene lluvias cargadas en la campaña' };
+          lluvia_de: res.lluviaDeEventos ? 'lluvias cargadas del lote' : 'clima estimado (CHIRPS/Open-Meteo): el lote no tiene lluvias cargadas en la campaña',
+          consumo_segun_satelite: res.satelite ? { pasadas: res.satelite.pasadas, ultima: res.satelite.ultima.fecha, cobertura_pct: res.satelite.ultima.coberturaPct, kc_satelite: res.satelite.ultima.kcSatelite, kc_curva_fao: res.satelite.ultima.kcFao } : 'curva FAO (todavía sin pasadas del satélite desde el día 20)' };
         if (!res.lluviaDeEventos) falta.push('lluvias medidas en el pluviómetro del campo (Operador o Eventos)');
       }, function () { r.agua = { error: 'No se pudo traer el clima para el balance por etapa.' }; }));
     }
@@ -278,7 +279,7 @@
       var omitidos = lista.length > 8 ? lista.length - 8 : 0; lista = lista.slice(0, 8);
       var hoyK = B.hoyLocal(), climas = {};
       function clima(c) {
-        if (!climas[c.id]) climas[c.id] = K.obtenerClima({ lat: c.latitud, lon: c.longitud, daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min,precipitation_probability_max', pastDays: 92, forecastDays: 7, cacheKey: 'campo:' + c.id });
+        if (!climas[c.id]) climas[c.id] = K.obtenerClima({ lat: c.latitud, lon: c.longitud, daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min,precipitation_probability_max', pastDays: 92, forecastDays: 16, cacheKey: 'campo:' + c.id });
         return climas[c.id];
       }
       function uno(x) {
@@ -316,12 +317,16 @@
             consumo_cultivo_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.etcDia || 0); }, 0)), riego_cargado_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.riegoBruto || 0); }, 0)),
             desde_siembra: { lluvia_mm: r0(tp.lluviaBruta), riego_bruto_mm: r0(tp.riegoBruto), consumo_etc_mm: r0(tp.etc), dias_con_estres: tp.diasEstres || 0 },
             proximos_dias: (r.dias || []).map(function (v) { return { fecha: B.claveDia(v.fecha), agua_util_pct: r0(v.porcentajeAAU), lluvia_mm: r1(v.lluviaBruta), estado: v.estado, lamina_si_toca_mm: v.mmRegar || 0 }; }),
-            humedad_medida_con: r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad' : (r.fuentes && r.fuentes.estacion ? 'balance con la estación del campo' : 'balance FAO-56 con clima estimado (lluvia CHIRPS corregida, pronóstico Open-Meteo)'),
+            humedad_medida_con: r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad' : (r.fuentes && r.fuentes.estacion ? 'balance con la estación del campo' : 'balance FAO-56 con clima estimado (lluvia CHIRPS corregida, pronóstico Open-Meteo de 16 días)'),
+            proximos_7_dias_acumulado: r.pronostico ? { consumo_cultivo_mm: r.pronostico.semana.consumoMM, lluvia_prevista_mm: r.pronostico.semana.lluviaMM, balance_mm: r.pronostico.semana.balanceMM } : null,
+            pronostico_completo_acumulado: r.pronostico ? { dias: r.pronostico.total.dias, consumo_cultivo_mm: r.pronostico.total.consumoMM, lluvia_prevista_mm: r.pronostico.total.lluviaMM } : null,
+            consumo_segun_satelite: r.satelite ? { ultima_pasada: r.satelite.ultima.fecha, dia_desde_siembra: r.satelite.ultima.dds, cobertura_pct: r.satelite.ultima.coberturaPct, kc_satelite: r.satelite.ultima.kcSatelite, kc_curva_fao: r.satelite.ultima.kcFao, factor_hoy: r.satelite.factorHoy, metodo: 'NDVI Sentinel-2 → cobertura → Kc (Allen et al. 2005, FAO-56 dual)' } : 'sin pasadas del satélite desde el día 20 de la siembra: se usa la curva FAO',
             suelo: r.suelo && r.suelo.origen, sin_cultivo_en_tabla_fao: !kcDef
           });
         }, function (er) { return Object.assign(base, { error: String((er && er.message) || er) }); });
       }
-      return Promise.all(lista.map(function (x) { try { return Promise.resolve(uno(x)); } catch (er) { return Promise.resolve({ lote: x.e.nombre, error: String(er.message || er) }); } })).then(function (lotes) {
+      var pSat = B.prepararSatelite ? Promise.resolve(B.prepararSatelite(lista.map(function (x) { return x.e; }))).catch(function () {}) : Promise.resolve();   // consumo real según el satélite
+      return pSat.then(function () { return Promise.all(lista.map(function (x) { try { return Promise.resolve(uno(x)); } catch (er) { return Promise.resolve({ lote: x.e.nombre, error: String(er.message || er) }); } })); }).then(function (lotes) {
         return { hoy: hoyK, lotes: lotes, lotes_no_mostrados: omitidos || undefined,
           fuente: 'ficha de agua de SAFIA: balance diario FAO-56 desde la siembra con los riegos y lluvias cargados, lluvia pasada CHIRPS (o estación/manual) y pronóstico Open-Meteo; el mismo cálculo que ve el Operador',
           importante: 'La humedad es calculada, no medida (salvo sonda). Si no se cargaron los riegos hechos, el suelo aparece más seco de lo real.' };
@@ -345,7 +350,8 @@
       var omitidos = lista.length > 4 ? lista.length - 4 : 0; lista = lista.slice(0, 4);
       var hoyK = window.SafiaBalance ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10);
       var out = [];
-      return lista.reduce(function (p, x) { return p.then(function () { return campanaEnCurso(x, hoyK).then(function (r) { out.push(r); }, function (er) { out.push({ lote: x.e.nombre, error: String((er && er.message) || er) }); }); }); }, Promise.resolve())
+      var pSat = window.SafiaBalance && SafiaBalance.prepararSatelite ? Promise.resolve(SafiaBalance.prepararSatelite(lista.map(function (x) { return x.e; }))).catch(function () {}) : Promise.resolve();   // pasadas nuevas del satélite
+      return lista.reduce(function (p, x) { return p.then(function () { return campanaEnCurso(x, hoyK).then(function (r) { out.push(r); }, function (er) { out.push({ lote: x.e.nombre, error: String((er && er.message) || er) }); }); }); }, pSat)
         .then(function () {
           return { hoy: hoyK, campanas: out, no_mostradas: omitidos || undefined,
             fuentes: 'meta viva y plan de la meta (Motor 8, Banco → Meta de rinde); agua por etapa: balance diario FAO-56 + rinde relativo FAO-33 (Doorenbos & Kassam, Ky por etapa), lluvia CHIRPS corregida o la cargada; vigor: NDVI Sentinel-2 (Copernicus); hoja: rangos Embrapa/Fertilizar; exportación de nutrientes IPNI/INTA; campañas cosechadas reales del banco',

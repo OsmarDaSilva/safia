@@ -1031,6 +1031,8 @@
   <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
+  <script src="safia-manual-riego.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'operador', en: '.topbar-derecha' }); });</script>
   <script src="safia-mantenimiento.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {
@@ -1223,10 +1225,11 @@
       try {
         // Conexión robusta vía cliente compartido (safia-clima.js):
         // timeout + reintento ante 502/503/red + respaldo de caché + error honesto.
+        const pSat = SafiaBalance.prepararSatelite ? SafiaBalance.prepararSatelite([equipo]).catch(() => {}) : Promise.resolve();   // pasadas del satélite (consumo real del cultivo)
         const rClima = await SafiaClima.obtenerClima({
           lat, lon,
           daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min',
-          pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra; 7 de pronóstico para "arrancar el / vence el"
+          pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
           cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
         });
 
@@ -1262,6 +1265,7 @@
         // riego × eficiencia una sola vez, tope a CC. La recomendación se basa
         // en el % de agua útil de HOY (antes era un balance neto de 7 días).
         const eventos = JSON.parse(localStorage.getItem("eventos") || "[]");
+        await pSat;
         const r = SafiaBalance.simular({
           campo,
           daily: datos.daily,

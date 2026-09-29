@@ -135,6 +135,93 @@
      Time; líneas capacidad de campo, recarga, seguridad y agotamiento crítico; días hasta el estrés.
      Sin datos del equipo se supone una vuelta de 3 días (el ejemplo de SDSU, cap. 49, usa 4). */
   var VUELTA_SUPUESTA_DIAS = 3;
+
+  /* ---------- Consumo del cultivo según el satélite (como FieldNET Advisor 2024: "remote sensing ... actual crop water use") ----------
+     La curva FAO de Kc supone un cultivo que crece "normal". El satélite muestra cuánto cubre de verdad (granizo, sequía,
+     enfermedad, stand pobre, siembra atrasada) y se corrige el consumo:
+       1) cobertura fc desde el NDVI de Sentinel-2, escalado lineal entre suelo desnudo y cobertura plena
+          (Gutman & Ignatov 1998), con los extremos del propio lote (percentiles 5 y 95 de su serie; si no alcanza, 0,15 y 0,90);
+       2) Kcb desde fc y altura del cultivo: Allen, Pereira, Smith, Raes & Wright 2005, J. Irrig. Drain. Eng. 131(1),
+          Ec. 11 invertida:  Kcb = Kc_min + (Kc_max − Kc_min) · fc^(1/(1+0,5·h)),  Kc_min 0,15, Kc_max 1,2 (clima estándar);
+          h = altura máxima FAO-56 Tabla 12; el Kc del satélite nunca baja del Kc inicial ni pasa el Kc medio de la tabla;
+       3) factor = Kc satélite ÷ Kc FAO de ese día (entre 0,6 y 1,15), aplicado a la curva FAO: entre pasadas se interpola;
+          después de la última vale 15 días y se diluye hasta 30; antes del día 20 no se usa (el NDVI es casi todo suelo). */
+  var ALTURA_CULTIVO = { soja: 0.75, maiz: 2.0, trigo: 1.0, girasol: 2.0, sorgo: 1.5, pastura: 0.3, otro: 1.0 };
+  var KC_MIN_SAT = 0.15, KC_MAX_SAT = 1.2;
+  function ndviGuardado(equipoId) {
+    if (equipoId == null) return [];
+    return leerLS('ndvi_' + String(equipoId)).filter(function (p) { return p && p.fecha && p.ndvi != null && isFinite(+p.ndvi) && !(p.nubes_pct > 40); })
+      .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+  }
+  function extremosNdvi(serie) {
+    var v = serie.map(function (p) { return +p.ndvi; }).filter(function (x) { return isFinite(x); }).sort(function (a, b) { return a - b; }), s = 0.15, c = 0.90, propio = false;
+    if (v.length >= 20) { var lo = v[Math.floor(v.length * 0.05)], hi = v[Math.floor(v.length * 0.95)]; if (hi - lo >= 0.4) { s = Math.max(0.05, Math.min(0.25, lo)); c = Math.max(0.7, Math.min(0.95, hi)); propio = true; } }
+    return { suelo: s, pleno: c, propio: propio };
+  }
+  function kcbSatelite(ndvi, cu, ext) {
+    var fc = Math.max(0, Math.min(0.99, (ndvi - ext.suelo) / (ext.pleno - ext.suelo))), h = ALTURA_CULTIVO[cu] || 1;
+    return { fc: fc, kcb: KC_MIN_SAT + (KC_MAX_SAT - KC_MIN_SAT) * Math.pow(fc, 1 / (1 + 0.5 * h)) };
+  }
+  function factoresSatelite(serie, siembra, kcDef, cu, claves) {
+    if (!serie || !serie.length || !siembra || !kcDef) return null;
+    var ext = extremosNdvi(serie), ki = +kcDef.kc_ini || 0.4, km = +kcDef.kc_med || 1.15, fin = kcYEtapa(kcDef, 0).fin;
+    var pts = [];
+    serie.forEach(function (p) {
+      var k = claveDia(p.fecha), d = diasEntre(siembra, k);
+      if (d < 20 || d > fin) return;
+      var kf = kcYEtapa(kcDef, d).kc, s = kcbSatelite(+p.ndvi, cu, ext), ks = Math.min(km, Math.max(ki, s.kcb));
+      pts.push({ k: k, dds: d, ndvi: +p.ndvi, fc: s.fc, kcSat: ks, kcFao: kf, r: Math.max(0.6, Math.min(1.15, ks / kf)) });
+    });
+    if (!pts.length) return null;
+    var porDia = {};
+    (claves || []).forEach(function (k) {
+      if (diasEntre(siembra, k) < 20) return;
+      var prev = null, next = null;
+      for (var i = 0; i < pts.length; i++) { if (pts[i].k <= k) prev = pts[i]; else { next = pts[i]; break; } }
+      var r = null;
+      if (prev && next) r = prev.r + (next.r - prev.r) * diasEntre(prev.k, k) / Math.max(1, diasEntre(prev.k, next.k));
+      else if (prev) { var desde = diasEntre(prev.k, k); r = desde <= 15 ? prev.r : (desde >= 30 ? 1 : prev.r + (1 - prev.r) * (desde - 15) / 15); }
+      else if (next && diasEntre(k, next.k) <= 15) r = next.r;
+      if (r != null && Math.abs(r - 1) > 0.005) porDia[k] = Math.round(r * 1000) / 1000;
+    });
+    var u = pts[pts.length - 1];
+    return { porDia: porDia, pasadas: pts.length, extremos: ext,
+      ultima: { fecha: u.k, dds: u.dds, ndvi: Math.round(u.ndvi * 100) / 100, coberturaPct: Math.round(u.fc * 100), kcSatelite: Math.round(u.kcSat * 100) / 100, kcFao: u.kcFao, factor: Math.round(u.r * 100) / 100 } };
+  }
+
+  // Trae las pasadas guardadas (tabla safia_ndvi) y, si la última tiene más de 4 días, pide las nuevas al satélite
+  // (función safia-ndvi, una vez por día y por lote). No bloquea: si tarda, la página sigue con lo que ya tenía.
+  function mezclarNdvi(equipoId, filas) {
+    var k = 'ndvi_' + String(equipoId), mapa = {};
+    leerLS(k).concat(filas || []).forEach(function (s) { if (s && s.fecha && s.ndvi != null) mapa[String(s.fecha).slice(0, 10)] = s; });
+    try { localStorage.setItem(k, JSON.stringify(Object.keys(mapa).sort().map(function (f) { return mapa[f]; }))); } catch (e) {}
+  }
+  function conTiempo(pr, ms) { return Promise.race([pr, new Promise(function (res) { setTimeout(res, ms); })]); }
+  function prepararSatelite(equipos, opciones) {
+    opciones = opciones || {};
+    var sb = root.safiaSupabase, lista = (equipos || []).filter(function (e) { return e && e.id != null; });
+    if (!sb || !lista.length) return Promise.resolve();
+    var hoy = hoyLocal(), ids = lista.map(function (e) { return String(e.id); });
+    var leer = Promise.resolve(sb.from('safia_ndvi').select('equipo_id,fecha,ndvi_media,ndvi_p10,ndvi_p50,ndvi_p90,nubes_pct,pixeles').in('equipo_id', ids).gte('fecha', sumarDias(hoy, -420)).order('fecha'))
+      .then(function (r) {
+        if (!r || r.error || !r.data) return;
+        var por = {}; r.data.forEach(function (f) { (por[f.equipo_id] = por[f.equipo_id] || []).push({ fecha: f.fecha, ndvi: +f.ndvi_media, p10: f.ndvi_p10, p50: f.ndvi_p50, p90: f.ndvi_p90, nubes_pct: f.nubes_pct == null ? null : +f.nubes_pct, pixeles: f.pixeles }); });
+        Object.keys(por).forEach(function (id) { mezclarNdvi(id, por[id]); });
+      }).catch(function () {});
+    var pedir = leer.then(function () {
+      if (opciones.sinPedir) return;
+      return Promise.all(lista.map(function (e) {
+        if (!e.poligono || !e.poligono.partes || !e.campoId) return null;
+        var serie = leerLS('ndvi_' + String(e.id)), ult = serie.length ? String(serie[serie.length - 1].fecha).slice(0, 10) : null, marca = 'ndvi_pedido_' + String(e.id);
+        if (ult && diasEntre(ult, hoy) <= 4) return null;
+        try { if (localStorage.getItem(marca) === hoy) return null; localStorage.setItem(marca, hoy); } catch (x) { return null; }
+        var desde = ult ? sumarDias(ult, 1) : sumarDias(hoy, -150);
+        return Promise.resolve(sb.functions.invoke('safia-ndvi', { body: { equipoId: String(e.id), campoId: String(e.campoId), partes: e.poligono.partes, desde: desde, hasta: hoy } }))
+          .then(function (r) { var d = r && r.data; if (d && d.ok && d.serie) mezclarNdvi(e.id, d.serie); }).catch(function () {});
+      }));
+    });
+    return conTiempo(opciones.esperarSatelite ? pedir : leer, opciones.esperaMs || 6000);
+  }
   function capacidadBruta(eq) {
     var dt = (eq && eq.datosTecnicos) || {}, c = num(dt.capacidad);
     if (c > 0) return c;
@@ -311,9 +398,12 @@
     else if (dds == null) ke = { kc: 1.0, etapa: 'sin', nombre: NOMBRE_ETAPA.sin, crecimientoRaiz: 0 };
     else ke = kcYEtapa(f, dds);
     var zr = (dds != null && dds >= 0 && ke.crecimientoRaiz > 0 && dds < ke.crecimientoRaiz) ? 0.25 + (zrMax - 0.25) * dds / ke.crecimientoRaiz : (dds != null && dds < 0 ? 0.25 : zrMax);
-    var taw = 1000 * theta * zr, etc = ke.kc * (et0 || 0);
+    // factorKc: ajuste por satélite (consumo real del cultivo según su cobertura; ver factoresSatelite)
+    var fk = opts.factorKc > 0 ? opts.factorKc : 1, kcIni = f && +f.kc_ini ? +f.kc_ini : 0.4;
+    var kc = Math.round(Math.max(ke.kc * fk, Math.min(ke.kc, kcIni)) * 100) / 100;   // nunca debajo del Kc inicial (evaporación del suelo)
+    var taw = 1000 * theta * zr, etc = kc * (et0 || 0);
     var p = Math.max(0.1, Math.min(0.8, pTab + 0.04 * (5 - etc)));
-    return { kc: ke.kc, etapa: ke.etapa, nombreEtapa: ke.nombre, zr: zr, taw: taw, p: p, raw: p * taw, etc: etc, ky: (KY[cu] || KY.otro)[ke.etapa] || 0 };
+    return { kc: kc, kcFao: ke.kc, factorKc: fk, etapa: ke.etapa, nombreEtapa: ke.nombre, zr: zr, taw: taw, p: p, raw: p * taw, etc: etc, ky: (KY[cu] || KY.otro)[ke.etapa] || 0 };
   }
   // Paso diario del balance de agotamiento: dr (mm al inicio del día), aguaNeta = lluvia + riego neto (mm).
   function pasoDia(dr, prm, aguaNeta) {
@@ -370,13 +460,15 @@
     else if (opts.diasPasado != null) inicio = Math.max(0, indiceHoy - opts.diasPasado);
     if (inicio > indiceHoy) inicio = indiceHoy;
     var desdeSiembra = siembra && claves.indexOf(siembra) >= 0;
+    // Satélite: corrige el consumo con la cobertura real del lote (opts.ndviSerie o lo guardado del equipo; opts.usarSatelite === false lo apaga)
+    var sat = (!perenne && conCultivo && opts.usarSatelite !== false) ? factoresSatelite(opts.ndviSerie || (opts.equipo ? ndviGuardado(opts.equipo.id) : (opts.equipoId != null ? ndviGuardado(opts.equipoId) : [])), siembra, kcDef, cu, claves) : null;
 
     function prmDe(i) {
       var k = claves[i], eto = (daily.et0_fao_evapotranspiration && daily.et0_fao_evapotranspiration[i]) || 0, fuenteEt0 = 'meteo';
       if (et0Estacion && et0Estacion[k] != null) { eto = et0Estacion[k]; fuenteEt0 = 'estacion'; }
       var prm;
       if (perenne) { var kk = calcularKc(kcDef, k + 'T12:00:00'); prm = parametrosDia(cu, null, null, theta, eto, { kcFijo: kk.kc, etapa: 'per', zrMax: opts.zrMax || (+kcDef.zr || null), p: (+kcDef.p || null) }); prm.etapaLegacy = kk.etapa; prm.dds = null; }
-      else if (conCultivo) { var dds = diasEntre(siembra, k); prm = parametrosDia(cu, kcDef, dds, theta, eto, { zrMax: opts.zrMax }); prm.dds = dds; prm.etapaLegacy = calcularKc(kcDef, k + 'T12:00:00', siembra).etapa; }
+      else if (conCultivo) { var dds = diasEntre(siembra, k); prm = parametrosDia(cu, kcDef, dds, theta, eto, { zrMax: opts.zrMax, factorKc: sat ? sat.porDia[k] : null }); prm.dds = dds; prm.etapaLegacy = calcularKc(kcDef, k + 'T12:00:00', siembra).etapa; }
       else { prm = parametrosDia('otro', null, null, theta, eto, { zrMax: opts.zrMax || ZR_REF }); prm.dds = null; prm.etapaLegacy = kcDef ? 'Sin siembra' : 'Sin cultivo'; }
       prm.et0 = eto; prm.fuenteEt0 = fuenteEt0;
       return prm;
@@ -496,6 +588,12 @@
       pastura: pasturaInfo,
       fuentes: fuentes,
       recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta, enEstres: drHoy > prmHoy.raw, pivot: pivot },
+      // Como WaterTrend de FieldNET: consumo del cultivo y lluvia prevista acumulados (7 días y todo el pronóstico)
+      pronostico: (function () {
+        var s = function (n) { var e = 0, l = 0, d = 0; for (var j = indiceHoy; j < claves.length && j < indiceHoy + n; j++) { e += etcF[j] || 0; l += llF[j] || 0; d++; } return { dias: d, consumoMM: Math.round(e), lluviaMM: Math.round(l), balanceMM: Math.round(l - e) }; };
+        return { semana: s(7), total: s(claves.length) };
+      })(),
+      satelite: sat ? { ultima: sat.ultima, pasadas: sat.pasadas, factorHoy: sat.porDia[claveHoy] || 1, extremosDelLote: sat.extremos.propio } : null,
       dias: dias, pasado: pasado, totales: totales, totalesPasado: totalesPasado
     };
   }
@@ -512,7 +610,8 @@
     indexarEventos: indexarEventos, resolverLluviaDia: resolverLluviaDia, estacionDelCampo: estacionDelCampo,
     simular: simular,
     capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
-    version: '2.1.0'
+    ndviGuardado: ndviGuardado, factoresSatelite: factoresSatelite, kcbSatelite: kcbSatelite, extremosNdvi: extremosNdvi, prepararSatelite: prepararSatelite, ALTURA_CULTIVO: ALTURA_CULTIVO,
+    version: '2.2.0'
   };
 
   root.SafiaBalance = SafiaBalance;

@@ -123,7 +123,7 @@
     var episodios = [], epi = null, riegoRestante = opciones.riegoDeclarado > 0 ? opciones.riegoDeclarado : 0, lamina = opciones.lamina || 20, riegoRepartido = 0;
     filas.forEach(function (r, i) {
       // Parámetros del día y paso diario: el MISMO código que usa el semáforo de Operación (SafiaBalance)
-      var prm = SB().parametrosDia(cu, f, i, theta, r.et0 != null ? r.et0 : 0, { zrMax: zrMax, p: pTab });
+      var prm = SB().parametrosDia(cu, f, i, theta, r.et0 != null ? r.et0 : 0, { zrMax: zrMax, p: pTab, factorKc: opciones.factoresKc ? opciones.factoresKc[r.fecha] : null });   // factor: consumo según el satélite
       var ke = { kc: prm.kc, etapa: prm.etapa }, zr = prm.zr, taw = prm.taw, et0 = r.et0 != null ? r.et0 : 0, etc = prm.etc, p = prm.p, raw = prm.raw;
       if (dr == null) dr = Math.min(taw, raw * (opciones.agotamientoInicial != null ? opciones.agotamientoInicial : 0.5));   // arranca con la mitad del agua fácilmente disponible ya consumida
       dr = Math.min(taw, dr);   // la raíz creció: el agotamiento no puede superar la reserva
@@ -164,7 +164,9 @@
     var hoy = hoyISO(), fin = finDe(camp), hasta = camp.abierta ? (fin > sumarDias(hoy, 7) ? sumarDias(hoy, 7) : fin) : fin;
     return datosDiarios(campo, lote, camp.siembra, hasta).then(function (d) {
       var hayRiegoEv = d.filas.some(function (x) { return x.riego > 0; });
-      var res = balance(d.filas, camp.cultivo, sueloDe(campo), { riegoDeclarado: !hayRiegoEv && camp.riegoDeclarado > 0 ? camp.riegoDeclarado : 0, eficiencia: SB().getEficienciaEquipo(lote) });
+      var sat = SB().factoresSatelite ? SB().factoresSatelite(SB().ndviGuardado(lote.id), camp.siembra, fao(camp.cultivo), clave(camp.cultivo), d.filas.map(function (x) { return x.fecha; })) : null;
+      var res = balance(d.filas, camp.cultivo, sueloDe(campo), { riegoDeclarado: !hayRiegoEv && camp.riegoDeclarado > 0 ? camp.riegoDeclarado : 0, eficiencia: SB().getEficienciaEquipo(lote), factoresKc: sat ? sat.porDia : null });
+      res.satelite = sat ? { ultima: sat.ultima, pasadas: sat.pasadas } : null;
       res.campana = camp; res.fuentes = d.fuentes; res.lluviaDeEventos = d.lluviaDeEventos; res.lote = lote;
       if (camp.abierta && fin >= hoy) {
         var reales = res.dias.filter(function (x) { return !x.pronostico; }), ult = reales[reales.length - 1];
@@ -228,6 +230,7 @@
     if (res.riegoRepartido > 0) h += '<div class="note info" style="margin-top:8px;">La cosecha declara <b>' + fmt(res.riegoDeclarado) + ' mm de riego</b> pero el lote no tiene riegos cargados por fecha: el balance los repartió en láminas de 20 mm en los días en que el suelo llegó al punto de recarga (' + fmt(res.riegoRepartido) + ' mm usados). Cargando los riegos en Eventos con su fecha, el balance usa los reales.</div>';
     if (res.episodios.length) h += '<div style="margin-top:8px;font-size:13px;"><b>Cuándo faltó agua:</b> ' + res.episodios.map(function (e) { return fmtF(e.desde) + (e.dias > 1 ? ' al ' + fmtF(e.hasta) + ' (' + e.dias + ' días)' : '') + ' en ' + NOMBRE_ETAPA[e.etapa].toLowerCase() + (e.faltaMM > 0 ? ', hacían falta ~' + fmt(e.faltaMM) + ' mm al empezar' : ''); }).join(' · ') + '.</div>';
     else h += '<div style="margin-top:8px;font-size:13px;color:#178029;"><b>Sin días de estrés hídrico</b> en toda la campaña según el balance.</div>';
+    if (res.satelite) h += '<div class="note info" style="margin-top:8px;font-size:12.5px;"><b>Consumo corregido con el satélite.</b> ' + res.satelite.pasadas + ' pasadas de Sentinel-2 en la campaña; la última (' + fmtF(res.satelite.ultima.fecha) + ', día ' + res.satelite.ultima.dds + ') muestra ' + res.satelite.ultima.coberturaPct + ' % de cobertura: el cultivo consume ' + (res.satelite.ultima.factor < 0.97 ? 'menos' : (res.satelite.ultima.factor > 1.03 ? 'más' : 'lo mismo')) + ' que la curva FAO para ese día (Kc ' + fmt(res.satelite.ultima.kcSatelite, 2) + ' contra ' + fmt(res.satelite.ultima.kcFao, 2) + '). Método: NDVI → cobertura → Kc (Allen et al. 2005, FAO-56 dual).</div>';
     h += '<div class="muted" style="font-size:11px;margin-top:8px;">Suelo: CC ' + fmt(res.suelo.cc) + ' % · PMP ' + fmt(res.suelo.pmp) + ' % (' + esc(res.suelo.origen) + ') · raíz hasta ' + fmt((ZR_MAX[res.cu] || 0.8) * 100) + ' cm · datos: ' + (res.fuentes.estacion ? res.fuentes.estacion + ' días de estación' : '') + (res.fuentes.openMeteo ? (res.fuentes.estacion ? ', ' : '') + res.fuentes.openMeteo + ' días de Open-Meteo' : '') + (res.fuentes.pronostico ? ', ' + res.fuentes.pronostico + ' de pronóstico' : '') + ' · lluvia ' + (res.lluviaDeEventos ? 'de los eventos del lote' : (res.fuentes && res.fuentes.estacion ? 'medida por la estación' : 'estimada del clima')) + ' · riego de los eventos del lote × eficiencia del equipo (' + Math.round((res.eficiencia == null ? 1 : res.eficiencia) * 100) + ' %). Método FAO-56 (balance diario, Kc por etapa, agotamiento permitido ' + Math.round((P_TABLA[res.cu] || 0.5) * 100) + ' %) y FAO-33 (Ky por etapa); sin escurrimiento ni napa; arranca con la mitad del agua fácil consumida. Es el mismo motor que usa el semáforo del Operador y del Encargado. Es una estimación para decidir, no una medición: la sonda de humedad la reemplaza cuando existe.</div>';
     return h;
   }

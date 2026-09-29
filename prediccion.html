@@ -260,12 +260,13 @@
       // SafiaClima deduplica llamadas y cachea: equipos del mismo campo no
       // repiten el pedido y, ante 502/red, se usa el último clima bueno.
       let climaStale = null, ultimoError = null;
+      try { if (SafiaBalance.prepararSatelite) await SafiaBalance.prepararSatelite(equiposValidos.map(ev => ev.equipo)); } catch (e) {}   // consumo real según el satélite
       for (const ev of equiposValidos) {
         const rClima = await SafiaClima.obtenerClima({
           lat: ev.campo.latitud, lon: ev.campo.longitud,
           current: 'temperature_2m',
           daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
-          pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra
+          pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET)
           cacheKey: 'campo:' + ev.campo.id
         });
         if (rClima.datos) {

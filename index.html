@@ -885,14 +885,16 @@
       // Clima por campo (una sola llamada por campo, compartida por sus lotes)
       const camposUnicos = {}; enCiclo.forEach(c => { camposUnicos[c.campo.id] = c.campo; });
       const clima = {}, sinClima = [], alertas = [];
+      const pSat = SafiaBalance.prepararSatelite ? SafiaBalance.prepararSatelite(enCiclo.map(c => c.equipo)).catch(() => {}) : Promise.resolve();   // consumo real según el satélite
       await Promise.all(Object.keys(camposUnicos).map(async id => {
         const campo = camposUnicos[id];
         if (!campo.latitud || !campo.longitud) { sinClima.push(campo.nombre + ' (sin GPS)'); return; }
-        const rC = await SafiaClima.obtenerClima({ lat: campo.latitud, lon: campo.longitud, current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code', daily: 'precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max', pastDays: 92, forecastDays: 7, cacheKey: 'campo:' + campo.id });
+        const rC = await SafiaClima.obtenerClima({ lat: campo.latitud, lon: campo.longitud, current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code', daily: 'precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max', pastDays: 92, forecastDays: 16, cacheKey: 'campo:' + campo.id });
         if (rC.datos) { clima[id] = rC; alertasClimaDe(campo, rC.datos).forEach(a => alertas.push(a)); }
         else sinClima.push(campo.nombre + (rC.error && rC.error.tipo === 'sin_internet' ? ' (sin internet)' : ' (clima no disponible)'));
       }));
       const desactualizado = Object.values(clima).find(c => c.desactualizado); SafiaClima.avisoCache(desactualizado ? desactualizado.fechaCache : null);
+      await pSat;
 
       const lotes = enCiclo.map(ctx => { const c = clima[ctx.campo.id]; let ev = null; if (c) { try { ev = evaluarLote(ctx, c.datos); } catch (e) { console.error('[SAFIA] dashboard: no se pudo evaluar', ctx.equipo.nombre, e); } } return { ctx, ev }; });
       const conRiego = lotes.filter(l => l.ev && !l.ctx.secano).sort((a, b) => ORDEN[a.ev.tipo] - ORDEN[b.ev.tipo] || a.ev.pct - b.ev.pct);

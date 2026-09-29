@@ -378,7 +378,7 @@
         lat, lon,
         current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation',
         daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code',
-        pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra
+        pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET)
         cacheKey: contexto.campo ? ('campo:' + contexto.campo.id) : (lat + ',' + lon)
       });
 
@@ -386,6 +386,8 @@
       SafiaClima.avisoCache(r.desactualizado ? r.fechaCache : null);
 
       if (r.datos) {
+        // consumo real del cultivo según el satélite (pasadas guardadas de los lotes del campo)
+        try { if (contexto.campo && SafiaBalance.prepararSatelite) await SafiaBalance.prepararSatelite(JSON.parse(localStorage.getItem('equipos') || '[]').filter(e => e.campoId === contexto.campo.id), { sinPedir: true }); } catch (e) {}
         mostrarDashboard(contexto, r.datos);
       } else {
         document.getElementById('loading').style.display = 'none';

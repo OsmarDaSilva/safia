@@ -643,6 +643,8 @@
   <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
+  <script src="safia-manual-riego.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'encargado', en: '.enc-head-der' }); });</script>
   <script src="safia-mantenimiento.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
@@ -684,6 +686,8 @@
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
       const campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      // Pasadas del satélite de todos los lotes (consumo real del cultivo); espera como mucho unos segundos
+      try { if (SafiaBalance.prepararSatelite) await SafiaBalance.prepararSatelite(equipos.filter(e => campanas.some(c => c.equipoId === e.id && c.estado === 'Activa'))); } catch (e) {}
 
       estadoEquipos = [];
       alertasPorCampo = {};   // alertas climáticas de cada campo, con el nombre del campo (global: el filtro de campo las vuelve a pintar)
@@ -871,7 +875,7 @@
       const rClima = await SafiaClima.obtenerClima({
         lat: campo.latitud, lon: campo.longitud,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
-        pastDays: 92, forecastDays: 7,   // 92 días de historia: el balance arranca en la siembra; 7 de pronóstico para "arrancar el / vence el"
+        pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
         cacheKey: 'campo:' + campo.id
       });
       if (!rClima.datos) {
@@ -1026,7 +1030,8 @@
     function celdaAgua(d) {
       const r = d.balance && d.balance.r; if (!r || r.porcentajeHoy == null) return '<span class="tl-muted">—</span>';
       const U = r.umbrales || {}; const pct = Math.round(r.porcentajeHoy);
-      const banda = pct < (U.URGENTE || 35) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 50) ? ['arrancar pivot', '#E67E22'] : pct < (U.ATENCION || 70) ? ['atención', '#D4A24C'] : pct < 95 ? ['óptimo', '#178029'] : ['lleno', '#2E72C8'];
+      // franjas con los nombres de FieldNET: Estrés, Bajo (arrancar el pivot), Óptimo, Alto
+      const banda = pct < (U.URGENTE || 35) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 50) ? ['bajo · arrancar pivot', '#C58F00'] : pct < Math.max(U.CRITICO || 50, 90) ? ['óptimo', '#178029'] : ['alto', '#2BA9D6'];
       return '<div class="tl-agua"><b style="color:' + banda[1] + ';">' + pct + ' %</b><div class="tl-sub">' + banda[0] + ' · ' + Math.round(r.aguaDisponibleHoy) + ' de ' + Math.round(r.tawHoy) + ' mm</div></div>';
     }
     function celdaRiego(d) {
