@@ -170,6 +170,16 @@
       var pot = x.r.potencial ? x.r.potencial.estimado : null, rie = x.ref ? x.ref.riego : null, sec = x.ref ? x.ref.secano : null, con = pot != null ? pot : rie;
       var uu = x.u.corto;
       if (con != null && sec != null) out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : '') + ':</b> con riego se espera ' + U(con, x.u) + ' ' + uu + (pot != null ? ' (casos reales cercanos)' : (x.ref && x.ref.forraje ? ' (referencia forrajera)' : ' (zona con riego)')) + ' contra ' + U(sec, x.u) + ' ' + uu + ' en secano: <b>+' + U(con - sec, x.u) + ' ' + uu + '</b>.' + (LA && LA.L.veredicto.k === 'grave' ? ' Con el agua actual esa producción no se alcanza.' : ''));
+      else if (con != null) {
+        // sin referencia de secano en la zona: lo que rendiría sin riego sale de la simulación del agua de este campo (FAO-33)
+        var sim = null;
+        try { if (hist && window.SafiaClimaProyecto) sim = SafiaClimaProyecto.riego(hist, { cultivo: x.c.cultivo, epoca: x.c.epoca, siembra: x.c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null }); } catch (e) { sim = null; }
+        var rel = sim && !sim.error ? sim.rindeRelSecano : null;
+        out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : (x.c.epoca ? ' (' + esc(x.c.epoca) + ')' : '')) + ':</b> con riego se espera ' + U(con, x.u) + ' ' + uu + (pot != null ? ' (casos reales cercanos)' : (x.ref && x.ref.forraje ? ' (referencia forrajera)' : ' (zona con riego)')) + '. La base todavía no tiene la referencia de secano de la zona' +
+          (rel != null ? '; según el clima de este campo, sin riego rendiría en promedio el ' + fmt(rel * 100, 0) + ' % de eso por falta de agua (' + (sim.kyPropio ? 'FAO-33' : 'FAO-33, Ky 1,0 orientativo') + '), unos ' + U(con * rel, x.u) + ' ' + uu + ': el riego sumaría <b>+' + U(con * (1 - rel), x.u) + ' ' + uu + '</b> (estimado, no medido).' : ', así que no se estima cuánto suma el riego.') +
+          (LA && LA.L.veredicto.k === 'grave' ? ' Con el agua actual esa producción no se alcanza.' : ''));
+      }
+      else if (sec != null) out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + ':</b> la zona en secano da ' + U(sec, x.u) + ' ' + uu + '; la base todavía no tiene la referencia con riego ni casos cercanos, así que no se estima cuánto suma el riego.');
       else if (!x.ref && pot == null) out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + ':</b> la base de SAFIA todavía no tiene referencia de la zona ni casos cercanos para esta finalidad; no se estima un número.');
     });
     return out;
