@@ -15,6 +15,9 @@
    La inversión se paga con lo que AGREGA el riego si hoy el campo produce en secano, o con el margen completo
    con riego si es un campo nuevo (lo elige el usuario). Inversión por proyecto (decisión de Osmar, 28-sep-2026): monto total
    o por partes (equipos, pozos, reservorio, eléctrica, obras). Todo el proyecto por año con la energía aparte (29-sep-2026).
+   Chaco (Región Occidental): sin riego se hace UN solo cultivo por año (soja, maíz, algodón, sésamo, poroto…), no doble
+   zafra como en la Oriental (Osmar, 29-sep-2026). Con riego entran todos los cultivos del proyecto; el secano se compara
+   con el mejor de ellos hecho solo en el año.
    Solo grano: para ensilaje, fardos y pastoreo SAFIA no tiene precio de venta; se dice. */
 (function () {
   'use strict';
@@ -91,6 +94,14 @@
     var sum = function (k) { return ok.reduce(function (a, f) { return a + (f[k] != null ? f[k] : 0) * f.parte; }, 0); };
     var r = { filas: filas, ok: ok, superficieHa: ha, inversionUSD: inv, vidaUtil: vida, energiaUSDmm: eMm, situacion: nuevo ? 'nuevo' : 'secano',
       margenR: sum('margenR'), margenS: sum('margenS'), agrega: sum('agrega'), agregaSeco: ok.some(function (f) { return f.agregaSeco != null; }) ? ok.reduce(function (a, f) { return a + (f.agregaSeco != null ? f.agregaSeco : f.agrega) * f.parte; }, 0) : null, compartidas: compartidas, nEpocas: Object.keys(porEpoca).length };
+    // Chaco: un solo cultivo por año en secano → el secano del proyecto es el mejor cultivo solo, en toda la superficie
+    r.region = o.region || null; r.unCultivoSecano = r.region === 'occidental' && ok.length > 1;
+    var mejorS = null;
+    if (r.unCultivoSecano) {
+      mejorS = ok.reduce(function (a, f) { return f.margenS > a.margenS ? f : a; });
+      r.secanoCultivo = mejorS.cultivo; r.margenS = mejorS.margenS; r.agrega = r.margenR - r.margenS;
+      r.agregaSeco = mejorS.margenSseco != null ? r.margenR - mejorS.margenSseco : r.agregaSeco;
+    }
     r.pagaCon = nuevo ? r.margenR : r.agrega;   // lo que paga la inversión cada año, por ha
     r.inversionPartes = o.inversionPartes || null; r.inversionRefHa = o.inversionRefHa || null; r.energiaModo = o.energiaModo || (eMm != null ? 'mm' : 'base');
     // por ha (ponderado por la parte del área de cada cultivo): ingreso, costos sin energía, energía
@@ -101,6 +112,7 @@
       costoR: pond(function (f) { return f.totalR - (f.cR.energia || 0); }),
       costoS: pond(function (f) { return f.totalS * (f.fracSembro != null && f.fracSembro < 1 ? f.fracSembro : 1); })
     };
+    if (mejorS) { r.porHa.ingS = mejorS.ingS; r.porHa.costoS = mejorS.totalS * (mejorS.fracSembro != null && mejorS.fracSembro < 1 ? mejorS.fracSembro : 1); }
     if (ha > 0) r.proyecto = { ingR: r.porHa.ingR * ha, ingS: r.porHa.ingS * ha, energiaR: r.porHa.energiaR * ha, costoR: r.porHa.costoR * ha, costoS: r.porHa.costoS * ha, margenR: r.margenR * ha, margenS: r.margenS * ha };
     if (ha > 0) { r.anualR = r.margenR * ha; r.anualS = r.margenS * ha; r.anualAgrega = r.agrega * ha; r.anualPaga = r.pagaCon * ha; }
     if (inv > 0 && ha > 0) {
@@ -144,9 +156,10 @@
     if (!r.ok.length) return h || '<div class="note">Sin cultivos de grano con referencia para calcular la economía.</div>';
     var varios = r.ok.length === 1 ? esc(r.ok[0].cultivo) : (r.nEpocas > 1 ? 'rotación en el año' : 'promedio de los cultivos');
     if (r.compartidas.length) h += '<div class="note" style="margin-top:10px;">' + r.compartidas.map(function (g) { return g.map(function (f) { return esc(f.cultivo); }).join(' y ') + ' van en la misma época (' + esc(g[0].epoca || 'sin época') + '): no pueden ir juntos en la misma tierra el mismo año, así que la cuenta del proyecto supone ' + (g.length === 2 ? 'la mitad' : 'una parte igual') + ' del área para cada uno'; }).join('<br>') + (r.nEpocas > 1 ? '. Los cultivos de épocas distintas se suman, porque van uno detrás del otro en la misma superficie.' : '.') + '</div>';
+    if (r.unCultivoSecano) h += '<div class="note" style="margin-top:10px;">En el Chaco, sin riego se hace <b>un solo cultivo por año</b> (no hay doble zafra como en la Oriental). Por eso el secano del proyecto es el mejor de estos cultivos hecho solo en el año: <b>' + esc(r.secanoCultivo) + '</b>. Con riego entran los ' + r.ok.length + ' cultivos del proyecto.</div>';
     h += '<div class="statbar" style="margin:14px 0 8px;">' +
       '<div class="stat"><div class="sl">Margen con riego</div><div class="sv green">' + usd(r.margenR) + '</div><div class="ss">por ha y año · ' + varios + '</div></div>' +
-      '<div class="stat"><div class="sl">Margen en secano</div><div class="sv">' + usd(r.margenS) + '</div><div class="ss">por ha y año</div></div>' +
+      '<div class="stat"><div class="sl">Margen en secano</div><div class="sv">' + usd(r.margenS) + '</div><div class="ss">por ha y año' + (r.unCultivoSecano ? ' · solo ' + esc(r.secanoCultivo).toLowerCase() : '') + '</div></div>' +
       '<div class="stat"><div class="sl">Lo que agrega el riego</div><div class="sv green">' + (r.agrega >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(r.agrega), 0) + '</div><div class="ss">por ha y año' + (r.agregaSeco != null ? ' · año seco +US$ ' + fmt(r.agregaSeco, 0) : '') + '</div></div>' +
       (r.proyecto ? '<div class="stat"><div class="sl">Energía del riego</div><div class="sv">' + usd(r.proyecto.energiaR) + '</div><div class="ss">por año · US$ ' + fmt(r.porHa.energiaR, 0) + ' por ha</div></div>' : '') +
       (r.inversionUSD ? '<div class="stat"><div class="sl">Inversión</div><div class="sv">US$ ' + fmt(r.inversionUSD, 0) + '</div><div class="ss">' + (r.inversionHa ? 'US$ ' + fmt(r.inversionHa, 0) + ' por ha' : '') + '</div></div>' : '') +

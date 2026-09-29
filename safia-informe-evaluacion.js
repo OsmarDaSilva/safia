@@ -165,7 +165,7 @@
     var E = ECO;
     if (E && E.ok && E.ok.length && E.superficieHa > 0) {
       var usdT = function (v) { return 'US$ ' + fmt(v, 0); };
-      var txt = '<b>Economía:</b> con ' + fmt(E.superficieHa, 0) + ' ha, con riego el proyecto deja <b>' + usdT(E.anualR) + ' por año</b>' + (E.situacion === 'nuevo' ? '' : ' contra ' + usdT(E.anualS) + ' en secano (el riego agrega <b>' + usdT(E.anualAgrega) + '</b>)') + (E.proyecto ? '; la energía del riego cuesta ' + usdT(E.proyecto.energiaR) + ' por año' : '') + '. ';
+      var txt = '<b>Economía:</b> con ' + fmt(E.superficieHa, 0) + ' ha, con riego el proyecto deja <b>' + usdT(E.anualR) + ' por año</b>' + (E.situacion === 'nuevo' ? '' : ' contra ' + usdT(E.anualS) + ' en secano' + (E.unCultivoSecano ? ' (en el Chaco sin riego se hace un solo cultivo por año: ' + esc(E.secanoCultivo).toLowerCase() + ')' : '') + ' (el riego agrega <b>' + usdT(E.anualAgrega) + '</b>)') + (E.proyecto ? '; la energía del riego cuesta ' + usdT(E.proyecto.energiaR) + ' por año' : '') + '. ';
       if (E.inversionUSD > 0) txt += 'La inversión de <b>' + usdT(E.inversionUSD) + '</b> (' + usdT(E.inversionHa) + ' por ha) ' + (E.recupero != null ? 'se recupera en <b>' + fmt(E.recupero, 1) + ' años</b>' + (E.tir != null ? ', con una tasa interna de retorno de <b>' + fmt(E.tir * 100, 1) + ' %</b> a ' + E.horizonte + ' años' : '') + '.' : 'no se paga con estos números: revisar precios, costos y rindes.');
       else if (E.inversionRefHa && E.anualPaga > 0) txt += 'Con la referencia de Irrigar (' + esc(E.inversionRefHa.txt) + ') se recuperaría en ' + fmt(E.inversionRefHa.min * E.superficieHa / E.anualPaga, 1) + (E.inversionRefHa.max !== E.inversionRefHa.min ? ' a ' + fmt(E.inversionRefHa.max * E.superficieHa / E.anualPaga, 1) : '') + ' años (orientativo: falta la inversión real).';
       out.push(txt);
@@ -271,7 +271,7 @@
     return SafiaEconomiaRiego.calcular({
       cultivos: P.map(function (x, i) { return { cultivo: x.c.cultivo, finalidad: x.c.finalidad, epoca: x.c.epoca, ref: x.ref, riego: sims[i] || null }; }),
       superficieHa: num(ev.superficieHa), inversionUSD: num(ev.inversionUSD), inversionPartes: ev.inversionPartes || null, vidaUtil: num(ev.vidaUtil),
-      energiaUSDmm: ev.energiaModo === 'base' ? null : num(ev.energiaUSDmm), energiaModo: ev.energiaModo || (ev.energiaUSDmm != null ? 'mm' : 'base'), situacion: ev.situacion,
+      energiaUSDmm: ev.energiaModo === 'base' ? null : num(ev.energiaUSDmm), energiaModo: ev.energiaModo || (ev.energiaUSDmm != null ? 'mm' : 'base'), situacion: ev.situacion, region: reg,
       inversionRefHa: reg && INV_REF_HA[reg] ? Object.assign({ region: reg }, INV_REF_HA[reg]) : null
     });
   }
