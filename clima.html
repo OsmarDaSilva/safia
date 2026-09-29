@@ -233,13 +233,14 @@
           <table class="tbl dias-tabla"><thead><tr><th>Día</th><th class="r">Máx / mín</th><th class="r">Lluvia</th><th class="r">ETo</th><th class="r" id="thEtcPasado" style="display:none;">ETc</th></tr></thead><tbody id="pronosticoPasado"></tbody></table>
         </section>
 
-        <div class="fuente-datos">Fuente: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (modelos ECMWF/GFS) · ETo: FAO Penman-Monteith · Kc: FAO-56 · balance: motor SAFIA (mismo que Operador y Encargado)</div>
+        <div class="fuente-datos">Fuente: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> (modelos ECMWF/GFS) · lluvia de hace más de un mes: CHIRPS (satélite + estaciones, la que mejor coincide con la DMH) · ETo: FAO Penman-Monteith · Kc: FAO-56 · balance: motor SAFIA (mismo que Operador y Encargado)</div>
       </div>
     </main>
   </div>
   <!-- Motor ÚNICO de balance hídrico (FAO-56) — fuente de verdad compartida -->
   <script src="safia-balance.js"></script>
-  <script src="safia-clima.js"></script>
+  <script src="safia-lluvia.js"></script>
+<script src="safia-clima.js"></script>
   <script>
     // Fecha AAAA-MM-DD como fecha LOCAL (new Date('2026-09-27') es UTC y en Paraguay cae el día anterior)
     function fechaLocal(s) { if (s instanceof Date) return s; const t = String(s || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(t) ? new Date(t + 'T12:00:00') : new Date(s); }

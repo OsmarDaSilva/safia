@@ -660,6 +660,7 @@
 <script src="safia-meta.js"></script>
 <script src="safia-precios.js"></script>
 <script src="safia-catalogo.js"></script>
+<script src="safia-lluvia.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-sensores.js"></script>
 <script src="safia-fieldnet.js"></script>
@@ -1342,7 +1343,7 @@
     }
 
     /* ¿El valor de lluvia lo puso el sistema (true) o lo escribió el usuario (false)? */
-    let lluviaEsAutomatica = true;
+    let lluviaEsAutomatica = true, lluviaFuenteTraida = null;
 
     /* Si cambia la fecha de cosecha, el período cambió: volvemos a traer la
        lluvia, salvo que el usuario la haya escrito a mano. */
@@ -1387,27 +1388,19 @@
       boton.disabled = true;
       hint.textContent = 'Buscando la lluvia real del período…';
 
-      const url = 'https://archive-api.open-meteo.com/v1/archive'
-        + '?latitude=' + lat + '&longitude=' + lon
-        + '&start_date=' + siembra + '&end_date=' + hasta
-        + '&daily=precipitation_sum&timezone=auto';
-
-      fetch(url)
-        .then(r => r.json())
-        .then(j => {
-          const dias = (j && j.daily && j.daily.precipitation_sum) || null;
-          if (!dias || !dias.length) {
+      // Lluvia del ciclo: CHIRPS donde ya está publicado (la fuente que mejor coincide con la DMH), Open-Meteo en los días recientes
+      hint.textContent = 'Buscando la lluvia real del período (satélite CHIRPS, puede tardar unos segundos)…';
+      SafiaLluvia.total(lat, lon, siembra, hasta)
+        .then(t => {
+          if (!t || !t.dias) {
             hint.textContent = 'No hay datos de lluvia para ese período (el histórico tarda unos días en publicarse).';
             return;
           }
-          const validos = dias.filter(v => v !== null && !isNaN(v));
-          const total = validos.reduce((s, v) => s + v, 0);
-          const conLluvia = validos.filter(v => v > 0).length;
-          document.getElementById('cosechaLluvia').value = Math.round(total * 10) / 10;
-          lluviaEsAutomatica = true;
+          document.getElementById('cosechaLluvia').value = t.mm;
+          lluviaEsAutomatica = true; lluviaFuenteTraida = t.lluviaFuente;
           hint.textContent = (auto ? '☁️ Lluvia traída del clima: ' : '✓ ')
-            + Math.round(total) + ' mm en ' + validos.length + ' días ('
-            + conLluvia + ' días con lluvia). Podés corregirla a mano.';
+            + Math.round(t.mm) + ' mm en ' + t.dias + ' días ('
+            + t.diasConLluvia + ' días con lluvia) · ' + t.fuente + '. Podés corregirla a mano.';
         })
         .catch(() => { hint.textContent = 'No se pudo consultar el clima. Revisá tu internet.'; })
         .finally(() => { boton.disabled = false; });
@@ -1424,9 +1417,10 @@
         const hasta = (cu && cu.fechaCosecha) || (c.cosecha && c.cosecha.fecha);
         if (!cu || !cu.fechaSiembra || !hasta || hasta < cu.fechaSiembra) return false;
         if (!c.cosecha && !(c.cosechas && Object.keys(c.cosechas).length)) return false;
-        return !c.clima || c.clima.desde !== cu.fechaSiembra || c.clima.hasta !== hasta;
+        return !c.clima || c.clima.desde !== cu.fechaSiembra || c.clima.hasta !== hasta || !c.clima.lluviaFuente;
       });
-      pendientes.forEach((c, i) => setTimeout(function () { traerClimaDeCampana(c.id, false); }, i * 1200));
+      let cadena = Promise.resolve();
+      pendientes.forEach(c => { cadena = cadena.then(() => traerClimaDeCampana(c.id, !!(c.clima && !c.clima.lluviaFuente))).catch(() => {}); });
     }
 
     function traerClimaDeCampana(campanaId, forzar) {
@@ -1450,7 +1444,7 @@
       const tieneEstacion = campo && campo.estacionId && window.SafiaSensores && SafiaSensores.cobertura(campo.id, desde, hasta) >= 0.9;
       if ((!lat || !lon || isNaN(lat) || isNaN(lon)) && !tieneEstacion) return;
 
-      SafiaCasos.climaDelCiclo(lat, lon, desde, hasta, campo ? campo.id : null).then(clima => {
+      return SafiaCasos.climaDelCiclo(lat, lon, desde, hasta, campo ? campo.id : null).then(clima => {
         if (!clima) return;
         // Releemos por si cambió algo mientras consultábamos
         const lista = JSON.parse(localStorage.getItem('campanas') || '[]');
@@ -1500,7 +1494,8 @@
         observaciones: obs,
         riegoMM: isNaN(riegoMM) ? null : riegoMM,
         lluviaMM: isNaN(lluviaMM) ? null : lluviaMM,
-        lluviaAuto: !!lluviaEsAutomatica && !isNaN(lluviaMM),           // true = la trajo SAFIA del clima (se recalcula si cambian las fechas)
+        lluviaAuto: !!lluviaEsAutomatica && !isNaN(lluviaMM),
+        lluviaFuente: lluviaEsAutomatica && !isNaN(lluviaMM) ? lluviaFuenteTraida : null,           // true = la trajo SAFIA del clima (se recalcula si cambian las fechas)
         lluviaRango: (function () { const cs = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => c.id === cosechandoCampanaId); const cu = cs && cs.cultivos ? cs.cultivos[parseInt(document.getElementById('cosechaCultivoIdx').value || '0', 10)] : null; return (cu && cu.fechaSiembra ? cu.fechaSiembra : '') + '|' + fecha; })(),
         fechaRegistro: new Date().toISOString()
       };
@@ -1549,15 +1544,9 @@
     }
 
     // ===== LLUVIA AUTOMÁTICA: mantenerla al día con las fechas =====
-    function lluviaDeOpenMeteo(lat, lon, desde, hasta) {
-      const url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon + '&start_date=' + desde + '&end_date=' + hasta + '&daily=precipitation_sum&timezone=auto';
-      return fetch(url).then(r => r.json()).then(j => {
-        const dias = (j && j.daily && j.daily.precipitation_sum) || null;
-        if (!dias || !dias.length) return null;
-        const validos = dias.filter(v => v !== null && !isNaN(v));
-        if (!validos.length) return null;
-        return Math.round(validos.reduce((s, v) => s + v, 0) * 10) / 10;
-      });
+    // Lluvia del ciclo: CHIRPS donde ya está publicado, Open-Meteo en los días recientes (safia-lluvia.js)
+    function lluviaDelCiclo(lat, lon, desde, hasta) {
+      return SafiaLluvia.total(lat, lon, desde, hasta).then(t => (t && t.dias) ? t : null);
     }
     function coordsDeCampana(campana) {
       const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
@@ -1573,7 +1562,7 @@
       if (!cosecha || !cultivo || !cultivo.fechaSiembra || !cosecha.fecha || cosecha.fecha < cultivo.fechaSiembra) return false;
       if (cosecha.lluviaAuto === false) return false;                       // cargada a mano: no se toca
       const rango = cultivo.fechaSiembra + '|' + cosecha.fecha;
-      if (cosecha.lluviaAuto === true) return cosecha.lluviaRango !== rango;
+      if (cosecha.lluviaAuto === true) return cosecha.lluviaRango !== rango || !cosecha.lluviaFuente;   // sin fuente = calculada antes de CHIRPS
       const dias = Math.round((new Date(cosecha.fecha) - new Date(cultivo.fechaSiembra)) / 86400000);
       return cosecha.lluviaMM == null || (dias >= 60 && cosecha.lluviaMM < dias * 1);
     }
@@ -1594,12 +1583,13 @@
         cadena = cadena.then(() => {
           const xy = coordsDeCampana(t.c);
           if (!xy) return;
-          return lluviaDeOpenMeteo(xy.lat, xy.lon, t.cu.fechaSiembra, t.cos.fecha).then(total => {
-            if (total == null) return;
+          return lluviaDelCiclo(xy.lat, xy.lon, t.cu.fechaSiembra, t.cos.fecha).then(res => {
+            if (res == null) return;
+            const total = res.mm;
             const lista = JSON.parse(localStorage.getItem('campanas') || '[]');
             const idx = lista.findIndex(x => String(x.id) === String(t.c.id));
             if (idx < 0) return;
-            const marca = { lluviaMM: total, lluviaAuto: true, lluviaRango: t.cu.fechaSiembra + '|' + t.cos.fecha };
+            const marca = { lluviaMM: total, lluviaAuto: true, lluviaRango: t.cu.fechaSiembra + '|' + t.cos.fecha, lluviaFuente: res.lluviaFuente };
             if (lista[idx].cosechas && lista[idx].cosechas[t.i]) Object.assign(lista[idx].cosechas[t.i], marca);
             if (t.i === 0 && lista[idx].cosecha) Object.assign(lista[idx].cosecha, marca);
             if (!lista[idx].cosechas || !lista[idx].cosechas[t.i]) { if (t.i === 0 && !lista[idx].cosecha) return; }
@@ -2621,7 +2611,7 @@
                   <span title="Días con máxima de 35° o más (estrés por calor)">🔥 <b>${campana.clima.diasMayor35}</b> días ≥35°</span>
                   <span title="Grados-día acumulados (base 10°, tope 30°)">📈 <b>${campana.clima.gradosDia}</b> grados-día</span>
                   <span title="Evapotranspiración de referencia acumulada">💨 ET₀ <b>${campana.clima.et0Total}</b> mm</span>
-                  <span class="muted" style="margin-left:auto;">clima del ciclo · ${campana.clima.fuente}</span>
+                  <span class="muted" style="margin-left:auto;">clima del ciclo · ${campana.clima.fuente}${campana.clima.lluviaFuente === 'chirps' || campana.clima.lluviaFuente === 'chirps+open-meteo' ? ' · lluvia CHIRPS' : ''}</span>
                 </div>
               ` : `
                 <div style="font-size:12px;color:#6B6356;padding:8px 12px;background:#FAF6EC;border-radius:8px;margin-bottom:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">

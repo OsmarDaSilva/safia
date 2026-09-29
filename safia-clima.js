@@ -191,8 +191,24 @@
     };
   }
 
+  // Lluvia: los días que CHIRPS ya publicó reemplazan a la del modelo (SafiaLluvia; ver safia-lluvia.js por qué).
+  // No espera a CHIRPS: usa lo guardado y pide lo que falta en segundo plano. No toca el pronóstico.
+  function conLluviaChirps(r, opts) {
+    try {
+      var d = r && r.datos && r.datos.daily;
+      if (!d || !d.time || !d.precipitation_sum || !window.SafiaLluvia) return r;
+      var c = window.SafiaLluvia.corregirSerie(parseCoord(opts.lat), parseCoord(opts.lon), d.time, d.precipitation_sum);
+      if (!c.nChirps) return r;
+      var daily = {}; Object.keys(d).forEach(function (k) { daily[k] = d[k]; }); daily.precipitation_sum = c.lluvia;
+      var datos = {}; Object.keys(r.datos).forEach(function (k) { datos[k] = r.datos[k]; }); datos.daily = daily; datos.lluviaChirpsDias = c.nChirps;
+      var out = {}; Object.keys(r).forEach(function (k) { out[k] = r[k]; }); out.datos = datos;
+      return out;
+    } catch (e) { return r; }
+  }
+
   // ---- API pública -----------------------------------------------------
-  async function obtenerClima(opts) {
+  async function obtenerClima(opts) { return conLluviaChirps(await obtenerClimaModelo(opts), opts || {}); }
+  async function obtenerClimaModelo(opts) {
     opts = opts || {};
     var o = {
       lat: parseCoord(opts.lat),

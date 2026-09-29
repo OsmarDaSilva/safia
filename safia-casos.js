@@ -226,16 +226,21 @@
   function climaDelCiclo(lat, lon, desde, hasta, campoId) {
     if (!desde || !hasta) return Promise.resolve(null);
     // Estación meteorológica del campo (METOS/FieldClimate u otra): si cubre al menos el 90 % de los días del ciclo, manda sobre el estimado
-    if (campoId != null && window.SafiaSensores && SafiaSensores.cobertura(campoId, desde, hasta) >= 0.9) { var re = SafiaSensores.resumenCiclo(campoId, desde, hasta); if (re) return Promise.resolve(re); }
+    if (campoId != null && window.SafiaSensores && SafiaSensores.cobertura(campoId, desde, hasta) >= 0.9) { var re = SafiaSensores.resumenCiclo(campoId, desde, hasta); if (re) { re.lluviaFuente = 'estacion'; return Promise.resolve(re); } }
     if (lat == null || lon == null) return Promise.resolve(null);
     var url = 'https://archive-api.open-meteo.com/v1/archive'
       + '?latitude=' + lat + '&longitude=' + lon
       + '&start_date=' + desde + '&end_date=' + hasta
       + '&daily=temperature_2m_mean,temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,shortwave_radiation_sum'
       + '&timezone=auto';
-    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+    // lluvia: CHIRPS donde ya está publicado (se espera), Open-Meteo en los días recientes
+    var lluviaCh = window.SafiaLluvia ? SafiaLluvia.diaria(lat, lon, desde, hasta).catch(function () { return null; }) : Promise.resolve(null);
+    return Promise.all([fetch(url).then(function (r) { return r.json(); }), lluviaCh]).then(function (rs) {
+      var j = rs[0], lch = rs[1];
       var d = j && j.daily;
       if (!d || !d.time || !d.time.length) return null;
+      if (lch && lch.nChirps) { var porF = {}; lch.fechas.forEach(function (f, i) { porF[f] = lch.lluvia[i]; }); d.precipitation_sum = d.time.map(function (f, i) { return porF[f] != null ? porF[f] : d.precipitation_sum[i]; }); }
+      var lluviaFuente = lch && lch.nChirps ? (lch.nOpenMeteo ? 'chirps+open-meteo' : 'chirps') : 'open-meteo';
       var n = 0, sMed = 0, sMax = 0, sMin = 0, dias35 = 0, gdd = 0, et0 = 0, rad = 0, lluvia = 0, diasLluvia = 0;
       var maxAbs = null, minAbs = null;
       d.time.forEach(function (_, i) {
@@ -263,7 +268,7 @@
         tempMaxAbs: r1(maxAbs), tempMinAbs: r1(minAbs), diasMayor35: dias35,
         gradosDia: Math.round(gdd), et0Total: Math.round(et0), radiacionTotal: Math.round(rad),
         lluviaClima: r1(lluvia), diasLluviaClima: diasLluvia,
-        fuente: 'Open-Meteo', traidoEn: new Date().toISOString()
+        fuente: 'Open-Meteo', lluviaFuente: lluviaFuente, traidoEn: new Date().toISOString()
       };
     }).catch(function () { return null; });
   }

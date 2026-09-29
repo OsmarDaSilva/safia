@@ -15,7 +15,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="safia-theme.css">
   <!-- SheetJS para exportar a Excel real -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="safia-lluvia.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     /* Estilos mínimos específicos de esta página (resaltado de fila en edición) */
     tr.editando td { background: var(--amber-t); }
@@ -539,14 +540,11 @@
       boton.disabled = true;
       res.innerHTML = '<div class="note info">Consultando el clima día por día…</div>';
 
-      const url = 'https://archive-api.open-meteo.com/v1/archive'
-        + '?latitude=' + lat + '&longitude=' + lon
-        + '&start_date=' + desde + '&end_date=' + hasta
-        + '&daily=precipitation_sum&timezone=auto';
-
-      fetch(url).then(r => r.json()).then(j => {
-        const fechas = j && j.daily && j.daily.time;
-        const mm = j && j.daily && j.daily.precipitation_sum;
+      // Lluvia por día: CHIRPS (satélite + estaciones) donde ya está publicado, Open-Meteo en los días recientes (safia-lluvia.js)
+      res.innerHTML = '<div class="note info">Consultando la lluvia día por día (satélite CHIRPS, puede tardar unos segundos)…</div>';
+      SafiaLluvia.diaria(lat, lon, desde, hasta).then(s => {
+        const fechas = s && s.fechas;
+        const mm = s && s.lluvia;
         if (!fechas || !fechas.length) {
           res.innerHTML = '<div class="note warn">No hay datos de clima para ese período.</div>';
           return;
@@ -585,7 +583,7 @@
             cantidad: Math.round(v * 10) / 10,
             unidad: 'mm',
             cargadoPor: 'meteo',
-            observaciones: 'Estimado del servicio de clima',
+            observaciones: s.origen[i] === 'chirps' ? 'Estimado por satélite (CHIRPS)' : 'Estimado del servicio de clima (Open-Meteo)',
             fechaCreacion: new Date().toISOString()
           });
           nuevos++; total += v;

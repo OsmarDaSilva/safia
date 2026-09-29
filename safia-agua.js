@@ -93,7 +93,9 @@
     var faltan = diasEntre(desde, hasta) + 1 - est.filter(function (r) { return r.et0 != null; }).length;
     var meteo = (faltan > 0 && co) ? meteoDiario(co, desde, hasta) : Promise.resolve([]);
     return meteo.then(function (om) {
-      var porOm = {}; om.forEach(function (r) { porOm[r.fecha] = r; });
+      var porOm = {}, llCh = null; om.forEach(function (r) { porOm[r.fecha] = r; });
+      if (co && om.length && window.SafiaLluvia) llCh = SafiaLluvia.corregirSerie(co.lat, co.lon, om.map(function (r) { return r.fecha; }), om.map(function (r) { return r.lluvia; }));
+      if (llCh && llCh.nChirps) om.forEach(function (r, i) { if (r.fecha <= hoyISO()) porOm[r.fecha] = { fecha: r.fecha, et0: r.et0, lluvia: llCh.lluvia[i], tmedia: r.tmedia }; });
       var evs = B().leer('eventos').filter(function (e) { return String(e.equipoId) === String(lote.id) && (e.tipo === 'lluvia' || e.tipo === 'riego') && e.fecha; });
       var llEv = {}, riEv = {}, hayLluviaEv = false;
       evs.forEach(function (e) { var f = String(e.fecha).slice(0, 10); if (f < desde || f > sumarDias(hasta, 7)) return; var mm = num(e.cantidad) || 0; if (e.tipo === 'lluvia') { llEv[f] = (llEv[f] || 0) + mm; hayLluviaEv = true; } else riEv[f] = (riEv[f] || 0) + mm; });
@@ -105,6 +107,7 @@
         if (e && e.et0 != null) fuentes.estacion++; else if (o && o.et0 != null) { if (f > hoy) fuentes.pronostico++; else fuentes.openMeteo++; }
         filas.push({ fecha: f, et0: et0, lluvia: lluvia, riego: riEv[f] || 0, tmedia: e && e.tmedia != null ? e.tmedia : (o ? o.tmedia : null), pronostico: f > hoy });
       }
+      fuentes.lluviaChirps = llCh ? llCh.nChirps : 0;
       return { filas: filas, fuentes: fuentes, lluviaDeEventos: hayLluviaEv };
     });
   }
