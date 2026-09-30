@@ -20,19 +20,19 @@
     var AMA = '#FFCA1A';
     var W = 640, H = 210, x0 = 44, x1 = 620, yv = function (p) { return 18 + (100 - p) / 100 * 150; };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="mr-svg" role="img" aria-label="Cómo baja el agua del suelo y cuándo arrancar el pivot">';
-    [[0, 45, COL.estres], [45, 70, AMA], [70, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
-    [[100, 'capacidad de campo (lleno)', COL.exceso], [70, 'arrancar el pivot', COL.bajo], [45, 'estrés: se pierde rinde', COL.estres]].forEach(function (l) {
+    [[0, 50, COL.estres], [50, 75, AMA], [75, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
+    [[100, 'capacidad de campo (lleno)', COL.exceso], [75, 'arrancar el pivot', COL.bajo], [50, 'estrés: se pierde rinde', COL.estres]].forEach(function (l) {
       s += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + yv(l[0]) + '" y2="' + yv(l[0]) + '" stroke="' + l[2] + '" stroke-dasharray="5 4"/><text x="' + (x0 + 6) + '" y="' + (yv(l[0]) - 4) + '" font-size="11" fill="' + l[2] + '">' + l[1] + ' · ' + l[0] + ' %</text>';
     });
     // curva: sin riego (punteada) y con el pivot prendido a tiempo (sólida)
-    var dias = 9, xd = function (d) { return x0 + 20 + d / dias * (x1 - x0 - 40); }, sin = [96, 90, 83, 77, 70, 64, 57, 50, 43, 37], con = [96, 90, 83, 77, 70, 71, 73, 78, 84, 90];
+    var dias = 9, xd = function (d) { return x0 + 20 + d / dias * (x1 - x0 - 40); }, sin = [95, 90, 85, 80, 75, 70, 65, 60, 55, 50], con = [95, 90, 85, 80, 75, 76, 78, 82, 87, 92];
     s += '<path d="M' + sin.map(function (p, d) { return xd(d).toFixed(0) + ' ' + yv(p).toFixed(0); }).join(' L') + '" fill="none" stroke="' + COL.estres + '" stroke-width="2" stroke-dasharray="5 4"/>';
     s += '<path d="M' + con.map(function (p, d) { return xd(d).toFixed(0) + ' ' + yv(p).toFixed(0); }).join(' L') + '" fill="none" stroke="' + COL.exceso + '" stroke-width="2.6"/>';
-    s += '<circle cx="' + xd(4) + '" cy="' + yv(70) + '" r="5" fill="#fff" stroke="#2E3236" stroke-width="2"/><text x="' + xd(4) + '" y="' + (yv(70) + 22) + '" font-size="11" text-anchor="middle" fill="#2E3236" font-weight="700">se prende el pivot</text>';
+    s += '<circle cx="' + xd(4) + '" cy="' + yv(75) + '" r="5" fill="#fff" stroke="#2E3236" stroke-width="2"/><text x="' + xd(4) + '" y="' + (yv(75) + 22) + '" font-size="11" text-anchor="middle" fill="#2E3236" font-weight="700">se prende el pivot</text>';
     s += '<line x1="' + xd(4) + '" x2="' + xd(8.6) + '" y1="' + (H - 18) + '" y2="' + (H - 18) + '" stroke="#2E3236" stroke-width="1.4" marker-end="url(#mrF)"/><text x="' + ((xd(4) + xd(8.6)) / 2) + '" y="' + (H - 24) + '" font-size="11" text-anchor="middle" fill="#2E3236">la vuelta del pivot tarda ~4,6 días</text>';
-    s += '<text x="' + xd(7.4) + '" y="' + yv(27) + '" font-size="11" text-anchor="middle" fill="' + COL.estres + '">sin riego, entra en estrés el día 8</text>';   // debajo de la curva, para que no la pise
+    s += '<text x="' + xd(7.4) + '" y="' + yv(27) + '" font-size="11" text-anchor="middle" fill="' + COL.estres + '">sin riego, llega al estrés el día 9</text>';   // debajo de la curva, para que no la pise
     s += '<defs><marker id="mrF" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2E3236"/></marker></defs></svg>';
-    return s + '<div class="mr-pie">Ejemplo: soja en desarrollo. Línea azul: el primer sector que moja el pivot; el último sector sigue bajando hasta que le llega el agua, pero con el pivot prendido a tiempo (al 70 %) no alcanza el estrés. Línea roja punteada: si se espera, el último sector del círculo entra en estrés antes de que le llegue el agua.</div>';
+    return s + '<div class="mr-pie">Ejemplo: soja en desarrollo. Línea azul: el primer sector que moja el pivot. Línea roja punteada: el último sector del círculo, que sigue bajando hasta que le llega el agua; con el pivot prendido al 75 % la recibe justo antes del estrés. Si se espera un día más, entra en estrés antes de que le llegue el agua.</div>';
   }
 
   var RUTINA = {
@@ -63,7 +63,7 @@
       '<tr><td>' + chip(COL.estres, 'Estrés') + '</td><td>La planta cierra estomas y se pierde rinde (más en floración y llenado).</td><td><b>Regar ya.</b></td></tr>' +
       '</tbody></table>';
     h += '<h3>3. Por qué el pivot se prende antes del estrés</h3><p>Un pivot no moja todo el lote a la vez: tarda días en dar la vuelta. SAFIA calcula para cada pivot <b>cuánto va a consumir el cultivo mientras el pivot da la vuelta</b> y lo suma al punto de estrés. Así sale la raya <b>"arrancar el pivot"</b>. Es la misma idea de FieldNET Advisor: <i>arrancar = cuándo vence − lo que tarda la vuelta</i>.</p>' + dibujo() +
-      '<p class="mr-nota">La idea es <b>mantener el agua en el verde</b>: el pivot se prende apenas el suelo baja del <b>70 %</b> (nunca más abajo), así cuando termina la vuelta el último sector sigue alrededor del 60–65 %, lejos del estrés. El estrés (rojo) nunca se pone por debajo del 45 %. Con mucho consumo y vueltas largas la raya de arranque sube sola (~75 %), y en pico aparece "mantener el pivot girando".</p>' +
+      '<p class="mr-nota">La idea es <b>mantener el agua en el verde</b>: el pivot se prende apenas el suelo baja del <b>75 %</b> (nunca más abajo), así el agua le llega al último sector antes de que entre en estrés. El estrés (rojo) empieza en el <b>50 %</b>: desde la floración la soja no debe gastar más de la mitad del agua útil (SDSU Extension). Con mucho consumo y vueltas largas la raya de arranque sube sola por encima del 75 %, y en pico aparece "mantener el pivot girando".</p>' +
       '<p class="mr-nota">La raya de arranque se mueve sola: sube cuando hace calor y el cultivo consume mucho, y sube si el pivot es lento. La lluvia del pronóstico no baja la raya (por si no llega): corre la fecha de arranque para más adelante y, si es mucha, aparece "No regar: viene lluvia".</p>';
     h += '<h3>4. De dónde sale el cálculo</h3><div class="mr-g">' +
       '<div><b>Clima</b>La lluvia entra sola, sin cargar nada: primero la <b>estación del campo</b> si hay, después el <b>pluviómetro cargado</b> y, si no hay ninguno, el <b>satélite (CHIRPS)</b>. Evaporación del día (Penman-Monteith FAO-56) y pronóstico de 16 días.</div>' +
@@ -77,7 +77,7 @@
       '<tr><td><b>Sin riego entra en estrés el (día)</b></td><td>La fecha límite si nadie riega (como el "vence el" de FieldNET).</td></tr>' +
       '<tr><td><b>Mantener el pivot girando</b></td><td>El cultivo consume más de lo que el pivot puede poner por día: no pararlo.</td></tr>' +
       '<tr><td><b>Regar ya: el cultivo está en estrés</b></td><td>Ya se está perdiendo rinde. Regar aunque se anuncie lluvia.</td></tr>' +
-      '<tr><td><b>Lote de secano</b></td><td>No se riega: SAFIA sigue la lluvia y avisa el estrés (por debajo del 45 %). El balance completo está en el Banco → Agua.</td></tr>' +
+      '<tr><td><b>Lote de secano</b></td><td>No se riega: SAFIA sigue la lluvia y avisa el estrés (por debajo del 50 %). El balance completo está en el Banco → Agua.</td></tr>' +
       '</tbody></table>';
     h += '<h3>6. Qué te toca a vos (' + (rol === 'encargado' ? 'Encargado' : rol === 'propietario' ? 'Propietario' : 'Operador') + ')</h3><ol class="mr-ol">' + (RUTINA[rol] || RUTINA.operador).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>';
     h += '<h3>7. Lo que hay que saber</h3><ul class="mr-ol"><li>Es un <b>cálculo</b>, no una medición: una sonda de humedad lo reemplaza cuando existe.</li><li>El <b>riego</b> que no se carga no existe para SAFIA: sin riegos cargados el suelo aparece más seco de lo real. La lluvia entra sola por el satélite, pero el pluviómetro del campo es más preciso.</li><li>La decisión final es del productor y del agrónomo; SAFIA avisa a tiempo y muestra el porqué.</li></ul>';

@@ -174,7 +174,7 @@
         // Punto de arranque del pivot (mismo cálculo que Operación: SafiaBalance.arranquePivot): antes del estrés, según lo que tarda la vuelta
         var ef = res.eficiencia == null ? 1 : res.eficiencia, capB = ef > 0 && SB().capacidadBruta ? SB().capacidadBruta(lote) : null;
         var etcs = res.dias.map(function (x) { return x.etc; }), lls = res.dias.map(function (x) { return x.pronostico ? x.lluvia : 0; });
-        // mismos umbrales de manejo que Operación (SafiaBalance.umbralManejo: estrés ≥ 45 %, arranque ≥ estrés + 15)
+        // mismos umbrales de manejo que Operación (SafiaBalance.umbralManejo: estrés ≥ 50 %, arranque ≥ 75 % y ≥ estrés + 15)
         var arrEn = function (x, i) {
           if (!(ef > 0) || !SB().arranquePivot) return { dr: x.raw, drEstres: x.raw, dias: null };
           var a = SB().arranquePivot(x.raw, ef, capB, etcs, [], i), m = SB().umbralManejo ? SB().umbralManejo(x.taw, x.taw > 0 ? x.raw / x.taw : 0.5, a.gasto) : null;

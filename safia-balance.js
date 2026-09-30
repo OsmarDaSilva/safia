@@ -119,7 +119,7 @@
   function claveCultivo(c) { var n = normNombre(c); if (/pastura|pasto\b|brachiaria|braquiaria|mombaca|tifton|alfalfa|panicum|cynodon|forraj/.test(n)) return 'pastura'; if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
 
   // Umbrales por defecto (soja): % del agua disponible que queda. Cada simulación devuelve los suyos según el cultivo (r.umbrales).
-  var UMBRALES = { URGENTE: 35, CRITICO: 50, ATENCION: 70 };
+  var UMBRALES = { URGENTE: 50, CRITICO: 75, ATENCION: 85 };   // respaldo si una simulación no trae los suyos: estrés 50 %, arrancar el pivot 75 %
   function umbralesDe(cu) { var c = Math.round(100 * (1 - (P_TABLA[cu] || 0.5))); return { CRITICO: c, ATENCION: c + 20, URGENTE: c - 15 }; }
 
   /* ---------- Punto de arranque del pivot (margen de seguridad) ----------
@@ -252,13 +252,16 @@
     return Math.max(0, s);
   }
   // Umbrales de MANEJO del riego (decisión de Osmar, 29-sep-2026, comparando con FieldNET Advisor: amarillo 58→45 %):
-  //  - estrés para decidir el riego: nunca por debajo del 45 % de agua útil (agotamiento máx. 55 %). La FAO deja gastar
+  //  - estrés para decidir el riego: nunca por debajo del 50 % de agua útil (agotamiento máx. 50 %; hasta el 30-sep era 45 %). La FAO deja gastar
   //    más cuando el consumo es bajo (p = p_tabla + 0,04·(5 − ETc)); para regar se usa el límite más prudente.
   //    La física del cultivo (Ks y pérdida de rinde FAO-33) sigue con el p de la FAO: esto cambia el manejo, no el cálculo del rinde.
-  //  - arranque del pivot (Osmar, 29-sep: "mantener el agua en el verde"): nunca por debajo del 70 % de agua útil; si el
-  //    consumo durante la vuelta lo pide, más arriba (estrés + consumo de la vuelta; ~75 % con consumo medio, 100 % en pico
-  //    = mantener girando). Así el pivot se prende al salir del verde y el último sector no baja de ~60–65 % en la vuelta.
-  var P_MAX_MANEJO = 0.55, ARRANQUE_MIN_PCT = 70, BANDA_MIN_ARRANQUE = 15;
+  //  - arranque del pivot (Osmar: "mantener el agua en el verde"): nunca por debajo del 75 % de agua útil (70 % hasta el 30-sep); si el
+  //    consumo durante la vuelta lo pide, más arriba (estrés + consumo de la vuelta; 100 % en pico = mantener girando).
+  //    Así el pivot se prende al salir del verde y el último sector queda por encima del 60 % en la vuelta.
+  // 30-sep-2026 (Osmar, tras verificar la fuente): estrés desde el 50 % de agua útil y arranque del pivot desde el 75 %.
+  //   SDSU Extension (Hay, Kjaersgaard y Trooien 2013, cap. 49 de iGrow Soybeans): el agotamiento no debe pasar del 50 %
+  //   después de que empieza la floración. Antes (29-sep) eran 45 % y 70 %.
+  var P_MAX_MANEJO = 0.50, ARRANQUE_MIN_PCT = 75, BANDA_MIN_ARRANQUE = 15;
   function umbralManejo(taw, p, gasto) {
     var estres = Math.max(Math.round((1 - P_MAX_MANEJO) * 100), Math.round((1 - p) * 100));
     var minArr = Math.min(100, Math.max(ARRANQUE_MIN_PCT, estres + BANDA_MIN_ARRANQUE));

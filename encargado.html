@@ -748,7 +748,7 @@
 
           // Semáforo según humedad del suelo (% agua útil HOY) + lluvia próxima.
           // Unificado con el motor: antes usaba un balance neto bruto de 7 días.
-          const U = balance.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
+          const U = balance.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 50 %, arranque del pivot ≥ 75 %)
           const pct = balance.pct;
           const mmRegar = (balance.mmRegar || 0).toFixed(0);
           // Pivot (como FieldNET): arrancar antes del estrés según lo que tarda la vuelta del equipo
@@ -759,7 +759,7 @@
             datos.semaforo = 'azul';
             datos.textoSemaforo = '🌧️ Lluvia esperada';
             datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en los próximos días. No regar.${extraPv}`;
-          } else if (enEstres || pct < (U.URGENTE || 35)) {
+          } else if (enEstres || pct < (U.URGENTE || 50)) {
             datos.semaforo = 'rojo';
             datos.textoSemaforo = '🔴 En estrés';
             datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil, debajo del punto de estrés (${U.URGENTE} %). Regar <strong>${mmRegar} mm</strong> ya — equipo al <strong>${Math.round(balance.eficiencia*100)}% eficiencia</strong>.${extraPv}`;
@@ -1032,7 +1032,7 @@
       const r = d.balance && d.balance.r; if (!r || r.porcentajeHoy == null) return '<span class="tl-muted">—</span>';
       const U = r.umbrales || {}; const pct = Math.round(r.porcentajeHoy);
       // franjas con los nombres de FieldNET: Estrés, Bajo (arrancar el pivot), Óptimo, Alto
-      const banda = pct < (U.URGENTE || 35) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 50) ? ['bajo · arrancar pivot', '#C58F00'] : pct < Math.max(U.CRITICO || 50, 90) ? ['óptimo', '#178029'] : ['alto', '#2BA9D6'];
+      const banda = pct < (U.URGENTE || 50) ? ['estrés', '#C0392B'] : pct < (U.CRITICO || 75) ? ['bajo · arrancar pivot', '#C58F00'] : pct < Math.max(U.CRITICO || 75, 90) ? ['óptimo', '#178029'] : ['alto', '#2BA9D6'];
       return '<div class="tl-agua"><b style="color:' + banda[1] + ';">' + pct + ' %</b><div class="tl-sub">' + banda[0] + ' · ' + Math.round(r.aguaDisponibleHoy) + ' de ' + Math.round(r.tawHoy) + ' mm</div></div>';
     }
     function celdaRiego(d) {

@@ -855,7 +855,7 @@
 
       // Recomendación basada en la humedad del suelo de HOY (% de agua útil),
       // unificada con el resto de las páginas vía el motor compartido.
-      const U = rBal.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
+      const U = rBal.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 50 %, arranque del pivot ≥ 75 %)
       const pct = rBal.porcentajeHoy;
       const mmRegar = (rBal.recomendacion.mm || 0);
 

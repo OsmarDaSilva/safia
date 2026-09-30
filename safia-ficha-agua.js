@@ -35,7 +35,7 @@
   // Umbrales del cultivo (el motor los trae; si falta alguno, los generales)
   function umbrales(r) {
     var U = r.umbrales || (window.SafiaBalance && SafiaBalance.UMBRALES) || {};
-    var critico = num(U.CRITICO) != null ? U.CRITICO : 50, urgente = num(U.URGENTE) != null ? U.URGENTE : Math.max(0, critico - 15), atencion = num(U.ATENCION) != null ? U.ATENCION : Math.min(100, critico + 20);
+    var critico = num(U.CRITICO) != null ? U.CRITICO : 75, urgente = num(U.URGENTE) != null ? U.URGENTE : Math.max(0, critico - 25), atencion = num(U.ATENCION) != null ? U.ATENCION : Math.min(100, critico + 20);
     return { URGENTE: urgente, CRITICO: critico, ATENCION: atencion };
   }
   // Franjas con los mismos nombres que FieldNET NextGen: Estrés, Bajo (arrancar el pivot), Óptimo, Alto, Exceso (drena)

@@ -797,14 +797,14 @@
         diasFuturo: 5,
         asumirRiegoRecomendado: false
       });
-      const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
+      const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 50 %, arranque del pivot ≥ 75 %)
       const pct = r.porcentajeHoy;
       const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 
       let badge, tipo;
       const enEstres = !!(r.recomendacion && r.recomendacion.enEstres);
       if (lluviaProxima >= 15 && !enEstres)  { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
-      else if (enEstres || pct < (U.URGENTE || 35)) { badge = '<span class="badge badge-rojo">🔴 En estrés</span>';  tipo = 'urgente'; }
+      else if (enEstres || pct < (U.URGENTE || 50)) { badge = '<span class="badge badge-rojo">🔴 En estrés</span>';  tipo = 'urgente'; }
       else if (pct < U.CRITICO) { badge = '<span class="badge badge-amarillo">🟡 Arrancar pivot</span>'; tipo = 'atencion'; }
       else                      { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }
 
