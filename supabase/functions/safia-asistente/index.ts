@@ -1,6 +1,6 @@
 // SAFIA · Edge Function: safia-asistente (v8: la misma pregunta, como máximo 2 veces por día para operador, encargado y dueño;
 //   v7: lluvia automática, estrés 50 % / arranque 75 %, secano, agua de riego, rotación y quién carga qué según el rol;
-//   v6: no gasta IA si el usuario no tiene ningún pivot con suscripción vigente
+//   v6: no gasta IA si el usuario no tiene ningún pivot con suscripción vigente)
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
 // Arquitectura: esta función solo habla con Claude (la llave vive acá, como secreto). Las HERRAMIENTAS se ejecutan en el
 // navegador del usuario (safia-asistente.js), sobre los datos que ese usuario ya puede ver con su rol: un cliente ve lo
