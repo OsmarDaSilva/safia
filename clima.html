@@ -596,7 +596,7 @@
       //    comportamiento genérico (ETo de referencia, sin eventos).
       let equipoBal = contexto.equipo || null;
       let kcDefBal = (mostrarPro && contexto.kcDef) ? contexto.kcDef : null;
-      let fechaSiembraBal = (mostrarPro && contexto.cultivo) ? contexto.cultivo.fechaSiembra : null;
+      let fechaSiembraBal = (mostrarPro && contexto.cultivo) ? contexto.cultivo.fechaSiembra : null, fechaCosechaBal = (mostrarPro && contexto.cultivo) ? contexto.cultivo.fechaCosecha : null;
       if (!equipoBal && campo) {
         const _equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
         const _campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
@@ -606,7 +606,7 @@
         if (_campActiva) {
           equipoBal = _eqCampo.find(e => e.id === _campActiva.equipoId) || null;
           kcDefBal = obtenerCultivoKc(_campActiva.cultivos[0].cultivo);
-          fechaSiembraBal = _campActiva.cultivos[0].fechaSiembra;
+          fechaSiembraBal = _campActiva.cultivos[0].fechaSiembra; fechaCosechaBal = _campActiva.cultivos[0].fechaCosecha;
         }
       }
       const usaETc = !!kcDefBal;
@@ -620,6 +620,7 @@
         equipo: equipoBal,
         kcDef: kcDefBal,
         fechaSiembra: fechaSiembraBal,
+        fechaCosecha: fechaCosechaBal,
         diasFuturo: 7,
         asumirRiegoRecomendado: false
       });

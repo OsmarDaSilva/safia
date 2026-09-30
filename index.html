@@ -566,7 +566,7 @@
     // ===== Estado de riego de un lote con el motor único =====
     function evaluarLote(ctx, datosClima) {
       const eventos = leer('eventos').filter(e => String(e.equipoId) === String(ctx.equipo.id));
-      const r = SafiaBalance.simular({ campo: ctx.campo, daily: datosClima.daily, eventos, equipoId: null, equipo: ctx.equipo, kcDef: ctx.kcDef, fechaSiembra: ctx.cultivo.fechaSiembra, diasFuturo: 7, asumirRiegoRecomendado: false });
+      const r = SafiaBalance.simular({ campo: ctx.campo, daily: datosClima.daily, eventos, equipoId: null, equipo: ctx.equipo, kcDef: ctx.kcDef, fechaSiembra: ctx.cultivo.fechaSiembra, fechaCosecha: ctx.cultivo.fechaCosecha, diasFuturo: 7, asumirRiegoRecomendado: false });
       const U = r.umbrales || UMBRALES, pct = r.porcentajeHoy, lluviaProx = r.dias.slice(0, 5).reduce((s, d) => s + d.lluviaBruta, 0);   // 5 días, igual que las demás pantallas
       let tipo, titulo, detalle;
       if (ctx.secano) { tipo = 'secano'; titulo = 'Secano'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · sin riego`; }

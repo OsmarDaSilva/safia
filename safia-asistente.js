@@ -329,7 +329,7 @@
           if (sec && !cu) return Object.assign(base, { recomendacion: 'Lote de secano sin campaña activa: no hay cultivo para calcular el balance.' });
           if (!cu) return Object.assign(base, { recomendacion: 'Sin campaña activa en este lote: no hay cultivo para calcular el balance.' });
           var kcDef = B.obtenerCultivoKc(cu.cultivo);
-          var r = B.simular({ campo: c, daily: d, eventos: evs, equipoId: e.id, equipo: e, kcDef: kcDef, fechaSiembra: cu.fechaSiembra, diasFuturo: 5, asumirRiegoRecomendado: false });
+          var r = B.simular({ campo: c, daily: d, eventos: evs, equipoId: e.id, equipo: e, kcDef: kcDef, fechaSiembra: cu.fechaSiembra, fechaCosecha: cu.fechaCosecha, diasFuturo: 5, asumirRiegoRecomendado: false });
           var U = r.umbrales || B.UMBRALES, p = FA ? FA.proximoRiego(r, e) : { titulo: r.recomendacion.regar ? 'Regar hoy: ' + r.recomendacion.mm + ' mm' : 'Sin riego hoy', detalle: '' };
           var tp = r.totalesPasado || {}, ult7 = (r.pasado || []).slice(-7);
           return Object.assign(base, {

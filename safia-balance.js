@@ -472,6 +472,18 @@
     var eficiencia = (typeof opts.eficiencia === 'number') ? opts.eficiencia : getEficienciaEquipo(opts.equipo);
     var kcDef = opts.kcDef || null, perenne = !!(kcDef && kcDef.tipo === 'perenne');
     var siembra = (!perenne && opts.fechaSiembra) ? claveDia(opts.fechaSiembra) : null;
+    // Ciclo real del material: si la campaña tiene fecha de fin de ciclo (la publica el obtentor o la estimó SafiaCiclo), las cuatro
+    // etapas FAO-56 se estiran o acortan en proporción (FAO-56, cap. 6: las duraciones de la tabla 11 se ajustan a la variedad y al lugar).
+    // Solo si el ciclo es razonable (60–220 días) y no se aparta más de un 35 % del de la tabla, para no seguir una fecha mal cargada.
+    var cicloAjustado = null;
+    if (kcDef && !perenne && siembra && opts.fechaCosecha) {
+      var cicloReal = diasEntre(siembra, claveDia(opts.fechaCosecha)), finTabla = kcYEtapa(kcDef, 0).fin;
+      if (cicloReal >= 60 && cicloReal <= 220 && finTabla > 0 && Math.abs(cicloReal / finTabla - 1) <= 0.35) {
+        var fe = cicloReal / finTabla;
+        kcDef = Object.assign({}, kcDef, { L_ini: Math.round((+kcDef.L_ini || 20) * fe), L_des: Math.round((+kcDef.L_des || 30) * fe), L_med: Math.round((+kcDef.L_med || 60) * fe), L_fin: Math.round((+kcDef.L_fin || 25) * fe) });
+        cicloAjustado = { dias: cicloReal, tabla: finTabla };
+      }
+    }
     var cu = claveCultivo(kcDef ? kcDef.nombre : opts.cultivo);
     var conCultivo = perenne || (kcDef && siembra);
     var diasFuturo = (opts.diasFuturo != null) ? opts.diasFuturo : 7;
@@ -627,6 +639,7 @@
     var sueloOut = Object.assign({}, suelo, { CC: Math.round(suelo.cc / 100 * prmHoy.zr * 1000), PMP: Math.round(pmpHoy), AAU: Math.round(tawHoy), zr: prmHoy.zr, coefLluvia: 1 });
     return {
       suelo: sueloOut, eficiencia: eficiencia, indiceHoy: indiceHoy, cultivo: cu, desdeSiembra: !!desdeSiembra, diasSimulados: indiceHoy - inicio,
+      cicloAjustado: cicloAjustado,   // { dias, tabla } si las etapas FAO se ajustaron al fin de ciclo de la campaña
       umbrales: umbr, umbralCriticoPct: umbr.CRITICO, umbralAtencionPct: umbr.ATENCION,
       humedadHoyMM: pmpHoy + aguaHoy, aguaDisponibleHoy: aguaHoy, porcentajeHoy: pctHoy, deficitHastaCC: drHoy, tawHoy: tawHoy, rawHoy: prmHoy.raw, ksHoy: ksHoy,
       etapaHoy: { k: prmHoy.etapa, nombre: prmHoy.nombreEtapa, dds: prmHoy.dds, ky: prmHoy.ky, kc: prmHoy.kc, zr: prmHoy.zr, critica: prmHoy.etapa === 'flor' || prmHoy.etapa === 'llen' },
