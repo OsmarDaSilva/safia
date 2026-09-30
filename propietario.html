@@ -833,6 +833,8 @@
     const div = document.getElementById('listaAlertas');
 
     // Alertas de mantenimiento
+    // Irrigar va al plan en Equipos; el dueño y el gerente, al Operador de ese equipo (donde se registra lo hecho)
+    const hrefMant = (eq) => (window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin()) ? 'mis-equipos.html' : 'operador.html?equipo=' + eq.id;
     const alertasMant = [];
     const eqs = equipos || JSON.parse(localStorage.getItem('equipos')||'[]');
     eqs.forEach(eq => {
@@ -842,8 +844,8 @@
       plan.forEach(t => {
         const desde = horas - (parseFloat(t.ultimasHorasHechas) || 0);
         const pct = (desde / t.intervalo) * 100;
-        if (pct >= 100) alertasMant.push({ titulo: `🔧 ${eq.nombre} — ${t.tarea}`, detalle: `Mantenimiento vencido · ${Math.round(pct)}% del intervalo`, link: 'mis-equipos.html' });
-        else if (pct >= 80) alertasMant.push({ titulo: `🟡 ${eq.nombre} — ${t.tarea}`, detalle: `Próximo a vencer · ${Math.round(pct)}%`, link: 'mis-equipos.html', amarilla: true });
+        if (pct >= 100) alertasMant.push({ titulo: `🔧 ${eq.nombre} — ${t.tarea}`, detalle: `Mantenimiento vencido · ${Math.round(pct)}% del intervalo`, link: hrefMant(eq) });
+        else if (pct >= 80) alertasMant.push({ titulo: `🟡 ${eq.nombre} — ${t.tarea}`, detalle: `Próximo a vencer · ${Math.round(pct)}%`, link: hrefMant(eq), amarilla: true });
       });
     });
 

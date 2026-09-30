@@ -31,10 +31,13 @@
   /* ---------- menú y permisos por rol ---------- */
   var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'informe-evaluacion.html', 'backup.html', 'precios.html', 'suscripciones.html', 'conexiones.html'];
   var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html', 'mis-campanas.html'];   // Campañas desde el 30-sep-2026 (la base deja cargar y cambiar, no borrar)
+  var PAGINAS_ESTRUCTURA = ['mis-equipos.html'];   // pivots y lotes: solo Irrigar (30-sep-2026; la base tampoco deja a nadie más)
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
-    if (rol === 'operador' || rol === 'encargado') return PAGINAS_OPERADOR.indexOf(pag) < 0;   // el encargado ve lo mismo que el operador
-    if (rol === 'cliente') return PAGINAS_IRRIGAR.indexOf(pag) >= 0;
+    if (rol === 'operador') return PAGINAS_OPERADOR.indexOf(pag) < 0;
+    // dueño (cliente) y gerente (encargado) operan todo menos lo de Irrigar; los pivots y lotes los carga Irrigar
+    if (rol === 'cliente') return PAGINAS_IRRIGAR.indexOf(pag) >= 0 || PAGINAS_ESTRUCTURA.indexOf(pag) >= 0;
+    if (rol === 'encargado') return PAGINAS_IRRIGAR.indexOf(pag) >= 0 || PAGINAS_ESTRUCTURA.indexOf(pag) >= 0 || pag === 'mis-campos.html';   // las estancias se las asigna Irrigar
     return false;
   }
   function aplicarRol(u, confirmado) {
@@ -42,21 +45,26 @@
     var rol = u.rol, pag = paginaActual();
     // Redirigir solo con el usuario confirmado por la nube (el guardado en el navegador puede estar viejo)
     if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : rol === 'encargado' ? 'encargado.html' : 'index.html'); return; }
-    var ocultarFuera = function (raiz, sel) {
+    // el gerente sigue entrando por su pantalla de Encargado (el Dashboard le queda en el menú)
+    if (confirmado && rol === 'encargado' && pag === 'index.html' && /login(\.html)?(\?|#|$)/i.test(document.referrer || '')) { location.replace('encargado.html'); return; }
+    // Enlaces a pantallas que el rol no abre: los del menú y los que son un botón ("Cargar →") se esconden;
+    // los que están dentro de una frase quedan como texto, sin enlace, para que la frase se siga leyendo.
+    var ocultarFuera = function (raiz) {
       if (!raiz || !raiz.querySelectorAll) return;
-      raiz.querySelectorAll(sel).forEach(function (a) {
+      raiz.querySelectorAll('a[href]').forEach(function (a) {
         var h = (a.getAttribute('href') || '').split(/[?#]/)[0].toLowerCase();
-        if (!/\.html$/.test(h)) return;
-        if (fueraDeRol(rol, h)) a.style.display = 'none';
+        if (!/\.html$/.test(h) || !fueraDeRol(rol, h)) return;
+        var boton = (a.closest && a.closest('aside, nav, .sidebar')) || /→/.test(a.textContent || '') || /(^|\s)(btn|card-link|estado-chip|alerta-link|sidebar-link)(\s|$)/.test(a.className || '');
+        if (boton) { a.style.display = 'none'; return; }
+        a.removeAttribute('href'); a.style.color = 'inherit'; a.style.textDecoration = 'none'; a.style.cursor = 'text';
       });
     };
-    var soloCarga = rol === 'operador' || rol === 'encargado';
     var aplicar = function () {
-      ocultarFuera(document, soloCarga ? 'a[href]' : 'aside a[href], nav a[href], .sidebar a[href]');
-      // operador y encargado: también los enlaces del cuerpo de la página que se dibujan después (listas, avisos)
-      if (soloCarga && window.MutationObserver && document.body && !aplicarRol.observando) {
+      ocultarFuera(document);
+      // también los enlaces del cuerpo de la página que se dibujan después (listas, avisos)
+      if (window.MutationObserver && document.body && !aplicarRol.observando) {
         aplicarRol.observando = true;
-        new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) ocultarFuera(n.parentNode || n, 'a[href]'); }); }); }).observe(document.body, { childList: true, subtree: true });
+        new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) ocultarFuera(n.parentNode || n); }); }); }).observe(document.body, { childList: true, subtree: true });
       }
       // grupos del menú que quedaron sin enlaces visibles
       document.querySelectorAll('.sidebar-grupo, .nav-title, .grupo').forEach(function (g) {
@@ -70,7 +78,7 @@
       document.querySelectorAll('nav.nav').forEach(function (nv) { if (!nv.querySelector('a[href]:not([style*="display: none"])')) nv.style.display = 'none'; });
       // cliente: su propio cliente queda elegido en los selectores de cliente
       // (las pantallas llenan los selectores un rato después de cargar: se reintenta unas veces)
-      if (rol === 'cliente' && u.clienteId) {
+      if ((rol === 'cliente' || rol === 'encargado') && u.clienteId) {
         var fijar = function () {
           var falta = false;
           ['cliente', 'filtroCliente', 'selCliente', 'propietarioCliente', 'fCliente', 'cliente_id'].forEach(function (id) {

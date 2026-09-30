@@ -2649,11 +2649,11 @@
       }
     }
 
-    // Operador y encargado cargan y corrigen campañas, pero no las borran (lo hace el dueño del campo o Irrigar)
-    function soloCarga() { const u = window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario(); return !!u && (u.rol === 'operador' || u.rol === 'encargado'); }
+    // El operador carga y corrige campañas, pero no las borra (lo hacen el dueño, el gerente del campo o Irrigar)
+    function soloCarga() { const u = window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario(); return !!u && u.rol === 'operador'; }
 
     function borrarCampana(id) {
-      if (soloCarga()) { mostrarToast('Solo el dueño del campo o Irrigar puede borrar una campaña.', true); return; }
+      if (soloCarga()) { mostrarToast('Solo el dueño, el gerente del campo o Irrigar puede borrar una campaña.', true); return; }
       if (!confirm('¿Seguro que querés borrar esta campaña? Se perderán los datos de los cultivos.')) {
         return;
       }

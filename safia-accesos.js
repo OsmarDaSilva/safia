@@ -15,7 +15,7 @@
   function opcionesClientes(sel) { return '<option value="">— Ninguno (Irrigar) —</option>' + leer('clientes').slice().sort(function (a, b) { return String(a.nombre).localeCompare(String(b.nombre)); }).map(function (c) { return '<option value="' + esc(c.id) + '"' + (String(sel || '') === String(c.id) ? ' selected' : '') + '>' + esc(c.nombre) + '</option>'; }).join(''); }
   function nombreCliente(id) { var c = leer('clientes').find(function (x) { return String(x.id) === String(id); }); return c ? c.nombre : ''; }
   var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
-  var OPCIONES_ROL = '<option value="cliente">Cliente (productor, dueño de sus campos)</option><option value="encargado">Encargado (supervisa una o varias estancias)</option><option value="operador">Operador (regante de una estancia)</option>';
+  var OPCIONES_ROL = '<option value="cliente">Cliente (productor, dueño de sus campos)</option><option value="encargado">Encargado (gerente: opera todo en sus estancias)</option><option value="operador">Operador (regante: riego, eventos y campañas)</option>';
   // Estancias del cliente elegido, con casillas: el operador o encargado ve solo las marcadas (ninguna marcada = todas)
   function pintarCampos(marcados) {
     var wrap = $('accCamposWrap'), cont = $('accCampos'); if (!wrap || !cont) return;

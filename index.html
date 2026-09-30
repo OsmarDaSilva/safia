@@ -802,6 +802,8 @@
       return `<div class="card"><div class="card-header"><div class="card-titulo">${ICONO.calendario} Últimos eventos</div><a href="eventos.html" class="card-link">Ver todos →</a></div>${listaHTML}</div>`;
     }
 
+    // Irrigar va al plan en Equipos; el dueño y el gerente, al Operador (donde se registra lo hecho)
+    function hrefMant() { return (window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin()) ? 'mis-equipos.html' : 'operador.html'; }
     function renderAlertasMantenimiento() {
       const equipos = leer('equipos'), vencidos = [], atencion = [];
       equipos.forEach(eq => {
@@ -811,10 +813,10 @@
         plan.forEach(t => { if (!(parseFloat(t.intervalo) > 0)) return; const pct = (horas - (parseFloat(t.ultimasHorasHechas) || 0)) / parseFloat(t.intervalo) * 100; if (pct >= 100) vencidos.push({ equipo: eq.nombre, tarea: t.tarea, pct: Math.round(pct) }); else if (pct >= 80) atencion.push({ equipo: eq.nombre, tarea: t.tarea, pct: Math.round(pct) }); });
       });
       if (!vencidos.length && !atencion.length) return '';
-      const fila = (a, color, txt) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);"><span style="width:10px;height:10px;border-radius:50%;background:${color};flex:none;"></span><div style="flex:1;font-size:13px;"><strong>${esc(a.equipo)}</strong> — ${esc(a.tarea)}${a.pct < 100 ? ' (' + a.pct + ' %)' : ''}</div><a href="mis-equipos.html" style="font-size:11px;color:${color};font-weight:700;">${txt}</a></div>`;
+      const fila = (a, color, txt) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.05);"><span style="width:10px;height:10px;border-radius:50%;background:${color};flex:none;"></span><div style="flex:1;font-size:13px;"><strong>${esc(a.equipo)}</strong> — ${esc(a.tarea)}${a.pct < 100 ? ' (' + a.pct + ' %)' : ''}</div><a href="${hrefMant()}" style="font-size:11px;color:${color};font-weight:700;">${txt}</a></div>`;
       const items = vencidos.slice(0, 2).map(a => fila(a, '#C0392B', 'Registrar →')).join('') + atencion.slice(0, 2).map(a => fila(a, '#B8731A', 'Ver →')).join('');
       const total = vencidos.length + atencion.length, color = vencidos.length ? '#C0392B' : '#B8731A';
-      return `<div class="card" style="border-left:4px solid ${color};margin-bottom:14px;"><div class="card-header"><div class="card-titulo" style="color:${color};">${ICONO.llave} Mantenimiento — ${total} tarea${total > 1 ? 's' : ''} pendiente${total > 1 ? 's' : ''}</div><a href="mis-equipos.html" class="card-link">Ver equipos →</a></div>${items}</div>`;
+      return `<div class="card" style="border-left:4px solid ${color};margin-bottom:14px;"><div class="card-header"><div class="card-titulo" style="color:${color};">${ICONO.llave} Mantenimiento — ${total} tarea${total > 1 ? 's' : ''} pendiente${total > 1 ? 's' : ''}</div><a href="${hrefMant()}" class="card-link">Ver equipos →</a></div>${items}</div>`;
     }
 
     function alertasClimaDe(campo, datosClima) {
@@ -842,7 +844,7 @@
       const primero = nombre.split(' ')[0] || '';
       document.getElementById('topbarTitulo').innerHTML = primero ? `Hola, <strong>${esc(primero)}</strong>` : 'Hola';
       document.getElementById('topbarAvatar').textContent = (primero.charAt(0) || 'S').toUpperCase();
-      const av = document.getElementById('topbarAvatar'); av.title = nombre + (u && u.rol ? ' · ' + ({ admin: 'administrador', cliente: 'cliente', operador: 'operador' }[u.rol] || u.rol) : '');
+      const av = document.getElementById('topbarAvatar'); av.title = nombre + (u && u.rol ? ' · ' + ({ admin: 'administrador', cliente: 'cliente', encargado: 'encargado', operador: 'operador' }[u.rol] || u.rol) : '');
     }
     window.addEventListener('safia:usuario', saludarUsuario);
     // Solicitudes de acceso pendientes (solo admin): tarjeta arriba del dashboard
@@ -903,7 +905,7 @@
       const chips = [];
       if (alertas.length) chips.push('<a class="estado-chip" href="prediccion.html" style="background:rgba(192,57,43,.12);color:#C0392B;" title="' + esc(alertas.map(a => a.texto.replace(/<[^>]+>/g, '')).join(' · ')) + '">' + alertas.length + ' alerta' + (alertas.length > 1 ? 's' : '') + ' climática' + (alertas.length > 1 ? 's' : '') + ' →</a>');
       const mant = renderAlertasMantenimiento(), nMant = (mant.match(/— (\d+) tarea/) || [])[1];
-      if (nMant) chips.push('<a class="estado-chip" href="mis-equipos.html" style="background:rgba(184,115,26,.14);color:#8a5713;">Mantenimiento: ' + nMant + ' tarea' + (nMant > 1 ? 's' : '') + ' →</a>');
+      if (nMant) chips.push('<a class="estado-chip" href="' + hrefMant() + '" style="background:rgba(184,115,26,.14);color:#8a5713;">Mantenimiento: ' + nMant + ' tarea' + (nMant > 1 ? 's' : '') + ' →</a>');
 
       cont.innerHTML = `
         ${renderEstadoRiego(lotes, sinClima, chips)}

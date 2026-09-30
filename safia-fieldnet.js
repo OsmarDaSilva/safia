@@ -162,6 +162,7 @@
     return { ok: true, campana: camp.nombre, cultivo: k.cu.cultivo, anterior: anterior, mm: mm };
   }
   function recordarEnlace(eqId, nombreFieldnet) {
+    if (!(window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin())) return;   // los equipos solo los cambia Irrigar; los demás eligen el lote cada vez
     var equipos = leer('equipos'), e = equipos.find(function (x) { return String(x.id) === String(eqId); });
     if (!e || e.fieldnetNombre === nombreFieldnet) return;
     e.fieldnetNombre = nombreFieldnet; e.fechaModificacion = new Date().toISOString();
