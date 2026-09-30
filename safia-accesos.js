@@ -28,9 +28,10 @@
   }
   function camposMarcados() { return Array.prototype.map.call(document.querySelectorAll('#accCampos .accCampo:checked'), function (x) { return x.value; }); }
 
-  function aviso(texto, err) {
+  function aviso(texto, err, campoId) {
     var a = $('accAviso'); if (!a) return;
     a.textContent = texto; a.className = 'note ' + (err ? 'danger' : 'ok'); a.style.display = texto ? '' : 'none';
+    if (err && campoId) { var el = $(campoId); if (el) { el.style.borderColor = '#C0392B'; el.style.boxShadow = '0 0 0 3px rgba(192,57,43,.15)'; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.focus(); el.addEventListener('input', function limpiar() { el.style.borderColor = ''; el.style.boxShadow = ''; el.removeEventListener('input', limpiar); }); } }
   }
 
   function asegurarModal() {
@@ -106,10 +107,10 @@
     var escrito = $('accEmail').value.trim(), interno = escrito.indexOf('@') === -1;
     var datos = { accion: 'crear', nombre: $('accNombre').value.trim(), email: window.SafiaUsuario ? SafiaUsuario.aCorreo(escrito) : escrito.toLowerCase(), telefono: $('accTelefono').value.trim(), rol: $('accRol').value, clienteId: $('accCliente').value || null, password: $('accPass').value.trim() };
     if (datos.rol === 'operador' || datos.rol === 'encargado') datos.campos = camposMarcados();
-    if (!datos.nombre) { aviso('Poné el nombre.', true); return; }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { aviso(interno ? 'Poné un correo o un nombre de usuario (letras y números).' : 'El correo no es válido.', true); return; }
+    if (!datos.nombre) { aviso('Falta el nombre y apellido (arriba de todo).', true, 'accNombre'); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { aviso(interno ? 'Poné un correo o un nombre de usuario (letras y números).' : 'El correo no es válido.', true, 'accEmail'); return; }
     var usuarioMostrar = interno ? SafiaUsuario.aUsuario(datos.email) : datos.email;
-    if (datos.password.length < 6) { aviso('La contraseña tiene que tener al menos 6 caracteres.', true); return; }
+    if (datos.password.length < 6) { aviso('La contraseña tiene que tener al menos 6 caracteres.', true, 'accPass'); return; }
     if (!window.SafiaSync || !SafiaSync.accionUsuario) { aviso('Sin conexión con la nube.', true); return; }
     var b = $('accCrear'); b.disabled = true; b.textContent = 'Creando…'; aviso('');
     // No pisar a nadie: si ese correo o usuario ya tiene acceso activo, se avisa acá mismo (la nube también lo rechaza)
