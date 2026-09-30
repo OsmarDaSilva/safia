@@ -112,7 +112,8 @@
     if (!Array.isArray(lista)) return; IDX[cu] = IDX[cu] || {};
     lista.forEach(function (x) {
       if (!x || !x.nombre) return;
-      var claves = [base(x.nombre)].concat(x.nombreSenave ? String(x.nombreSenave).split('/').map(function (n) { return base(n); }) : []).filter(function (k, i, a) { return k && a.indexOf(k) === i; });
+      var alias = []; String(x.nombre).replace(/\(\s*=\s*([^)]+)\)/g, function (m, a) { a.split('/').forEach(function (n) { alias.push(n); }); return ''; });
+      var claves = [base(x.nombre)].concat(x.nombreSenave ? String(x.nombreSenave).split('/').map(function (n) { return base(n); }) : []).concat(alias.map(function (n) { return base(n); })).filter(function (k, i, a) { return k && a.indexOf(k) === i; });
       var d = null; claves.forEach(function (k) { if (!d && IDX[cu][k]) d = IDX[cu][k]; });
       if (!d) {
         d = { nombre: x.nombre, gm: x.gm != null ? x.gm : null, habito: x.habito || '', sanidad: x.sanidad || '', url: x.url || '', nivel: x.nivel || 'distribuidor', nota: x.nota || '',
@@ -123,9 +124,11 @@
         ['habito', 'sanidad', 'ciclo', 'gmEmpresa'].forEach(function (k) { if (!d[k] && x[k]) d[k] = x[k]; });
         ['gduFlor', 'gduMad', 'gduBase'].forEach(function (k) { if (d[k] == null && x[k] != null) d[k] = x[k]; });
         if (!d.url && x.url) { d.url = x.url; d.nivel = x.nivel || d.nivel; }
+        // la página del obtentor (dueño de la variedad) es la fuente principal; la del representante (Agrotec, Dekalpar…) queda como fuente extra
+        else if (x.url && x.nivel === 'obtentor' && d.nivel !== 'obtentor' && d.nivel !== 'oficial PY') { d.urlExtra = d.url; d.url = x.url; d.nivel = 'obtentor'; }
       }
       ['cicloDias', 'cicloTexto', 'cicloRegion', 'densidad', 'tecnologia', 'grano', 'obtentor'].forEach(function (k) { if ((d[k] == null || d[k] === '') && x[k] != null && x[k] !== '') d[k] = x[k]; });
-      if (x.url && d.url !== x.url) d.urlExtra = x.url;
+      if (x.url && d.url !== x.url && !d.urlExtra) d.urlExtra = x.url;
       claves.forEach(function (k) { IDX[cu][k] = d; });
     });
   }
@@ -134,6 +137,10 @@
   function todos(cultivo) { var t = IDX[cultivoClave(cultivo)] || {}, vistos = [], out = []; Object.keys(t).forEach(function (k) { if (vistos.indexOf(t[k]) < 0) { vistos.push(t[k]); out.push(t[k]); } }); return out; }
   function buscar(cultivo, nombre) {
     if (!nombre) return null;
+    if (String(nombre).indexOf('/') > 0 && !/^\s*\//.test(nombre)) {   // "DKB290PRO3/DKB290VT3P": el primero de los dos que tenga ficha
+      var partes = String(nombre).split('/').map(function (p) { return p.trim(); }).filter(Boolean), hit = null;
+      if (partes.length > 1) { partes.forEach(function (p) { if (!hit) { var r = buscar(cultivo, p); if (r && !r.soloSenave) hit = r; } }); if (hit) return hit; }
+    }
     var cu = cultivoClave(cultivo), t = IDX[cu];
     if (!t) { var r0 = window.SafiaSenave ? window.SafiaSenave.buscar(cultivo, nombre) : null; return r0 ? desdeSenave(cu, r0) : null; }   // trigo, poroto, sorgo…: solo lo inscripto en SENAVE
     var b = base(nombre); if (cu === 'soja' && ALIAS_SOJA[b]) b = ALIAS_SOJA[b];

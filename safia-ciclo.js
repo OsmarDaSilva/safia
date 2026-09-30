@@ -27,13 +27,15 @@
     if (url.indexOf('catalogo:') === 0) { var m = url.slice(9).match(/^([^#]+)(?:#page=(\d+))?/); return 'catálogo ' + (m ? m[1].replace(/[_-]+/g, ' ').replace(/\.pdf$/i, '') + (m[2] ? ', pág. ' + m[2] : '') : url.slice(9)); }
     return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
   }
+  // 'Paraguay (Bayer Paraguay)' → ' (Paraguay, Bayer Paraguay)': sin paréntesis anidados
+  function regionTxt(r) { r = String(r || '').trim(); if (!r) return ''; return ' (' + r.replace(/\s*\(([^)]*)\)/g, ', $1').replace(/\)/g, '') + ')'; }
   function material(cultivo, variedad) { return window.SafiaMateriales && variedad ? window.SafiaMateriales.buscar(cultivo, variedad) : null; }
 
   /* ---------- 1) ciclo publicado ---------- */
   function publicado(d) {
     if (!d || !(num(d.cicloDias) > 0)) return null;
     return { dias: Math.round(num(d.cicloDias)), metodo: 'publicado', confianza: 'alta',
-      texto: 'ciclo publicado' + (d.cicloTexto ? ': ' + d.cicloTexto : ': ' + Math.round(num(d.cicloDias)) + ' días') + (d.cicloRegion ? ' (' + d.cicloRegion + ')' : ''),
+      texto: 'ciclo publicado' + (d.cicloTexto ? ': ' + d.cicloTexto : ': ' + Math.round(num(d.cicloDias)) + ' días') + regionTxt(d.cicloRegion),
       fuente: { n: (d.nivel === 'obtentor' ? 'el obtentor' : d.nivel === 'distribuidor' ? 'un distribuidor' : d.nivel || 'fuente') + (d.url ? ': ' + fuenteCorta(d.url) : ''), url: d.url || '' } };
   }
 
@@ -115,7 +117,7 @@
     if (d.soloSenave) return 'Sin ficha verificada en SAFIA. ' + (d.nota || d.senave || '');
     if (cu === 'soja') { if (d.gm != null) p.push('GM ' + fmt(d.gm, 1)); else p.push('GM sin dato verificado'); if (d.habito) p.push(d.habito); }
     if (cu === 'maiz') { if (d.ciclo) p.push(d.ciclo); if (d.gduFlor) p.push(fmt(d.gduFlor, 0) + ' GDU a floración'); if (d.gduMad) p.push(fmt(d.gduMad, 0) + ' a madurez'); }
-    if (d.cicloTexto || num(d.cicloDias) > 0) p.push('ciclo ' + (d.cicloTexto || Math.round(num(d.cicloDias)) + ' días') + (d.cicloRegion ? ' (' + d.cicloRegion + ')' : ''));
+    if (d.cicloTexto || num(d.cicloDias) > 0) p.push('ciclo ' + (d.cicloTexto || Math.round(num(d.cicloDias)) + ' días') + regionTxt(d.cicloRegion));
     if (d.densidad) p.push(d.densidad);
     if (d.sanidad) p.push(d.sanidad);
     var fuente = d.nivel ? ' · fuente: ' + d.nivel + (d.url ? ' (' + fuenteCorta(d.url) + ')' : '') : '';
