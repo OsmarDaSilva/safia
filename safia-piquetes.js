@@ -213,12 +213,16 @@
       return { s: s, v: v, tend: tend, altSat: altSat, listoSat: listoSat, e: e };
     });
     filas.sort(function (a, b) { var oa = a.e.estado === 'ocupado' ? 0 : (a.listoSat || a.e.estado === 'listo') ? 1 : 2, ob = b.e.estado === 'ocupado' ? 0 : (b.listoSat || b.e.estado === 'listo') ? 1 : 2; return oa - ob || (b.v ? b.v.ndvi : -1) - (a.v ? a.v.ndvi : -1); });
-    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;"><tr style="color:#8C9196;text-align:left;"><th style="padding:3px 0;width:16%;">Piq.</th><th style="width:16%;">NDVI</th><th style="width:20%;">Tendencia</th><th style="width:20%;">Regla</th><th>Estado</th></tr>';
-    filas.forEach(function (f) {
+    var LIM = 8, cab = '<tr style="color:#8C9196;text-align:left;"><th style="padding:3px 0;width:16%;">Piq.</th><th style="width:16%;">NDVI</th><th style="width:20%;">Tendencia</th><th style="width:20%;">Regla</th><th>Estado</th></tr>';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' + cab;
+    var resto = filas.slice(LIM); filas = filas.slice(0, LIM);
+    var filaHtml = function (f) {
       var estadoTxt = f.e.estado === 'ocupado' ? '<span style="color:#2E72C8;font-weight:600;">Animales adentro</span>' : (f.e.estado === 'listo' ? '<span style="color:#178029;font-weight:600;">A punto (regla)</span>' : (f.listoSat ? '<span style="color:#178029;font-weight:600;">A punto por satélite (~' + f.altSat + ' cm)</span>' : (f.altSat != null ? '~' + f.altSat + ' cm por satélite' : (f.e.texto ? esc(f.e.texto).slice(0, 60) : '—'))));
-      h += '<tr style="border-top:1px solid #EEF0F2;"><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colorNdvi(f.v ? f.v.ndvi : null) + ';vertical-align:-1px;margin-right:4px;"></span><b>' + esc(f.s.piquete) + '</b></td><td>' + (f.v ? f.v.ndvi.toFixed(2) + (f.v.nubes_pct > 30 ? '<span style="color:#8C9196;" title="parte con nubes">*</span>' : '') : '—') + '</td><td style="color:' + (f.tend > 0 ? '#178029' : f.tend < 0 ? '#B5371C' : '#8C9196') + ';">' + (f.tend != null ? (f.tend > 0 ? '+' : '') + (f.tend * 100).toFixed(1) + '/100 por día' : '—') + '</td><td>' + (f.e.altura ? f.e.altura + ' cm <span style="color:#8C9196;">' + fmtF(f.e.fechaLectura) + '</span>' : '—') + '</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + estadoTxt + '</td></tr>';
-    });
-    h += '</table></div></div>';
+      return '<tr style="border-top:1px solid #EEF0F2;"><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colorNdvi(f.v ? f.v.ndvi : null) + ';vertical-align:-1px;margin-right:4px;"></span><b>' + esc(f.s.piquete) + '</b></td><td>' + (f.v ? f.v.ndvi.toFixed(2) + (f.v.nubes_pct > 30 ? '<span style="color:#8C9196;" title="parte con nubes">*</span>' : '') : '—') + '</td><td style="color:' + (f.tend > 0 ? '#178029' : f.tend < 0 ? '#B5371C' : '#8C9196') + ';">' + (f.tend != null ? (f.tend > 0 ? '+' : '') + (f.tend * 100).toFixed(1) + '/100 por día' : '—') + '</td><td>' + (f.e.altura ? f.e.altura + ' cm <span style="color:#8C9196;">' + fmtF(f.e.fechaLectura) + '</span>' : '—') + '</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + estadoTxt + '</td></tr>';
+    };
+    h += filas.map(filaHtml).join('') + '</table>';
+    if (resto.length) h += '<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Ver los otros ' + resto.length + ' piquetes</summary><table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' + cab + resto.map(filaHtml).join('') + '</table></details>';
+    h += '</div></div>';
     return h;
   }
 

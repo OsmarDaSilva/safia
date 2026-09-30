@@ -155,9 +155,12 @@
     var filas = st.piquetes.slice().sort(function (a, b) { return (orden[a.estado] != null ? orden[a.estado] : 9) - (orden[b.estado] != null ? orden[b.estado] : 9); });
     var h = '<div style="font-size:12px;color:#3A3E41;margin-bottom:4px;">' + (st.listos.length ? '<b style="color:#178029;">Piquete' + (st.listos.length > 1 ? 's' : '') + ' a punto: ' + st.listos.join(', ') + '</b>' : 'Ningún piquete a punto todavía.') +
       (st.ref ? ' <span style="color:#8C9196;">Meta ' + esc(st.ref.nombre) + ': entrar a ' + st.ref.entrada + ' cm, sacar a ' + st.ref.salida + ' cm.</span>' : ' <span style="color:#8C9196;">Cargá la variedad de la pastura en la campaña para tener la meta de altura.</span>') + '</div>';
-    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;">' + filas.map(function (x) {
+    // tarjetas solo para los piquetes que tienen algo que decir; los demás, en una línea (con 30 piquetes la pantalla no se alarga)
+    var conDatos = filas.filter(function (x) { return x.estado !== 'sin_datos' && x.estado !== 'sin'; }), sinDatos = filas.filter(function (x) { return x.estado === 'sin_datos' || x.estado === 'sin'; });
+    if (conDatos.length) h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;">' + conDatos.map(function (x) {
       return '<div style="border:1px solid #E1E4E7;border-left:4px solid ' + x.color + ';border-radius:8px;padding:6px 8px;font-size:12px;background:#fff;"><b>Piquete ' + esc(x.piquete) + '</b>' + (x.altura ? ' · <b style="color:' + x.color + ';">' + x.altura + ' cm</b>' : '') + '<div style="color:#3A3E41;line-height:1.35;margin-top:2px;">' + esc(x.texto) + '</div></div>';
     }).join('') + '</div>';
+    if (sinDatos.length) h += '<div style="font-size:11px;color:#8C9196;margin-top:' + (conDatos.length ? 6 : 0) + 'px;">' + (conDatos.length ? 'Sin movimientos ni lecturas: ' : 'Todavía sin movimientos ni lecturas en los ' + sinDatos.length + ' piquetes: ') + (sinDatos.length > 12 ? 'piquetes ' + sinDatos[0].piquete + ' a ' + sinDatos[sinDatos.length - 1].piquete + ' (' + sinDatos.length + ')' : 'piquetes ' + sinDatos.map(function (x) { return x.piquete; }).join(', ')) + '. Cargá la entrada de los animales y las lecturas de regla con los botones de arriba.</div>';
     return h;
   }
   // Guía rápida del manejo (resumen del Manual de pastura irrigada de Irrigar 2025 con las alturas de Embrapa)
@@ -237,8 +240,10 @@
     var r = resumenLote(equipoId, cultivo), h = '<div style="margin-top:6px;font-size:12px;' + (r.alerta ? 'color:#8a5713;font-weight:600;' : 'color:#3A3E41;') + '">' + r.texto + '</div>';
     if (cultivo && cultivo.sistemaPastoreo) h += '<div style="font-size:11px;color:#8C9196;">' + esc(nombreSistema(cultivo.sistemaPastoreo)) + (cultivo.piquetes ? ' · ' + esc(cultivo.piquetes) + ' piquetes' : '') + (cultivo.diasOcupacion ? ' · ' + esc(cultivo.diasOcupacion) + ' d ocupación' : '') + (cultivo.diasDescanso ? ' · ' + esc(cultivo.diasDescanso) + ' d descanso' : '') + '</div>';
     if (balance && balance.pastura) h += htmlTemperatura(balance.pastura);
-    h += '<div style="margin-top:8px;">' + htmlPiquetes(equipoId, cultivo) + '</div>';
-    if (window.SafiaPiquetes) { var eqP = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }); if (eqP && SafiaPiquetes.sectores(eqP, cultivo)) { var gp = SafiaPiquetes.serieGuardada(equipoId); h += '<div style="margin-top:8px;">' + SafiaPiquetes.htmlPanel(eqP, cultivo, { pasadas: gp.pasadas, ultima: gp.pasadas[gp.pasadas.length - 1] || null }) + '</div>'; } }
+    var stE = estadoPiquetes(equipoId, cultivo), resumenE = (stE.listos.length ? 'a punto: ' + stE.listos.join(', ') : 'ninguno a punto') + (stE.ocupado ? ' · ocupado: ' + stE.ocupado : '');
+    var cuerpoE = '<div style="margin-top:6px;">' + htmlPiquetes(equipoId, cultivo) + '</div>';
+    if (window.SafiaPiquetes) { var eqP = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }); if (eqP && SafiaPiquetes.sectores(eqP, cultivo)) { var gp = SafiaPiquetes.serieGuardada(equipoId); cuerpoE += '<div style="margin-top:8px;">' + SafiaPiquetes.htmlPanel(eqP, cultivo, { pasadas: gp.pasadas, ultima: gp.pasadas[gp.pasadas.length - 1] || null }) + '</div>'; } }
+    h += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#2E3236;">Piquetes y satélite <span style="font-weight:500;color:#8C9196;">· ' + esc(resumenE) + '</span></summary>' + cuerpoE + '</details>';
     return h;
   }
   function htmlOperador(equipoId, cultivo) {
