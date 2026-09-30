@@ -386,7 +386,7 @@
       const hint = document.getElementById('estacionHint'), btn = document.getElementById('btnBuscarEstaciones'), sel = document.getElementById('estacionId');
       if (!window.SafiaSensores) { hint.textContent = 'El módulo de sensores no cargó (Ctrl+F5).'; return; }
       btn.disabled = true; hint.textContent = 'Consultando la cuenta de FieldClimate…';
-      SafiaSensores.estaciones().then(lista => {
+      SafiaSensores.estaciones(document.getElementById('cliente').value || null).then(lista => {
         const actual = sel.value;
         sel.innerHTML = '<option value="">— sin estación —</option>' + lista.map(e => '<option value="' + e.id + '" data-nombre="' + (e.nombre || e.id).replace(/"/g, '&quot;') + '">' + (e.nombre || e.id) + ' (' + e.id + ')' + (e.ultimoDato ? ' · último dato ' + String(e.ultimoDato).slice(0, 10) : '') + '</option>').join('');
         if (actual) ponerEstacion(actual);

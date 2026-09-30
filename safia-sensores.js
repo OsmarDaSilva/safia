@@ -67,9 +67,17 @@
       return r.data;
     });
   }
-  function estadoEstacion() { return invocar({ accion: 'estado' }); }
-  function estaciones() { return invocar({ accion: 'estaciones' }).then(function (d) { return d.estaciones || []; }); }
-  function diario(estacionId, desde, hasta) { return invocar({ accion: 'diario', estacion: estacionId, desde: desde, hasta: hasta }).then(function (d) { return d.filas || []; }); }
+  function estadoEstacion(campoId) { return invocar({ accion: 'estado', campoId: campoId != null ? String(campoId) : undefined }); }
+  // estaciones de la cuenta de FieldClimate del cliente (o de la cuenta general de Irrigar si el cliente no tiene llaves propias)
+  function estaciones(clienteId) { return invocar({ accion: 'estaciones', clienteId: clienteId != null && clienteId !== '' ? String(clienteId) : undefined }).then(function (d) { return d.estaciones || []; }); }
+  // diario de la estación ASIGNADA al campo: el servidor verifica que el usuario pueda ver ese campo y usa las llaves de su cliente
+  function diario(estacionId, desde, hasta, campoId) { return invocar({ accion: 'diario', estacion: estacionId, desde: desde, hasta: hasta, campoId: campoId != null ? String(campoId) : undefined }).then(function (d) { return d.filas || []; }); }
+  // Conexiones (solo Irrigar, pantalla conexiones.html): las llaves viajan una sola vez al servidor, que las prueba y las guarda; nunca vuelven
+  var conexiones = {
+    resumen: function () { return invocar({ accion: 'resumen' }); },
+    guardar: function (destino, publica, privada) { return invocar({ accion: 'guardar', destino: String(destino), publica: publica, privada: privada }); },
+    quitar: function (destino) { return invocar({ accion: 'quitar', destino: String(destino) }); }
+  };
 
   function climaDeEstacion(campoId, desde, hasta) {
     return leer('clima_estacion').filter(function (r) { return String(r.campoId) === String(campoId) && (!desde || r.fecha >= desde) && (!hasta || r.fecha <= hasta); }).sort(function (a, b) { return a.fecha.localeCompare(b.fecha); });
@@ -88,7 +96,7 @@
     var previas = climaDeEstacion(campo.id), ultima = previas.length ? previas[previas.length - 1].fecha : null;
     var desde = opciones.desde || (ultima ? sumarDias(ultima, -2) : sumarDias(hoyISO(), -400)), hasta = opciones.hasta || hoyISO();
     if (desde > hasta) desde = hasta;
-    return diario(campo.estacionId, desde, hasta).then(function (filas) {
+    return diario(campo.estacionId, desde, hasta, campo.id).then(function (filas) {
       var todas = leer('clima_estacion'), idx = {}; todas.forEach(function (r, i) { idx[String(r.campoId) + '|' + r.fecha] = i; });
       var nuevas = 0, actualizadas = 0;
       filas.forEach(function (f) {
@@ -412,6 +420,6 @@
     }
   }
 
-  window.SafiaSensores = { FUENTES: FUENTES, estadoEstacion: estadoEstacion, estaciones: estaciones, diario: diario, sincronizarCampo: sincronizarCampo, climaDeEstacion: climaDeEstacion, cobertura: cobertura, resumenCiclo: resumenCiclo, temperaturasEstacion: temperaturasEstacion,
+  window.SafiaSensores = { FUENTES: FUENTES, conexiones: conexiones, estadoEstacion: estadoEstacion, estaciones: estaciones, diario: diario, sincronizarCampo: sincronizarCampo, climaDeEstacion: climaDeEstacion, cobertura: cobertura, resumenCiclo: resumenCiclo, temperaturasEstacion: temperaturasEstacion,
     leerTexto: leerTexto, agrupar: agrupar, explorarCarpeta: explorarCarpeta, importarVarios: importarVarios, pintarUSB: pintarUSB, asignarLotes: asignarLotes, loteEnPunto: loteEnPunto, dentroDeAnillo: dentroDeAnillo, guardarGrupos: guardarGrupos, activarFoliar: activarFoliar, activarAgua: activarAgua };
 })();

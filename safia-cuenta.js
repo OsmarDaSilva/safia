@@ -29,7 +29,7 @@
   var usuario = null, abierto = false;
 
   /* ---------- menú y permisos por rol ---------- */
-  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'informe-evaluacion.html', 'backup.html', 'precios.html', 'suscripciones.html'];
+  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'informe-evaluacion.html', 'backup.html', 'precios.html', 'suscripciones.html', 'conexiones.html'];
   var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html'];
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
@@ -236,19 +236,26 @@
 
   /* ---------- Suscripciones por pivot: enlace del menú (Irrigar) y aviso arriba de la pantalla ---------- */
   var ICO_SUSC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg>';
+  var ICO_CONX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V3M15 7V3"/><path d="M6 7h12v4a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></svg>';
+  // Enlaces del menú que solo ve Irrigar (Suscripciones, Conexiones): se insertan después de Usuarios copiando su formato
+  function enlaceIrrigar(despuesDe, href, texto, ico) {
+    if (despuesDe.parentNode.querySelector('a[href="' + href + '"]')) return despuesDe.parentNode.querySelector('a[href="' + href + '"]');
+    var n = despuesDe.cloneNode(true); n.setAttribute('href', href); n.classList.remove('active'); n.classList.remove('activo');
+    if (paginaActual().replace(/\.html$/, '') === href.replace(/\.html$/, '')) n.classList.add(despuesDe.classList.contains('sidebar-link') ? 'activo' : 'active');
+    var svg = n.querySelector('svg'); if (svg) { var cls = svg.getAttribute('class'); svg.outerHTML = cls ? ico.replace('<svg ', '<svg class="' + cls + '" ') : ico; }
+    var spans = n.querySelectorAll('span'), etiqueta = null;
+    for (var i = spans.length - 1; i >= 0; i--) { if (!spans[i].querySelector('svg') && !spans[i].className) { etiqueta = spans[i]; break; } }
+    if (etiqueta) etiqueta.textContent = texto;
+    else { for (var j = n.childNodes.length - 1; j >= 0; j--) { if (n.childNodes[j].nodeType === 3 && n.childNodes[j].textContent.trim()) { n.childNodes[j].textContent = texto; break; } } }
+    despuesDe.parentNode.insertBefore(n, despuesDe.nextSibling);
+    return n;
+  }
   function enlaceSuscripciones(u) {
     if (!u || !esAlto(u)) return;
     var poner = function () {
       document.querySelectorAll('aside a[href="usuarios.html"], nav a[href="usuarios.html"], .sidebar a[href="usuarios.html"]').forEach(function (a) {
-        if (a.parentNode.querySelector('a[href="suscripciones.html"]')) return;
-        var n = a.cloneNode(true); n.setAttribute('href', 'suscripciones.html'); n.classList.remove('active'); n.classList.remove('activo');
-        if (paginaActual().replace(/\.html$/, '') === 'suscripciones') n.classList.add(a.classList.contains('sidebar-link') ? 'activo' : 'active');
-        var svg = n.querySelector('svg'); if (svg) { var cls = svg.getAttribute('class'); svg.outerHTML = cls ? ICO_SUSC.replace('<svg ', '<svg class="' + cls + '" ') : ICO_SUSC; }
-        var spans = n.querySelectorAll('span'), etiqueta = null;
-        for (var i = spans.length - 1; i >= 0; i--) { if (!spans[i].querySelector('svg') && !spans[i].className) { etiqueta = spans[i]; break; } }
-        if (etiqueta) etiqueta.textContent = 'Suscripciones';
-        else { for (var j = n.childNodes.length - 1; j >= 0; j--) { if (n.childNodes[j].nodeType === 3 && n.childNodes[j].textContent.trim()) { n.childNodes[j].textContent = 'Suscripciones'; break; } } }
-        a.parentNode.insertBefore(n, a.nextSibling);
+        var s = enlaceIrrigar(a, 'suscripciones.html', 'Suscripciones', ICO_SUSC);
+        enlaceIrrigar(s, 'conexiones.html', 'Conexiones', ICO_CONX);
       });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', poner); else poner();
