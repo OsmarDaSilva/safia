@@ -859,10 +859,11 @@
       var eq = leer('equipos').find(function (e) { return String(e.id) === String(c.equipoId); }); if (!eq || String(eq.campoId) !== String(campoActual.id)) return;
       (c.cultivos || []).forEach(function (cu, i) {
         if (!cu || !cu.cultivo || num(cu.rendimientoReal) > 0) return;
+        if (window.SafiaPasturas && SafiaPasturas.esPastura && SafiaPasturas.esPastura(cu.cultivo)) return;   // pasturas: kg MS/ha, sin meta de grano
         var mismos = mios.filter(function (x) { return String(x.equipoId) === String(c.equipoId) && SafiaMeta.claveCultivo(x.cultivo) === SafiaMeta.claveCultivo(cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
         var base = mismos[0] || mios.filter(function (x) { return String(x.equipoId) === String(c.equipoId); })[0] || mios[0];
         if (!base) return;
-        nuevas.push(Object.assign({}, base, { id: 'nueva_' + c.id + '_' + i, campanaId: c.id, campana: c.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: null, clima: null }));
+        nuevas.push(Object.assign({}, base, { id: 'nueva_' + c.id + '_' + i, campanaId: c.id, campana: c.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: window.SafiaInsumos ? SafiaInsumos.resumen((c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }), [], !!c.manejoCompleto) : null, clima: null }));   // lo ya cargado en ESTA campaña
       });
     });
     metaCasos = metaCasos.concat(nuevas);
@@ -951,6 +952,8 @@
     if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
     var refSel = refMeta(); if (refSel && !(refSel.rindeKgHa > c.rindeKgHa)) refSel = null;
     opciones.referencia = refSel;
+    // saldo negativo de la última cosecha del lote (balance de nutrientes firme) sin análisis de suelo posterior: el plan lo repone
+    if (c.esNueva && window.SafiaNutrientes && SafiaNutrientes.reposicionPendiente) opciones.saldoAnterior = SafiaNutrientes.reposicionPendiente(c.equipoId);
     if (window.SafiaFoliar) opciones.foliar = SafiaFoliar.ultimoDelLote(c.equipoId);   // último análisis foliar del lote: deficiencias en hoja que el plan tiene que mirar
     var pl = SafiaMeta.plan(c, meta, pr, metaCasos, prof, opciones);
     // Otros cultivos cosechados en el mismo lote (el mejor de cada uno): también aprovechan la mejora del suelo

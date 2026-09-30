@@ -22,7 +22,7 @@
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
   function fechaLarga(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
-  function hoy() { return window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
+  function hoy() { if (window.SafiaBalance && SafiaBalance.hoyLocal) return SafiaBalance.hoyLocal(); var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }   // hora local, no UTC
   function clave(c) { var n = norm(c); if (n.indexOf('soja') === 0 || n.indexOf('soya') === 0) return 'soja'; if (n.indexOf('maiz') === 0) return 'maiz'; if (n.indexOf('trigo') === 0) return 'trigo'; if (n.indexOf('girasol') === 0) return 'girasol'; if (n.indexOf('sorgo') === 0) return 'sorgo'; return 'otro'; }
   function esPastura(c) { return !!(window.SafiaPasturas && SafiaPasturas.esPastura && SafiaPasturas.esPastura(c)); }
 
@@ -158,7 +158,7 @@
     var ex = bal.exportado, ap = bal.aplicado, s = bal.saldo, sinCarga = !ap.items, vivo = bal.enVivo;
     var falta = function (saldo, exp) { return saldo < -Math.max(5, exp * 0.1); };
     var estado = vivo ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E8F1FB;color:#1A5FA8;font-size:11px;font-weight:700;">EN VIVO</span>'
-      : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E6F4EA;color:#178029;font-size:11px;font-weight:700;">FIRME' + (bal.fechaFirme ? ' · cerrado el ' + fechaLarga(bal.fechaFirme) : '') + '</span>';
+      : (bal.firme ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#E6F4EA;color:#178029;font-size:11px;font-weight:700;">FIRME' + (bal.fechaFirme ? ' · cerrado el ' + fechaLarga(bal.fechaFirme) : '') + '</span>' : '<span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#EEF1F4;color:#4A5157;font-size:11px;font-weight:700;">COSECHADA · calculado con el rinde real</span>');
     var h = '<div class="card" style="margin-top:10px;"><div class="card-h"><h3>' + esc(titulo || '') + esc(bal.cultivo) + (bal.variedad ? ' ' + esc(bal.variedad) : '') + ' · ' + esc(bal.campana) + ' ' + estado + '</h3><span class="muted">' + (vivo ? 'meta ' : 'rinde ') + fmt(bal.rinde) + ' kg/ha</span></div>';
     var colEx = vivo ? 'Se llevará la meta' : 'Se llevó el grano', colAp = vivo ? 'Aplicado hasta hoy' : 'Aplicado';
     h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Nutriente (kg/ha)</th><th class="r">' + colEx + '</th><th class="r">' + colAp + '</th><th class="r">Saldo</th><th></th></tr></thead><tbody>' +

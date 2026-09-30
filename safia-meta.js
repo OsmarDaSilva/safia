@@ -110,7 +110,12 @@
   function ventanaDe(k) { for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
   function hoyLocal() { return window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
   function diasDesde(f) { if (!f) return null; return Math.round((new Date(hoyLocal() + 'T12:00:00') - new Date(String(f).slice(0, 10) + 'T12:00:00')) / 86400000); }
-  function etapaHoy(dds) { if (dds == null || dds < 0) return 'pre'; return dds <= 45 ? 'veg' : (dds <= 75 ? 'flor' : (dds <= 110 ? 'llen' : 'mad')); }
+  function etapaHoy(dds, cultivo) {
+    if (dds == null || dds < 0) return 'pre';
+    // la misma división que el motor de agua (safia-balance.kcYEtapa: L_ini/L_des/L_med/L_fin del cultivo); sin tabla, cortes fijos
+    if (cultivo && window.SafiaBalance && SafiaBalance.kcYEtapa && SafiaBalance.obtenerCultivoKc) { var def = SafiaBalance.obtenerCultivoKc(cultivo); if (def) { var e = SafiaBalance.kcYEtapa(def, dds).etapa; if (e) return e; } }
+    return dds <= 45 ? 'veg' : (dds <= 75 ? 'flor' : (dds <= 110 ? 'llen' : 'mad'));
+  }
   function estadoVentana(v, etapa, dds) {
     var orden = { pre: 0, veg: 1, flor: 2, llen: 3, mad: 4 }[etapa] || 0;
     if (v === 'pre') return orden > 0 ? 'pasada' : 'ahora';
@@ -227,7 +232,7 @@
       var iP2 = F.cerrado ? F.cerrado.interpretarP(p, arc) : null;
       item({ k: 'fosforo', opcional: !corr, tipo: 'suelo', nombre: 'Fósforo', hoy: fmt(p, 1) + ' mg/dm³ (RS/SC: ' + cat + ', crítico ' + pc.critico + (iP.asumida ? ', arcilla asumida 41–60 %' : '') + (iP2 ? ' · Embrapa/Fundação MS: ' + iP2.clase + ', crítico ' + iP2.critico : '') + ')', objetivo: fmt(pObj, 0) + ' mg/dm³' + (bm && bm.suelo.p ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.p, 1) : ''),
         accion: (corr ? 'Corregir ' + fmt(corr, 0) + ' kg/ha de P₂O₅ (' + F.correccion(cat, 'p2o5').primero + ' ahora y ' + F.correccion(cat, 'p2o5').segundo + ' en el cultivo siguiente, RS/SC) + ' : (construir ? 'Construir ' + fmt(construir, 0) + ' kg/ha de P₂O₅ para llegar a ' + fmt(pObj, 0) + ' mg/dm³ (' + kgPorMg + ' kg por mg/dm³) + ' : '')) + (cat === 'muy alto' ? 'solo reposición ' : 'manutención ') + fmt(manTotal, 0) + ' kg/ha de P₂O₅ para ' + fmt(meta, 0) + ' kg/ha (RS/SC: ' + F.manutencion(caso.cultivo).p2o5 + ' kg para ' + F.manutencion(caso.cultivo).ref + ' t + ' + F.manutencion(caso.cultivo).base.addP + ' por t extra)' + (aplicadoP != null ? ' — hoy aplicás ' + fmt(aplicadoP, 0) + ': el adicional son ' + fmt(man, 0) + ' kg/ha' : ' — como el manejo no está cargado, se cuenta como adicional solo la diferencia con la manutención del rinde actual: ' + fmt(man, 0) + ' kg/ha'),
-        inversion: (corr + construir) * pr.p2o5USDkg, vidaUtil: 4, recurrente: man * pr.p2o5USDkg, aporteMin: apP[0], aporteMax: apP[1], fuente: '[2]' + (construir ? '[1]' : '') });
+        inversion: (corr + construir) * pr.p2o5USDkg, vidaUtil: 4, recurrente: man * pr.p2o5USDkg, aporteMin: apP[0], aporteMax: apP[1], kgObjetivo: Math.round((corr ? F.correccion(cat, 'p2o5').primero : 0) + construir + manTotal), fuente: '[2]' + (construir ? '[1]' : '') });
     }
     /* 4. Potasio: clase por CTC (RS/SC 6.9), corrección 6.1.1 + manutención 6.1.2 */
     var k = num(s.k), iK = F ? F.interpretarK(k, num(s.cic)) : null;
@@ -245,14 +250,14 @@
       var iK2 = F.cerrado ? F.cerrado.interpretarK(k, arc, num(s.cic)) : null;
       item({ k: 'potasio', opcional: !corrK, tipo: 'suelo', nombre: 'Potasio', hoy: fmt(kmg, 0) + ' mg/dm³ (RS/SC: ' + catK + ', crítico ' + iK.critico + ' para CTC ' + iK.ctcTexto + (iK2 ? ' · Embrapa/Fundação MS: ' + iK2.clase + ', crítico ' + iK2.criticoMg : '') + ')', objetivo: '> ' + iK.critico + ' mg/dm³' + (bm && bm.suelo.k ? ' · los que rinden ≥ meta: ' + fmt(bm.suelo.k * 391, 0) : ''),
         accion: (corrK ? 'Corregir ' + fmt(corrK, 0) + ' kg/ha de K₂O (' + F.correccion(catK, 'k2o').primero + ' ahora y ' + F.correccion(catK, 'k2o').segundo + ' en el cultivo siguiente, RS/SC) + ' : (construirK ? 'Construir ' + fmt(construirK, 0) + ' kg/ha de K₂O para llegar a ~117 mg/dm³ + ' : '')) + (catK === 'muy alto' ? 'solo reponer lo exportado: ' : 'manutención ') + fmt(manKTotal, 0) + ' kg/ha de K₂O (KCl al voleo o por fertirriego; RS/SC: ' + F.manutencion(caso.cultivo).k2o + ' kg para ' + F.manutencion(caso.cultivo).ref + ' t + ' + F.manutencion(caso.cultivo).base.addK + ' por t extra)' + (aplicadoK != null ? ' — hoy aplicás ' + fmt(aplicadoK, 0) + ': el adicional son ' + fmt(manK, 0) + ' kg/ha' : ' — adicional sobre la manutención del rinde actual: ' + fmt(manK, 0) + ' kg/ha'),
-        inversion: (corrK + construirK) * pr.k2oUSDkg, vidaUtil: 4, recurrente: manK * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], fuente: '[2]' + (construirK ? '[14]' : '') });
+        inversion: (corrK + construirK) * pr.k2oUSDkg, vidaUtil: 4, recurrente: manK * pr.k2oUSDkg, aporteMin: apK[0], aporteMax: apK[1], kgObjetivo: Math.round((corrK ? F.correccion(catK, 'k2o').primero : 0) + construirK + manKTotal), fuente: '[2]' + (construirK ? '[14]' : '') });
     }
     /* 4b. Reposición del saldo de la cosecha anterior (balance de nutrientes: lo que el grano se llevó y no se repuso) */
     var sa = opciones.saldoAnterior;
     if (sa && ((sa.p2o5 || 0) > 5 || (sa.k2o || 0) > 5)) {
       var repP = Math.round(sa.p2o5 || 0), repK = Math.round(sa.k2o || 0);
       item({ k: 'reposicion', tipo: 'suelo', nombre: 'Reposición de la cosecha anterior', hoy: 'La campaña anterior (' + (sa.cultivo || '') + ', ' + fmt(sa.rinde, 0) + ' kg/ha) se llevó más ' + (repP && repK ? 'P y K' : (repP ? 'P' : 'K')) + ' de lo que se aplicó', objetivo: 'Volver a dejar el suelo como estaba',
-        accion: 'Reponer ' + (repP ? fmt(repP, 0) + ' kg/ha de P₂O₅' : '') + (repP && repK ? ' y ' : '') + (repK ? fmt(repK, 0) + ' kg/ha de K₂O' : '') + ' además de la manutención de esta campaña (saldo negativo del balance de nutrientes de ' + (sa.campana || 'la cosecha anterior') + ')' + (sa.sinCarga ? '. Ojo: esa campaña no tiene fertilizantes cargados; si se aplicó algo, cargalo y el saldo baja' : ''),
+        accion: 'Reponer ' + (repP ? fmt(repP, 0) + ' kg/ha de P₂O₅' : '') + (repP && repK ? ' y ' : '') + (repK ? fmt(repK, 0) + ' kg/ha de K₂O' : '') + ' además de la manutención de esta campaña (saldo negativo del balance de nutrientes de ' + (sa.campana || 'la cosecha anterior') + ')' + (sa.sinCarga ? '. Ojo: esa campaña no tiene fertilizantes cargados; si se aplicó algo, corregilo en Campañas → Manejo e insumos y volvé a cerrar la cosecha para que el saldo baje' : ''),
         recurrente: repP * pr.p2o5USDkg + repK * pr.k2oUSDkg, aporteMin: 0.02, aporteMax: 0.06, fuente: '[18]' });
     }
     /* 5. Nitrógeno (no soja): RS/SC por materia orgánica, cultivo anterior y rinde esperado (maíz cap. 6.1.14, trigo cap. 6.1.29) */
@@ -330,7 +335,7 @@
     /* Campaña ya sembrada: solo entra lo que todavía se puede hacer; lo que va antes de sembrar o a la siembra queda para la próxima campaña */
     var ddsHoy = caso.esNueva && caso.siembra ? diasDesde(caso.siembra) : null, enCurso = null, tarde = [];
     if (ddsHoy != null && ddsHoy >= 0 && !opciones.ignorarVentanas) {
-      var etapaAhora = etapaHoy(ddsHoy); enCurso = { dds: ddsHoy, etapa: etapaAhora };
+      var etapaAhora = etapaHoy(ddsHoy, caso.cultivo); enCurso = { dds: ddsHoy, etapa: etapaAhora };
       items.forEach(function (i) { i.ventana = ventanaDe(i.k); if (estadoVentana(i.ventana, etapaAhora, ddsHoy) === 'pasada') tarde.push(i); });
       items = items.filter(function (i) { return tarde.indexOf(i) < 0; });
       // Palancas que sí quedan en una campaña sembrada: K (y algo de P) en cobertura por fertirriego o al voleo, micronutrientes foliares

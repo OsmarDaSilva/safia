@@ -46,7 +46,7 @@
     var previo = u.cultivo.planMeta || {};
     var hechos = {}; (previo.items || []).forEach(function (it) { if (it.hecho) hechos[it.k] = it; });
     var items = pl.items.filter(function (i) { return (i.inversion || i.recurrente || i.tipo === 'manejo') && i.k !== 'n_soja'; }).map(function (i) {
-      return { k: i.k, nombre: i.nombre, tipo: i.tipo, accion: String(i.accion || '').slice(0, 220), objetivo: String(i.objetivo || '').slice(0, 120), costo: Math.round((i.inversion || 0) + (i.recurrente || 0)), aporteMin: i.aporteMin || 0, aporteMax: i.aporteMax || 0, hecho: !!(hechos[i.k] && hechos[i.k].hecho), fechaHecho: hechos[i.k] ? hechos[i.k].fechaHecho || null : null };
+      return { k: i.k, nombre: i.nombre, tipo: i.tipo, accion: String(i.accion || '').slice(0, 220), objetivo: String(i.objetivo || '').slice(0, 120), costo: Math.round((i.inversion || 0) + (i.recurrente || 0)), aporteMin: i.aporteMin || 0, aporteMax: i.aporteMax || 0, condicional: !!i.condicional, kgObjetivo: i.kgObjetivo || null, hecho: !!(hechos[i.k] && hechos[i.k].hecho), fechaHecho: hechos[i.k] ? hechos[i.k].fechaHecho || null : null };
     });
     var ok = guardarCampana(u, function (cu) {
       cu.rendimientoObj = meta;
@@ -96,14 +96,16 @@
      Cada ítem del plan tiene una ventana (hasta cuándo se puede hacer). Si la ventana pasó y no
      se hizo (tildado o detectado en los insumos cargados), su aporte se descuenta del potencial.
      La falta de agua descuenta lo que ya calculó el motor FAO-33 por etapa. */
-  var VENTANA = (window.SafiaMeta && SafiaMeta.VENTANA) || { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], semilla: ['inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], siembra: ['fosforo', 'potasio', 'azufre'], veg: ['nitrogeno'], repro: ['fungicidas', 'foliar', 'agua'] };
+  // Misma tabla que safia-meta.js (VENTANA); se lee al llamar por si SafiaMeta carga después. La copia es para el Dashboard, que no carga safia-meta.js.
+  var VENTANA_COPIA = { pre: ['encalado', 'yeso', 'subsolado', 'nivelacion', 'directa', 'cobertura', 'rotacion', 'variedad', 'epoca', 'reposicion', 'zinc_suelo', 'cobre', 'manganeso', 'boro', 'otros'], semilla: ['inoculacion', 'coinoculacion', 'como', 'tratamiento', 'stand', 'zinc'], siembra: ['fosforo', 'potasio', 'azufre'], veg: ['nitrogeno'], repro: ['fungicidas', 'foliar', 'agua'] };
   var NOMBRE_VENTANA = { pre: 'antes de sembrar', semilla: 'con la semilla', siembra: 'a la siembra (hasta 10 días)', veg: 'en vegetativo', repro: 'en floración y llenado' };
   var APORTE_DEF = { encalado: [0.05, 0.12], yeso: [0.03, 0.10], fosforo: [0.05, 0.15], potasio: [0.05, 0.15], reposicion: [0.02, 0.06], nitrogeno: [0.05, 0.15], azufre: [0.02, 0.06], boro: [0.03, 0.08], zinc_suelo: [0.02, 0.06], cobre: [0.01, 0.04], como: [0.02, 0.05], zinc: [0.02, 0.06], inoculacion: [0.05, 0.15], coinoculacion: [0.05, 0.10], tratamiento: [0.03, 0.08], cobertura: [0.05, 0.15], subsolado: [0.02, 0.08], nivelacion: [0.01, 0.05], otros: [0, 0.03], directa: [0.03, 0.08], fungicidas: [0.05, 0.15] };
-  function ventanaDe(k) { for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
-  function aporteDe(it) { if (it.aporteMax) return [it.aporteMin || 0, it.aporteMax]; return APORTE_DEF[it.k] || [0, 0]; }
+  function ventanaDe(k) { var VENTANA = (window.SafiaMeta && SafiaMeta.VENTANA) || VENTANA_COPIA; for (var v in VENTANA) if (VENTANA[v].indexOf(k) >= 0) return v; return 'repro'; }
+  // aporte del ítem al rinde; los condicionales (informativos) y 'agua' no descuentan: el agua ya la descuenta el motor FAO-33 (si no, se contaría dos veces)
+  function aporteDe(it) { if (it.condicional || it.k === 'agua') return [0, 0]; if (it.aporteMax) return [it.aporteMin || 0, it.aporteMax]; return APORTE_DEF[it.k] || [0, 0]; }
   function diasDesde(f) { if (!f) return null; return Math.round((new Date(hoyISO() + 'T12:00:00') - new Date(String(f).slice(0, 10) + 'T12:00:00')) / 86400000); }
   // etapa de hoy: la del motor de agua si está; si no, por días desde la siembra
-  function etapaHoy(dds, ag) { if (ag && ag.etapa) return ag.etapa; if (dds == null || dds < 0) return 'pre'; return dds <= 45 ? 'veg' : (dds <= 75 ? 'flor' : (dds <= 110 ? 'llen' : 'mad')); }
+  function etapaHoy(dds, ag, cultivo) { if (ag && ag.etapa) return ag.etapa; if (dds == null || dds < 0) return 'pre'; if (window.SafiaMeta && SafiaMeta.etapaHoy) return SafiaMeta.etapaHoy(dds, cultivo); return dds <= 45 ? 'veg' : (dds <= 75 ? 'flor' : (dds <= 110 ? 'llen' : 'mad')); }
   // ventana pasada / abierta ahora según la etapa de hoy
   function estadoVentana(v, etapa, dds) {
     var orden = { pre: 0, veg: 1, flor: 2, llen: 3, mad: 4 }[etapa] || 0;
@@ -114,7 +116,7 @@
     return orden < 2 ? 'futura' : (orden === 4 ? 'pasada' : 'ahora');   // repro
   }
   // lo hecho que se detecta solo por los insumos cargados (ficha / Campañas / Operador)
-  function hechoPorInsumos(k, manejo, bal, cu) {
+  function hechoPorInsumos(k, manejo, bal, cu, it) {
     if (!manejo) return false;
     var t = function (p) { return manejo[p] > 0; };
     switch (k) {
@@ -126,8 +128,13 @@
       case 'foliar': return t('foliares');
       case 'encalado': case 'yeso': return t('encalado');
       case 'nitrogeno': return !!(manejo.npk && manejo.npk.n >= 20);
-      case 'fosforo': case 'reposicion': return !!(bal && bal.aplicado.p2o5 >= bal.exportado.p2o5 * 0.9);
-      case 'potasio': return !!(bal && bal.aplicado.k2o >= bal.exportado.k2o * 0.9);
+      case 'fosforo': case 'reposicion': case 'p_cobertura': return !!(bal && bal.aplicado.p2o5 >= (it && it.kgObjetivo ? it.kgObjetivo : bal.exportado.p2o5) * 0.9);
+      case 'potasio': case 'k_cobertura': return !!(bal && bal.aplicado.k2o >= (it && it.kgObjetivo ? it.kgObjetivo : bal.exportado.k2o) * 0.9);
+      case 'boro': return !!(manejo.npk && manejo.npk.b > 0);
+      case 'zinc_suelo': return !!(manejo.npk && manejo.npk.zn > 0);
+      case 'azufre': return !!(manejo.npk && manejo.npk.s > 0);
+      case 'foliar_micro': return t('foliares');
+      case 'cobertura': return !!(cu && cu.cobertura);
       case 'directa': return /directa/i.test(String(cu && cu.sistemaSiembra || ''));
       default: return false;
     }
@@ -135,21 +142,21 @@
   function metaViva(u, ag) {
     var plan = u.cultivo.planMeta; if (!plan || !plan.kgHa) return null;
     var cu = u.cultivo, camp = u.campana, meta = plan.kgHa, base = plan.base || meta, pot = plan.potencial || { min: base, max: base };
-    var dds = diasDesde(cu.fechaSiembra), etapa = etapaHoy(dds, ag);
+    var dds = diasDesde(cu.fechaSiembra), etapa = etapaHoy(dds, ag, cu.cultivo);
     var ins = (camp.insumos || []).filter(function (i) { return i.cultivoIdx == null || i.cultivoIdx === u.idx; });
     var manejo = window.SafiaInsumos ? SafiaInsumos.resumen(ins, [], camp.manejoCompleto) : null;
     var bal = window.SafiaNutrientes ? SafiaNutrientes.balanceCampana(camp, u.idx) : null;
     var perdidos = [], ahora = [], futuros = [], hechos = 0, items = plan.items || [], perdMin = 0, perdMax = 0;
     var sabemos = !!((manejo && manejo.cargado) || items.some(function (it) { return it.hecho; }));   // "no cargado" no es "no hecho"
     items.forEach(function (it) {
-      var auto = !it.hecho && hechoPorInsumos(it.k, manejo, bal, cu), hecho = it.hecho || auto;
+      var auto = !it.hecho && hechoPorInsumos(it.k, manejo, bal, cu, it), hecho = it.hecho || auto;
       it._auto = !!auto;
       if (hecho) { hechos++; return; }
       var v = ventanaDe(it.k), st = estadoVentana(v, etapa, dds), ap = aporteDe(it);
       if (st === 'pasada') { if (ap[1] > 0 && sabemos) { perdidos.push({ it: it, ap: ap, v: v }); perdMin += ap[0]; perdMax += ap[1]; } }
       else if (st === 'ahora') ahora.push({ it: it, v: v }); else futuros.push({ it: it, v: v });
     });
-    var max = pot.max - base * perdMin, min = pot.min - base * perdMax;   // optimista: lo perdido aportaba lo mínimo; pesimista: lo máximo
+    var max = Math.max(base, pot.max - base * perdMin), min = Math.max(base, pot.min - base * perdMax);   // optimista: lo perdido aportaba lo mínimo; pesimista: lo máximo. Nunca menos que la base: no hacer una mejora no baja el rinde de partida (el agua sí)
     var agua = ag && ag.perdidaPct > 0 ? ag.perdidaPct : 0;
     if (agua) { min *= (1 - agua / 100); max *= (1 - agua / 100); }
     if (min > max) min = max;
@@ -187,7 +194,7 @@
   function resumenMetaViva(camp, idx) {
     var cu = camp && camp.cultivos ? camp.cultivos[idx || 0] : null; if (!cu || !cu.planMeta || cu.rendimientoReal) return null;
     var mv = metaViva({ campanaId: camp.id, idx: idx || 0, campana: camp, cultivo: cu }, null); if (!mv) return null;
-    return { k: mv.k, min: mv.min, max: mv.max, texto: (mv.k === 'verde' ? 'sigue alcanzable' : (mv.k === 'ambar' ? 'todavía posible' : 'ya no se alcanza')) + ' · potencial ' + fmt(mv.min) + '–' + fmt(mv.max) + (mv.ahora.length ? ' · ahora: ' + mv.ahora.slice(0, 2).map(function (a) { return a.it.nombre; }).join(', ') : '') };
+    return { k: mv.k, min: mv.min, max: mv.max, texto: (mv.k === 'gris' ? 'SAFIA todavía no sabe qué se hizo (cargá insumos o tildá el plan)' : mv.k === 'verde' ? 'sigue alcanzable' : (mv.k === 'ambar' ? 'todavía posible' : 'ya no se alcanza')) + ' · potencial ' + fmt(mv.min) + '–' + fmt(mv.max) + (mv.ahora.length ? ' · ahora: ' + mv.ahora.slice(0, 2).map(function (a) { return a.it.nombre; }).join(', ') : '') };
   }
   var COLOR = { verde: '#178029', ambar: '#B8731A', rojo: '#B3261E', gris: '#8C9196' };
   var NOMBRE_ETAPA = { veg: 'vegetativa', flor: 'floración', llen: 'llenado', mad: 'maduración' };

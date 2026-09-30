@@ -276,7 +276,7 @@
     var metaBarra = (function () { var el = document.getElementById('metaInforme'); var v = el ? parseFloat(el.value) : NaN; return v > 0 ? v : null; })();
     function metaGuardadaDelLote(equipoId, cu) {
       var mejor = null;
-      leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(equipoId)) return; (c.cultivos || []).forEach(function (x) { if (!x || SafiaMeta.claveCultivo(x.cultivo) !== cu || x.rendimientoReal) return; var m = (x.planMeta && x.planMeta.kgHa) || parseFloat(x.rendimientoObj); if (m > 0 && (!mejor || String(x.fechaSiembra || '') > String(mejor.siembra || ''))) mejor = { meta: m, campana: c.nombre, siembra: x.fechaSiembra }; }); });
+      leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(equipoId)) return; (c.cultivos || []).forEach(function (x) { if (!x || SafiaMeta.claveCultivo(x.cultivo) !== cu || x.rendimientoReal) return; var m = (x.planMeta && x.planMeta.kgHa) || parseFloat(x.rendimientoObj); if (m > 0 && (!mejor || String(x.fechaSiembra || '') > String(mejor.siembra || ''))) mejor = { meta: m, campana: c.nombre, siembra: x.fechaSiembra, campanaId: c.id, idx: c.cultivos.indexOf(x), potencial: x.planMeta && x.planMeta.potencial ? x.planMeta.potencial : null }; }); });
       return mejor;
     }
     var html = '<h2>Camino a la meta: qué le falta al suelo, qué corregir y cuánto cuesta</h2>';
@@ -300,7 +300,10 @@
       var ultimo = sueloActual(analisisDelLote(id));
       if (ultimo && (!c.suelo || String(ultimo.fecha) >= String(c.suelo.fecha || ''))) c = Object.assign({}, c, { suelo: ultimo });
       var opc = {}; if (window.SafiaFoliar) opc.foliar = SafiaFoliar.ultimoDelLote(id);
-      var pl; try { pl = SafiaMeta.plan(c, meta, pr, cx.todos, prof, opc); } catch (e) { return; }
+      var pl;
+      // Con plan guardado en la campaña en curso: la misma base, ventanas e insumos que el Banco (casoParaCampana), así el informe no da otro potencial
+      if (mg && mg.campanaId != null && SafiaMeta.casoParaCampana) { try { var cc = SafiaMeta.casoParaCampana(campoActual, mg.campanaId, mg.idx); if (cc && !cc.error) { c = cc.caso; if (window.SafiaNutrientes && SafiaNutrientes.reposicionPendiente) opc.saldoAnterior = SafiaNutrientes.reposicionPendiente(c.equipoId); } } catch (e) {} }
+      try { pl = SafiaMeta.plan(c, meta, pr, cx.todos, prof, opc); } catch (e) { return; }
       var faltan = c.suelo ? SafiaAgro.interpretarSuelo(c.suelo, c.cultivo).filter(function (i) { return i.alcanzaAlto === false; }) : [];
       html += '<div class="card seccion"><div class="card-h"><h3>' + esc(l ? l.nombre : 'Campo') + ' · ' + esc(c.cultivo) + ' ' + esc(c.campana) + ' · hoy ' + fmt(c.rindeKgHa, 0) + ' kg/ha → meta ' + fmt(meta, 0) + '</h3><span class="muted">' + origenMeta + '</span></div>' +
         (c.suelo ? '<div class="note info" style="margin:6px 0 8px;"><b>Suelo hoy contra el de los lotes de 6–7 t/ha</b> (CESB, Embrapa, UNL): ' + (faltan.length ? 'faltan <b>' + faltan.map(function (i) { return esc(i.n.replace(/\s*\([^)]*\)$/, '')) + ' (' + fmt(i.valor, i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 's' || i.k.indexOf('rel') === 0 ? 1 : 2) + ' → ' + esc(i.objetivo) + ')'; }).join(', ') + '</b>. El resto ya está en el rango de alto rinde.' : 'todos los parámetros analizados ya están en el rango de alto rinde.') + '</div>' : '<div class="note warn">Sin análisis de suelo para este lote: el plan solo puede usar agua y manejo.</div>') +

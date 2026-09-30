@@ -1263,7 +1263,7 @@
       // Calcular días de campaña
       let diasCampana = '';
       if (cultivo && cultivo.fechaSiembra) {
-        const dias = Math.floor((new Date() - new Date(cultivo.fechaSiembra)) / 86400000);
+        const dias = Math.floor((new Date() - new Date(String(cultivo.fechaSiembra).slice(0, 10) + 'T00:00:00')) / 86400000);   // fecha local (sin 'T00:00' la toma como UTC y corre un día)
         diasCampana = ` · ${dias} días desde siembra`;
       }
 
@@ -1288,7 +1288,7 @@
       } else {
         document.getElementById('cosechaSuperficie').value = sup;
         // Fecha por defecto: la cosecha estimada de la campaña (si ya pasó); si no, hoy
-        const hoyISO = new Date().toISOString().slice(0, 10);
+        const dH = new Date(), hoyISO = dH.getFullYear() + '-' + ('0' + (dH.getMonth() + 1)).slice(-2) + '-' + ('0' + dH.getDate()).slice(-2);   // hoy en hora local (después de las 21:00 el UTC ya es mañana)
         const estimada = cultivo && cultivo.fechaCosecha && cultivo.fechaCosecha <= hoyISO ? cultivo.fechaCosecha : '';
         document.getElementById('cosechaFecha').value = estimada || hoyISO;
         document.getElementById('cosechaProduccion').value = '';
