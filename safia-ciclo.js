@@ -21,6 +21,12 @@
   function fmtF(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
   var EMBRAPA_GDU = { n: 'Embrapa Milho e Sorgo, Sistemas de Produção 2 (Plantio): grados-día con 30 °C y 10 °C como temperaturas de referencia', url: 'https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf' };
 
+  // Nombre corto de la fuente: el dominio de la página o el catálogo PDF (url 'catalogo:archivo.pdf#page=N')
+  function fuenteCorta(url) {
+    url = String(url || ''); if (!url) return '';
+    if (url.indexOf('catalogo:') === 0) { var m = url.slice(9).match(/^([^#]+)(?:#page=(\d+))?/); return 'catálogo ' + (m ? m[1].replace(/[_-]+/g, ' ').replace(/\.pdf$/i, '') + (m[2] ? ', pág. ' + m[2] : '') : url.slice(9)); }
+    return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+  }
   function material(cultivo, variedad) { return window.SafiaMateriales && variedad ? window.SafiaMateriales.buscar(cultivo, variedad) : null; }
 
   /* ---------- 1) ciclo publicado ---------- */
@@ -28,7 +34,7 @@
     if (!d || !(num(d.cicloDias) > 0)) return null;
     return { dias: Math.round(num(d.cicloDias)), metodo: 'publicado', confianza: 'alta',
       texto: 'ciclo publicado' + (d.cicloTexto ? ': ' + d.cicloTexto : ': ' + Math.round(num(d.cicloDias)) + ' días') + (d.cicloRegion ? ' (' + d.cicloRegion + ')' : ''),
-      fuente: { n: (d.nivel === 'obtentor' ? 'el obtentor' : d.nivel === 'distribuidor' ? 'un distribuidor' : d.nivel || 'fuente') + (d.url ? ': ' + d.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : ''), url: d.url || '' } };
+      fuente: { n: (d.nivel === 'obtentor' ? 'el obtentor' : d.nivel === 'distribuidor' ? 'un distribuidor' : d.nivel || 'fuente') + (d.url ? ': ' + fuenteCorta(d.url) : ''), url: d.url || '' } };
   }
 
   /* ---------- 2) soja: por grupo de madurez, con los materiales que sí tienen ciclo publicado ---------- */
@@ -72,6 +78,7 @@
   }
   function porGDU(d, fechaSiembra, lat, lon) {
     if (!d || !(num(d.gduMad) > 0) || lat == null || lon == null || !fechaSiembra) return Promise.resolve(null);
+    if (num(d.gduBase) != null && Math.abs(num(d.gduBase) - 10) > 0.01) return Promise.resolve(null);   // otra base térmica (Pioneer Argentina usa 8 °C): no se suma con la fórmula de 10 °C
     return temperaturas10(lat, lon).then(function (h) {
       if (!h || !h.time || !h.tmax || !h.tmin) return null;
       var suma = {}, cuenta = {};
@@ -85,7 +92,7 @@
       if (acum < meta) return null;
       return { dias: n, metodo: 'gdu', confianza: 'media', gdu: meta,
         texto: 'madurez fisiológica estimada: ' + fmt(meta, 0) + ' grados-día (base ' + fmt(base, 0) + ' °C) sumados desde la siembra con las temperaturas de ' + h.desde + '–' + h.hasta + ' del lugar',
-        fuente: { n: 'GDU del material: ' + (d.url ? d.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : 'ficha') + ' · fórmula: ' + EMBRAPA_GDU.n + ' · temperaturas: Open-Meteo (ERA5)', url: EMBRAPA_GDU.url },
+        fuente: { n: 'GDU del material: ' + (d.url ? fuenteCorta(d.url) : 'ficha') + ' · fórmula: ' + EMBRAPA_GDU.n + ' · temperaturas: Open-Meteo (ERA5)', url: EMBRAPA_GDU.url },
         nota: 'La cosecha viene después, cuando el grano seca en la planta.' };
     }).catch(function () { return null; });
   }
@@ -111,7 +118,7 @@
     if (d.cicloTexto || num(d.cicloDias) > 0) p.push('ciclo ' + (d.cicloTexto || Math.round(num(d.cicloDias)) + ' días') + (d.cicloRegion ? ' (' + d.cicloRegion + ')' : ''));
     if (d.densidad) p.push(d.densidad);
     if (d.sanidad) p.push(d.sanidad);
-    var fuente = d.nivel ? ' · fuente: ' + d.nivel + (d.url ? ' (' + d.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] + ')' : '') : '';
+    var fuente = d.nivel ? ' · fuente: ' + d.nivel + (d.url ? ' (' + fuenteCorta(d.url) + ')' : '') : '';
     var reg = d.registro && window.SafiaSenave ? ' · ' + window.SafiaSenave.etiqueta(d.registro) : '';
     return (d.exacto === false ? 'Dato de ' + d.nombre + ': ' : '') + p.join(' · ') + fuente + reg;
   }

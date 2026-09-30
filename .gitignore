@@ -34,3 +34,6 @@ $RECYCLE.BIN/
 .idea/
 *.swp
 *.swo
+
+# Catálogos PDF de semillas que Osmar deja en la raíz para leerlos (no se publican)
+*.pdf
