@@ -25,6 +25,29 @@
     .sim{display:inline-block;min-width:44px;text-align:center;padding:3px 8px;border-radius:100px;font-weight:700;font-size:12px;}
     .sim.alta{background:var(--green-t);color:var(--green-d);} .sim.media{background:var(--amber-t);color:var(--amber);} .sim.baja{background:#EEF0F2;color:var(--label);}
     .btn.mini{padding:5px 10px;font-size:11.5px;}
+    /* Formulario compacto (30-sep-2026, igual que Campañas, Campos y Equipos) */
+    .formcard{padding:16px 18px;margin-bottom:12px;}
+    .formcard .formsub{margin-bottom:10px;}
+    .form-grid{gap:10px;}
+    .field{gap:3px;}
+    .field input,.field select,.field textarea{padding:8px 11px;}
+    .field .hint{font-size:11px;line-height:1.35;}
+    .field .hint a{color:#1565C0;font-weight:600;text-decoration:none;}
+    .field textarea{min-height:54px;}
+    .fila-cultivo .field{margin-bottom:0;}
+    .auto-strip{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:7px 12px;margin:10px 0 6px;font-size:12.5px;color:var(--head);line-height:1.5;}
+    .auto-strip:empty{display:none;}
+    .auto-strip .auto-t{font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--green-d);margin-bottom:2px;}
+    .auto-strip .auto-nota{color:var(--label);font-size:12px;}
+    details.pliegue{border-top:1px solid var(--bd);}
+    details.pliegue summary{list-style:none;cursor:pointer;padding:9px 2px;font-size:13px;font-weight:600;color:var(--head);display:flex;align-items:center;gap:8px;}
+    details.pliegue summary::-webkit-details-marker{display:none;}
+    details.pliegue summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:2px solid var(--label);border-bottom:2px solid var(--label);transform:rotate(45deg);flex:none;}
+    details.pliegue[open] summary::after{transform:rotate(-135deg);}
+    details.pliegue summary .pliegue-sub{font-size:12px;font-weight:500;color:var(--label);}
+    details.pliegue .pliegue-cuerpo{padding:4px 0 6px;}
+    .formcard > details.pliegue:first-child{border-top:none;}
+    .form-actions{margin-top:12px;}
     table.tbl td.num-c{font-variant-numeric:tabular-nums;text-align:right;}
     @media print{
       .side,.side-overlay,.menu-toggle,.tabs,.toolbar,.no-print,#safiaSyncBarra,.crumb{display:none !important;}
@@ -123,49 +146,51 @@
         <div class="note info no-print" id="notaCasos"></div>
 
         <div class="formcard" id="cardProspecto">
-          <h3>0 · Cliente o prospecto</h3>
-          <div class="formsub">La evaluación se guarda sola cada vez que tocás <b>Evaluar proyecto</b>. Elegí el prospecto (o un cliente) para seguir donde quedaron, o creá uno nuevo: pasa a ser parte de SAFIA, sin riego activo todavía.</div>
+          <h3>Proyecto</h3>
+          <div class="formsub">Con el prospecto, las hectáreas, el punto del campo y los cultivos ya se evalúa. Suelo, agua e inversión detallada, si los tenés, van abajo. La evaluación se guarda sola al tocar <b>Evaluar proyecto</b>.</div>
           <div class="form-grid">
             <div class="field"><label>Cliente o prospecto</label><select id="evCliente"></select></div>
-            <div class="field"><label>Proyecto (campo)</label><select id="evCampo"></select></div>
-            <div class="field"><label>Estrategia</label><select id="evEstrategia"></select></div>
-            <div class="field"><label>Nombre de la estrategia</label><input id="evNombre" placeholder="Ej: soja + maíz zafriña, 200 ha"></div>
             <div class="field ev-nuevo-cli" style="display:none;"><label>Nombre del prospecto</label><input id="evCliNombre" placeholder="Ej: Juan Pérez"></div>
             <div class="field ev-nuevo-cli" style="display:none;"><label>WhatsApp</label><input id="evCliTel" placeholder="0981 123456"></div>
             <div class="field ev-nuevo-cli" style="display:none;"><label>Correo (opcional)</label><input id="evCliEmail" placeholder="correo@ejemplo.com"></div>
+            <div class="field"><label>Proyecto (campo)</label><select id="evCampo"></select></div>
             <div class="field ev-nuevo-campo" style="display:none;"><label>Nombre del proyecto</label><input id="evCampoNombre" placeholder="Ej: Estancia San José"></div>
+            <div class="field"><label>Estrategia</label><select id="evEstrategia"></select></div>
+            <div class="field"><label>Nombre de la estrategia</label><input id="evNombre" placeholder="Ej: soja + maíz zafriña, 200 ha"></div>
             <div class="field"><label>Hectáreas a regar</label><input type="number" id="evCampoSup" step="any" min="0" placeholder="Ej: 100"><span class="hint" id="evSupHint">De esta estrategia: puede ser solo una parte del campo</span></div>
-            <div class="field full"><label>Notas de la conversación</label><textarea id="evNotas" rows="2" placeholder="Qué pidió, qué le preocupa, próximos pasos…"></textarea></div>
+            <div class="field"><label>Punto del campo <span class="hint">(pegar de Google Maps)</span></label><input id="pGps" placeholder="Ej: -24.2483, -54.7596"><span class="hint" id="geoHint">SAFIA deduce localidad, departamento, región y altitud. <a href="#" onclick="document.getElementById('pliegueUbic').open = true; document.getElementById('pLocalidad').focus(); return false;">¿Sin punto? Buscar por localidad</a></span></div>
           </div>
+          <div class="auto-strip" id="evUbicResumen"></div>
+          <details class="pliegue" id="pliegueUbic">
+            <summary>Ubicación a mano y notas <span class="pliegue-sub">departamento, localidad, coordenadas, altitud, notas de la conversación</span></summary>
+            <div class="pliegue-cuerpo">
+              <div class="form-grid">
+                <div class="field"><label>Departamento</label><input id="pDepto" placeholder="Elegí o escribí…"><span class="hint">Elegí de la lista o escribí uno nuevo</span></div>
+                <div class="field"><label>Localidad</label><input id="pLocalidad" placeholder="Elegí o escribí…"><span class="hint">Se filtra por el departamento elegido</span></div>
+                <div class="field"><label>País</label><select id="pPais"><option>Paraguay</option><option>Brasil</option><option>Argentina</option><option>Bolivia</option><option>Uruguay</option></select></div>
+                <div class="field" style="justify-content:flex-end;"><button class="btn" id="btnGeo">📍 Buscar por localidad</button></div>
+                <div class="field"><label>Latitud</label><input type="number" id="pLat" step="any"></div>
+                <div class="field"><label>Longitud</label><input type="number" id="pLon" step="any"></div>
+                <div class="field"><label>Altitud (msnm)</label><input type="number" id="pAlt" step="1"><span class="hint" id="altHint">Se completa sola con las coordenadas</span></div>
+                <div class="field full"><label>Notas de la conversación</label><textarea id="evNotas" rows="2" placeholder="Qué pidió, qué le preocupa, próximos pasos…"></textarea></div>
+              </div>
+            </div>
+          </details>
           <div class="hint" id="evEstado" style="margin-top:6px;"></div>
         </div>
 
         <div class="formcard">
-          <h3>1 · Ubicación del proyecto</h3>
-          <div class="formsub">Con la localidad alcanza para empezar; el punto exacto del lote lo pegás de Google Maps si lo tenés.</div>
-          <div class="form-grid">
-            <div class="field"><label>Departamento</label><input id="pDepto" placeholder="Elegí o escribí…"><span class="hint">Elegí de la lista o escribí uno nuevo</span></div>
-            <div class="field"><label>Localidad</label><input id="pLocalidad" placeholder="Elegí o escribí…"><span class="hint">Se filtra por el departamento elegido</span></div>
-            <div class="field"><label>País</label><select id="pPais"><option>Paraguay</option><option>Brasil</option><option>Argentina</option><option>Bolivia</option><option>Uruguay</option></select></div>
-            <div class="field" style="justify-content:flex-end;"><button class="btn" id="btnGeo">📍 Buscar por localidad</button></div>
-            <div class="field full"><label>O pegar coordenadas de Google Maps</label><input id="pGps" placeholder="Ej: -24.2483, -54.7596"><span class="hint" id="geoHint"></span></div>
-            <div class="field"><label>Latitud</label><input type="number" id="pLat" step="any"></div>
-            <div class="field"><label>Longitud</label><input type="number" id="pLon" step="any"></div>
-            <div class="field"><label>Altitud (msnm)</label><input type="number" id="pAlt" step="1"><span class="hint" id="altHint">Se completa sola con las coordenadas</span></div>
-          </div>
-        </div>
-
-        <div class="formcard">
-          <h3>2 · Cultivos y objetivos del proyecto</h3>
-          <div class="formsub">Cargá todos los cultivos que va a tener el proyecto (por ejemplo, soja y maíz en rotación), cada uno con la producción esperada.</div>
+          <h3>Cultivos y objetivos</h3>
+          <div class="formsub">Todos los cultivos del proyecto (por ejemplo soja y maíz en rotación), con la producción esperada. Sin objetivo, SAFIA muestra el potencial de la zona.</div>
           <div id="filasCultivos"></div>
           <button type="button" class="btn" id="btnAgregarCultivo">➕ Agregar otro cultivo</button>
         </div>
 
         <div class="formcard">
-          <h3>3 · Análisis de suelo del proyecto</h3>
-          <div class="formsub">Subí la foto o el PDF del laboratorio y la IA completa los valores, o cargalos a mano.</div>
-          <div class="form-grid">
+          <details class="pliegue" id="pliegueSuelo">
+            <summary>Análisis de suelo del proyecto <span class="pliegue-sub" id="sueloSub">si tenés el laboratorio: PDF, foto o Excel (la grilla de muestreo se promedia)</span></summary>
+            <div class="pliegue-cuerpo">
+              <div class="form-grid">
             <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;">
               <input type="file" id="pArchivo" accept=".pdf,image/*,.xlsx,.xls,.xlsm,.csv,.txt" style="max-width:260px;">
               <button class="btn green" id="btnLeerIA">✨ Leer el archivo (PDF, foto o Excel)</button>
@@ -183,12 +208,12 @@
             <div class="field"><label>Limo (%)</label><input type="number" id="s_limo" step="0.1"></div>
             <div class="field"><label>Arcilla (%)</label><input type="number" id="s_arcilla" step="0.1"></div>
           </div>
-        </div>
-
-        <div class="formcard">
-          <h3>4 · Análisis de agua de riego</h3>
-          <div class="formsub">Subí el análisis del pozo, río o tajamar que va a regar el proyecto y la IA completa los valores. SAFIA calcula RAS y salinidad, lo ubica en el diagrama de Riverside y dice si se puede regar, con cuidados o no. Cargá cada valor tal cual el informe y su unidad: SAFIA lo convierte con la regla que se ve en cada línea.</div>
-          <div class="form-grid">
+            </div>
+          </details>
+          <details class="pliegue" id="pliegueAgua">
+            <summary>Análisis de agua de riego <span class="pliegue-sub" id="aguaSub">del pozo, río o tajamar: RAS, salinidad, Riverside y si se puede regar</span></summary>
+            <div class="pliegue-cuerpo">
+              <div class="form-grid">
             <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;">
               <input type="file" id="wArchivo" accept=".pdf,image/*" style="max-width:260px;">
               <button class="btn green" id="btnLeerAguaIA">Leer análisis de agua con IA</button>
@@ -203,28 +228,34 @@
             <div class="field"><label>pH</label><input type="number" id="w_ph" step="0.01" min="0" max="14"></div>
             <div class="field"><label>Temperatura del agua (°C)</label><input type="number" id="w_temperatura" step="0.1"></div>
             <div class="field"><label>Riego previsto (mm por año)</label><input type="number" id="w_laminaAnualMm" step="10" min="0" placeholder="500"><span class="hint">Para calcular cuánto yeso o ácido por año; sin dato, 500 mm. Al evaluar, SAFIA calcula el riego de cada cultivo con el clima del campo.</span></div>
-          </div>
-          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bd);">
-            <div style="font-weight:700;font-size:14px;margin-bottom:2px;">5 · Inversión y energía del proyecto de riego</div>
-            <div class="muted" style="font-size:12px;margin-bottom:8px;">Para la economía: en cuántos años se recupera, cuánto deja y cuánto cuesta la energía. Cada proyecto la carga como la tenga: monto total o por partes.</div>
-            <div class="form-grid">
-              <div class="field"><label>El campo hoy</label><select id="pSituacion"><option value="secano">Produce en secano</option><option value="nuevo">No produce todavía (campo nuevo)</option></select><span class="hint">En secano, la inversión se paga con lo que agrega el riego; en un campo nuevo, con el margen completo con riego.</span></div>
-              <div class="field"><label>Inversión</label><select id="pInvModo"><option value="total">Monto total</option><option value="partes">Por partes</option></select></div>
-              <div class="field"><label>Inversión total (US$)</label><input type="number" id="pInversion" step="1000" min="0" placeholder="Ej: 250000"><span class="hint" id="pInvHint"></span></div>
-              <div class="field"><label>Vida útil (años)</label><input type="number" id="pVidaUtil" step="1" min="1" placeholder="Opcional"><span class="hint">Para amortizar la inversión; sin dato, el horizonte es de 10 años.</span></div>
             </div>
-            <div class="form-grid" id="pInvPartes" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
+          </details>
+        </div>
+
+        <div class="formcard">
+          <h3>Inversión y energía</h3>
+          <div class="formsub">Para la economía: en cuántos años se recupera, cuánto deja y cuánto cuesta la energía.</div>
+          <div class="form-grid">
+            <div class="field"><label>El campo hoy</label><select id="pSituacion"><option value="secano">Produce en secano</option><option value="nuevo">No produce todavía (campo nuevo)</option></select><span class="hint">En secano, la inversión se paga con lo que agrega el riego; en un campo nuevo, con el margen completo con riego.</span></div>
+            <div class="field"><label>Inversión total (US$)</label><input type="number" id="pInversion" step="1000" min="0" placeholder="Ej: 250000"><span class="hint" id="pInvHint"></span></div>
+            <div class="field"><label>Energía del riego</label><select id="pEnergiaModo"><option value="base">De la base de Irrigar (por ha)</option><option value="mm">La cargo en US$ por mm</option><option value="calc">Calcularla (bombas y tarifa)</option></select><span class="hint">Con US$ por mm, la energía sale de los mm que pide cada cultivo en este campo.</span></div>
+            <div class="field" id="pEnergiaMmCampo" style="display:none;"><label>Energía y operación (US$ por mm por ha)</label><input type="number" id="pEnergiaMm" step="0.01" min="0" placeholder="Ej: 0,45"><span class="hint" id="pEnergiaHint"></span></div>
+          </div>
+          <details class="pliegue" id="pliegueInv">
+            <summary>Detalle de la inversión y de la energía <span class="pliegue-sub">por partes, vida útil, cálculo de energía con kW, tarifa y generador</span></summary>
+            <div class="pliegue-cuerpo">
+              <div class="form-grid">
+                <div class="field"><label>Inversión</label><select id="pInvModo"><option value="total">Monto total</option><option value="partes">Por partes</option></select></div>
+                <div class="field"><label>Vida útil (años)</label><input type="number" id="pVidaUtil" step="1" min="1" placeholder="Opcional"><span class="hint">Para amortizar la inversión; sin dato, el horizonte es de 10 años.</span></div>
+              </div>
+              <div class="form-grid" id="pInvPartes" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
               <div class="field"><label>Equipos de riego (US$)</label><input type="number" class="pInvParte" data-k="equipo" step="1000" min="0" placeholder="Pivots, cañones, goteo"></div>
               <div class="field"><label>Pozos y bombas (US$)</label><input type="number" class="pInvParte" data-k="pozos" step="1000" min="0" placeholder="Perforación, bombas, cañerías"></div>
               <div class="field"><label>Reservorio o tajamar (US$)</label><input type="number" class="pInvParte" data-k="reservorio" step="1000" min="0" placeholder="Excavación, lona"></div>
               <div class="field"><label>Parte eléctrica (US$)</label><input type="number" class="pInvParte" data-k="electrica" step="1000" min="0" placeholder="Línea, transformadores, generador"></div>
               <div class="field"><label>Obras y otros (US$)</label><input type="number" class="pInvParte" data-k="obras" step="1000" min="0" placeholder="Caseta, fertirriego, instalación"></div>
             </div>
-            <div class="form-grid" style="margin-top:10px;">
-              <div class="field"><label>Energía del riego</label><select id="pEnergiaModo"><option value="base">De la base de Irrigar (por ha)</option><option value="mm">La cargo en US$ por mm</option><option value="calc">Calcularla (bombas y tarifa)</option></select><span class="hint">Con US$ por mm, la energía sale de los mm que pide cada cultivo en este campo.</span></div>
-              <div class="field" id="pEnergiaMmCampo" style="display:none;"><label>Energía y operación (US$ por mm por ha)</label><input type="number" id="pEnergiaMm" step="0.01" min="0" placeholder="Ej: 0,45"><span class="hint" id="pEnergiaHint"></span></div>
-            </div>
-            <div class="form-grid" id="pEnergiaCalc" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
+              <div class="form-grid" id="pEnergiaCalc" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
               <div class="field"><label>Potencia por equipo (kW)</label><input type="number" class="pEc" data-k="kw" step="any" min="0" placeholder="Bomba de pozo + bomba + pivot"><span class="hint">1 HP = 0,746 kW</span></div>
               <div class="field"><label>Tarifa eléctrica (US$ por kWh)</label><input type="number" class="pEc" data-k="tarifa" step="0.001" min="0" placeholder="Ej: 0,047"></div>
               <div class="field"><label>Lámina del equipo en 24 h (mm)</label><input type="number" class="pEc" data-k="lamina" step="any" min="0" placeholder="Ej: 8"></div>
@@ -234,7 +265,8 @@
               <div class="field"><label>Consumo del generador (litros por hora)</label><input type="number" class="pEc" data-k="genLh" step="any" min="0" placeholder="Ej: 31"></div>
               <div class="field"><label>Precio del gasoil (US$ por litro)</label><input type="number" class="pEc" data-k="gasoil" step="0.01" min="0" placeholder="Ej: 1,25"></div>
             </div>
-          </div>
+            </div>
+          </details>
           <div class="form-actions">
             <span style="flex:1"></span>
             <button class="btn" id="btnEvaluarNueva" title="Guarda lo cargado como otra estrategia del mismo proyecto">Evaluar como estrategia nueva</button>
@@ -335,6 +367,7 @@
     hint.textContent='Buscando altitud…';
     fetch('https://api.open-meteo.com/v1/elevation?latitude='+lat+'&longitude='+lon).then(function(r){return r.json();}).then(function(j){
       var m=j&&j.elevation&&j.elevation[0]; if(m!=null){ alt.value=Math.round(m); hint.textContent='✓ Altitud obtenida de las coordenadas'; } else hint.textContent='';
+      refrescarUbicacion();
     }).catch(function(){ hint.textContent='No se pudo obtener la altitud'; });
   }
   // Con el punto, SAFIA deduce localidad, departamento y país (OpenStreetMap); no pisa lo que ya estaba escrito
@@ -350,9 +383,20 @@
       if(!loc.value.trim() && u.localidad) loc.value=u.localidad;
       if(u.pais && Array.prototype.some.call(pais.options,function(o){return o.value===u.pais;})) pais.value=u.pais;
       if(hint) hint.textContent='Ubicación deducida del punto: '+[u.localidad,u.departamento,u.pais].filter(Boolean).join(', ')+'. Corregila si no es.';
-      dep.dispatchEvent(new Event('change',{bubbles:true}));
+      dep.dispatchEvent(new Event('change',{bubbles:true})); refrescarUbicacion();
     });
   }
+  // Franja "SAFIA completa sola": localidad, departamento, región y altitud a partir del punto
+  function refrescarUbicacion(){
+    var r=document.getElementById('evUbicResumen'); if(!r) return;
+    var v=function(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; };
+    var lat=parseFloat(v('pLat')), lon=parseFloat(v('pLon')), hay=!isNaN(lat)&&!isNaN(lon);
+    var lugar=[v('pLocalidad'),v('pDepto'),v('pPais')].filter(Boolean).join(', ');
+    var reg=window.SafiaCasos&&SafiaCasos.regionNombre?SafiaCasos.regionNombre(SafiaCasos.region({departamento:v('pDepto'),pais:v('pPais')||'Paraguay',lat:hay?lat:null,lon:hay?lon:null})):'';
+    var partes=[]; if(lugar) partes.push('<b>'+lugar.replace(/[<>]/g,'')+'</b>'); if(reg) partes.push(reg); if(v('pAlt')) partes.push(v('pAlt')+' m de altitud'); if(hay) partes.push('lluvia de 10 años, ETo y casos parecidos listos');
+    r.innerHTML=partes.length?'<div class="auto-t">SAFIA completa sola</div><div>'+partes.join(' · ')+' <a href="#" style="font-size:12px;" onclick="document.getElementById(\'pliegueUbic\').open=true;return false;">corregir</a></div>':'';
+  }
+  ['pDepto','pLocalidad','pPais','pLat','pLon','pAlt'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('input',refrescarUbicacion); el.addEventListener('change',refrescarUbicacion); } });
   function ponerCoordenadas(lat,lon){
     document.getElementById('pLat').value=lat; document.getElementById('pLon').value=lon;
     document.getElementById('pGps').value=lat+', '+lon;
@@ -409,6 +453,19 @@
     .finally(function(){ b.disabled=false; b.textContent='✨ Leer el archivo (PDF, foto o Excel)'; });
   });
 
+  /* ---------- pliegues: se abren solos cuando el dato elegido vive adentro; subtítulos con lo cargado ---------- */
+  (function(){
+    var inv=document.getElementById('pInvModo'), en=document.getElementById('pEnergiaModo'), pl=document.getElementById('pliegueInv');
+    function abrirSiHaceFalta(){ if(!pl) return; if((inv&&inv.value==='partes')||(en&&en.value==='calc')) pl.open=true; }
+    if(inv) inv.addEventListener('change',abrirSiHaceFalta); if(en) en.addEventListener('change',abrirSiHaceFalta);
+    var SUELO=['s_ph','s_mo','s_p','s_k','s_ca','s_mg','s_cic','s_satBases','s_arena','s_limo','s_arcilla'];
+    function subSuelo(){ var n=SUELO.filter(function(id){ var el=document.getElementById(id); return el&&el.value!==''; }).length; var el=document.getElementById('sueloSub'); if(el) el.textContent=n?n+' valores cargados · abrí para verlos o corregirlos':'si tenés el laboratorio: PDF, foto o Excel (la grilla de muestreo se promedia)'; }
+    SUELO.forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input',subSuelo); });
+    function subAgua(){ var ce=document.getElementById('w_ce'), na=document.getElementById('w_na'), f=document.getElementById('wFecha'); var hay=(ce&&ce.value!=='')||(na&&na.value!=='')||(f&&f.value); var el=document.getElementById('aguaSub'); if(el) el.textContent=hay?'análisis cargado · abrí para verlo':'del pozo, río o tajamar: RAS, salinidad, Riverside y si se puede regar'; }
+    var wg=document.getElementById('wGrilla'); if(wg) wg.addEventListener('input',subAgua); var wf=document.getElementById('wFecha'); if(wf) wf.addEventListener('change',subAgua);
+    window.__evSubtitulos=function(){ subSuelo(); subAgua(); abrirSiHaceFalta(); refrescarUbicacion(); };
+    setTimeout(window.__evSubtitulos,0);
+  })();
   /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
   var CLAVES_AGUA=['na','k','ca','mg','nh4','cl','so4','co3','hco3','no3','po4','ce','boro'], NUM_AGUA=['ph','temperatura','laminaAnualMm'];
   document.getElementById('wGrilla').innerHTML=SafiaCalidadAgua.grillaHTML('w'); SafiaCalidadAgua.conectarGrilla('w'); SafiaCalidadAgua.limpiarGrilla('w');
