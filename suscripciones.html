@@ -82,7 +82,7 @@
       <div class="ptop">
         <div>
           <h2>Suscripciones por pivot</h2>
-          <div class="sub">Cada pivot tiene su suscripción anual. Vencida: el cliente ve lo que ya cargó, pero no puede cargar nada nuevo en ese pivot (riegos, lluvias, campañas, análisis de suelo o agua, metas, comparativos, satélite ni el Asistente). El lote de secano funciona si el campo tiene un pivot vigente. Desde 30 días antes, el cliente ve el aviso.</div>
+          <div class="sub">Cada pivot tiene su suscripción anual. Vencida: el cliente ve lo que ya cargó, pero no puede cargar nada nuevo en ese pivot (riegos, lluvias, campañas, análisis de suelo o agua, metas, comparativos, satélite ni el Asistente). El lote de secano va incluido si el campo tiene un pivot vigente; si no (productor sin riego), paga su propia suscripción, con su prueba gratis. Desde 30 días antes, el cliente ve el aviso.</div>
         </div>
       </div>
       <div id="contenido"><div class="note info">Cargando…</div></div>
@@ -151,7 +151,8 @@
         const c = cps.find(x => String(x.id) === String(e.campoId)), k = c ? cl.find(x => String(x.id) === String(c.clienteId)) : null;
         const est = S().estado(e.id), reg = S().registro(e.id);
         const enPrueba = !!(reg && reg.plan === 'Prueba');
-        let clave = est.secano ? (est.vigente ? 'secano_ok' : 'secano_no') : est.sinSuscripcion ? 'sin' : !est.vigente ? (enPrueba ? 'prueba_fin' : 'vencida') : enPrueba ? 'prueba' : est.porVencer ? 'por_vencer' : 'vigente';
+        // secano incluido con el pivot del campo: gratis; si no, paga como un pivot (con su propia suscripción)
+        let clave = est.secano && est.porCampo ? 'secano_ok' : est.sinSuscripcion ? 'sin' : !est.vigente ? (enPrueba ? 'prueba_fin' : 'vencida') : enPrueba ? 'prueba' : est.porVencer ? 'por_vencer' : 'vigente';
         return { e, campo: c, cliente: k, est, reg, clave, ha: num(e.superficie) };
       }).sort((a, b) => String(a.cliente ? a.cliente.nombre : '~').localeCompare(String(b.cliente ? b.cliente.nombre : '~')) || String(a.campo ? a.campo.nombre : '').localeCompare(String(b.campo ? b.campo.nombre : '')) || String(a.e.nombre).localeCompare(String(b.e.nombre)));
     }
@@ -162,12 +163,12 @@
       por_vencer: ['Vence pronto', '#FFF6E0', '#6B4A00'],
       vencida: ['Vencida', '#FDECEA', '#7A1F16'],
       sin: ['Sin suscripción', '#FDECEA', '#7A1F16'],
-      secano_ok: ['Secano: habilitado', '#EEF1F4', '#4A5157'],
+      secano_ok: ['Secano: incluido con el pivot', '#EEF1F4', '#4A5157'],
       secano_no: ['Secano: bloqueado', '#FDECEA', '#7A1F16']
     };
     function chip(k) { const c = CHIP[k]; return '<span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:800;background:' + c[1] + ';color:' + c[2] + ';white-space:nowrap;">' + c[0] + '</span>'; }
     function venceTxt(f) {
-      if (f.est.secano) return '<span class="muted">depende del pivot del campo</span>';
+      if (f.est.secano && f.est.porCampo) return '<span class="muted">incluido con el pivot vigente del campo</span>';
       if (f.est.sinSuscripcion) return '<span class="muted">—</span>';
       if (f.est.sinFecha) return 'sin fecha <span class="muted">(vigente)</span>';
       const d = f.est.dias;
@@ -176,12 +177,12 @@
 
     function pintar() {
       if (!S() || !S().activa()) { $('contenido').innerHTML = '<div class="note warn"><b>Falta activar las suscripciones en la base.</b> Corré el SQL <code>safia_suscripciones.sql</code> en Supabase (SQL Editor) y volvé a abrir esta pantalla. Mientras tanto, SAFIA no bloquea nada.</div>'; return; }
-      const todas = filas(), piv = todas.filter(f => !f.est.secano);
+      const todas = filas(), piv = todas.filter(f => !(f.est.secano && f.est.porCampo));   // lo que paga: pivots + lotes de secano sin pivot en el campo
       const cuenta = (k) => piv.filter(f => f.clave === k).length;
       const haVig = piv.filter(f => f.est.vigente).reduce((s, f) => s + (f.ha || 0), 0);
       const tarjeta = (n, t, col, k) => '<button type="button" class="card" data-f="' + k + '" style="text-align:left;cursor:pointer;border:' + (filtro === k ? '2px solid ' + col : '1px solid var(--bd)') + ';padding:12px 14px;margin:0;"><div style="font-size:24px;font-weight:800;color:' + col + ';">' + n + '</div><div style="font-size:12px;color:var(--label);font-weight:700;">' + t + '</div></button>';
       let h = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">' +
-        tarjeta(piv.length, 'Pivots en total', '#2E3236', 'todos') + tarjeta(cuenta('vigente') + cuenta('por_vencer') + cuenta('prueba'), 'Vigentes · ' + Math.round(haVig).toLocaleString('es-PY') + ' ha', '#17692A', 'vigentes') +
+        tarjeta(piv.length, 'Lotes que pagan', '#2E3236', 'todos') + tarjeta(cuenta('vigente') + cuenta('por_vencer') + cuenta('prueba'), 'Vigentes · ' + Math.round(haVig).toLocaleString('es-PY') + ' ha', '#17692A', 'vigentes') +
         tarjeta(cuenta('por_vencer'), 'Vencen en 30 días', '#B8731A', 'por_vencer') + tarjeta(cuenta('prueba'), 'En prueba', '#1B5E9A', 'prueba') + tarjeta(cuenta('vencida') + cuenta('prueba_fin'), 'Vencidas', '#C0392B', 'vencida') + tarjeta(cuenta('sin'), 'Sin suscripción', '#C0392B', 'sin') + '</div>';
       h += '<div class="field" style="max-width:360px;margin-bottom:12px;"><input type="search" id="busca" placeholder="Buscar cliente, campo o pivot" value="' + esc(busca) + '"></div>';
       const vis = todas.filter(f => {
@@ -194,9 +195,9 @@
       h += '<div class="card" style="padding:6px 14px;"><div class="cab-s"><div>Cliente · campo</div><div>Pivot</div><div>Vence</div><div>Estado</div><div></div></div>' +
         (vis.length ? vis.map(f => '<div class="fila-s">' +
           '<div><b>' + esc(f.cliente ? f.cliente.nombre : 'Sin cliente') + '</b><div class="muted" style="font-size:12px;">' + esc(f.campo ? f.campo.nombre + (f.campo.localidad ? ' · ' + f.campo.localidad : '') : '—') + '</div></div>' +
-          '<div>' + esc(f.e.nombre) + (f.ha ? ' <span class="muted">· ' + Math.round(f.ha).toLocaleString('es-PY') + ' ha</span>' : '') + (f.reg && f.reg.plan && !f.est.secano ? '<div class="muted" style="font-size:12px;">' + esc(f.reg.plan) + (f.reg.notas ? ' · ' + esc(f.reg.notas) : '') + '</div>' : '') + '</div>' +
+          '<div>' + esc(f.e.nombre) + (f.ha ? ' <span class="muted">· ' + Math.round(f.ha).toLocaleString('es-PY') + ' ha</span>' : '') + (f.reg && f.reg.plan && !(f.est.secano && f.est.porCampo) ? '<div class="muted" style="font-size:12px;">' + esc(f.reg.plan) + (f.reg.notas ? ' · ' + esc(f.reg.notas) : '') + '</div>' : '') + '</div>' +
           '<div>' + venceTxt(f) + '</div><div>' + chip(f.clave) + '</div>' +
-          '<div class="acc">' + (f.est.secano ? '' : '<button class="btn green" data-renovar="' + esc(f.e.id) + '">' + (f.est.sinSuscripcion ? 'Habilitar 1 año' : 'Renovar 1 año') + '</button><button class="btn" data-prueba-de="' + esc(f.e.id) + '">Prueba</button><button class="btn" data-editar="' + esc(f.e.id) + '">Editar</button>') + '</div></div>').join('')
+          '<div class="acc">' + (f.est.secano && f.est.porCampo ? '' : '<button class="btn green" data-renovar="' + esc(f.e.id) + '">' + (f.est.sinSuscripcion ? 'Habilitar 1 año' : 'Renovar 1 año') + '</button><button class="btn" data-prueba-de="' + esc(f.e.id) + '">Prueba</button><button class="btn" data-editar="' + esc(f.e.id) + '">Editar</button>') + '</div></div>').join('')
           : '<div class="muted" style="padding:14px 0;">No hay pivots en este filtro.</div>') + '</div>';
       $('contenido').innerHTML = h;
       $('contenido').querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { filtro = filtro === b.dataset.f ? 'todos' : b.dataset.f; pintar(); }));

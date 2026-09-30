@@ -120,17 +120,21 @@
       if (!activa() || eqId == null || eqId === '') return { vigente: true, sinControl: true, texto: '' };
       var eq = lista('equipos').find(function (e) { return e && String(e.id) === String(eqId); });
       if (!eq) return { vigente: true, desconocido: true, texto: '' };
-      if (eq.tipo === 'secano') { var ok = campoVigente(eq.campoId); return { vigente: ok, secano: true, texto: ok ? 'lote de secano: habilitado por el pivot vigente del campo' : 'lote de secano: el campo no tiene ningún pivot con suscripción vigente' }; }
+      if (eq.tipo === 'secano') {
+        // gratis mientras el campo tenga un pivot vigente; si no, el lote paga su propia suscripción (como un pivot)
+        if (campoVigente(eq.campoId)) return { vigente: true, secano: true, porCampo: true, texto: 'lote de secano: incluido con el pivot vigente del campo' };
+        var pr = estadoPivot(eqId); pr.secano = true; pr.porCampo = false; pr.texto = 'lote de secano: ' + (pr.sinSuscripcion ? 'sin suscripción propia y sin pivot vigente en el campo' : pr.texto); return pr;
+      }
       return estadoPivot(eqId);
     }
     function puedeCargar(eqId) { return soyIrrigar() || estado(eqId).vigente; }
     function puedeCargarCampo(campoId) { return soyIrrigar() || campoVigente(campoId); }
     // ¿el usuario tiene al menos un pivot vigente? (el Asistente y la lectura con IA no gastan si no)
-    function algunaVigente() { return !activa() || soyIrrigar() || lista('equipos').some(function (e) { return e && e.tipo !== 'secano' && estadoPivot(e.id).vigente; }); }
+    function algunaVigente() { return !activa() || soyIrrigar() || lista('equipos').some(function (e) { return e && estado(e.id).vigente && !(e.tipo === 'secano' && !registro(e.id) && !campoVigente(e.campoId)); }); }
     // Pivots para avisar: vencidos, sin suscripción o que vencen en 30 días
     function avisos() {
       if (!activa()) return [];
-      return lista('equipos').filter(function (e) { return e && e.tipo !== 'secano'; }).map(function (e) { return { equipo: e, estado: estadoPivot(e.id) }; })
+      return lista('equipos').filter(function (e) { return e && (e.tipo !== 'secano' || !campoVigente(e.campoId)); }).map(function (e) { return { equipo: e, estado: e.tipo === 'secano' ? estado(e.id) : estadoPivot(e.id) }; })
         .filter(function (x) { return !x.estado.vigente || x.estado.porVencer; });
     }
     // ¿A qué lote o campo va un registro?
