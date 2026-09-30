@@ -647,6 +647,29 @@
     .badge-cerrada{background:#EEF0F2 !important;color:#8C9196 !important;}
     .badge-cultivos{background:#E7F0FB !important;color:#2E72C8 !important;}
     .cultivo-bloque{background:#F2F3F5 !important;border-color:#E1E4E7 !important;}
+    /* Formulario compacto (pedido de Osmar 30-sep): menos alto por campo, ayudas chicas, 5 campos en 2 filas */
+    #tarjetaForm{padding:16px 18px !important;}
+    #tarjetaForm .tarjeta-sub{margin-bottom:12px;}
+    #tarjetaForm .seccion{padding-top:12px;margin-top:12px;}
+    #tarjetaForm .seccion-titulo{margin-bottom:8px;}
+    #tarjetaForm .campo{margin-bottom:9px;}
+    #tarjetaForm .campo label{font-size:11px;margin-bottom:3px;}
+    #tarjetaForm .campo input,#tarjetaForm .campo select,#tarjetaForm .campo textarea{padding:8px 11px !important;font-size:14px !important;}
+    #tarjetaForm .campo .ayuda{font-size:11px;line-height:1.35;margin-top:3px;}
+    #tarjetaForm .fila{gap:10px;}
+    #tarjetaForm .fila.f3{grid-template-columns:1fr 1fr 1fr;}
+    #tarjetaForm .fila.f21{grid-template-columns:2fr 1fr;}
+    #tarjetaForm .cultivo-bloque{padding:12px 14px;margin-bottom:10px;}
+    #tarjetaForm .cultivo-bloque-titulo{margin-bottom:8px;font-size:13px;}
+    #tarjetaForm .auto-strip{padding:7px 12px;margin:0 0 8px;font-size:12.5px;line-height:1.5;}
+    #tarjetaForm .auto-strip .auto-t{font-size:10px;margin-bottom:2px;}
+    #tarjetaForm .auto-strip input.mini{padding:3px 6px;font-size:12.5px;}
+    #tarjetaForm details.pliegue summary{padding:8px 2px;font-size:13px;}
+    #tarjetaForm details.pliegue .pliegue-cuerpo{padding:4px 0 2px;}
+    #tarjetaForm .labores-chips label.chip-chk{padding:5px 10px;font-size:12px;}
+    #tarjetaForm .boton-agregar-cultivo{padding:9px 14px;margin-top:2px;}
+    #tarjetaForm .botones-form{margin-top:12px;}
+    @media (max-width: 700px){ #tarjetaForm .fila.f3,#tarjetaForm .fila.f21{grid-template-columns:1fr;} }
     .cultivo-bloque-titulo{color:#2E3236 !important;}
     .item-cosechar{background:#E7F6EA !important;color:#178029 !important;border-radius:8px !important;}
     .item-cerrada{background:#fff !important;border:1px solid #E1E4E7 !important;border-radius:10px !important;box-shadow:0 1px 3px rgba(30,40,50,.06) !important;padding:18px 20px !important;margin-bottom:10px !important;}
@@ -842,7 +865,6 @@
                   <div class="campo">
                     <label>Nombre de la campaña</label>
                     <input type="text" id="nombre" placeholder="Se arma solo con el cultivo, la zafra y el equipo" oninput="nombreAuto = !this.value.trim(); refrescarResumenCampana();">
-                    <div class="ayuda">Si lo dejás vacío, SAFIA lo arma solo. Si escribís uno, se respeta.</div>
                   </div>
                   <div class="campo">
                     <label>Estado</label>
@@ -850,7 +872,6 @@
                       <option value="Activa">🟢 Activa</option>
                       <option value="Cerrada">⚫ Cerrada</option>
                     </select>
-                    <div class="ayuda">Las campañas nuevas nacen activas; se cierran con el botón de cosecha.</div>
                   </div>
                 </div>
               </div>
@@ -1923,10 +1944,12 @@
       const campo = JSON.parse(localStorage.getItem('campos') || '[]').find(x => String(x.id) === String(eq.campoId)); if (!campo) return {};
       return { lat: parseFloat(String(campo.latitud || '').replace(',', '.')), lon: parseFloat(String(campo.longitud || '').replace(',', '.')) };
     }
+    // 'GM 6,4 · indeterminado · ciclo 130 días (Paraguay, Bayer Paraguay) · densidad…' → los primeros 3 datos
+    function fichaCorta(f) { const p = String(f || '').split(' · '); return p.slice(0, 3).join(' · ') + (p.length > 3 ? ' · más al pasar el mouse' : ''); }
     function actualizarMaterial(idTemp) {
       const c = cultivosTemp.find(x => x.idTemp === idTemp); if (!c || !window.SafiaCiclo) return;
       const ficha = c.cultivo && c.variedad ? SafiaCiclo.fichaMaterial(c.cultivo, c.variedad) : '';
-      c.fichaMaterial = ficha; const fEl = document.getElementById('matFicha-' + idTemp); if (fEl) fEl.textContent = ficha;
+      c.fichaMaterial = ficha; const fEl = document.getElementById('matFicha-' + idTemp); if (fEl) { fEl.textContent = fichaCorta(ficha); fEl.title = ficha; }
       const d = c.cultivo && c.variedad && window.SafiaMateriales ? SafiaMateriales.buscar(c.cultivo, c.variedad) : null;
       c.gm = d && d.gm != null ? d.gm : null;
       if (!c.fechaSiembra || !d) { if (c.fechaCosechaAuto) { c.fechaCosecha = ''; c.fechaCosechaAuto = false; c.ciclo = null; const ci = document.getElementById('cosecha-' + idTemp); if (ci) ci.value = ''; const a0 = document.getElementById('cosAyuda-' + idTemp); if (a0) a0.textContent = ''; } return; }
@@ -2161,7 +2184,7 @@
               ${puedeQuitar ? `<button class="boton-quitar-cultivo" onclick="quitarCultivo(${cultivo.idTemp})">× Quitar</button>` : ''}
             </div>
 
-            <div class="fila">
+            <div class="fila f3">
               <div class="campo">
                 <label>Cultivo</label>
                 <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'cultivo', this.value)">
@@ -2170,33 +2193,28 @@
               </div>
               <div class="campo">
                 <label>Finalidad</label>
-                <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'finalidad', this.value)">
+                <select title="Grano se compara con grano, ensilaje con ensilaje." onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'finalidad', this.value)">
                   ${opcionesFinalidad(cultivo.finalidad)}
                 </select>
-                <div class="ayuda">Grano se compara con grano, ensilaje con ensilaje.</div>
               </div>
-            </div>
-
-            <div class="fila">
-              <div class="campo">
-                <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
-                <input type="text" list="listaVariedades" autocomplete="off" placeholder="${cultivo.cultivo ? 'Elegí del catálogo o escribí' : 'Primero elegí el cultivo'}" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
-                <div class="ayuda" id="matFicha-${cultivo.idTemp}" style="color:#17692A;font-weight:600;">${escHtml(cultivo.fichaMaterial || '')}</div>
-                <div class="ayuda">${cultivo.cultivo ? 'Primero las ya usadas, después el catálogo de SAFIA y lo inscripto en SENAVE. Si no está, escribila.' : 'Elegí el cultivo y acá aparecen sus variedades.'}</div>
-              </div>
-              <div class="campo">
-                <label>${esPastura ? 'Fecha de implantación (o desde cuándo la sigue SAFIA)' : 'Fecha de siembra'}</label>
-                <input type="date" value="${cultivo.fechaSiembra || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaSiembra', this.value)">
-              </div>
-            </div>
-
-            <div class="fila">
               <div class="campo">
                 <label>Superficie (ha)</label>
                 <input type="number" placeholder="${haEq ? 'La del equipo: ' + haEq + ' ha' : 'Ej: 100'}" value="${cultivo.superficie || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'superficie', this.value)">
-                <div class="ayuda" id="supAyuda-${cultivo.idTemp}">${cultivo.superficieAuto && cultivo.superficie ? 'Tomada del equipo. Cambiala si sembraste una parte.' : ''}</div>
+                <div class="ayuda" id="supAyuda-${cultivo.idTemp}">${cultivo.superficieAuto && cultivo.superficie ? 'La del equipo; cambiala si sembraste una parte.' : ''}</div>
               </div>
-              <div class="campo" style="margin:0;"></div>
+            </div>
+
+            <div class="fila f21">
+              <div class="campo">
+                <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
+                <input type="text" list="listaVariedades" autocomplete="off" placeholder="${cultivo.cultivo ? 'Elegí del catálogo (ya usadas, SAFIA, SENAVE) o escribila' : 'Primero elegí el cultivo'}" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+                <div class="ayuda" id="matFicha-${cultivo.idTemp}" style="color:#17692A;font-weight:600;" title="${escHtml(cultivo.fichaMaterial || '')}">${escHtml(fichaCorta(cultivo.fichaMaterial || ''))}</div>
+              </div>
+              <div class="campo">
+                <label>${esPastura ? 'Fecha de implantación' : 'Fecha de siembra'}</label>
+                <input type="date" value="${cultivo.fechaSiembra || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaSiembra', this.value)">
+                ${esPastura ? '<div class="ayuda">O desde cuándo la sigue SAFIA.</div>' : ''}
+              </div>
             </div>
 
             ${bloquePastura}
@@ -2249,7 +2267,7 @@
                   <div class="campo">
                     <label>Cobertura de invierno / entre cosechas</label>
                     <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'cobertura', this.value)">${opcionesCobertura(cultivo.cobertura)}</select>
-                    <div class="ayuda">Avena, brachiaria, Santa Fe, nabo… lo que se sembró después de la cosecha anterior y antes de este cultivo.</div>
+                    
                   </div>
                 </div>
                 <div class="fila">
@@ -2266,13 +2284,13 @@
                   <div class="campo">
                     <label>Sistema de siembra</label>
                     <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'sistemaSiembra', this.value)">${SafiaInsumos.SISTEMAS_SIEMBRA.map(m => '<option value="' + m.k + '"' + ((cultivo.sistemaSiembra || '') === m.k ? ' selected' : '') + '>' + m.n + '</option>').join('')}</select>
-                    <div class="ayuda">Directa sobre cobertura o sobre rastrojo, labranza mínima o convencional (rastroneada).</div>
+                    
                   </div>
                   <div class="campo">
                     <label>Consorcio (sembrado junto con una forrajera)</label>
                     <select onchange="actualizarCultivoTemp(${cultivo.idTemp}, 'consorcio', this.value)">${SafiaInsumos.CONSORCIOS.map(m => '<option value="' + m.k + '"' + ((cultivo.consorcio || '') === m.k ? ' selected' : '') + '>' + m.n + '</option>').join('')}</select>
                     <input type="text" style="margin-top:6px;" placeholder="Detalle: especie, kg/ha, cuándo se sembró la forrajera" value="${cultivo.consorcioDetalle || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'consorcioDetalle', this.value)">
-                    <div class="ayuda">Sistema Santa Fe: maíz o sorgo sembrado junto con brachiaria; deja paja para la siembra directa siguiente y pasto para el invierno.</div>
+                    
                   </div>
                 </div>
                 <div class="campo">
@@ -2280,7 +2298,7 @@
                   <div class="labores-chips">
                     ${SafiaInsumos.LABORES_ENTRE.map(l => '<label class="chip-chk' + ((cultivo.labores || []).indexOf(l.k) !== -1 ? ' on' : '') + '"><input type="checkbox" ' + ((cultivo.labores || []).indexOf(l.k) !== -1 ? 'checked' : '') + ' onchange="alternarLabor(' + cultivo.idTemp + ', \'' + l.k + '\', this.checked); this.parentNode.classList.toggle(\'on\', this.checked)"> ' + l.n + '</label>').join('')}
                   </div>
-                  <div class="ayuda">Ej.: al sacar el maíz se encaló y se subsoló, y no dio tiempo a sembrar avena → marcá encalado y subsolado y dejá la cobertura en "Ninguna".</div>
+                  
                 </div>
               </div>
             </details>
@@ -2292,7 +2310,7 @@
                   <div class="campo">
                     <label>${esPastura ? 'Meta de forraje (kg MS/ha por año)' : 'Rendimiento objetivo (kg/ha)'} <span class="opcional">(opcional)</span></label>
                     <input type="number" placeholder="Ej: 12000" value="${cultivo.rendimientoObj || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'rendimientoObj', this.value)">
-                    <div class="ayuda">La meta detallada (qué hacer para llegar) se arma en Banco → Meta de rinde.</div>
+                    
                   </div>
                   ${cultivo.rendimientoReal ? `<div class="campo">
                     <label>Rendimiento real <span class="opcional">(cargado al cosechar)</span></label>
