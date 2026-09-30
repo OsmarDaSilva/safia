@@ -890,7 +890,7 @@
       await Promise.all(Object.keys(camposUnicos).map(async id => {
         const campo = camposUnicos[id];
         if (!campo.latitud || !campo.longitud) { sinClima.push(campo.nombre + ' (sin GPS)'); return; }
-        const rC = await SafiaClima.obtenerClima({ lat: campo.latitud, lon: campo.longitud, current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code', daily: 'precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max', pastDays: 92, forecastDays: 16, cacheKey: 'campo:' + campo.id });
+        const rC = await SafiaClima.obtenerClima({ lat: campo.latitud, lon: campo.longitud, current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code', daily: 'precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max', pastDays: SafiaBalance.pastDaysDesde(campo.id), forecastDays: 16, cacheKey: 'campo:' + campo.id });
         if (rC.datos) { clima[id] = rC; alertasClimaDe(campo, rC.datos).forEach(a => alertas.push(a)); }
         else sinClima.push(campo.nombre + (rC.error && rC.error.tipo === 'sin_internet' ? ' (sin internet)' : ' (clima no disponible)'));
       }));

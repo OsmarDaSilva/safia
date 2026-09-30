@@ -640,7 +640,21 @@
     };
   }
 
+  // Días de historia a pedir al clima para un campo: desde la siembra más vieja de sus campañas activas (+2), mínimo 92, máximo 400.
+  // Con menos, el balance arrancaba 92 días atrás con la reserva a medias en vez de en la siembra (maíz, sorgo, girasol).
+  function pastDaysDesde(campoId, equipoId) {
+    var hoy = hoyLocal(), max = 0;
+    var eqs = leerLS('equipos').filter(function (e) { return e && (equipoId != null ? String(e.id) === String(equipoId) : String(e.campoId) === String(campoId)); });
+    var ids = {}; eqs.forEach(function (e) { ids[String(e.id)] = 1; });
+    leerLS('campanas').forEach(function (c) {
+      if (!c || !ids[String(c.equipoId)] || c.estado !== 'Activa') return;
+      (c.cultivos || []).forEach(function (cu) { if (cu && cu.fechaSiembra) { var d = diasEntre(claveDia(cu.fechaSiembra), hoy); if (d > max) max = d; } });
+    });
+    return Math.max(92, Math.min(400, max + 2));
+  }
+
   var SafiaBalance = {
+    pastDaysDesde: pastDaysDesde,
     TEXTURAS: TEXTURAS, TIPOS_SUELO: TIPOS_SUELO, SUELO_FALLBACK: SUELO_FALLBACK, ZR_REF: ZR_REF,
     KY: KY, P_TABLA: P_TABLA, ZR_MAX: ZR_MAX, ETAPAS: ETAPAS, NOMBRE_ETAPA: NOMBRE_ETAPA,
     UMBRALES: UMBRALES, umbralesDe: umbralesDe, EFICIENCIA_RIEGO: EFICIENCIA_RIEGO,

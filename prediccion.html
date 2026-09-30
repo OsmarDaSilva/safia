@@ -267,7 +267,7 @@
           lat: ev.campo.latitud, lon: ev.campo.longitud,
           current: 'temperature_2m',
           daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
-          pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET)
+          pastDays: SafiaBalance.pastDaysDesde(ev.campo.id), forecastDays: 16,   // historia desde la siembra más vieja del campo (mín. 92 días); 16 de pronóstico (como FieldNET)
           cacheKey: 'campo:' + ev.campo.id
         });
         if (rClima.datos) {

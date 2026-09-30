@@ -305,7 +305,7 @@
       var omitidos = lista.length > 8 ? lista.length - 8 : 0; lista = lista.slice(0, 8);
       var hoyK = B.hoyLocal(), climas = {};
       function clima(c) {
-        if (!climas[c.id]) climas[c.id] = K.obtenerClima({ lat: c.latitud, lon: c.longitud, daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min,precipitation_probability_max', pastDays: 92, forecastDays: 16, cacheKey: 'campo:' + c.id });
+        if (!climas[c.id]) climas[c.id] = K.obtenerClima({ lat: c.latitud, lon: c.longitud, daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min,precipitation_probability_max', pastDays: B.pastDaysDesde ? B.pastDaysDesde(c.id) : 92, forecastDays: 16, cacheKey: 'campo:' + c.id });
         return climas[c.id];
       }
       function uno(x) {

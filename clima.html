@@ -379,7 +379,7 @@
         lat, lon,
         current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation',
         daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code',
-        pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET)
+        pastDays: contexto.campo ? SafiaBalance.pastDaysDesde(contexto.campo.id) : 92, forecastDays: 16,   // historia desde la siembra más vieja del campo (mín. 92 días); 16 de pronóstico (como FieldNET)
         cacheKey: contexto.campo ? ('campo:' + contexto.campo.id) : (lat + ',' + lon)
       });
 

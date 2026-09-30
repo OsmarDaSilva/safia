@@ -96,7 +96,7 @@
     if (o.current) p.push('current=' + encodeURIComponent(o.current));
     if (o.hourly) p.push('hourly=' + encodeURIComponent(o.hourly));
     if (o.daily) p.push('daily=' + encodeURIComponent(o.daily));
-    p.push('past_days=' + o.pastDays);
+    p.push('past_days=' + Math.min(92, o.pastDays));   // el pronóstico da hasta 92 días atrás; lo anterior se pide al archivo (extenderConArchivo)
     p.push('forecast_days=' + o.forecastDays);
     p.push('timezone=' + encodeURIComponent(o.timezone));
     return baseURL() + '?' + p.join('&');
@@ -206,6 +206,31 @@
     } catch (e) { return r; }
   }
 
+  // Historia anterior a los 92 días del pronóstico: archivo ERA5 de Open-Meteo, pegado adelante de la serie diaria.
+  // Así el balance de agua arranca en la SIEMBRA que cargó el usuario aunque haya sido hace 4 o 5 meses (maíz, sorgo).
+  // Se guarda por coordenada y fechas (el archivo no cambia). Si falla, se sigue con los 92 días.
+  function sumarDiasISO(iso, n) { var d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  async function extenderConArchivo(datos, o) {
+    try {
+      var d = datos && datos.daily; if (!d || !d.time || !d.time.length || !(o.pastDays > 92)) return datos;
+      var primero = String(d.time[0]).slice(0, 10), fin = sumarDiasISO(primero, -1), ini = sumarDiasISO(primero, -(o.pastDays - 92));
+      if (fin < ini) return datos;
+      var vars = String(o.daily || '').split(',').filter(function (v) { return v && v !== 'precipitation_probability_max'; });   // el archivo no tiene probabilidad de lluvia
+      var k = 'safia_arch:' + o.lat.toFixed(3) + ',' + o.lon.toFixed(3) + ':' + ini + ':' + fin + ':' + vars.join(','), arch = null;
+      try { arch = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) {}
+      if (!arch) {
+        var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + o.lat + '&longitude=' + o.lon + '&start_date=' + ini + '&end_date=' + fin + '&daily=' + encodeURIComponent(vars.join(',')) + '&timezone=' + encodeURIComponent(o.timezone);
+        var r = await fetchConTimeout(url, o.timeoutMs); if (!r.ok) return datos;
+        var j = await r.json(); if (!j || !j.daily || !j.daily.time) return datos;
+        arch = j.daily; try { localStorage.setItem(k, JSON.stringify(arch)); } catch (e) {}
+      }
+      var n = arch.time.length, daily = {};
+      Object.keys(d).forEach(function (key) { var a = Array.isArray(arch[key]) ? arch[key] : arch.time.map(function () { return null; }); daily[key] = a.concat(d[key]); });
+      var out = {}; Object.keys(datos).forEach(function (key) { out[key] = datos[key]; }); out.daily = daily; out.diasArchivo = n;
+      return out;
+    } catch (e) { return datos; }
+  }
+
   // ---- API pública -----------------------------------------------------
   async function obtenerClima(opts) { return conLluviaChirps(await obtenerClimaModelo(opts), opts || {}); }
   async function obtenerClimaModelo(opts) {
@@ -263,6 +288,7 @@
     finally { delete enVuelo[url]; }
 
     if (res.datos) {
+      if (o.pastDays > 92) res.datos = await extenderConArchivo(res.datos, o);
       memCache[url] = { ts: ahora(), datos: res.datos };
       guardarCache(cacheKey, res.datos);
       return resultado(res.datos, 'red', null, false);

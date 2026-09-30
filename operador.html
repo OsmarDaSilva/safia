@@ -1269,7 +1269,7 @@
         const rClima = await SafiaClima.obtenerClima({
           lat, lon,
           daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min',
-          pastDays: 92, forecastDays: 16,   // 92 días de historia: el balance arranca en la siembra; 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
+          pastDays: campo ? SafiaBalance.pastDaysDesde(campo.id, equipo.id) : 92, forecastDays: 16,   // historia desde la siembra del lote (mín. 92 días); 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
           cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
         });
 
