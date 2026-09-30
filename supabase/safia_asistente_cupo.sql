@@ -2,7 +2,8 @@
 -- Seguro de correr más de una vez. Va DESPUÉS de safia_asistente_limite.sql (la misma pregunta, 2 veces por día).
 --
 -- Reglas (definidas por Osmar):
---   · Cada pivot con suscripción vigente suma 100 preguntas por mes. Un lote de secano con suscripción propia suma igual.
+--   · Cada pivot con suscripción vigente suma 100 preguntas por mes; un pivot en PRUEBA gratis suma 30. Un lote de secano
+--     con suscripción propia suma igual que un pivot.
 --   · Las preguntas de todos los pivots del cliente van a una sola bolsa, compartida entre el dueño, el gerente y los operadores.
 --   · Cualquier pregunta al Asistente descuenta 1, sea del tema que sea. No descuenta la pregunta repetida que se frena
 --     (3ª vez en el día) ni el intento en que la IA no llegó a responder.
@@ -37,24 +38,29 @@ security definer
 set search_path to 'public'
 as $$
 declare
-  v_por_lote integer := 100;
+  v_por_lote integer := 100;   -- pivot con suscripción plena
+  v_prueba   integer := 30;    -- pivot en prueba gratis
   v_mes      date := date_trunc('month', now() at time zone 'America/Asuncion')::date;
   v_lotes    integer;
+  v_plenos   integer;
+  v_pruebas  integer;
+  v_base     integer;
   v_extra    integer;
   v_usadas   integer;
 begin
-  select count(*) into v_lotes
+  select count(*), count(*) filter (where coalesce(s.datos->>'plan', '') <> 'Prueba'), count(*) filter (where coalesce(s.datos->>'plan', '') = 'Prueba')
+    into v_lotes, v_plenos, v_pruebas
     from public.safia_equipos e
+    join public.safia_suscripciones s on s.id = e.id
    where e.cliente_id = p_cliente
-     and exists (select 1 from public.safia_suscripciones s
-                  where s.id = e.id
-                    and (public.safia_susc_vence(s.datos) is null or public.safia_susc_vence(s.datos) >= public.safia_hoy()));
+     and (public.safia_susc_vence(s.datos) is null or public.safia_susc_vence(s.datos) >= public.safia_hoy());
+  v_base := v_plenos * v_por_lote + v_pruebas * v_prueba;
   select coalesce((select x.extra from public.safia_asistente_extra x where x.cliente_id = p_cliente and x.mes = v_mes), 0) into v_extra;
   select coalesce(sum(u.veces), 0) into v_usadas from public.safia_asistente_uso u where u.cliente_id = p_cliente and u.dia >= v_mes;
   return jsonb_build_object(
-    'cliente_id', p_cliente, 'lotes', v_lotes, 'por_lote', v_por_lote, 'extra', v_extra,
-    'cupo', v_lotes * v_por_lote + v_extra, 'usadas', v_usadas,
-    'quedan', greatest(v_lotes * v_por_lote + v_extra - v_usadas, 0),
+    'cliente_id', p_cliente, 'lotes', v_lotes, 'lotes_plenos', v_plenos, 'lotes_prueba', v_pruebas, 'por_lote', v_por_lote, 'por_prueba', v_prueba, 'extra', v_extra,
+    'cupo', v_base + v_extra, 'usadas', v_usadas,
+    'quedan', greatest(v_base + v_extra - v_usadas, 0),
     'mes', to_char(v_mes, 'YYYY-MM'), 'renueva', to_char((v_mes + interval '1 month')::date, 'YYYY-MM-DD'));
 end $$;
 revoke all on function public.safia_asistente_cupo(text) from public, anon, authenticated;
@@ -106,7 +112,7 @@ begin
         'cupo', (c->>'cupo')::integer, 'usadas', (c->>'usadas')::integer, 'quedan', 0, 'renueva', c->>'renueva',
         'mensaje', case when (c->>'cupo')::integer = 0
           then 'El Asistente funciona con al menos un pivot con suscripción vigente. Para habilitarlo, hablá con Irrigar.'
-          else 'Ya se usaron las ' || (c->>'cupo') || ' preguntas de este mes del Asistente (' || (c->>'por_lote') || ' por cada pivot con suscripción vigente, entre todos los usuarios del cliente). El 1 de ' || v_prox || ' se renuevan. Mientras tanto SAFIA sigue funcionando igual: la recomendación de riego está en la pantalla Operador. Si necesitás más preguntas este mes, hablá con Irrigar.' end);
+          else 'Ya se usaron las ' || (c->>'cupo') || ' preguntas de este mes del Asistente (' || (c->>'por_lote') || ' por cada pivot con suscripción vigente' || case when (c->>'lotes_prueba')::integer > 0 then ' y ' || (c->>'por_prueba') || ' por pivot en prueba' else '' end || ', entre todos los usuarios del cliente). El 1 de ' || v_prox || ' se renuevan. Mientras tanto SAFIA sigue funcionando igual: la recomendación de riego está en la pantalla Operador. Si necesitás más preguntas este mes, hablá con Irrigar.' end);
     end if;
     return jsonb_build_object('permitido', true, 'exento', false, 'veces', v_veces, 'limite', v_lim,
       'cupo', (c->>'cupo')::integer, 'usadas', (c->>'usadas')::integer, 'quedan', (c->>'quedan')::integer, 'renueva', c->>'renueva');
@@ -185,10 +191,11 @@ grant execute on function public.safia_asistente_registrar(text, text, text) to 
 grant execute on function public.safia_asistente_cupos() to authenticated;
 grant execute on function public.safia_asistente_poner_extra(text, integer, text) to authenticated;
 
--- Comprobación: una fila por cliente con pivots. "pivots_que_suman" son los que tienen suscripción vigente hoy,
--- "cupo_del_mes" = 100 por cada uno (+ extra) y "usadas" las preguntas respondidas este mes.
+-- Comprobación: una fila por cliente con pivots. "pivots_plenos" tienen suscripción vigente (100 c/u), "pivots_prueba" están
+-- en prueba gratis (30 c/u); "cupo_del_mes" = la suma (+ extra) y "usadas" las preguntas respondidas este mes.
 select c.datos->>'nombre' as cliente,
-       (k.j->>'lotes')::integer  as pivots_que_suman,
+       (k.j->>'lotes_plenos')::integer as pivots_plenos,
+       (k.j->>'lotes_prueba')::integer as pivots_prueba,
        (k.j->>'cupo')::integer   as cupo_del_mes,
        (k.j->>'usadas')::integer as usadas,
        (k.j->>'quedan')::integer as quedan

@@ -215,10 +215,12 @@
       if (!window.safiaSupabase || !window.safiaSupabase.rpc) return;
       Promise.resolve(window.safiaSupabase.rpc('safia_asistente_cupos')).then(r => { if (r.error) { cuposError = true; cupos = null; } else { cuposError = false; cupos = Array.isArray(r.data) ? r.data : []; } pintar(); }, () => { cuposError = true; pintar(); });
     }
+    // "2 × 100 + 1 prueba × 30": pivots plenos y en prueba que suman a la bolsa
+    function sumaTxt(c) { const pl = c.lotes_plenos != null ? c.lotes_plenos : c.lotes, pr = c.lotes_prueba || 0, partes = []; if (pl > 0) partes.push(pl + ' × ' + c.por_lote); if (pr > 0) partes.push(pr + ' prueba × ' + (c.por_prueba || 30)); return partes.length ? partes.join(' + ') : '0'; }
     function nombreCliente(id) { const k = leer('clientes').find(x => String(x.id) === String(id)); return k ? k.nombre : 'Cliente ' + id; }
     function tarjetaAsistente() {
       let h = '<div class="card" style="padding:14px;margin-top:14px;"><div style="font-weight:800;font-size:15px;color:#2E3236;">Asistente IA · preguntas de este mes</div>' +
-        '<div class="muted" style="font-size:12px;margin:3px 0 8px;">Cada pivot con suscripción vigente suma 100 preguntas por mes a la bolsa del cliente, que comparten todos sus usuarios. Cualquier pregunta descuenta 1. El día 1 la bolsa se vuelve a llenar; lo que sobra no se acumula.</div>';
+        '<div class="muted" style="font-size:12px;margin:3px 0 8px;">Cada pivot con suscripción vigente suma 100 preguntas por mes a la bolsa del cliente (30 si está en prueba gratis), que comparten todos sus usuarios. Cualquier pregunta descuenta 1. El día 1 la bolsa se vuelve a llenar; lo que sobra no se acumula.</div>';
       if (cuposError) return h + '<div class="note warn" style="margin:0;">Falta activar el cupo del Asistente en la base: corré el SQL <code>safia_asistente_cupo.sql</code> en Supabase. Mientras tanto el Asistente no tiene tope mensual.</div></div>';
       if (!cupos) return h + '<div class="muted" style="padding:6px 0;">Cargando…</div></div>';
       const l = cupos.filter(c => c.lotes > 0 || c.usadas > 0 || c.extra > 0).filter(c => !busca || nombreCliente(c.cliente_id).toLowerCase().indexOf(busca.toLowerCase()) >= 0)
@@ -227,7 +229,7 @@
       h += '<div class="cab-s"><div>Cliente</div><div>Pivots que suman</div><div>Usadas este mes</div><div>Quedan</div><div></div></div>' + l.map(c => {
         const pct = c.cupo > 0 ? Math.min(100, Math.round(c.usadas / c.cupo * 100)) : (c.usadas > 0 ? 100 : 0), col = pct >= 100 ? '#C0392B' : pct >= 80 ? '#B8731A' : '#17692A';
         return '<div class="fila-s"><div><b>' + esc(nombreCliente(c.cliente_id)) + '</b></div>' +
-          '<div>' + c.lotes + ' × ' + c.por_lote + (c.extra > 0 ? ' <span class="muted">+ ' + c.extra + ' extra</span>' : '') + '</div>' +
+          '<div>' + sumaTxt(c) + (c.extra > 0 ? ' <span class="muted">+ ' + c.extra + ' extra</span>' : '') + '</div>' +
           '<div><div style="font-weight:700;">' + c.usadas + ' de ' + c.cupo + '</div><div style="height:6px;border-radius:4px;background:#E9ECEF;margin-top:4px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + col + ';"></div></div></div>' +
           '<div style="font-weight:800;color:' + col + ';">' + c.quedan + '</div>' +
           '<div class="acc"><button class="btn" data-extra="' + esc(c.cliente_id) + '">Sumar preguntas</button></div></div>';
@@ -238,14 +240,14 @@
       const c = (cupos || []).find(x => String(x.cliente_id) === String(clienteId)); if (!c) return;
       const d = document.createElement('div'); d.className = 'modal-overlay visible'; d.id = 'modalExtra';
       d.innerHTML = '<div class="modal" style="max-width:440px;"><div class="modal-titulo">Preguntas extra · ' + esc(nombreCliente(clienteId)) + '</div>' +
-        '<div class="sub" style="margin-bottom:12px;">Este mes usó ' + c.usadas + ' de ' + c.cupo + ' (' + c.lotes + ' × ' + c.por_lote + (c.extra > 0 ? ' + ' + c.extra + ' extra' : '') + '). Las preguntas extra valen solo para este mes.</div>' +
+        '<div class="sub" style="margin-bottom:12px;">Este mes usó ' + c.usadas + ' de ' + c.cupo + ' (' + sumaTxt(c) + (c.extra > 0 ? ' + ' + c.extra + ' extra' : '') + '). Las preguntas extra valen solo para este mes.</div>' +
         '<div class="field"><label>Preguntas extra de este mes (en total)</label><input type="number" id="xExtra" min="0" step="10" value="' + (c.extra || 0) + '"></div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"><button class="btn" type="button" data-mas="50">+ 50</button><button class="btn" type="button" data-mas="100">+ 100</button><button class="btn" type="button" data-mas="200">+ 200</button><button class="btn" type="button" data-mas="0">Sin extra</button></div>' +
         '<div class="field"><label>Nota (por qué se sumaron)</label><input type="text" id="xNota" placeholder="Ej.: pidió más preguntas en floración"></div>' +
         '<div class="sub" id="xTotal" style="font-size:13px;font-weight:700;color:#2E3236;min-height:18px;"></div>' +
         '<div class="modal-actions"><button class="btn green" id="xGuardar">Guardar</button><button class="btn" id="xCancelar">Cancelar</button></div></div>';
       document.body.appendChild(d);
-      const inp = $('xExtra'), total = () => { const x = Math.max(0, parseInt(inp.value, 10) || 0); $('xTotal').textContent = 'La bolsa del mes queda en ' + (c.lotes * c.por_lote + x) + ' preguntas (le quedarían ' + Math.max(0, c.lotes * c.por_lote + x - c.usadas) + ').'; };
+      const inp = $('xExtra'), base = c.cupo - (c.extra || 0), total = () => { const x = Math.max(0, parseInt(inp.value, 10) || 0); $('xTotal').textContent = 'La bolsa del mes queda en ' + (base + x) + ' preguntas (le quedarían ' + Math.max(0, base + x - c.usadas) + ').'; };
       total(); inp.addEventListener('input', total);
       d.querySelectorAll('[data-mas]').forEach(b => b.addEventListener('click', () => { const m = parseInt(b.dataset.mas, 10); inp.value = m === 0 ? 0 : (Math.max(0, parseInt(inp.value, 10) || 0) + m); total(); }));
       $('xCancelar').onclick = () => d.remove();
