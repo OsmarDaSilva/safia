@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="safia-theme.css">
   <!-- SheetJS para exportar a Excel real -->
   <script src="safia-lluvia.js"></script>
+  <script src="safia-clima.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     /* Estilos mínimos específicos de esta página (resaltado de fila en edición) */
@@ -83,10 +84,10 @@
       <div class="ptop">
         <div>
           <h2>Historial de eventos</h2>
-          <div class="sub">Todos los riegos, lluvias y aplicaciones cargados en SAFIA</div>
+          <div class="sub">Todos los riegos, lluvias y aplicaciones cargados en SAFIA. La <b>lluvia del clima</b> aparece sola (es la que usa el balance de agua); si cargás la del pluviómetro, manda la tuya.</div>
         </div>
         <div class="actions">
-          <button class="btn green" onclick="abrirModalLluvias()" title="Cargar las lluvias día por día desde el servicio de clima">☁️ Traer lluvias del clima</button>
+          <button class="btn green" onclick="abrirModalLluvias()" title="Las lluvias del clima ya se muestran y se usan solas. Esto las GUARDA como eventos, para poder corregirlas una por una.">☁️ Guardar lluvias del clima</button>
           <button class="btn boton-export" onclick="exportarExcel()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.5h16M9.5 9.5V20"/></svg>Excel</button>
           <button class="btn boton-export" onclick="exportarCSV()"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>CSV</button>
         </div>
@@ -101,6 +102,7 @@
             <option value="lluvia">Lluvias</option>
             <option value="aplicacion">Aplicaciones</option>
             <option value="pastoreo">Pastoreos y cortes</option>
+            <option value="equipo">Horímetros y mantenimiento</option>
           </select>
         </div>
         <div class="filter">
@@ -135,7 +137,7 @@
       <div class="statbar">
         <div class="stat"><div class="sl">Eventos</div><div class="sv" id="kpiTotal">—</div></div>
         <div class="stat"><div class="sl">Riego aplicado</div><div class="sv green"><span id="kpiRiegoTotal">—</span> mm</div></div>
-        <div class="stat"><div class="sl">Lluvia registrada</div><div class="sv blue"><span id="kpiLluviaTotal">—</span> mm</div></div>
+        <div class="stat"><div class="sl">Lluvia del período</div><div class="sv blue"><span id="kpiLluviaTotal">—</span> mm</div><div class="ss" id="kpiLluviaSub"></div></div>
         <div class="stat"><div class="sl">Aplicaciones</div><div class="sv amber" id="kpiAplicaciones">—</div></div>
       </div>
 
@@ -274,13 +276,59 @@
       });
     }
 
+    function textoSeguro(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+    /* ---------- Lluvia automática del clima ----------
+       El balance de agua usa sola la lluvia del servicio de clima (CHIRPS + modelo) aunque nadie la cargue. Acá se MUESTRA
+       esa misma lluvia, día por día y por campo, sin guardarla: así el historial no queda en '0 mm' cuando sí llovió.
+       Un día con lluvia cargada (pluviómetro, voz, estación o guardada del clima) no se repite: el dato cargado manda. */
+    const lluviaAuto = {};   // 'campoId|días' → { estado: 'cargando' | 'ok' | 'error', dias: [{ fecha, mm }] }
+    const DIAS_PERIODO = { hoy: 0, '7d': 7, '30d': 30, todo: 120 };
+    function fechaLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function lluviasAutomaticas() {
+      const out = { filas: [], cargando: false, error: false };
+      if (!(filtroTipo === 'todos' || filtroTipo === 'lluvia') || !(filtroOrigen === 'todos' || filtroOrigen === 'meteo') || !window.SafiaClima) return out;
+      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]'), campos = JSON.parse(localStorage.getItem('campos') || '[]'), clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const q = (document.getElementById('fSearch') ? document.getElementById('fSearch').value : '').trim();
+      const sinAcento = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const eqFiltro = filtroEquipo ? equipos.find(e => e.id === parseInt(filtroEquipo)) : null;
+      const idsCampo = {}; (eqFiltro ? [eqFiltro] : equipos).forEach(e => { if (e && e.campoId != null) idsCampo[String(e.campoId)] = 1; });
+      const dias = DIAS_PERIODO[filtroPeriodo] != null ? DIAS_PERIODO[filtroPeriodo] : 30, hoy = fechaLocal(new Date());
+      const dDesde = new Date(); dDesde.setDate(dDesde.getDate() - dias); const desde = fechaLocal(dDesde);
+      campos.filter(c => idsCampo[String(c.id)]).forEach(c => {
+        const lat = parseFloat(String(c.latitud).replace(',', '.')), lon = parseFloat(String(c.longitud).replace(',', '.'));
+        if (!isFinite(lat) || !isFinite(lon)) return;
+        const cl = clientes.find(x => x.id === c.clienteId);
+        if (q && !sinAcento([c.nombre, cl && cl.nombre, 'lluvia clima'].filter(Boolean).join(' ')).includes(sinAcento(q))) return;
+        const k = c.id + '|' + dias; let reg = lluviaAuto[k];
+        if (!reg) {
+          reg = lluviaAuto[k] = { estado: 'cargando', dias: [] };
+          // la MISMA lluvia que usa el balance (SafiaClima.obtenerClima ya la corrige con CHIRPS); caché aparte para no pisar la de Operación
+          SafiaClima.obtenerClima({ lat: lat, lon: lon, daily: 'precipitation_sum', pastDays: Math.max(1, dias), forecastDays: 1, cacheKey: 'lluvia-eventos:' + c.id }).then(r => {
+            const d = r && r.datos && r.datos.daily;
+            if (!d || !d.time) { reg.estado = 'error'; aplicarFiltros(); return; }
+            reg.dias = d.time.map((f, i) => ({ fecha: String(f).slice(0, 10), mm: d.precipitation_sum[i] })).filter(x => x.mm != null && x.mm >= 1);
+            reg.estado = 'ok'; aplicarFiltros();
+          }, () => { reg.estado = 'error'; aplicarFiltros(); });
+        }
+        if (reg.estado === 'cargando') { out.cargando = true; return; }
+        if (reg.estado === 'error') { out.error = true; return; }
+        // días que ya tienen lluvia cargada en algún lote del campo (o en el lote filtrado): ahí manda lo cargado
+        const lotes = equipos.filter(e => String(e.campoId) === String(c.id) && (!eqFiltro || e.id === eqFiltro.id)).map(e => String(e.id)), yaTiene = {};
+        eventos.forEach(e => { if (e.tipo === 'lluvia' && lotes.indexOf(String(e.equipoId)) >= 0) yaTiene[String(e.fecha).slice(0, 10)] = 1; });
+        reg.dias.forEach(x => { if (x.fecha >= desde && x.fecha <= hoy && !yaTiene[x.fecha]) out.filas.push({ id: 'auto-' + c.id + '-' + x.fecha, virtual: true, tipo: 'lluvia', fecha: x.fecha, campoId: c.id, equipoId: eqFiltro ? eqFiltro.id : null, cantidad: Math.round(x.mm * 10) / 10 }); });
+      });
+      return out;
+    }
+
     function obtenerEventosFiltrados() {
       filtroEquipo = document.getElementById('filtroEquipo').value;
       const q = (document.getElementById('fSearch') ? document.getElementById('fSearch').value : '').trim().toLowerCase();
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
       let filtrados = eventos;
 
-      if (filtroTipo !== 'todos') filtrados = filtrados.filter(e => e.tipo === filtroTipo);
+      if (filtroTipo !== 'todos') filtrados = filtrados.filter(e => filtroTipo === 'equipo' ? (e.tipo === 'horimetro' || e.tipo === 'mantenimiento') : e.tipo === filtroTipo);
       if (filtroEquipo) filtrados = filtrados.filter(e => e.equipoId === parseInt(filtroEquipo));
       if (filtroOrigen !== 'todos') filtrados = filtrados.filter(e => e.cargadoPor === filtroOrigen);
 
@@ -323,18 +371,20 @@
       const totalLluvia = filtrados.filter(e => e.tipo === 'lluvia').reduce((s, e) => s + (parseFloat(e.cantidad) || 0), 0);
       const totalAplicaciones = filtrados.filter(e => e.tipo === 'aplicacion').length;
 
+      const autos = lluviasAutomaticas(), totalAuto = autos.filas.reduce((s, e) => s + e.cantidad, 0);
       document.getElementById('kpiTotal').textContent = totalEventos;
       document.getElementById('kpiRiegoTotal').textContent = totalRiego.toFixed(0);
-      document.getElementById('kpiLluviaTotal').textContent = totalLluvia.toFixed(0);
+      document.getElementById('kpiLluviaTotal').textContent = (totalLluvia + totalAuto).toFixed(0);
+      document.getElementById('kpiLluviaSub').textContent = autos.cargando ? 'consultando la lluvia del clima…' : (autos.filas.length || totalLluvia ? totalLluvia.toFixed(0) + ' cargados · ' + totalAuto.toFixed(0) + ' del clima' : (autos.error ? 'sin conexión al clima' : ''));
       document.getElementById('kpiAplicaciones').textContent = totalAplicaciones;
 
       const lista = document.getElementById('listaEventos');
       const contador = document.getElementById('contadorEventos');
-      contador.textContent = `${filtrados.length} resultado${filtrados.length === 1 ? '' : 's'}`;
+      contador.textContent = `${filtrados.length} evento${filtrados.length === 1 ? '' : 's'} cargado${filtrados.length === 1 ? '' : 's'}` + (autos.filas.length ? ` · ${autos.filas.length} día${autos.filas.length === 1 ? '' : 's'} con lluvia del clima (automática, sin guardar)` : '') + (autos.cargando ? ' · consultando la lluvia del clima…' : '');
 
       const botones = document.querySelectorAll('.boton-export');
 
-      if (filtrados.length === 0) {
+      if (filtrados.length === 0 && autos.filas.length === 0) {
         // Si hay eventos cargados pero los filtros no muestran ninguno, lo avisamos:
         // si no, parece que no se guardó nada.
         const totalCargados = JSON.parse(localStorage.getItem('eventos') || '[]').length;
@@ -351,9 +401,10 @@
 
       botones.forEach(b => b.disabled = false);
 
-      lista.innerHTML = filtrados.map(ev => {
+      const todos = filtrados.concat(autos.filas).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || ((a.virtual ? 1 : 0) - (b.virtual ? 1 : 0)));
+      lista.innerHTML = todos.map(ev => {
         const equipo = equipos.find(e => e.id === ev.equipoId);
-        const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
+        const campo = ev.virtual ? campos.find(c => String(c.id) === String(ev.campoId)) : (equipo ? campos.find(c => c.id === equipo.campoId) : null);
         const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
 
         const fecha = new Date(ev.fecha + 'T12:00:00');
@@ -362,10 +413,16 @@
         let badgeClase, tipoLabel, cantidad, prodSub = '';
         if (ev.tipo === 'riego') { badgeClase = 'green'; tipoLabel = 'Riego'; cantidad = `${ev.cantidad} mm`; }
         else if (ev.tipo === 'lluvia') { badgeClase = 'blue'; tipoLabel = 'Lluvia'; cantidad = `${ev.cantidad} mm`; }
+        else if (ev.tipo === 'horimetro') { badgeClase = 'muted'; tipoLabel = 'Horímetro'; cantidad = (ev.cantidad != null && ev.cantidad !== '' ? Number(ev.cantidad).toLocaleString('es-PY') : '—') + ' h'; prodSub = '<div class="sub">' + ({ pivote: 'Pivot', bomba: 'Bomba', canon: 'Cañón final' }[ev.contador] || 'Pivot') + '</div>'; }
+        else if (ev.tipo === 'mantenimiento') { badgeClase = 'muted'; tipoLabel = 'Mantenimiento'; cantidad = ev.horasEquipo != null && ev.horasEquipo !== '' ? Number(ev.horasEquipo).toLocaleString('es-PY') + ' h' : '—'; prodSub = ev.tarea ? '<div class="sub">' + textoSeguro(ev.tarea) + '</div>' : ''; }
         else if (ev.tipo === 'pastoreo') { badgeClase = 'green'; tipoLabel = ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte'; cantidad = 'piquete ' + (ev.piquete || '?'); prodSub = '<div class="sub">' + [ev.cabezas ? ev.cabezas + ' cab.' : '', ev.kgMsHa ? ev.kgMsHa + ' kg MS/ha' : '', ev.alturaCm ? ev.alturaCm + ' cm' : ''].filter(Boolean).join(' · ') + '</div>'; }
         else { badgeClase = 'amber'; tipoLabel = 'Aplicación'; cantidad = `${ev.dosis || ''} ${ev.unidad || ''}`.trim() || '—'; prodSub = ev.producto ? `<div class="sub">${ev.producto}</div>` : ''; }
 
-        const origenBadge = ev.cargadoPor === 'voz'
+        const origenBadge = ev.virtual
+          ? '<span class="badge info" title="Lluvia del servicio de clima: satélite CHIRPS en los días ya publicados y el modelo del clima en los últimos. Es la que usa el balance de agua. No está guardada: si cargás la del pluviómetro para ese día, manda la tuya.">Clima · automática</span>'
+          : ev.cargadoPor && ['voz', 'meteo', 'estacion', 'manual'].indexOf(ev.cargadoPor) < 0
+          ? '<span class="badge muted" title="' + textoSeguro(ev.cargadoPor) + '">' + textoSeguro(String(ev.cargadoPor).split('(')[0].trim().slice(0, 22)) + '</span>'
+          : ev.cargadoPor === 'voz'
           ? '<span class="badge info">🎤 Voz</span>'
           : ev.cargadoPor === 'meteo'
             ? '<span class="badge amber" title="Estimado del clima (Open-Meteo). Si tenés el dato real, editalo y pasa a Manual.">☁️ Clima</span>'
@@ -380,15 +437,15 @@
           <tr class="${claseEditando}"${obsTitle}>
             <td><span class="fecha">${fechaStr}</span></td>
             <td><span class="badge ${badgeClase}">${tipoLabel}</span>${prodSub}</td>
-            <td>${equipo ? equipo.nombre : '—'}</td>
+            <td>${equipo ? equipo.nombre : (ev.virtual ? '<span class="muted">todos los lotes del campo</span>' : '—')}</td>
             <td>${campo ? campo.nombre : '—'}</td>
             <td>${cliente ? cliente.nombre : '—'}</td>
             <td class="r"><span class="num">${cantidad}</span></td>
             <td>${origenBadge}</td>
-            <td class="r"><span class="rowact">
+            <td class="r">${ev.virtual ? '<span class="muted" title="No está guardada: no hay nada que editar ni borrar">—</span>' : `<span class="rowact">
               <button onclick="editarEvento(${ev.id})" title="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-2.8-2.8L5 17z"/><path d="M14 7l3 3"/></svg></button>
               <button class="del" onclick="borrarEvento(${ev.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
-            </span></td>
+            </span>`}</td>
           </tr>`;
       }).join('');
     }
@@ -694,7 +751,7 @@
 
         return {
           fecha: ev.fecha,
-          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : 'Aplicación',
+          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : ev.tipo === 'horimetro' ? ('Horímetro ' + ({ pivote: 'pivot', bomba: 'bomba', canon: 'cañón final' }[ev.contador] || 'pivot')) : ev.tipo === 'mantenimiento' ? ('Mantenimiento: ' + (ev.tarea || '')) : 'Aplicación',
           cliente: cliente ? cliente.nombre : '',
           campo: campo ? campo.nombre : '',
           equipo: equipo ? equipo.nombre : '',
