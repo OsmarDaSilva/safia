@@ -110,6 +110,16 @@
     sorgo:   { veg: 0.2,  flor: 0.55, llen: 0.45, mad: 0.2, total: 0.9 },
     otro:    { veg: 0.3,  flor: 0.8,  llen: 0.7,  mad: 0.2, total: 1.0 }
   };
+  // Dónde está el lote, para el clima y el balance: primero el centro de su polígono, después el GPS del equipo y
+  // recién al final el punto del campo (dos pivots de la misma estancia pueden estar a kilómetros; regla de Osmar 30-sep-2026).
+  function coordenadasLote(equipo, campo) {
+    var ok = function (la, lo) { return la != null && lo != null && !isNaN(la) && !isNaN(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0); };
+    var n = function (v) { var x = v == null || v === '' ? NaN : parseFloat(String(v).replace(',', '.')); return isNaN(x) ? null : x; };
+    if (equipo && equipo.poligono && equipo.poligono.centro) { var la = n(equipo.poligono.centro.lat), lo = n(equipo.poligono.centro.lon); if (ok(la, lo)) return { lat: la, lon: lo, origen: 'poligono', cacheKey: 'lote:' + equipo.id }; }
+    if (equipo && equipo.gps) { var m = String(equipo.gps).match(/-?\d+(?:[.,]\d+)?/g); if (m && m.length >= 2) { var la2 = n(m[0]), lo2 = n(m[1]); if (ok(la2, lo2)) return { lat: la2, lon: lo2, origen: 'gps', cacheKey: 'lote:' + equipo.id }; } }
+    if (campo) { var la3 = n(campo.latitud), lo3 = n(campo.longitud); if (ok(la3, lo3)) return { lat: la3, lon: lo3, origen: 'campo', cacheKey: 'campo:' + campo.id }; }
+    return null;
+  }
   var P_TABLA = { soja: 0.5, maiz: 0.55, trigo: 0.55, girasol: 0.45, sorgo: 0.55, pastura: 0.6, otro: 0.5 };   // FAO-56 Tabla 22 (pastura bajo pastoreo 0,60)
   var ZR_MAX = { soja: 0.6, maiz: 1.0, trigo: 1.0, girasol: 0.8, sorgo: 1.0, pastura: 0.8, otro: 0.8 };        // m; límite inferior de FAO-56 Tabla 22 (riego); UNL 0–60 cm en soja; pastura 0,5–1,5
   var ETAPAS = [{ k: 'veg', n: 'Vegetativa' }, { k: 'flor', n: 'Floración' }, { k: 'llen', n: 'Llenado (formación del rinde)' }, { k: 'mad', n: 'Maduración' }];
@@ -671,7 +681,7 @@
   }
 
   var SafiaBalance = {
-    pastDaysDesde: pastDaysDesde,
+    pastDaysDesde: pastDaysDesde, coordenadasLote: coordenadasLote,
     TEXTURAS: TEXTURAS, TIPOS_SUELO: TIPOS_SUELO, SUELO_FALLBACK: SUELO_FALLBACK, ZR_REF: ZR_REF,
     KY: KY, P_TABLA: P_TABLA, ZR_MAX: ZR_MAX, ETAPAS: ETAPAS, NOMBRE_ETAPA: NOMBRE_ETAPA,
     UMBRALES: UMBRALES, umbralesDe: umbralesDe, EFICIENCIA_RIEGO: EFICIENCIA_RIEGO,

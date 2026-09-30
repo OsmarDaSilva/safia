@@ -228,7 +228,7 @@
 
       for (const eq of equipos) {
         const campo = campos.find(c => c.id === eq.campoId);
-        if (!campo || !campo.latitud || !campo.longitud) continue;
+        if (!campo || !SafiaBalance.coordenadasLote(eq, campo)) continue;
 
         const cliente = clientes.find(cl => cl.id === campo.clienteId);
 
@@ -263,12 +263,13 @@
       let climaStale = null, ultimoError = null;
       try { if (SafiaBalance.prepararSatelite) await SafiaBalance.prepararSatelite(equiposValidos.map(ev => ev.equipo)); } catch (e) {}   // consumo real según el satélite
       for (const ev of equiposValidos) {
+        const coordsLote = SafiaBalance.coordenadasLote(ev.equipo, ev.campo);   // clima del pivot (polígono o GPS), no del casco
         const rClima = await SafiaClima.obtenerClima({
-          lat: ev.campo.latitud, lon: ev.campo.longitud,
+          lat: coordsLote.lat, lon: coordsLote.lon,
           current: 'temperature_2m',
           daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,weather_code,precipitation_probability_max',
           pastDays: SafiaBalance.pastDaysDesde(ev.campo.id), forecastDays: 16,   // historia desde la siembra más vieja del campo (mín. 92 días); 16 de pronóstico (como FieldNET)
-          cacheKey: 'campo:' + ev.campo.id
+          cacheKey: coordsLote.cacheKey
         });
         if (rClima.datos) {
           const prediccion = simularPrediccion(ev, rClima.datos);

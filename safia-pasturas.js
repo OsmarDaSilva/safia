@@ -53,6 +53,41 @@
   var CHACO = ['boqueron', 'alto paraguay', 'presidente hayes'];
   function regionDe(campo) { var d = norm(campo && campo.departamento); return CHACO.some(function (c) { return d.indexOf(c) !== -1; }) ? 'Occidental/Chaco' : 'Oriental/Centro'; }
 
+  /* ---------- alturas de manejo (entrada y salida de los animales) ----------
+     Fuente [4]: Embrapa Rondônia, folder "Pastejo rotativo", Quadro 3 Metas de manejo: Mombaça 90/40 cm, BRS Zuri 70/35 cm,
+     Xaraés 45/20 cm, Marandu y BRS Piatã 35/20 cm (https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1072007/1/PastejoRotacionadoFINAL.pdf).
+     Fuente [5]: Portal Embrapa, Panicum maximum BRS Zuri: entrada 70-75 cm, salida 30-35 cm
+     (https://www.embrapa.br/busca-de-solucoes-tecnologicas/-/produto-servico/1309/panicum-maximum---brs-zuri). */
+  var ALTURAS = [
+    { re: /mombaca|momba/, nombre: 'Mombaça', entrada: 90, salida: 40, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3)' },
+    { re: /zuri/, nombre: 'BRS Zuri', entrada: 70, salida: 35, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3); Portal Embrapa: 70-75 / 30-35 cm' },
+    { re: /xaraes|xaraes|mg-?5|xara/, nombre: 'Xaraés (MG-5)', entrada: 45, salida: 20, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3)' },
+    { re: /marandu|piata|brizantha|brizanta/, nombre: 'Marandu / BRS Piatã', entrada: 35, salida: 20, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3)' }
+  ];
+  function alturasReferencia(texto) {
+    var n = String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    for (var i = 0; i < ALTURAS.length; i++) if (ALTURAS[i].re.test(n)) return ALTURAS[i];
+    return null;
+  }
+  // Texto para el formulario de pastoreo: la meta de la especie y, si ya se escribió la altura, cómo viene
+  function textoAltura(ref, accion, alt) {
+    if (!ref) return 'Altura del pasto medida con regla (promedio de varios puntos). Si cargás la variedad en la campaña (Zuri, Mombaça, Marandu, Xaraés), SAFIA te muestra la meta de Embrapa.';
+    var meta = ref.nombre + ': entrada a ' + ref.entrada + ' cm, salida a ' + ref.salida + ' cm (' + ref.fuente + ').';
+    if (!(alt > 0)) return meta;
+    if (accion === 'entrada') {
+      if (alt < ref.salida) return meta + ' <b style="color:#B5371C;">' + alt + ' cm es menos que la altura de salida: el piquete todavía no se recuperó.</b>';
+      if (alt < ref.entrada * 0.85) return meta + ' <b style="color:#8a5713;">' + alt + ' cm: entran temprano, el pasto todavía no llegó a la meta.</b>';
+      if (alt > ref.entrada * 1.25) return meta + ' <b style="color:#8a5713;">' + alt + ' cm: pasto pasado, pierde calidad y se acama; adelantá la entrada o hacé un corte.</b>';
+      return meta + ' <b style="color:#178029;">' + alt + ' cm: en la meta.</b>';
+    }
+    if (accion === 'salida' || accion === 'corte') {
+      if (alt < ref.salida * 0.75) return meta + ' <b style="color:#B5371C;">' + alt + ' cm: sobrepastoreo, salieron muy bajo; el rebrote va a ser lento y el piquete necesita más descanso.</b>';
+      if (alt > ref.salida * 1.4) return meta + ' <b style="color:#8a5713;">' + alt + ' cm: salieron alto, quedó pasto sin comer.</b>';
+      return meta + ' <b style="color:#178029;">' + alt + ' cm: en la meta.</b>';
+    }
+    return meta;
+  }
+
   /* ---------- eventos de pastoreo ---------- */
   function eventosLote(equipoId) {
     return leer('eventos').filter(function (e) { return e.tipo === 'pastoreo' && String(e.equipoId) === String(equipoId) && e.fecha; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)) || (a.id || 0) - (b.id || 0); });
@@ -159,5 +194,5 @@
     cargarReferencia().then(function (filas) { el.innerHTML = htmlBanco(c, filas); });
   }
 
-  window.SafiaPasturas = { esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
+  window.SafiaPasturas = { alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
 })();

@@ -952,7 +952,8 @@
         </div>
         <div class="campo">
           <label>Altura del pasto (cm) <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional)</span></label>
-          <input type="number" id="modalAltura" placeholder="Ej: 35" min="0" step="1">
+          <input type="number" id="modalAltura" placeholder="Ej: 35" min="0" step="1" oninput="avisoAlturaPasto()">
+          <div class="ayuda" id="modalAlturaRef" style="margin-top:4px;"></div>
         </div>
       </div>
 
@@ -1199,6 +1200,7 @@
     }
     // Resuelve {lat, lon} desde el campo (campos separados) o, como respaldo, desde el GPS del equipo ("lat, lon")
     function resolverCoordenadas(campo, equipo) {
+      if (window.SafiaBalance && SafiaBalance.coordenadasLote) { const c0 = SafiaBalance.coordenadasLote(equipo, campo); if (c0) return c0; }
       if (campo && campo.latitud != null && campo.latitud !== '' &&
           campo.longitud != null && campo.longitud !== '') {
         const lat = parseCoordNum(campo.latitud);
@@ -1270,7 +1272,7 @@
           lat, lon,
           daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min',
           pastDays: campo ? SafiaBalance.pastDaysDesde(campo.id, equipo.id) : 92, forecastDays: 16,   // historia desde la siembra del lote (mín. 92 días); 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
-          cacheKey: campo ? ('campo:' + campo.id) : (lat + ',' + lon)
+          cacheKey: coords.cacheKey || (campo ? ('campo:' + campo.id) : (lat + ',' + lon))
         });
 
         SafiaClima.avisoCache(rClima.desactualizado ? rClima.fechaCache : null);
@@ -1491,11 +1493,21 @@
         const ult = SafiaPasturas.eventosLote(equipoSeleccionadoId).slice(-1)[0];
         if (ult && ult.accion === 'entrada') { document.getElementById('modalAccion').value = 'salida'; document.getElementById('modalPiquete').value = ult.piquete || ''; }
         else if (ult && /^\d+$/.test(String(ult.piquete || ''))) { document.getElementById('modalAccion').value = 'entrada'; document.getElementById('modalPiquete').value = String(parseInt(ult.piquete, 10) + 1); }
+        avisoAlturaPasto();
       }
 
       document.getElementById('modalOverlay').classList.add('visible');
     }
 
+    // Altura del pasto: la referencia de Embrapa para la especie del lote (entrada / salida) y el aviso si se entra bajo o se sale demasiado bajo
+    function avisoAlturaPasto() {
+      const el = document.getElementById('modalAlturaRef'); if (!el || !window.SafiaPasturas || !SafiaPasturas.alturasReferencia) return;
+      const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null;
+      const ref = SafiaPasturas.alturasReferencia(camp ? (camp.variedad || camp.cultivo) : '');
+      const accion = document.getElementById('modalAccion').value, alt = parseFloat(document.getElementById('modalAltura').value);
+      el.innerHTML = SafiaPasturas.textoAltura(ref, accion, alt);
+    }
+    document.getElementById('modalAccion').addEventListener('change', avisoAlturaPasto);
     function cerrarModal() {
       document.getElementById('modalOverlay').classList.remove('visible');
     }

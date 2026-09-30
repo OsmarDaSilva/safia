@@ -873,11 +873,12 @@
     async function calcularBalance(campo, campana, eventosEquipo, equipo) {
       // Conexión robusta vía cliente compartido (safia-clima.js):
       // timeout + reintento ante 502/503/red + respaldo de caché.
+      const coordsLote = (SafiaBalance.coordenadasLote && SafiaBalance.coordenadasLote(equipo, campo)) || { lat: campo.latitud, lon: campo.longitud, cacheKey: 'campo:' + campo.id };   // clima del pivot (polígono o GPS), no del casco de la estancia
       const rClima = await SafiaClima.obtenerClima({
-        lat: campo.latitud, lon: campo.longitud,
+        lat: coordsLote.lat, lon: coordsLote.lon,
         daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_min,temperature_2m_max,wind_speed_10m_max,weather_code,precipitation_probability_max',
         pastDays: SafiaBalance.pastDaysDesde(campo.id), forecastDays: 16,   // historia desde la siembra más vieja del campo (mín. 92 días); 16 de pronóstico (como FieldNET) para "arrancar el / vence el"
-        cacheKey: 'campo:' + campo.id
+        cacheKey: coordsLote.cacheKey
       });
       if (!rClima.datos) {
         const e = new Error('clima no disponible');

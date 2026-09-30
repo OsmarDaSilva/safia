@@ -588,8 +588,9 @@
       const campos = JSON.parse(localStorage.getItem('campos') || '[]');
       const equipo = equipos.find(e => String(e.id) === String(equipoId));
       const campo = equipo ? campos.find(c => String(c.id) === String(equipo.campoId)) : null;
-      const lat = campo && parseFloat(String(campo.latitud).replace(',', '.'));
-      const lon = campo && parseFloat(String(campo.longitud).replace(',', '.'));
+      const coordsLote = window.SafiaBalance && SafiaBalance.coordenadasLote ? SafiaBalance.coordenadasLote(equipo, campo) : null;   // clima del pivot, no del casco
+      const lat = coordsLote ? coordsLote.lat : (campo && parseFloat(String(campo.latitud).replace(',', '.')));
+      const lon = coordsLote ? coordsLote.lon : (campo && parseFloat(String(campo.longitud).replace(',', '.')));
       if (!lat || !lon || isNaN(lat) || isNaN(lon)) {
         res.innerHTML = '<div class="note warn">El campo de este equipo no tiene coordenadas. Cargalas en <a href="mis-campos.html"><b>Campos</b></a>.</div>';
         return;
