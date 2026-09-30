@@ -50,7 +50,7 @@
     ['DM 5958 IPRO', 5.8, 'indeterminado', '', 'https://www.centrosulcereais.com.br/post/cultivar-dm-5958-ipro-84', 'distribuidor'],
     ['DM 60i62 IPRO', null, 'indeterminado', '', 'https://www.busanello.com.py/productos/donmario-60i62-ipro', 'distribuidor', 'dos distribuidores paraguayos no coinciden: 5.8 y 6.0'],
     ['DM 66i68 IPRO', 6.6, 'indeterminado', '', 'https://www.jotabasso.com.br/sementes/soja/dm-66i68-rsf-ipro', 'distribuidor'],
-    ['NS 5933 IPRO', 6.1, '', '', 'https://www.uniagronegocios.com.br/produtos/detalhe/semente-de-soja-nidera-ns5933ipro', 'distribuidor'],
+    ['NS 5933 IPRO', 5.8, 'indeterminado', '', 'https://www.busanello.com.py/productos/ns5933-ipro', 'distribuidor', 'Busanello PY (representante Nidera, según el obtentor): GM 5,8, coincide con el grupo V largo del catálogo Nidera Paraguay; Uniagro (BR) dice 6,1'],
     ['NS 6010 IPRO', 6.0, 'indeterminado', 'resistente a nematodo de quiste y a Meloidogyne javanica', 'https://www.niderasementes.com.br/portfolio/ns-6010-ipro/', 'obtentor'],
     ['NS 7209 IPRO', 7.2, 'indeterminado', 'susceptible a nematodo de quiste y de agallas', 'http://www.sementesouroverde.com.br/views/soja_ns_7209_ipro.php', 'distribuidor'],
     ['M 5892 IPRO', 5.7, 'semideterminado', '', 'https://www.sementesfalcao.agr.br/produtos/m-5892-ipro', 'distribuidor'],
