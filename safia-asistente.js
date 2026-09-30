@@ -4,7 +4,7 @@
    las HERRAMIENTAS se ejecutan acá, en el navegador, sobre los datos que este usuario ya ve con su rol (un cliente: lo
    suyo y los lotes de la zona sin nombres). Así los números los calcula SAFIA, no la IA, y nadie ve lo que no debe.
    Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, agua_hoy, como_va_campana, interpretar_suelo, mis_campos,
-   mi_lote, mantenimiento, riegos_y_lluvias, historial_suelo, comparar_con_lider.
+   mi_lote, mantenimiento, riegos_y_lluvias, historial_suelo, comparar_con_lider, agua_de_riego, plan_rotacion.
    Uso: SafiaAsistente.montar(elemento). */
 (function () {
   'use strict';
@@ -19,7 +19,7 @@
     var S = window.SafiaSuscripcion; if (!S || !S.activa() || S.soyIrrigar()) return l;
     if (k === 'equipos') return l.filter(function (e) { return S.estado(e.id).vigente; });
     if (k === 'campos') return l.filter(function (c) { return S.campoVigente(c.id); });
-    if (k === 'campanas' || k === 'eventos' || k === 'analisis_foliar') return l.filter(function (r) { return r.equipoId == null || r.equipoId === '' || S.estado(r.equipoId).vigente; });
+    if (k === 'campanas' || k === 'eventos' || k === 'analisis_foliar' || k === 'planes_rotacion') return l.filter(function (r) { return r.equipoId == null || r.equipoId === '' || S.estado(r.equipoId).vigente; });
     if (k === 'analisis_suelo' || k === 'analisis_agua') return l.filter(function (r) { return r.equipoId != null && r.equipoId !== '' ? S.estado(r.equipoId).vigente : S.campoVigente(r.campoId); });
     return l;
   }
@@ -324,25 +324,26 @@
           base.pronostico_7_dias = pron;
           base.lluvia_ultimos_7_dias_mm = r0(ks.reduce(function (s, k, j) { return s + (j < ih && j >= ih - 7 ? (d.precipitation_sum[j] || 0) : 0); }, 0));
           if (rc.desactualizado) base.aviso = 'Sin conexión al clima: datos guardados del ' + (rc.fechaCache || 'último día disponible') + '.';
-          if (base.tipo === 'secano') return Object.assign(base, { recomendacion: 'Lote de secano: no se riega; el agua es la que llueve.' });
+          var sec = base.tipo === 'secano';
+          if (sec && !cu) return Object.assign(base, { recomendacion: 'Lote de secano sin campaña activa: no hay cultivo para calcular el balance.' });
           if (!cu) return Object.assign(base, { recomendacion: 'Sin campaña activa en este lote: no hay cultivo para calcular el balance.' });
           var kcDef = B.obtenerCultivoKc(cu.cultivo);
           var r = B.simular({ campo: c, daily: d, eventos: evs, equipoId: e.id, equipo: e, kcDef: kcDef, fechaSiembra: cu.fechaSiembra, diasFuturo: 5, asumirRiegoRecomendado: false });
           var U = r.umbrales || B.UMBRALES, p = FA ? FA.proximoRiego(r, e) : { titulo: r.recomendacion.regar ? 'Regar hoy: ' + r.recomendacion.mm + ' mm' : 'Sin riego hoy', detalle: '' };
           var tp = r.totalesPasado || {}, ult7 = (r.pasado || []).slice(-7);
           return Object.assign(base, {
-            recomendacion: p.titulo, detalle: p.detalle || null,
-            agua_util_hoy_pct: r0(r.porcentajeHoy), arrancar_el_pivot_por_debajo_de_pct: U.CRITICO, estres_por_debajo_de_pct: U.URGENTE, en_estres_hoy: !!r.recomendacion.enEstres,
-            pivot: r.recomendacion.pivot ? { arrancar_el: r.recomendacion.pivot.arrancarEl, entra_en_estres_sin_riego_el: r.recomendacion.pivot.venceEl, dias_hasta_estres: r.recomendacion.pivot.diasHastaEstres, horizonte_dias: r.recomendacion.pivot.horizonteDias,
+            recomendacion: sec ? (r.recomendacion.enEstres ? 'Lote de secano en estrés: no se riega, depende de la lluvia.' : 'Lote de secano: no se riega; se sigue el agua del suelo y la lluvia.') : p.titulo, detalle: sec ? null : (p.detalle || null),
+            agua_util_hoy_pct: r0(r.porcentajeHoy), arrancar_el_pivot_por_debajo_de_pct: sec ? null : U.CRITICO, estres_por_debajo_de_pct: U.URGENTE, en_estres_hoy: !!r.recomendacion.enEstres,
+            pivot: !sec && r.recomendacion.pivot ? { arrancar_el: r.recomendacion.pivot.arrancarEl, entra_en_estres_sin_riego_el: r.recomendacion.pivot.venceEl, dias_hasta_estres: r.recomendacion.pivot.diasHastaEstres, horizonte_dias: r.recomendacion.pivot.horizonteDias,
               vuelta_dias: r.recomendacion.pivot.vueltaDias, lamina_vuelta_mm: r.recomendacion.pivot.laminaVuelta, vuelta_supuesta_sin_datos_del_equipo: r.recomendacion.pivot.vueltaSupuesta, capacidad_neta_mm_dia: r.recomendacion.pivot.capacidadNeta,
               consumo_maximo_7_dias_mm: r.recomendacion.pivot.consumoMax7, equipo_no_alcanza_la_demanda: r.recomendacion.pivot.noAlcanza,
               regla: 'se prende antes del estrés: arranque = estrés + consumo del cultivo durante la vuelta, nunca por debajo del 75 % de agua útil, y el estrés empieza en el 50 % (SDSU Extension: no pasar del 50 % de agotamiento desde floración) (la lluvia prevista no se resta del margen: ya entra en la proyección del suelo y corre la fecha de arranque; como FieldNET Advisor: Start = Due By − Refill Time)' } : null,
             agua_disponible_mm: r0(r.aguaDisponibleHoy), reserva_total_raiz_mm: r0(r.tawHoy), falta_para_capacidad_campo_mm: r0(r.deficitHastaCC),
-            lamina_sugerida_hoy_mm: r.recomendacion.mm || 0, eficiencia_riego: r.eficiencia,
+            lamina_sugerida_hoy_mm: sec ? null : (r.recomendacion.mm || 0), eficiencia_riego: sec ? null : r.eficiencia,
             dias_desde_siembra: r.etapaHoy.dds, etapa: r.etapaHoy.nombre || null, etapa_critica: !!r.etapaHoy.critica, raiz_cm: r.etapaHoy.zr ? Math.round(r.etapaHoy.zr * 100) : null, kc_hoy: r.etapaHoy.kc,
             consumo_cultivo_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.etcDia || 0); }, 0)), riego_cargado_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.riegoBruto || 0); }, 0)),
             desde_siembra: { lluvia_mm: r0(tp.lluviaBruta), riego_bruto_mm: r0(tp.riegoBruto), consumo_etc_mm: r0(tp.etc), dias_con_estres: tp.diasEstres || 0 },
-            proximos_dias: (r.dias || []).map(function (v) { return { fecha: B.claveDia(v.fecha), agua_util_pct: r0(v.porcentajeAAU), lluvia_mm: r1(v.lluviaBruta), estado: v.estado, lamina_si_toca_mm: v.mmRegar || 0 }; }),
+            proximos_dias: (r.dias || []).map(function (v) { return sec ? { fecha: B.claveDia(v.fecha), agua_util_pct: r0(v.porcentajeAAU), lluvia_mm: r1(v.lluviaBruta) } : { fecha: B.claveDia(v.fecha), agua_util_pct: r0(v.porcentajeAAU), lluvia_mm: r1(v.lluviaBruta), estado: v.estado, lamina_si_toca_mm: v.mmRegar || 0 }; }),
             humedad_medida_con: r.sonda && r.sonda.antiguedadDias <= 2 ? 'sonda de humedad' : (r.fuentes && r.fuentes.estacion ? 'balance con la estación del campo' : 'balance FAO-56 con clima estimado (lluvia CHIRPS corregida, pronóstico Open-Meteo de 16 días)'),
             proximos_7_dias_acumulado: r.pronostico ? { consumo_cultivo_mm: r.pronostico.semana.consumoMM, lluvia_prevista_mm: r.pronostico.semana.lluviaMM, balance_mm: r.pronostico.semana.balanceMM } : null,
             pronostico_completo_acumulado: r.pronostico ? { dias: r.pronostico.total.dias, consumo_cultivo_mm: r.pronostico.total.consumoMM, lluvia_prevista_mm: r.pronostico.total.lluviaMM } : null,
@@ -354,7 +355,8 @@
       var pSat = B.prepararSatelite ? Promise.resolve(B.prepararSatelite(lista.map(function (x) { return x.e; }))).catch(function () {}) : Promise.resolve();   // consumo real según el satélite
       return pSat.then(function () { return Promise.all(lista.map(function (x) { try { return Promise.resolve(uno(x)); } catch (er) { return Promise.resolve({ lote: x.e.nombre, error: String(er.message || er) }); } })); }).then(function (lotes) {
         return { hoy: hoyK, lotes: lotes, lotes_no_mostrados: omitidos || undefined,
-          fuente: 'ficha de agua de SAFIA: balance diario FAO-56 desde la siembra con los riegos y lluvias cargados, lluvia pasada CHIRPS (o estación/manual) y pronóstico Open-Meteo; el mismo cálculo que ve el Operador',
+          fuente: 'ficha de agua de SAFIA: balance diario FAO-56 desde el día de la siembra con los riegos cargados; la lluvia entra sola (estación del campo si hay, después el pluviómetro cargado y, si no, el satélite CHIRPS) y el pronóstico es de Open-Meteo; el mismo cálculo que ve el Operador',
+          reglas: 'El estrés empieza en el 50 % de agua útil y el pivot se arranca desde el 75 % (más arriba si la vuelta es larga o el consumo es alto). "No regar: viene lluvia" = se esperan 15 mm o más en los próximos 5 días. En secano no hay arranque: solo se avisa el estrés.',
           importante: 'La humedad es calculada, no medida (salvo sonda). Si no se cargaron los riegos hechos, el suelo aparece más seco de lo real.' };
       });
     },
@@ -464,6 +466,20 @@
       var evs = propios('eventos').filter(function (v) { var f = String(v.fecha || '').slice(0, 10); return ids[String(v.equipoId)] && f >= desde && f <= hasta && (!tipos || tipos.indexOf(v.tipo) >= 0); })
         .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
       var lim = Math.max(5, Math.min(60, i.limite || 30));
+      // Lluvia automática por campo (clima de SAFIA, corregido con el satélite CHIRPS): la misma que usa el balance y que Eventos muestra como "Clima · automática"
+      var K = window.SafiaClima, autos = {}, autosHoy = {}, quiereLluvia = !tipos || tipos.indexOf('lluvia') >= 0;
+      var diasAtras = Math.min(400, Math.max(1, Math.round((new Date(hoyK + 'T12:00:00') - new Date(desde + 'T12:00:00')) / 86400000) + 1));
+      var pedidos = [];
+      if (K && quiereLluvia) ls.lista.forEach(function (x) {
+        var c = x.c; if (!c || autos[c.id] !== undefined || num(c.latitud) == null || num(c.longitud) == null) return;
+        autos[c.id] = null;
+        pedidos.push(Promise.resolve(K.obtenerClima({ lat: num(c.latitud), lon: num(c.longitud), daily: 'precipitation_sum', pastDays: diasAtras, forecastDays: 1, cacheKey: 'lluvia-asistente:' + c.id })).then(function (rc) {
+          var d = rc && rc.datos && rc.datos.daily; if (!d || !d.time) return;
+          var o = {}; d.time.forEach(function (f, j) { var k = String(f).slice(0, 10), mm = d.precipitation_sum[j]; if (mm == null) return; if (k === hoyK) autosHoy[c.id] = mm; else if (k >= desde && k <= hasta && k < hoyK) o[k] = mm; });
+          autos[c.id] = o;
+        }, function () {}));
+      });
+      return Promise.all(pedidos).then(function () {
       return { desde: desde, hasta: hasta, lotes: ls.lista.map(function (x) {
         var mios = evs.filter(function (v) { return String(v.equipoId) === String(x.e.id); }), mes = {}, tot = {};
         mios.forEach(function (v) {
@@ -472,10 +488,25 @@
           tot[v.tipo] = tot[v.tipo] || { n: 0, mm: 0 }; tot[v.tipo].n++; if (v.tipo === 'riego' || v.tipo === 'lluvia') tot[v.tipo].mm += q;
         });
         var t = {}; Object.keys(tot).forEach(function (k) { t[k] = (k === 'riego' || k === 'lluvia') ? { registros: tot[k].n, total_mm: r0(tot[k].mm) } : { registros: tot[k].n }; });
-        return { campo: x.c ? x.c.nombre : null, lote: x.e.nombre, totales: t,
-          por_mes: Object.keys(mes).sort().map(function (k) { var z = mes[k]; return { mes: z.mes, lluvia_mm: r0(z.lluvia_mm), lluvias: z.lluvias, riego_mm: r0(z.riego_mm), riegos: z.riegos }; }),
+        // lluvia del período: en los días con lluvia cargada manda lo cargado; en los demás, la automática (desde 1 mm, como en Eventos)
+        var auto = x.c ? autos[x.c.id] : null, lluviaPeriodo = null;
+        if (auto) {
+          var carg = {}; mios.forEach(function (v) { if (v.tipo === 'lluvia') { var f = String(v.fecha).slice(0, 10); carg[f] = (carg[f] || 0) + (num(v.cantidad) || 0); } });
+          var dias = {}, pm = {}, tp = 0, ta = 0;
+          Object.keys(carg).forEach(function (f) { dias[f] = { mm: carg[f], fuente: 'pluviómetro cargado' }; });
+          Object.keys(auto).forEach(function (f) { if (!dias[f] && auto[f] > 0) dias[f] = { mm: auto[f], fuente: 'automática' }; });
+          Object.keys(dias).forEach(function (f) { var m = f.slice(0, 7), z = dias[f]; pm[m] = pm[m] || { mes: m, total_mm: 0, pluviometro_mm: 0, automatica_mm: 0, dias_con_lluvia: 0 }; pm[m].total_mm += z.mm; pm[m][z.fuente === 'automática' ? 'automatica_mm' : 'pluviometro_mm'] += z.mm; if (z.mm >= 1) pm[m].dias_con_lluvia++; if (z.fuente === 'automática') ta += z.mm; else tp += z.mm; });
+          lluviaPeriodo = { total_mm: r0(tp + ta), del_pluviometro_cargado_mm: r0(tp), automatica_mm: r0(ta), dias_con_lluvia: Object.keys(dias).filter(function (f) { return dias[f].mm >= 1; }).length,
+            pronostico_para_hoy_mm: hasta >= hoyK && x.c && autosHoy[x.c.id] != null ? r1(autosHoy[x.c.id]) : undefined,
+            por_mes: Object.keys(pm).sort().map(function (k) { var z = pm[k]; return { mes: z.mes, total_mm: r0(z.total_mm), pluviometro_mm: r0(z.pluviometro_mm), automatica_mm: r0(z.automatica_mm), dias_con_lluvia: z.dias_con_lluvia }; }),
+            dias_de_mas_lluvia: Object.keys(dias).sort(function (a, b) { return dias[b].mm - dias[a].mm; }).slice(0, 5).map(function (f) { return { fecha: f, mm: r1(dias[f].mm), fuente: dias[f].fuente }; }),
+            como_se_arma: 'Día por día: si hay lluvia cargada del pluviómetro en este lote manda esa; si no, la automática del clima de SAFIA (satélite CHIRPS). Cuenta lo llovido hasta ayer; lo de hoy es pronóstico y va aparte (pronostico_para_hoy_mm). Día con lluvia = 1 mm o más. Es la misma lluvia que usa el balance de agua y que Eventos muestra como "Clima · automática".' };
+        } else if (quiereLluvia) lluviaPeriodo = { nota: x.c && (num(x.c.latitud) == null || num(x.c.longitud) == null) ? 'El campo no tiene coordenada: no se puede traer la lluvia automática. La coordenada se carga en Campos (el dueño del campo o Irrigar).' : 'No se pudo traer la lluvia automática ahora; abajo está solo lo cargado.' };
+        return { campo: x.c ? x.c.nombre : null, lote: x.e.nombre, lluvia_del_periodo: lluviaPeriodo, cargado_totales: t,
+          cargado_por_mes: Object.keys(mes).sort().map(function (k) { var z = mes[k]; return { mes: z.mes, lluvia_mm: r0(z.lluvia_mm), lluvias: z.lluvias, riego_mm: r0(z.riego_mm), riegos: z.riegos }; }),
           registros: mios.slice(-lim).map(function (v) { return { fecha: String(v.fecha).slice(0, 10), tipo: v.tipo, cantidad: num(v.cantidad), unidad: v.unidad || (v.tipo === 'riego' || v.tipo === 'lluvia' ? 'mm' : null), producto: v.producto || v.tarea || null, dosis: v.dosis || null, cargado_por: v.cargadoPor || null }; }) };
-      }), importante: 'Son los registros cargados en SAFIA (Operador, Eventos, voz, estación). Lo que no se cargó no aparece; la lluvia estimada por clima (CHIRPS) no está acá: para eso, agua_hoy o como_va_campana.' };
+      }), importante: 'Para "¿cuánto llovió?" usá lluvia_del_periodo (incluye la lluvia automática: no hace falta que nadie la cargue). cargado_totales, cargado_por_mes y registros son solo lo que se CARGÓ en SAFIA (Operador, Eventos, voz, estación): el riego que no se cargó no aparece.' };
+      });
     },
     historial_suelo: function (i) {
       var A = window.SafiaAgro, campo = i.campo ? campoPorNombre(i.campo) : null;
@@ -555,6 +586,44 @@
         fuente: 'campañas cosechadas reales del banco de SAFIA (los lotes de otros productores sin nombre) y sus análisis de suelo; lectura con el manual RS/SC 2016 y Embrapa',
         importante: 'El fósforo se compara dentro de la misma clase de arcilla (en suelos arcillosos el mismo P vale más). Un suelo mejor no explica todo el rinde: también cuentan variedad, fecha de siembra, agua y manejo.' };
     },
+    agua_de_riego: function (i) {
+      // Calidad del agua de riego: el mismo motor del Banco → Análisis de agua (FAO 29, USDA Manual 60)
+      var Q = window.SafiaCalidadAgua; if (!Q) return { error: 'Módulo de análisis de agua no disponible en esta página' };
+      var campo = i.campo ? campoPorNombre(i.campo) : null;
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      var cps = campo ? [campo] : propios('campos');
+      return { campos: cps.map(function (c) {
+        puente(c);
+        var l = propios('analisis_agua').filter(function (a) { return String(a.campoId) === String(c.id); }).sort(function (a, b) { return String(a.fecha || '').localeCompare(String(b.fecha || '')); });
+        if (!l.length) return { campo: c.nombre, analisis_cargados: 0, nota: 'Sin análisis de agua de riego cargado. Lo cargan el dueño o el gerente en Banco → Análisis de agua (se puede subir el PDF del laboratorio).' };
+        var a = l[l.length - 1], L = Q.interpretar(a, Q.opcionesDe(a)), r = L.r || {};
+        return { campo: c.nombre, analisis_cargados: l.length, fechas: l.map(function (x) { return String(x.fecha || 'sin fecha').slice(0, 10); }),
+          ultimo: { fecha: a.fecha ? String(a.fecha).slice(0, 10) : null, fuente_del_agua: a.fuenteNombre || a.fuente || null, laboratorio: a.laboratorio || null,
+            veredicto: L.veredicto ? L.veredicto.titulo : null, detalle: L.veredicto ? L.veredicto.detalle : null,
+            ce_uS_cm: r1(r.ce), ph: r1(r.ph), ras: r1(r.ras), clase_riverside: r.clase ? r.clase.txt : null, carbonato_sodio_residual_meq_l: r1(r.csr), boro_mg_l: r.boro != null ? Math.round(r.boro * 100) / 100 : null,
+            lectura: (L.items || []).map(function (x) { return { parametro: x.n, valor: typeof x.valor === 'number' ? Math.round(x.valor * 100) / 100 : x.valor, unidad: x.unidad || null, estado: x.estado === 'ok' ? 'bien' : (x.estado === 'cuidado' ? 'con cuidado' : 'grave'), explicacion: x.texto, fuente: x.fuente || null }; }),
+            por_cultivo: (L.cultivos || []).map(function (x) { return { cultivo: x.n, estado: x.estado === 'ok' ? 'sirve' : (x.estado === 'cuidado' ? 'sirve con manejo' : 'no sirve'), motivos: x.motivos || [] }; }),
+            control_de_calidad: (L.control || []).length ? L.control : 'el análisis cierra (cationes y aniones)', evaluado_para: L.aspersion ? 'riego por aspersión (pivot)' : 'riego sin mojar la hoja' } };
+      }), fuente: 'Banco → Análisis de agua de SAFIA: FAO Riego y Drenaje 29 (Ayers y Westcot 1985) y USDA Handbook 60 (diagrama Riverside)' };
+    },
+    plan_rotacion: function (i) {
+      // Rotación por lote: lo que se sembró de verdad, el plan guardado (Banco → Plan de rotación) y los avisos de la rotación
+      var Ro = window.SafiaRotacion; if (!Ro) return { error: 'Módulo de rotación no disponible en esta página' };
+      var ls = lotesDe(i); if (ls.error) return ls;
+      return { lotes: ls.lista.slice(0, 8).map(function (x) {
+        puente(x.c);
+        var hist = Ro.historialDelLote(x.e.id), plan = Ro.planDelLote(x.e.id), temps = plan && plan.temporadas ? plan.temporadas.filter(function (t) { return t && t.cultivo; }) : [];
+        var sugerido = !temps.length; if (sugerido) { try { temps = (Ro.sugerirPlan(x.e.id, 3) || []).filter(function (t) { return t && t.cultivo; }); } catch (e) { temps = []; } }
+        var sec = hist.map(function (h) { return { temporada: h.temporada, cultivo: h.cultivo, plan: false }; }).concat(temps.map(function (t) { return { temporada: { epoca: t.epoca, anio: t.anio }, cultivo: t.cultivo, plan: true }; }));
+        var av = [], idx = null; try { av = Ro.avisos(sec); idx = Ro.indiceRotacion(sec); } catch (e) {}
+        return { campo: x.c ? x.c.nombre : null, lote: x.e.nombre, tipo: esSecanoLote(x.e) ? 'secano' : (x.e.tipo || 'pivote'),
+          sembrado_hasta_hoy: hist.slice(-9).map(function (h) { return { temporada: Ro.etiqueta(h.temporada), cultivo: h.cultivo, variedad: h.variedad || null, siembra: h.siembra, cosecha: h.cosecha, rinde_kg_ha: r0(h.rinde) }; }),
+          plan_guardado: !sugerido, plan: temps.map(function (t) { return { temporada: Ro.etiqueta({ epoca: t.epoca, anio: t.anio }), cultivo: t.cultivo, objetivo_kg_ha: num(t.objetivoKgHa), nota: t.nota || null }; }),
+          nota_plan: sugerido ? 'Este lote no tiene plan guardado: lo de arriba es la rotación SUGERIDA por SAFIA para 3 años (soja–maíz con cobertura de invierno). El dueño o el gerente la ajustan y guardan en Banco → Plan de rotación.' : null,
+          avisos: av.map(function (z) { return { temporada: z.temporada || null, gravedad: z.tipo === 'alto' ? 'importante' : (z.tipo === 'bien' ? 'buena práctica' : 'a revisar'), texto: String(z.texto).replace(/\s*\[\d+\]/g, '') }; }),
+          indice: idx ? { diversidad_pct: idx.diversidad, inviernos_cubiertos_pct: idx.cobertura } : null };
+      }), lotes_no_mostrados: ls.lista.length > 8 ? ls.lista.length - 8 : undefined, fuente: 'Banco → Plan de rotación de SAFIA: temporadas verano, zafriña e invierno; reglas de rotación de Embrapa y CAPECO' };
+    },
     mis_campos: function () {
       var cl = propios('clientes'), cs = casos(), an = propios('analisis_suelo'), eqs = propios('equipos'), cams = propios('campanas');
       return { campos: propios('campos').map(function (c) {
@@ -592,7 +661,7 @@
       return r.data;
     });
   }
-  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias cargados', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona' };
+  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona', agua_de_riego: 'Revisando el análisis del agua de riego', plan_rotacion: 'Revisando la rotación del lote' };
   function preguntar(texto, al) {
     if (ocupado || !texto.trim()) return Promise.resolve();
     // sin ningún pivot con suscripción vigente no se consulta a la IA (no se gasta)
@@ -657,7 +726,7 @@
   }
 
   /* ---------- pantalla ---------- */
-  var SUGERENCIAS = ['¿Cómo viene mi cosecha?', '¿Tengo que regar hoy? ¿Viene lluvia?', 'Contame todo de mi pivot: rindes, metas y nutrientes', '¿Qué variedades de soja rindieron más este año?', '¿Cómo está mi suelo contra el mejor lote de mi departamento?', '¿Cuánto regué y cuánto llovió desde la siembra?', '¿Qué mantenimiento tiene pendiente mi pivot?', '¿Qué le falta al suelo de mi campo para llegar a 5.000 kg de soja?'];
+  var SUGERENCIAS = ['¿Cómo viene mi cosecha?', '¿Tengo que regar hoy? ¿Viene lluvia?', 'Contame todo de mi pivot: rindes, metas y nutrientes', '¿Qué variedades de soja rindieron más este año?', '¿Cómo está mi suelo contra el mejor lote de mi departamento?', '¿Cuánto regué y cuánto llovió desde la siembra?', '¿Qué mantenimiento tiene pendiente mi pivot?', '¿El agua de mi pozo sirve para regar?', '¿Qué me conviene sembrar después de este cultivo?', '¿Qué le falta al suelo de mi campo para llegar a 5.000 kg de soja?'];
   function montar(el) {
     if (!el) return;
     el.innerHTML = '<div id="asHist" style="display:flex;flex-direction:column;gap:12px;"></div>' +
