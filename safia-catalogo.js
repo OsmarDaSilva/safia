@@ -19,7 +19,7 @@
     'Soja': [
       // Brasmax / Don Mario
       'BMX Zeus IPRO', 'BMX Potência RR', 'BMX Lança IPRO', 'BMX Bônus IPRO', 'BMX Olimpo IPRO', 'BMX Fibra IPRO', 'BMX Compacta IPRO', 'BMX Garra IPRO', 'BMX Cromo', 'BMX Lotus', 'BMX Ícone IPRO', 'BMX Ativa RR', 'BMX Turbo RR', 'BMX Desafio RR',
-      'DM 53i54 IPRO', 'DM 5958 IPRO', 'DM 60i62 IPRO', 'DM 62R63', 'DM 66i68 IPRO', 'DM 68i69 IPRO', 'DM 5.8i', 'DM 6.2i',
+      'DM 53i54 IPRO', 'DM 5958 IPRO', 'DM 59iX61 I2X', 'DM 60i62 IPRO', 'DM 62R63', 'DM 66i68 IPRO', 'DM 68i69 IPRO', 'DM 5.8i', 'DM 6.2i', 'NEXUS 64iX66 I2X',
       // Nidera / Syngenta
       'NA 5909 RG', 'NS 5445 IPRO', 'NS 5933 IPRO', 'NS 6010 IPRO', 'NS 6220 IPRO', 'NS 6248 RR', 'NS 6483 RR', 'NS 6906 IPRO', 'NS 7209 IPRO', 'SYN 1561 IPRO', 'SYN 13671 IPRO', 'SYN 15640 IPRO',
       // Monsoy (Bayer)

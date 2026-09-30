@@ -68,9 +68,11 @@
     ['HO Pirapó IPRO', 6.4, 'indeterminado', 'susceptible a nematodo de quiste y de agallas', 'https://hogenetica.com/main/uploads/2026_01/images/original/ho-pirapo.png', 'obtentor'],
     ['HO Maracaí IPRO', 7.7, 'indeterminado', 'resistente a nematodo de quiste (razas 3, 6, 9, 10 y 14)', 'https://agrosolsementes.com.br/ho-maracai/', 'distribuidor'],
     ['NEO 610 IPRO', 6.1, 'indeterminado', '', 'https://www.neogensementes.com.br/neo-610/', 'obtentor', 'dato de la versión Intacta (IPRO); la versión I2X no se encontró'],
-    ['NEO 590 IPRO', 5.9, '', '', 'https://www.neogensementes.com.br/neo-590/', 'obtentor']
+    ['NEO 590 IPRO', 5.9, '', '', 'https://www.neogensementes.com.br/neo-590/', 'obtentor'],
+    ['NEXUS 64iX66 I2X', 6.4, 'indeterminado', 'resistente a cancro del tallo y a Phytophthora; mancha ojo de rana: 5 de 5 según Dekalpar, pero susceptible según el registro de Agrolink', 'https://dekalpar.com/producto/nexus-64ix66-i2x/', 'distribuidor', 'GDM; en Brasil se vende como Brasmax Nexus I2X (GMR 6.4 y hábito según Agrolink). En Paraguay (Dekalpar): ciclo 120–123 días, 107 cm, siembra del 1-sep al 30-oct según región con 11–13 pl/m'],
+    ['DM 59iX61 I2X', 5.9, '', 'destacada tolerancia a muerte súbita (Agrotec)', 'https://agrotec.com.py/semillas/soja/don-mario-dm-59ix61-i2x/', 'distribuidor', 'ciclo corto, para apertura de siembra en ambientes de alto potencial; lanzamiento 2025/26 de Don Mario (GDM)']
   ];
-  var ALIAS_SOJA = { '63i64': 'bmxgarra', 'dmgarra': 'bmxgarra', 'garra': 'bmxgarra', '96r29': 'p96r29', '64ho114': 'hopirapo', 'pirapo': 'hopirapo', '77ho110': 'homaracai', 'maracai': 'homaracai' };
+  var ALIAS_SOJA = { 'nexus': 'nexus64ix66', 'bmxnexus': 'nexus64ix66', 'bmxnexus64ix66': 'nexus64ix66', 'nexus64i66': 'nexus64ix66', '64ix66': 'nexus64ix66', '64i66': 'nexus64ix66', '59ix61': 'dm59ix61', '59i61': 'dm59ix61', 'dm59i61': 'dm59ix61', '63i64': 'bmxgarra', 'dmgarra': 'bmxgarra', 'garra': 'bmxgarra', '96r29': 'p96r29', '64ho114': 'hopirapo', 'pirapo': 'hopirapo', '77ho110': 'homaracai', 'maracai': 'homaracai' };
 
   /* ---------- maíz: [nombre, ciclo (Brasil, empresa), GM Bayer, GDU a floración, GDU a madurez, ciclo SENAVE Paraguay, url, nivel, nota] ---------- */
   var MAIZ = [
