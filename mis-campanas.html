@@ -659,6 +659,7 @@
 <script src="safia-nutrientes.js"></script>
 <script src="safia-meta.js"></script>
 <script src="safia-precios.js"></script>
+<script src="safia-senave.js"></script>
 <script src="safia-catalogo.js"></script>
 <script src="safia-lluvia.js"></script>
 <script src="safia-casos.js"></script>
@@ -1970,7 +1971,7 @@
       const catalogo = (window.SafiaCatalogo && cultivoFila) ? SafiaCatalogo.variedadesDe(cultivoFila).filter(v => !vistas[norm(v)]) : [];
       const opt = (v, t) => '<option value="' + String(v).replace(/"/g, '&quot;') + '">' + (t || '') + '</option>';
       const aviso = !cultivoFila ? opt('', 'Primero elegí el cultivo: ahí aparece el catálogo de variedades e híbridos') : '';
-      dl.innerHTML = aviso + usadas.map(x => opt(x.v, 'ya usada · ' + (x.c || ''))).join('') + catalogo.map(v => opt(v, 'catálogo')).join('');
+      dl.innerHTML = aviso + usadas.map(x => opt(x.v, 'ya usada · ' + (x.c || ''))).join('') + catalogo.map(v => opt(v, (SafiaCatalogo.origenDe && SafiaCatalogo.origenDe(cultivoFila, v)) || 'catálogo')).join('');
     }
 
     function renderizarCultivos() {
@@ -2053,7 +2054,7 @@
               <div class="campo">
                 <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
                 <input type="text" list="listaVariedades" autocomplete="off" placeholder="${cultivo.cultivo ? 'Elegí del catálogo o escribí' : 'Primero elegí el cultivo'}" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
-                <div class="ayuda">${cultivo.cultivo ? 'Primero salen las ya usadas y después el catálogo de ' + cultivo.cultivo + '. Si no está, escribila: queda guardada y la próxima vez aparece como ya usada.' : 'El catálogo de variedades depende del cultivo: elegilo arriba y acá aparecen las de ese cultivo.'}</div>
+                <div class="ayuda">${cultivo.cultivo ? 'Primero salen las ya usadas, después el catálogo verificado de SAFIA y todo lo inscripto en SENAVE para ' + cultivo.cultivo + '. Si no está, escribila: queda guardada y la próxima vez aparece como ya usada.' : 'El catálogo de variedades depende del cultivo: elegilo arriba y acá aparecen las de ese cultivo.'}</div>
               </div>
             </div>
 

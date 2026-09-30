@@ -106,13 +106,23 @@
   SOJA.forEach(function (r) { IDX.soja[base(r[0])] = { nombre: r[0], gm: r[1], habito: r[2], sanidad: r[3], url: r[4], nivel: r[5], nota: r[6] || '' }; });
   MAIZ.forEach(function (r) { IDX.maiz[base(r[0])] = { nombre: r[0], ciclo: r[1], gmBayer: r[2], gduFlor: r[3], gduMad: r[4], senave: r[5], url: r[6], nivel: r[7], nota: r[8] || '' }; });
   function buscar(cultivo, nombre) {
-    var cu = cultivoClave(cultivo), t = IDX[cu]; if (!t || !nombre) return null;
+    if (!nombre) return null;
+    var cu = cultivoClave(cultivo), t = IDX[cu];
+    if (!t) { var r0 = window.SafiaSenave ? window.SafiaSenave.buscar(cultivo, nombre) : null; return r0 ? desdeSenave(cu, r0) : null; }   // trigo, poroto, sorgo…: solo lo inscripto en SENAVE
     var b = base(nombre); if (cu === 'soja' && ALIAS_SOJA[b]) b = ALIAS_SOJA[b];
     var d = t[b] || null;
     if (!d && cu === 'maiz' && /^[0-9]/.test(b)) d = t['p' + b] || null;         // "3282" = "P3282"
     if (!d && cu === 'soja' && /^p?9[0-9][a-z][0-9]/.test(b)) d = t[b.replace(/^p?/, 'p')] || null;   // "96R29" = "P96R29", "96Y90" = "P96Y90"
-    if (!d) return null;
-    return Object.assign({ exacto: clave(d.nombre) === clave(nombre) }, d);
+    var reg = window.SafiaSenave ? window.SafiaSenave.buscar(cultivo, nombre) : null;
+    if (!d) return reg ? desdeSenave(cu, reg) : null;
+    return Object.assign({ exacto: clave(d.nombre) === clave(nombre), registro: reg }, d);
+  }
+  // Material que solo está en el registro de SENAVE: se informa lo inscripto; el GM de la soja y los grados-día del maíz quedan sin dato
+  function desdeSenave(cu, reg) {
+    var F0 = window.SafiaSenave.fuente() || {}, desc = window.SafiaSenave.descripcion(reg);
+    if (cu === 'soja') return { nombre: reg.nombre, gm: null, habito: reg.habito || '', sanidad: '', url: F0.url || '', nivel: 'SENAVE', nota: desc, exacto: !!reg.exacto, registro: reg, soloSenave: true };
+    if (cu === 'maiz') return { nombre: reg.nombre, ciclo: '', gmBayer: null, gduFlor: null, gduMad: null, senave: desc, url: F0.url || '', nivel: 'SENAVE', nota: '', exacto: !!reg.exacto, registro: reg, soloSenave: true };
+    return { nombre: reg.nombre, url: F0.url || '', nivel: 'SENAVE', nota: desc, exacto: !!reg.exacto, registro: reg, soloSenave: true };
   }
 
   /* ---------- región para el GMR (INBIO) ---------- */
@@ -182,12 +192,13 @@
   /* ---------- lectura para la fila "Material" ---------- */
   function linkF(u, t) { return '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t || 'fuente') + '</a>'; }
   function descSoja(nombre, d) {
-    if (!d) return '<b>' + esc(nombre) + '</b>: GM sin dato verificado';
-    return '<b>' + esc(nombre) + '</b>: ' + (d.gm != null ? 'GM ' + fmt(d.gm, 1) : 'GM sin dato (' + esc(d.nota) + ')') + (d.habito ? ', ' + d.habito : '') + (d.sanidad ? ', ' + d.sanidad : '') + ' <span class="muted" style="font-size:11px;">(' + linkF(d.url, d.nivel) + ')</span>';
+    if (!d) return '<b>' + esc(nombre) + '</b>: GM sin dato verificado' + (window.SafiaSenave && window.SafiaSenave.disponible() ? ' y no figura en el registro de SENAVE' : '');
+    return '<b>' + esc(nombre) + '</b>: ' + (d.gm != null ? 'GM ' + fmt(d.gm, 1) : 'GM sin dato (' + esc(d.nota) + ')') + (d.habito && !d.soloSenave ? ', ' + d.habito : '') + (d.sanidad ? ', ' + d.sanidad : '') + (d.registro && !d.soloSenave ? ' · ' + esc(window.SafiaSenave.etiqueta(d.registro)) : '') + ' <span class="muted" style="font-size:11px;">(' + linkF(d.url, d.nivel) + ')</span>';
   }
   function descMaiz(nombre, d) {
-    if (!d) return '<b>' + esc(nombre) + '</b>: ciclo sin dato verificado';
+    if (!d) return '<b>' + esc(nombre) + '</b>: ciclo sin dato verificado' + (window.SafiaSenave && window.SafiaSenave.disponible() ? ' y no figura en el registro de SENAVE' : '');
     var p = [];
+    if (d.registro && !d.soloSenave) p.push(window.SafiaSenave.etiqueta(d.registro));
     if (d.ciclo) p.push(d.ciclo + ' (Brasil)');
     if (d.senave) p.push('SENAVE Paraguay: ' + d.senave);
     if (d.gduFlor) p.push(fmt(d.gduFlor, 0) + ' GDU a floración' + (d.gduMad ? ', ' + fmt(d.gduMad, 0) + ' a madurez' : ''));

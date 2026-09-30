@@ -100,5 +100,71 @@
   }
   function insumosDe(categoria) { return INSUMOS[categoria] || []; }
 
-  window.SafiaCatalogo = { VARIEDADES: VARIEDADES, INSUMOS: INSUMOS, variedadesDe: variedadesDe, insumosDe: insumosDe };
+  /* ---------- SENAVE: Registro Nacional de Cultivares (safia-senave.js, generado desde el boletín oficial) ----------
+     Todo lo inscripto en Paraguay (RNCC y RNCP) por especie, con obtentor, estado del registro, tecnología y año. Se suma al
+     catálogo propio en las listas de variedades y sirve de respaldo cuando un material no está en safia-materiales.js. */
+  var SENAVE_MAPA = {
+    soja: ['Soja'], soya: ['Soja'], maiz: ['Maíz'], zafrina: ['Maíz'], trigo: ['Trigo'], sorgo: ['Sorgo'], girasol: ['Girasol'], arroz: ['Arroz'], algodon: ['Algodón'],
+    mani: ['Maní'], poroto: ['Poroto', 'Habilla'], frijol: ['Poroto', 'Habilla'], feijao: ['Poroto', 'Habilla'], sesamo: ['Sésamo'], chia: ['Chía'], avena: ['Avena'], canola: ['Canola'],
+    cana: ['Caña de azúcar'], alfalfa: ['Alfalfa'], tomate: ['Tomate'], centeno: ['Centeno'], triticale: ['Triticale'], nabo: ['Nabo forrajero'], mijo: ['Mijo perla'],
+    pastura: ['Urochloa (brachiaria)', 'Megathyrsus (panicum)', 'Cynodon (tifton, bermuda)', 'Paspalum', 'Pasto buffel (Cenchrus)', 'Chloris gayana', 'Stylosanthes', 'Mijo perla', 'Pasto elefante', 'Kikuyo'],
+    brachiaria: ['Urochloa (brachiaria)'], braquiaria: ['Urochloa (brachiaria)'], brizanta: ['Urochloa (brachiaria)'], urochloa: ['Urochloa (brachiaria)'], mombaca: ['Megathyrsus (panicum)'], panicum: ['Megathyrsus (panicum)'], megathyrsus: ['Megathyrsus (panicum)'], tifton: ['Cynodon (tifton, bermuda)'],
+    citricos: ['Naranja', 'Mandarina', 'Limón / lima', 'Pomelo'], naranja: ['Naranja'], mandarina: ['Mandarina'], limon: ['Limón / lima'], pomelo: ['Pomelo'], palta: ['AGUACATE'], aguacate: ['AGUACATE'], mandioca: ['MANDIOCA'], papa: ['Papa'], tabaco: ['TABACO']
+  };
+  function senaveDatos() { return window.SAFIA_SENAVE && window.SAFIA_SENAVE.especies ? window.SAFIA_SENAVE : null; }
+  function claveS(s) { return norm(s).replace(/[^a-z0-9]/g, ''); }
+  var SUFIJOS_S = /(ipro|i2x|rsf|sts|rr|rg|ce|pro[234]|vyhr|vyh|yhr|vyr|pwu|vip3|vt3p|tre|hr|pw)$/;
+  function baseS(s) { var k = claveS(s), prev; do { prev = k; k = k.replace(SUFIJOS_S, ''); } while (k !== prev && k.length > 3); return k; }
+  function senaveEspecies(cultivo) {
+    var D = senaveDatos(); if (!D) return []; var n = norm(cultivo); if (!n) return [];
+    var b = n.split(/[\s(\/]/)[0];
+    var lista = SENAVE_MAPA[b] || SENAVE_MAPA[n] || Object.keys(D.especies).filter(function (k) { var kn = norm(k); return kn === n || kn.split(/[\s(]/)[0] === b; });
+    return lista.filter(function (k) { return D.especies[k]; });
+  }
+  function senaveObjeto(f, esp) { return { nombre: f[0], obtentor: f[1], rncc: f[2], rncp: f[3], tecnologia: f[4], hibrido: f[5], origen: f[6], anio: f[7], habito: f[8], ciclo: f[9], altura: f[10], especie: esp }; }
+  function senaveRegistros(cultivo) {
+    var D = senaveDatos(); if (!D) return []; var out = [];
+    senaveEspecies(cultivo).forEach(function (k) { D.especies[k].filas.forEach(function (f) { out.push(senaveObjeto(f, k)); }); });
+    return out;
+  }
+  // nombres con dos variantes ("DKB290PRO3/DKB290VT3P") valen por cualquiera de las dos
+  function senaveNombres(nombre) { return String(nombre).split('/').map(function (x) { return x.trim(); }).filter(Boolean).concat([nombre]); }
+  function senaveBuscar(cultivo, nombre) {
+    if (!nombre) return null; var regs = senaveRegistros(cultivo); if (!regs.length) return null;
+    var q = claveS(nombre), qb = baseS(nombre), exacto = null, aprox = null;
+    regs.forEach(function (r) { senaveNombres(r.nombre).forEach(function (n) { if (!exacto && claveS(n) === q) exacto = r; if (!aprox && baseS(n) === qb) aprox = r; }); });
+    var r = exacto || aprox; if (!r) return null;
+    return Object.assign({ exacto: !!exacto }, r);
+  }
+  function senaveEtiqueta(r) {
+    if (!r) return ''; var D = senaveDatos(), E = (D && D.estados) || {};
+    var reg = r.rncc ? 'RNCC ' + (E[r.rncc] || r.rncc).replace(/^RNCC /, '') : (r.rncp ? 'solo RNCP (' + (E[r.rncp] || r.rncp) + ')' : 'sin registro vigente');
+    return 'SENAVE · ' + reg;
+  }
+  function senaveDescripcion(r) {
+    if (!r) return ''; var p = [senaveEtiqueta(r)];
+    if (r.obtentor) p.push('obtentor ' + r.obtentor); if (r.tecnologia) p.push(r.tecnologia); if (r.hibrido) p.push('híbrido ' + r.hibrido);
+    if (r.habito) p.push(r.habito); if (r.ciclo) p.push('ciclo ' + r.ciclo + ' (descriptor de SENAVE)'); if (r.altura) p.push('altura ' + r.altura); if (r.anio) p.push('inscripta en ' + r.anio);
+    return p.join(' · ');
+  }
+  var _variedadesPropias = variedadesDe;
+  // Lista completa para el autocompletado: primero el catálogo propio, después SENAVE (los RNCC al día antes)
+  function variedadesCompletas(cultivo) {
+    var propias = _variedadesPropias(cultivo), vistos = {}, out = [];
+    propias.forEach(function (v) { vistos[baseS(v)] = 1; out.push(v); });
+    var basesPropias = Object.keys(vistos);
+    senaveRegistros(cultivo).forEach(function (r) {
+      var k = baseS(r.nombre); if (vistos[k]) return;
+      if (k.length >= 5 && basesPropias.some(function (p) { return p.indexOf(k) >= 0; })) return;   // "64IX66RSF I2X" ya está como "NEXUS 64iX66 I2X"
+      vistos[k] = 1; out.push(r.nombre);
+    });
+    return out;
+  }
+  // De dónde sale un nombre de la lista: 'catálogo' (propio, verificado) o la etiqueta de SENAVE
+  function origenDe(cultivo, nombre) {
+    var b = baseS(nombre); if (_variedadesPropias(cultivo).some(function (v) { return baseS(v) === b; })) return 'catálogo';
+    var r = senaveBuscar(cultivo, nombre); return r ? senaveEtiqueta(r) : '';
+  }
+  window.SafiaSenave = { disponible: function () { return !!senaveDatos(); }, especies: senaveEspecies, registros: senaveRegistros, buscar: senaveBuscar, etiqueta: senaveEtiqueta, descripcion: senaveDescripcion, fuente: function () { var D = senaveDatos(); return D ? { nombre: D.fuente, url: D.url, fecha: D.fecha } : null; } };
+  window.SafiaCatalogo = { VARIEDADES: VARIEDADES, INSUMOS: INSUMOS, variedadesDe: variedadesCompletas, variedadesPropias: _variedadesPropias, origenDe: origenDe, insumosDe: insumosDe };
 })();

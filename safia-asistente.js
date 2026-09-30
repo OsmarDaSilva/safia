@@ -259,7 +259,8 @@
       var M = window.SafiaMateriales; if (!M) return { error: 'Catálogo de materiales no disponible' };
       var d = M.buscar(i.cultivo, i.variedad), en = M.ensayosDe ? M.ensayosDe(i.cultivo, i.variedad) : [];
       return { encontrado: !!d, ficha: d || null, ensayos: (en || []).slice(0, 12).map(function (e) { var s = {}; Object.keys(e.sitio || {}).forEach(function (k) { if (k !== 'filas') s[k] = e.sitio[k]; }); return { ensayo: s, resultado: e.f }; }),
-        nota: d ? 'Ficha del catálogo verificado de SAFIA (fuente en la ficha).' : 'No está en el catálogo verificado de SAFIA: no inventar sus datos.' };
+        registro_senave: d && d.registro ? d.registro : (window.SafiaSenave ? window.SafiaSenave.buscar(i.cultivo, i.variedad) : null),
+        nota: d ? (d.soloSenave ? 'No está en el catálogo verificado de SAFIA, pero sí en el Registro Nacional de Cultivares de SENAVE (Paraguay): lo inscripto es lo que figura en la ficha; el grupo de madurez no lo publica SENAVE, no inventarlo.' : 'Ficha del catálogo verificado de SAFIA (fuente en la ficha).') : 'No está en el catálogo verificado de SAFIA' + (window.SafiaSenave && window.SafiaSenave.disponible() ? ' ni en el Registro Nacional de Cultivares de SENAVE (boletín de agosto 2026)' : '') + ': no inventar sus datos.' };
     },
     clima_y_riego: function (i) {
       var P = window.SafiaClimaProyecto; if (!P) return { error: 'Módulo de clima no disponible' };
