@@ -135,7 +135,8 @@
      (a la mitad del agotamiento permitido) y, en regiones semiáridas, mantenerse adelante de la demanda del cultivo.
      Lindsay FieldNET Advisor (folleto 2017): Start Next Irrigation = Next Irrigation Due By − Next Irrigation Refill
      Time; líneas capacidad de campo, recarga, seguridad y agotamiento crítico; días hasta el estrés.
-     Sin datos del equipo se supone una vuelta de 3 días (el ejemplo de SDSU, cap. 49, usa 4). */
+     Sin datos del equipo se supone una vuelta de 3 días (el ejemplo de Hay, Kjaersgaard y Trooien 2013, "Soybean Irrigation", cap. 49 de
+     iGrow Soybeans, SDSU Extension, usa 4 días por vuelta, 1 pulgada bruta y 85 % de eficiencia; verificado contra el PDF el 30-sep-2026). */
   var VUELTA_SUPUESTA_DIAS = 3;
 
   /* ---------- Consumo del cultivo según el satélite (como FieldNET Advisor 2024: "remote sensing ... actual crop water use") ----------

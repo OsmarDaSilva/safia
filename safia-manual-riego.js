@@ -81,7 +81,7 @@
       '</tbody></table>';
     h += '<h3>6. Qué te toca a vos (' + (rol === 'encargado' ? 'Encargado' : rol === 'propietario' ? 'Propietario' : 'Operador') + ')</h3><ol class="mr-ol">' + (RUTINA[rol] || RUTINA.operador).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>';
     h += '<h3>7. Lo que hay que saber</h3><ul class="mr-ol"><li>Es un <b>cálculo</b>, no una medición: una sonda de humedad lo reemplaza cuando existe.</li><li>El <b>riego</b> que no se carga no existe para SAFIA: sin riegos cargados el suelo aparece más seco de lo real. La lluvia entra sola por el satélite, pero el pluviómetro del campo es más preciso.</li><li>La decisión final es del productor y del agrónomo; SAFIA avisa a tiempo y muestra el porqué.</li></ul>';
-    h += '<div class="mr-fuentes">Fuentes: FAO-56 (Allen et al. 1998) y FAO-56 dual (Allen et al. 2005); Rhoads & Yonts, National Corn Handbook NCH-20 (arranque del pivot según la vuelta); SDSU Extension, cap. 49 (soja); Lindsay FieldNET Advisor (folletos 2017 y 2024).</div>';
+    h += '<div class="mr-fuentes">Fuentes: FAO-56 (Allen et al. 1998) y FAO-56 dual (Allen et al. 2005); Rhoads & Yonts, National Corn Handbook NCH-20, "Irrigation Scheduling for Corn" (con pivot, arrancar cuando va la mitad del agotamiento permitido, porque la vuelta tarda días); Hay, Kjaersgaard y Trooien (2013), "Soybean Irrigation", cap. 49 de iGrow Soybeans: Best Management Practices, SDSU Extension (soja: no pasar del 50 % de agotamiento desde floración; ejemplo con pivot de 4 días por vuelta y 85 % de eficiencia); Lindsay FieldNET Advisor (folletos 2017 y 2024).</div>';
     return h;
   }
 
