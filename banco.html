@@ -1018,7 +1018,7 @@
     document.getElementById('vacioCiclos').style.display = lista.length ? 'none' : '';
     cuerpo.innerHTML = lista.map(function (c) {
       return '<tr data-id="' + esc(c.id) + '">' +
-        '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + '</td>' +
+        '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + (f.finalidad && !/comercial/i.test(f.finalidad) ? '<div class="sub">' + esc(f.finalidad) + '</div>' : '') + '</td>' +
         '<td>' + fmtFecha(c.fechaSiembra) + ' → ' + (c.fechaCosecha ? fmtFecha(c.fechaCosecha) : '<span class="badge green">en pie</span>') + '</td>' +
         '<td class="r"><span class="num">' + fmt(c.rindeKgHa, 0) + '</span></td>' +
         '<td class="r">' + (c.conRiego === 'no' ? '<span class="badge amber">secano</span>' : fmt(c.mmRiego)) + '</td>' +
@@ -1179,6 +1179,7 @@
           campana: c.nombre || '—',
           cultivo: cu.cultivo || '—',
           variedad: cu.variedad || '',
+          finalidad: cu.finalidad || '',
           siembra: cu.fechaSiembra || '',
           cosecha: cu.fechaCosecha || '',
           superficie: parseFloat(cu.superficie) || null,
@@ -1267,9 +1268,12 @@
     var finalidad = document.getElementById('cmpFinalidad').value;
 
     var filas = campanas.map(function (c) {
-      var epoca = epocaDeSiembra(c.siembra);
-      var r = refPara(c.cultivo, epoca, finalidad) || refPara(c.cultivo, null, finalidad);
-      return { c: c, epoca: epoca, ref: r };
+      var epoca = epocaDeSiembra(c.siembra), fin = c.finalidad || finalidad;   // la finalidad de CADA campaña (ensilaje no se compara con grano); el selector solo si no la tiene
+      // regla única de toda la app (SafiaCasos.refRegional): misma finalidad y sin mezclar épocas; si no hay dato de esa época, sin referencia
+      var rr = window.SafiaCasos && SafiaCasos.refRegional ? SafiaCasos.refRegional(refZona, c.cultivo, epoca, fin) : null;
+      if (rr && epoca && rr.epoca && norm(rr.epoca) !== norm(epoca)) rr = null;
+      var r = rr ? { riego: rr.riego != null ? rr.riego / 1000 : null, secano: rr.secano != null ? rr.secano / 1000 : null } : null;
+      return { c: c, epoca: epoca, ref: r, finalidad: fin };
     });
 
     document.getElementById('cuerpoComparativo').innerHTML = filas.map(function (f) {
@@ -1288,7 +1292,7 @@
       }
       return '<tr>' +
         '<td>' + esc(c.campana) + '<div class="sub">' + fmtFecha(c.siembra) + ' → ' + fmtFecha(c.cosecha) + (f.epoca ? ' · ' + esc(f.epoca) : '') + '</div></td>' +
-        '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + '</td>' +
+        '<td><span class="fecha">' + esc(c.cultivo) + '</span>' + (c.variedad ? '<div class="sub">' + esc(c.variedad) + '</div>' : '') + (f.finalidad && !/comercial/i.test(f.finalidad) ? '<div class="sub">' + esc(f.finalidad) + '</div>' : '') + '</td>' +
         '<td class="r"><span class="num">' + fmt(c.rindeTonHa) + '</span><div class="sub">t/ha · ' + (c.riego ? '<span class="badge green">riego</span>' : '<span class="badge amber">secano</span>') + (c.equipo ? ' ' + esc(c.equipo) : '') + '</div></td>' +
         '<td class="r">' + celdaRiego + '</td>' +
         '<td class="r">' + celdaSecano + '</td>' +

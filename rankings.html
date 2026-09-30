@@ -97,6 +97,7 @@
         <div class="filter"><span class="fl">Región</span><select id="fRegion"><option value="">Todo el país</option><option value="oriental">Región Oriental</option><option value="occidental">Región Occidental (Chaco)</option></select></div>
         <div class="filter"><span class="fl">Cultivo</span><select id="fCultivo"></select></div>
         <div class="filter"><span class="fl">Finalidad</span><select id="fFinalidad"></select></div>
+        <div class="filter"><span class="fl">Época de siembra</span><select id="fEpoca"><option value="Primavera/Verano">Primavera/Verano (zafra)</option><option value="Verano/Otoño">Verano/Otoño (zafriña)</option><option value="Otoño/Invierno">Otoño/Invierno</option><option value="">Todas (mezcla épocas)</option></select></div>
         <div class="filter"><span class="fl">Riego</span><select id="fRiego"><option value="riego">Con riego</option><option value="secano">Secano</option><option value="ambos">Ambos</option></select></div>
         <div class="filter"><span class="fl">Fuente</span><select id="fFuente"><option value="ambas">Base histórica + cargados en SAFIA</option><option value="referencia">Solo base histórica</option><option value="caso">Solo cargados en SAFIA</option></select></div>
       </div>
@@ -138,7 +139,7 @@
     var casos=SafiaCasos.armarCasos().map(function(c){ return {
       fuente:'caso', id:c.id, pais:c.pais||'Paraguay', departamento:c.departamento||'', localidad:c.localidad||'', cultivo:c.cultivo||'',
       finalidad:c.finalidad||'Granos Comercial', epoca:c.epoca||'', riego:c.riego!==false, variedad:c.variedad||'', rindeKgHa:c.rindeKgHa,
-      cliente:c.cliente, campo:c.campo, campana:c.campana, anio:c.cosecha?parseInt(c.cosecha.slice(0,4),10):null,
+      cliente:c.cliente, campo:c.campo, campana:c.campana, anio:c.cosecha?parseInt(c.cosecha.slice(0,4),10):null, lat:c.lat, lon:c.lon,
       aguaTotalMM:c.aguaTotalMM, altitud:c.altitud
     }; });
     var ref = window.safiaSupabase
@@ -171,19 +172,21 @@
     var lf=Object.keys(fins).sort(); opciones('fFinalidad', lf, 'Todas');
     var grano=lf.filter(function(x){return /grano/i.test(x);})[0]; if(grano && !document.getElementById('fFinalidad').value) document.getElementById('fFinalidad').value=grano;
   }
-  ['fPais','fRegion','fCultivo','fFinalidad','fRiego','fFuente'].forEach(function(id){ document.getElementById(id).addEventListener('change',render); });
+  ['fPais','fRegion','fCultivo','fFinalidad','fRiego','fFuente','fEpoca'].forEach(function(id){ document.getElementById(id).addEventListener('change',render); });
   // la región solo existe en Paraguay: con otro país el filtro se apaga
   function ajustarRegion(){ var s=document.getElementById('fRegion'), py=norm(document.getElementById('fPais').value)==='paraguay'; s.disabled=!py; if(!py) s.value=''; }
   document.getElementById('fPais').addEventListener('change',ajustarRegion);
 
   function filtradas(){
     var pais=document.getElementById('fPais').value, cul=document.getElementById('fCultivo').value, fin=document.getElementById('fFinalidad').value, reg=document.getElementById('fRegion').value;
-    var riego=document.getElementById('fRiego').value, fuente=document.getElementById('fFuente').value;
+    var riego=document.getElementById('fRiego').value, fuente=document.getElementById('fFuente').value, epo=document.getElementById('fEpoca').value;
+    var fk = function(x){ return window.SafiaCasos && SafiaCasos.finalidadClave ? SafiaCasos.finalidadClave(x) : norm(x); };   // 'Ensilaje' y 'Ensilage' son lo mismo
     return filas.filter(function(f){
       if(pais && norm(f.pais)!==norm(pais)) return false;
-      if(reg && window.SafiaCasos && SafiaCasos.region && SafiaCasos.region({ departamento:f.departamento, pais:f.pais })!==reg) return false;
+      if(reg && window.SafiaCasos && SafiaCasos.region && SafiaCasos.region({ departamento:f.departamento, pais:f.pais, lat:f.lat, lon:f.lon })!==reg) return false;   // por departamento o por coordenada
       if(cul && norm(nombreCultivo(f.cultivo))!==norm(cul)) return false;
-      if(fin && f.finalidad && norm(f.finalidad)!==norm(fin)) return false;
+      if(fin && fk(f.finalidad||'Granos Comercial')!==fk(fin)) return false;
+      if(epo && f.epoca && !/peren/i.test(f.epoca) && norm(f.epoca)!==norm(epo)) return false;   // verano y zafriña no se promedian (regla de Osmar); las pasturas perennes pasan
       if(riego==='riego' && !f.riego) return false;
       if(riego==='secano' && f.riego) return false;
       if(fuente!=='ambas' && f.fuente!==fuente) return false;
@@ -209,7 +212,7 @@
   function prom(arr){ return arr.length? arr.reduce(function(a,b){return a+b;},0)/arr.length : null; }
   function stats(l){ var v=l.map(function(x){return x.rindeKgHa;}); var conRiego=l.filter(function(x){return x.riego;}).map(function(x){return x.rindeKgHa;}); var secano=l.filter(function(x){return !x.riego;}).map(function(x){return x.rindeKgHa;});
     return { n:l.length, prom:prom(v), max:Math.max.apply(null,v), promRiego:prom(conRiego), promSecano:prom(secano), nCasos:l.filter(function(x){return x.fuente==='caso';}).length }; }
-  function pos(i){ var c=i===0?'oro':i===1?'plata':i===2?'bronce':''; var m=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'º'; return '<span class="pos '+c+'">'+m+'</span>'; }
+  function pos(i){ var c=i===0?'oro':i===1?'plata':i===2?'bronce':''; var m=(i+1)+'º'; return '<span class="pos '+c+'">'+m+'</span>'; }
   function barra(v,max,cls){ var w=max?Math.round(v/max*100):0; return '<span class="barwrap"><span class="bar '+(cls||'')+'" style="width:'+w+'%"></span></span>'; }
   function tabla(enc, filasHTML){ return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr>'+enc.map(function(e){return '<th'+(e.r?' class="r"':'')+'>'+e.t+'</th>';}).join('')+'</tr></thead><tbody>'+(filasHTML.length?filasHTML.join(''):'<tr><td colspan="'+enc.length+'" class="muted">Sin datos para estos filtros.</td></tr>')+'</tbody></table></div></div>'; }
   function td(v,r){ return '<td'+(r?' class="r"':'')+'>'+v+'</td>'; }

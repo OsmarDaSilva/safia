@@ -838,7 +838,7 @@
   function guardarEvaluacion(d){
     var cliSel=$('evCliente').value, campoSel=$('evCampo').value, est=$('evEstado');
     if(!cliSel){ est.innerHTML='<b>No se guardó:</b> elegí o creá el prospecto arriba (paso 0) y volvé a evaluar.'; return; }
-    var ahora=new Date().toISOString(), hoy=ahora.slice(0,10), t0=Date.now(), pais=$('pPais').value;
+    var ahora=new Date().toISOString(), hoy=(function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); })(), t0=Date.now(), pais=$('pPais').value;   // hoy en hora local (no UTC)
     var clientes=L('clientes'), campos=L('campos'), analisis=L('analisis_suelo'), evs=L('evaluaciones'), cliente, campo;
     if(cliSel==='nuevo'){
       var nom=$('evCliNombre').value.trim(); if(!nom){ est.innerHTML='<b>No se guardó:</b> poné el nombre del prospecto.'; toast('Poné el nombre del prospecto',true); return; }

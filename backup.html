@@ -158,6 +158,13 @@
       { clave: 'eventos',         label: 'Eventos',            icono: '📅' },
       { clave: 'ciclos',          label: 'Ciclos de cultivo',  icono: '🔄' },
       { clave: 'analisis_suelo',  label: 'Análisis de suelo',  icono: '🧪' },
+      { clave: 'analisis_agua',   label: 'Análisis de agua',   icono: '🧪' },
+      { clave: 'analisis_foliar', label: 'Análisis foliares',  icono: '🧪' },
+      { clave: 'planes_rotacion', label: 'Planes de rotación', icono: '📋' },
+      { clave: 'clima_estacion',  label: 'Estación meteorológica', icono: '📅' },
+      { clave: 'precios',         label: 'Precios',            icono: '📋' },
+      { clave: 'evaluaciones',    label: 'Evaluaciones de proyecto', icono: '📋' },
+      { clave: 'suscripciones',   label: 'Suscripciones',      icono: '📋' },
     ];
 
     function mostrarRestaurarSiPropietario() { const t = document.getElementById('tarjetaRestaurar'); if (t && window.SafiaSync && SafiaSync.esPropietario && SafiaSync.esPropietario()) t.style.display = ''; }
@@ -286,7 +293,9 @@
 
     function importar() {
       if (!backupCargado) return;
-      if (!confirm('¿Restaurar los datos del respaldo? Se reemplazarán todos los datos actuales. Esta acción no se puede deshacer.')) return;
+      // confirmación en pantalla (sin ventanas del navegador): el primer clic avisa, el segundo dentro de 8 s restaura
+      if (!window._restaurarPendiente) { window._restaurarPendiente = true; mostrarToast('Se reemplazarán TODOS los datos actuales por los del respaldo. Tocá Restaurar otra vez para confirmar (no se puede deshacer).'); setTimeout(function () { window._restaurarPendiente = false; }, 8000); return; }
+      window._restaurarPendiente = false;
 
       let restauradas = 0;
       CLAVES.forEach(c => {

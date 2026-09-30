@@ -224,7 +224,7 @@
         tipoSuelo: campo ? (campo.tipoSuelo || '') : '',
         cultivo: ci.cultivo || '', variedad: ci.variedad || '', finalidad: ci.finalidad || 'Granos Comercial', epoca: epocaDeSiembra(siembra),
         siembra: siembra, cosecha: cosecha,
-        dias: (siembra && cosecha) ? Math.round((new Date(cosecha) - new Date(siembra)) / 86400000) : null,
+        dias: (function () { var d = (siembra && cosecha) ? Math.round((new Date(cosecha) - new Date(siembra)) / 86400000) : null; return d != null && d < 0 ? null : d; })(),
         superficie: null, densidad: null,
         rindeKgHa: rinde, objetivoKgHa: null,
         lluviaMM: lluvia, riegoMM: riego,
@@ -326,7 +326,7 @@
     });
     // misma región (Chaco con Chaco, Oriental con Oriental): los de la otra región no entran ni como información
     var regP = opciones.mismaRegion === false ? null : region(prospecto), otraRegion = 0;
-    if (regP) candidatos = candidatos.filter(function (c) { var rc = region(c); if (rc && rc !== regP) { otraRegion++; return false; } return true; });
+    if (regP) candidatos = candidatos.filter(function (c) { var rc = region(c); if (rc !== regP) { otraRegion++; return false; } return true; });   // sin región conocida tampoco entra (podría ser de la otra)
 
     var puntuados = candidatos.map(function (c) {
       var dKm = distanciaKm(prospecto, c);
@@ -712,7 +712,7 @@
      Región por departamento (Boquerón, Alto Paraguay y Presidente Hayes = Chaco). Busca el pasto por nombre;
      si no está, usa "Pasturas Varias" de la región y lo dice; si tampoco, no hay referencia. */
   var MESES_F = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  function regionForrajera(departamento) { return /boqueron|alto paraguay|presidente hayes/.test(norm(departamento)) ? 'Occidental/Chaco' : 'Oriental/Centro'; }
+  function regionForrajera(departamento) { return DEP_OCCIDENTAL.test(norm(departamento)) ? 'Occidental/Chaco' : 'Oriental/Centro'; }   // misma regla que region(): 'Pdte. Hayes' también es Chaco
   function refForrajeAnual(filas, departamento, cultivo) {
     if (!departamento) return null;
     var region = regionForrajera(departamento), n = norm(cultivo), tipos = {};

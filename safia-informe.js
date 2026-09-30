@@ -66,18 +66,30 @@
     }, function () {});
   }
   // grano comercial y sin mezclar épocas (SafiaCasos.refRegional); riego o secano según el caso
-  function refZonaPara(cultivo, riego, epoca) {
+  function refZonaPara(cultivo, riego, epoca, finalidad) {
     if (!refZona || !window.SafiaCasos || !SafiaCasos.refRegional) return null;
-    var rr = SafiaCasos.refRegional(refZona, cultivo, epoca);
+    var rr = SafiaCasos.refRegional(refZona, cultivo, epoca, finalidad);   // misma finalidad (grano ≠ ensilaje ≠ semilla) y misma época
     return rr ? (riego === false ? rr.secano : rr.riego) : null;
   }
+  // época que usó la referencia (si la pedida no tenía dato, refRegional toma otra: hay que decirlo)
+  function refZonaEpoca(cultivo, epoca, finalidad) { if (!refZona || !window.SafiaCasos) return null; var rr = SafiaCasos.refRegional(refZona, cultivo, epoca, finalidad); return rr ? rr.epoca : null; }
+  // Comparación justa entre casos: mismo cultivo, misma finalidad (grano/ensilaje/pasto), mismo régimen de agua y misma época
+  function comparable(x, c) {
+    if (norm(x.cultivo) !== norm(c.cultivo)) return false;
+    if (window.SafiaCasos && SafiaCasos.grupoFinalidad && SafiaCasos.grupoFinalidad(x.cultivo, x.finalidad) !== SafiaCasos.grupoFinalidad(c.cultivo, c.finalidad)) return false;
+    if ((x.riego !== false) !== (c.riego !== false)) return false;
+    if (x.epoca && c.epoca && x.epoca !== c.epoca) return false;
+    return true;
+  }
+  function unidad(c) { return window.SafiaCasos && SafiaCasos.unidadDe ? SafiaCasos.unidadDe(c.cultivo, c.finalidad) : { corto: 'kg/ha', factor: 1, dec: 0 }; }
+  function rindeTxt(c, kg) { var u = unidad(c); return fmt((kg == null ? c.rindeKgHa : kg) / u.factor, u.dec); }
 
   /* ---------- secciones ---------- */
   function secResumen(cx) {
     var lotes = lotesDelCampo(), ha = 0; lotes.forEach(function (l) { ha += (l.poligono && l.poligono.ha) || parseFloat(l.superficie) || 0; });
     var ult = cx.mios[cx.mios.length - 1];
-    var mejorZona = ult ? cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(ult.cultivo) && ((campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad)) || (campoActual.departamento && norm(c.departamento) === norm(campoActual.departamento))); }).reduce(function (a, b) { return !a || b.rindeKgHa > a.rindeKgHa ? b : a; }, null) : null;
-    var refZ = ult ? refZonaPara(ult.cultivo, ult.riego, ult.epoca) : null;
+    var mejorZona = ult ? cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && comparable(c, ult) && ((campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad)) || (campoActual.departamento && norm(c.departamento) === norm(campoActual.departamento))); }).reduce(function (a, b) { return !a || b.rindeKgHa > a.rindeKgHa ? b : a; }, null) : null;
+    var refZ = ult ? refZonaPara(ult.cultivo, ult.riego, ult.epoca, ult.finalidad) : null;
     var ndviUlt = null; lotes.forEach(function (l) { var s = window.SafiaNDVI ? SafiaNDVI.serieDe(l.id) : []; if (s && s.length) { var p = s[s.length - 1]; if (!ndviUlt || p.fecha > ndviUlt.fecha) ndviUlt = p; } });
     var analisis = lotes.map(function (l) { return analisisDelLote(l.id).slice(-1)[0]; }).filter(Boolean);
     var limitantes = 0; analisis.forEach(function (a) { if (window.SafiaAgro) SafiaAgro.interpretarSuelo(a, ult ? ult.cultivo : 'Soja').forEach(function (i) { if (i.estado === 'limita') limitantes++; }); });
@@ -139,15 +151,15 @@
 
   function secCampanas(cx) {
     var filas = cx.mios.map(function (c) {
-      var refZ = refZonaPara(c.cultivo, c.riego, c.epoca);
-      var mejor = cx.todos.filter(function (x) { return String(x.campoId) !== String(campoActual.id) && norm(x.cultivo) === norm(c.cultivo) && campoActual.localidad && norm(x.localidad) === norm(campoActual.localidad); }).reduce(function (a, b) { return !a || b.rindeKgHa > a.rindeKgHa ? b : a; }, null);
+      var refZ = refZonaPara(c.cultivo, c.riego, c.epoca, c.finalidad), epRef = refZ != null ? refZonaEpoca(c.cultivo, c.epoca, c.finalidad) : null;
+      var mejor = cx.todos.filter(function (x) { return String(x.campoId) !== String(campoActual.id) && comparable(x, c) && campoActual.localidad && norm(x.localidad) === norm(campoActual.localidad); }).reduce(function (a, b) { return !a || b.rindeKgHa > a.rindeKgHa ? b : a; }, null);
       return '<tr>' + td('<b>' + esc(c.campana) + '</b><div class="sub">' + esc(c.equipo) + (c.riego ? '' : ' · secano') + '</div>') + td(esc(c.cultivo) + '<div class="sub">' + esc(c.variedad || '—') + '</div>') + td('<span style="white-space:nowrap;">' + fmtF(c.siembra) + '</span><div class="sub">' + (c.dias != null ? c.dias + ' días' : '') + '</div>') + td('<span style="white-space:nowrap;">' + fmtF(c.cosecha) + '</span>') +
         td(c.aguaTotalMM != null ? fmt(c.aguaTotalMM, 0) + '<div class="sub">' + fmt(c.lluviaMM || 0, 0) + ' lluvia · ' + fmt(c.riegoMM || 0, 0) + ' riego</div>' : '—', 1) +
-        td('<span class="num">' + fmt(c.rindeKgHa, 0) + '</span>' + (c.objetivoKgHa ? '<div class="sub">objetivo ' + fmt(c.objetivoKgHa, 0) + '</div>' : '') + (c.precioUSDt ? '<div class="sub">US$ ' + fmt(c.precioUSDt, 0) + '/t · ' + fmt(c.rindeKgHa * c.precioUSDt / 1000, 0) + ' US$/ha</div>' : ''), 1) +
-        td(refZ ? flecha(c.rindeKgHa - refZ, 0) + '<div class="sub">prom. ' + esc(refAmbito) + ' ' + fmt(refZ, 0) + '</div>' : (mejor ? flecha(c.rindeKgHa - mejor.rindeKgHa, 0) + '<div class="sub">mejor local ' + fmt(mejor.rindeKgHa, 0) + '</div>' : '<span class="muted">—</span>'), 1) + '</tr>';
+        td('<span class="num">' + rindeTxt(c) + '</span><div class="sub">' + esc(unidad(c).corto) + (c.finalidad && !/comercial/i.test(c.finalidad) ? ' · ' + esc(c.finalidad) : '') + '</div>' + (c.objetivoKgHa ? '<div class="sub">objetivo ' + rindeTxt(c, c.objetivoKgHa) + '</div>' : '') + (c.precioUSDt ? '<div class="sub">US$ ' + fmt(c.precioUSDt, 0) + '/t · ' + fmt(c.rindeKgHa * c.precioUSDt / 1000, 0) + ' US$/ha</div>' : ''), 1) +
+        td(refZ ? flecha((c.rindeKgHa - refZ) / unidad(c).factor, unidad(c).dec) + '<div class="sub">prom. ' + esc(refAmbito) + ' ' + rindeTxt(c, refZ) + (epRef && c.epoca && epRef !== c.epoca ? ' · época ' + esc(epRef) : '') + '</div>' : (mejor ? flecha((c.rindeKgHa - mejor.rindeKgHa) / unidad(c).factor, unidad(c).dec) + '<div class="sub">mejor local ' + rindeTxt(c, mejor.rindeKgHa) + '</div>' : '<span class="muted">—</span>'), 1) + '</tr>';
     });
-    return '<h2>Campañas y rinde</h2>' + tabla([{ t: 'Campaña', w: 21 }, { t: 'Cultivo', w: 11 }, { t: 'Siembra', w: 13 }, { t: 'Cosecha', w: 13 }, { t: 'Agua mm', r: 1, w: 15 }, { t: 'Rinde kg/ha', r: 1, w: 13 }, { t: 'vs zona', r: 1, w: 14 }], filas) +
-      (refZona ? '<div class="sub" style="margin-top:4px;">Referencia de zona: promedio de ' + esc(refAmbito) + ' (base de referencia SAFIA, misma condición de riego cuando hay dato).</div>' : '');
+    return '<h2>Campañas y rinde</h2>' + tabla([{ t: 'Campaña', w: 21 }, { t: 'Cultivo', w: 11 }, { t: 'Siembra', w: 13 }, { t: 'Cosecha', w: 13 }, { t: 'Agua mm', r: 1, w: 15 }, { t: 'Rinde', r: 1, w: 13 }, { t: 'vs zona', r: 1, w: 14 }], filas) +
+      (refZona ? '<div class="sub" style="margin-top:4px;">Referencia de zona: promedio de ' + esc(refAmbito) + ' (base de referencia SAFIA, misma finalidad, misma época y misma condición de riego).</div>' : '');
   }
 
   function secAgua(cx) {
@@ -264,7 +276,7 @@
     cultivos.forEach(function (cu) {
       var mio = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
       var rp = SafiaAgro.referenciaPara(mio, cx.todos, campoActual), ref = rp.ref;
-      var local = cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
+      var local = cx.todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && comparable(c, mio) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
       html += '<div class="card seccion"><div class="card-h"><h3>' + esc(cu) + ' · ' + esc(mio.campana) + ' · ' + fmt(mio.rindeKgHa, 0) + ' kg/ha' + (ref ? ' · comparado con el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (' + fmt(ref.rindeKgHa, 0) + ' kg/ha)' : (rp.esMejor ? ' · el mejor lote de ' + esc(rp.ambito || 'la zona') + ' (siguiente: ' + fmt(rp.siguiente.rindeKgHa, 0) + ' kg/ha)' : ' · sin otro lote de la zona para comparar')) + '</h3></div>' + SafiaAgro.informeHTML(mio, ref, cu, { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito, propio: { mejor: mio.rindeKgHa, promedio: porCultivo[cu].reduce(function (t, c) { return t + c.rindeKgHa; }, 0) / porCultivo[cu].length, n: porCultivo[cu].length }, zona: { promedio: refZonaPara(cu, mio.riego, mio.epoca), mejor: ref ? ref.rindeKgHa : null, ambito: local.length ? campoActual.localidad : campoActual.departamento } }) + '</div>';
     });
     return html;
@@ -338,7 +350,7 @@
     if (s.meta) html += '<div class="salto"></div>' + secMeta(cx);
     var autor = $('autor').value.trim() || config.agronomo || '';
     if (autor || config.firma) html += '<div class="firma"><div class="bloque">' + (config.firma ? '<img src="' + config.firma + '" alt="firma">' : '<div style="height:40px;"></div>') + '<b>' + esc(autor) + '</b>' + (config.matricula ? '<div class="sub">' + esc(config.matricula) + '</div>' : '') + '<div class="sub">' + esc([config.empresa, config.telefono, config.correo].filter(Boolean).join(' · ')) + '</div><div class="sub">' + fmtF(hoy.toISOString().slice(0, 10)) + '</div></div></div>';
-    html += '<div class="pie"><span>Todos los rindes son kilos en silo, los que se venden. SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
+    html += '<div class="pie"><span>Rindes de grano en kg/ha en silo, los que se venden; ensilaje en toneladas de materia verde y pasto en kg de materia seca por hectárea. SAFIA compara e interpreta con datos reales del lote, la zona y el satélite. La prescripción final (dosis, productos, fechas) la define el ingeniero agrónomo responsable.</span><span>' + esc(config.empresa || 'Irrigar') + ' · SAFIA</span></div>';
     $('hoja').innerHTML = html;
     if (s.lotes) cargarImagenes();
     // balance hídrico por etapa de cada lote (se calcula en segundo plano)

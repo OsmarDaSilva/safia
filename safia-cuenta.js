@@ -29,7 +29,7 @@
   var usuario = null, abierto = false;
 
   /* ---------- menú y permisos por rol ---------- */
-  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'backup.html', 'precios.html', 'suscripciones.html'];
+  var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'informe-evaluacion.html', 'backup.html', 'precios.html', 'suscripciones.html'];
   var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html'];
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
@@ -192,7 +192,7 @@
       var b = $('safiaUsuarioSidebar');
       if (!b) { b = document.createElement('div'); b.id = 'safiaUsuarioSidebar'; pie.parentNode.insertBefore(b, pie); }
       // mismo color que los enlaces del menú (así queda bien en el menú claro y en el oscuro, y aunque el tema se aplique después)
-      var lado = pie.closest('aside') || pie.parentNode, enlace = lado.querySelector('a[href]'), col = enlace ? getComputedStyle(enlace).color : '#2E3236', fondo = (getComputedStyle(lado).backgroundColor.match(/d+/g) || [255, 255, 255]).map(Number), oscuro = (0.299 * fondo[0] + 0.587 * fondo[1] + 0.114 * fondo[2]) < 140, sub = oscuro ? '#9AA0A6' : '#8C9196', linea = oscuro ? 'rgba(255,255,255,.12)' : 'rgba(212,162,76,.25)';
+      var lado = pie.closest('aside') || pie.parentNode, enlace = lado.querySelector('a[href]'), col = enlace ? getComputedStyle(enlace).color : '#2E3236', fondo = (getComputedStyle(lado).backgroundColor.match(/\d+/g) || [255, 255, 255]).map(Number), oscuro = (0.299 * fondo[0] + 0.587 * fondo[1] + 0.114 * fondo[2]) < 140, sub = oscuro ? '#9AA0A6' : '#8C9196', linea = oscuro ? 'rgba(255,255,255,.12)' : 'rgba(212,162,76,.25)';
       b.style.cssText = 'margin:18px 10px 4px;padding:12px 0 0;border-top:1px solid ' + linea + ';';
       b.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
         '<div style="width:34px;height:34px;border-radius:50%;background:#22A93A;color:#fff;display:flex;align-items:center;justify-content:center;font:800 14px system-ui,sans-serif;flex:none;">' + esc(String(u.nombre || u.email || '?').trim().charAt(0).toUpperCase()) + '</div>' +
@@ -276,7 +276,7 @@
       '<div style="margin-top:4px;">' + texto + (alto ? ' <a href="suscripciones.html" style="color:inherit;font-weight:700;">Ir a Suscripciones</a>' : '') + '</div></div>' +
       (rojo && !alto ? '' : '<a href="#" id="safiaSuscCerrar" style="color:inherit;font-weight:700;text-decoration:none;flex:none;">Cerrar</a>');
     if (!d.parentNode) {
-      var main = document.querySelector('main.main, main, .enc-wrap, .contenido, .content');
+      var main = document.querySelector('main.main, main, .enc-wrap, .contenedor, .contenido, .content');
       if (main) main.insertBefore(d, main.firstChild); else document.body.insertBefore(d, document.body.firstChild);
     }
     var x = $('safiaSuscCerrar'); if (x) x.addEventListener('click', function (ev) { ev.preventDefault(); try { localStorage.setItem('safia_susc_aviso', hoyK); } catch (e) {} d.remove(); });

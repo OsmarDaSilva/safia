@@ -185,7 +185,7 @@
       else if (con != null) {
         // sin referencia de secano en la zona: lo que rendiría sin riego sale de la simulación del agua de este campo (FAO-33)
         var sim = null;
-        try { if (hist && window.SafiaClimaProyecto) sim = SafiaClimaProyecto.riego(hist, { cultivo: x.c.cultivo, epoca: x.c.epoca, siembra: x.c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null, departamento: (ev.ubicacion && ev.ubicacion.departamento) || null, lat: hist.lat, lon: hist.lon }); } catch (e) { sim = null; }
+        try { if (hist && window.SafiaClimaProyecto) sim = SafiaClimaProyecto.riego(hist, { cultivo: x.c.cultivo, epoca: x.c.epoca, siembra: x.c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null, departamento: (ev.ubicacion && ev.ubicacion.departamento) || ubic().depto || null, lat: hist.lat, lon: hist.lon }); } catch (e) { sim = null; }
         var rel = sim && !sim.error ? sim.rindeRelSecano : null;
         out.push('<b>' + esc(x.c.cultivo) + ' para ' + esc(finTxt(x.c).toLowerCase()) + (x.ref && x.ref.epoca ? ' (' + esc(x.ref.epoca) + ')' : (x.c.epoca ? ' (' + esc(x.c.epoca) + ')' : '')) + ':</b> con riego se espera ' + U(con, x.u) + ' ' + uu + (pot != null ? ' (casos reales cercanos)' : (x.ref && x.ref.forraje ? ' (referencia forrajera)' : ' (zona con riego)')) + '. La base todavía no tiene la referencia de secano de la zona' +
           (rel != null ? '; según el clima de este campo, sin riego rendiría en promedio el ' + fmt(rel * 100, 0) + ' % de eso por falta de agua (' + (sim.kyPropio ? 'FAO-33' : 'FAO-33, Ky 1,0 orientativo') + '), unos ' + U(con * rel, x.u) + ' ' + uu + ': el riego sumaría <b>+' + U(con * (1 - rel), x.u) + ' ' + uu + '</b> (estimado, no medido).' + (sim.secano ? ' En secano se siembra ~' + esc(sim.secano.fechaTipica || '—') + (sim.secano.nSinCarga ? '; en ' + sim.secano.nSinCarga + ' de ' + sim.secano.n + ' años se siembra igual sin el perfil cargado y rinde poco o se pierde' : ', con el perfil cargado') + '.' : '') : ', así que no se estima cuánto suma el riego.') +
@@ -223,7 +223,7 @@
       '<tr>' + td('<b>T máx / mín</b>') + clima.meses.map(function (m) { return td(fmt(m.tmax, 0) + '/' + fmt(m.tmin, 0), 1); }).join('') + '</tr>']);
     var riegoH = '';
     if (hist && window.SafiaClimaProyecto) {
-      var opcs = cultivos().map(function (c) { return { cultivo: c.cultivo, epoca: c.epoca, siembra: c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null, departamento: (ev.ubicacion && ev.ubicacion.departamento) || null, lat: hist.lat, lon: hist.lon }; });
+      var opcs = cultivos().map(function (c) { return { cultivo: c.cultivo, epoca: c.epoca, siembra: c.siembra, suelo: tieneSuelo(suelo()) ? suelo() : null, departamento: (ev.ubicacion && ev.ubicacion.departamento) || ubic().depto || null, lat: hist.lat, lon: hist.lon }; });
       var lista = opcs.map(function (o) { return SafiaClimaProyecto.riego(hist, o); });
       riegoH = SafiaClimaProyecto.mapaHTML({ lat: hist.lat, lon: hist.lon, lluvia: clima.lluviaAnual, deficit: clima.deficit }).replace(/<button[^>]*>[^<]*<\/button>/g, '') + '<h3>Riego que lleva cada cultivo en este campo</h3>' + SafiaClimaProyecto.riegoHTML(lista, { superficieHa: ev.superficieHa }) + (SafiaClimaProyecto.metodosHTML ? SafiaClimaProyecto.metodosHTML(hist, opcs) : '');
     }
@@ -322,7 +322,7 @@
         tabla([{ t: 'Cultivo', w: 14 }, { t: 'Finalidad', w: 15 }, { t: 'Época', w: 13 }, { t: 'Unidad', w: 9 }, { t: 'Secano', r: 1, w: 10 }, { t: 'Con riego', r: 1, w: 10 }, { t: 'Diferencia', r: 1, w: 10 }, { t: 'Registros', r: 1, w: 9 }, { t: 'Año', w: 10 }], filas);
     }
     // forraje por región (la base de Irrigar: Chaco / Oriental)
-    var u = ubic(), chaco = /boqueron|alto paraguay|presidente hayes/.test(norm(u.depto)), region = chaco ? 'Occidental/Chaco' : 'Oriental/Centro';
+    var u = ubic(), chaco = /boquer|alto paraguay|hayes/.test(norm(u.depto)), region = chaco ? 'Occidental/Chaco' : 'Oriental/Centro';
     var kg = function (v) { return v == null ? 0 : Number(v) / 100; }, M = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
     var fr = (refForraje || []).filter(function (x) { return x.region === region; }), tipos = {};
     fr.forEach(function (x) { (tipos[x.tipo_pastura] = tipos[x.tipo_pastura] || {})[/rega/i.test(x.forma_producida || '') ? 'riego' : 'secano'] = x; });

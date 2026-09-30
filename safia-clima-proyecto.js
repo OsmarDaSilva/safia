@@ -106,7 +106,9 @@
   // Época según la fecha de siembra (Paraguay): ago–dic primavera/verano (zafra), ene–mar verano/otoño (zafriña), abr–jul otoño/invierno
   function epocaPorSiembra(s) {
     var d = parseDM(s); if (!d) return null;
-    return d.m >= 8 ? 'Primavera/Verano' : (d.m <= 3 ? 'Verano/Otoño' : 'Otoño/Invierno');
+    // la MISMA regla que los casos del banco (SafiaCasos.epocaDeSiembra): sep–dic P/V, ene–abr V/O, may–ago O/I (antes acá abril era O/I y agosto P/V)
+    if (window.SafiaCasos && SafiaCasos.epocaDeSiembra) return SafiaCasos.epocaDeSiembra('2000-' + ('0' + d.m).slice(-2) + '-' + ('0' + d.d).slice(-2));
+    return d.m >= 9 ? 'Primavera/Verano' : (d.m <= 4 ? 'Verano/Otoño' : 'Otoño/Invierno');
   }
   function parseDM(s) { var m = String(s || '').match(/^\s*(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*$/); if (!m) return null; var d = +m[1], mo = +m[2]; if (mo < 1 || mo > 12 || d < 1 || d > 31) return null; return { d: d, m: mo }; }
   function textura(suelo) {

@@ -578,7 +578,7 @@
   function contexto() {
     var u = (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) || {};
     var hoy = new Date();
-    return '[Contexto de SAFIA · fecha ' + hoy.toISOString().slice(0, 10) + ' · usuario ' + (u.nombre || '—') + ' (rol ' + (u.rol || '—') + ') · ' + propios('campos').length + ' campo(s) propio(s) · ' + casos().length + ' caso(s) en el banco visibles para este usuario' + (pivotsVencidos().length ? ' · lotes con la suscripción VENCIDA (no se analizan; si pregunta por ellos, decile que renueve con Irrigar): ' + pivotsVencidos().join(', ') : '') + ']';
+    return '[Contexto de SAFIA · fecha ' + (window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : (function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); })()) + ' · usuario ' + (u.nombre || '—') + ' (rol ' + (u.rol || '—') + ') · ' + propios('campos').length + ' campo(s) propio(s) · ' + casos().length + ' caso(s) en el banco visibles para este usuario' + (pivotsVencidos().length ? ' · lotes con la suscripción VENCIDA (no se analizan; si pregunta por ellos, decile que renueve con Irrigar): ' + pivotsVencidos().join(', ') : '') + ']';
   }
   function llamar() {
     if (!window.safiaSupabase) return Promise.reject(new Error('Sin conexión a SAFIA: iniciá sesión'));
