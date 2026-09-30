@@ -425,7 +425,20 @@
           var porCultivo = {};
           historia.filter(function (h) { return h.rinde_kg_ha; }).forEach(function (h) { (porCultivo[h.cultivo] = porCultivo[h.cultivo] || []).push(h.rinde_kg_ha); });
           var mant = window.SafiaMant && !esSecanoLote(e) ? SafiaMant.estado(e) : null;
-          return { campo: c ? c.nombre : null, lote: e.nombre, tipo: esSecanoLote(e) ? 'secano' : (e.tipo || 'pivote'), superficie_ha: num(e.superficie), marca: e.marca || null, modelo: e.modelo || null,
+          // Pastura en piquetes: estado de cada piquete (regla y satélite) y qué sectores no se riegan hoy
+          var pastura = null, campPast = cams.filter(function (k) { return String(k.equipoId) === String(e.id) && k.estado === 'Activa'; }).map(function (k) { return (k.cultivos || [])[0]; }).filter(function (cu) { return cu && window.SafiaPasturas && SafiaPasturas.esPastura(cu.cultivo); })[0];
+          if (campPast && window.SafiaPasturas && SafiaPasturas.estadoPiquetes) {
+            var stP = SafiaPasturas.estadoPiquetes(e.id, campPast), refP = stP.ref, sat = window.SafiaPiquetes ? SafiaPiquetes.serieGuardada(e.id) : { pasadas: [] }, ultP = sat.pasadas[sat.pasadas.length - 1] || null;
+            var regP = window.SafiaPiquetes ? SafiaPiquetes.regresion(SafiaPiquetes.pares(e)) : null, sinR = window.SafiaPiquetes ? SafiaPiquetes.sectoresSinRiego(e, campPast, 3) : null;
+            pastura = { especie: campPast.variedad || campPast.cultivo, piquetes: parseInt(campPast.piquetes, 10) || null, dias_descanso_meta: num(campPast.diasDescanso), sistema: campPast.sistemaPastoreo || null,
+              meta_altura_cm: refP ? { entrada: refP.entrada, salida: refP.salida, fuente: refP.fuente } : 'sin variedad reconocida: cargar Zuri, Mombaça, Tanzania, Marandu, Xaraés… en la campaña',
+              piquete_ocupado: stP.ocupado, piquetes_a_punto: stP.listos,
+              piquetes_detalle: stP.piquetes.map(function (p) { var v = ultP && ultP.por[p.piquete]; return { piquete: p.piquete, estado: p.estado, altura_regla_cm: p.altura, fecha_lectura: p.fechaLectura, crecimiento_cm_dia: p.crecimiento, dias_descanso: p.diasDescanso, ndvi: v ? v.ndvi : null, altura_estimada_satelite_cm: regP && v ? regP.estimar(v.ndvi) : null }; }),
+              satelite: ultP ? { fecha: ultP.fecha, pasadas_guardadas: sat.pasadas.length, calibracion_altura: regP ? { lecturas: regP.n, r2: regP.r2 } : 'todavía sin 3 lecturas de regla cerca de una pasada' } : 'sin imagen por piquete todavía',
+              riego_separado_del_pastoreo: sinR && sinR.ocupado ? { no_regar_piquetes: sinR.piquetes, saltar_grados_desde_norte: sinR.grados, regla: 'no regar el piquete ocupado ni los 3 siguientes (Manual Irrigar 9.1)' } : 'sin entrada de animales cargada',
+              fuente: 'alturas Embrapa Gado de Corte (Régua de Manejo de Pastagens); manejo Manual de pastura irrigada Irrigar 2025; lecturas de regla y pastoreos cargados en el Operador; NDVI Sentinel-2 por porción del pivot' };
+          }
+          return { campo: c ? c.nombre : null, lote: e.nombre, pastura: pastura || undefined, tipo: esSecanoLote(e) ? 'secano' : (e.tipo || 'pivote'), superficie_ha: num(e.superficie), marca: e.marca || null, modelo: e.modelo || null,
             datos_tecnicos: Object.keys(tec).length ? tec : null, nota_datos_tecnicos: 'lamina100 = mm que aplica el pivot a velocidad 100 %; vuelta100 = horas por vuelta a 100 %; capacidad = mm/día que puede aplicar',
             poligono_cargado: !!(e.poligono && e.poligono.partes), horas_pivot: mant ? mant.horas : null,
             mantenimiento: mant ? (mant.sinPlan ? 'sin plan de mantenimiento cargado' : { vencidas: mant.vencidas.length, proximas: mant.proximas.length }) : null,
