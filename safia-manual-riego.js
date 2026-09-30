@@ -20,33 +20,33 @@
     var AMA = '#FFCA1A';
     var W = 640, H = 210, x0 = 44, x1 = 620, yv = function (p) { return 18 + (100 - p) / 100 * 150; };
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="mr-svg" role="img" aria-label="Cómo baja el agua del suelo y cuándo arrancar el pivot">';
-    [[0, 44, COL.estres], [44, 70, AMA], [70, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
-    [[100, 'capacidad de campo (lleno)', COL.exceso], [70, 'arrancar el pivot', COL.bajo], [44, 'estrés: se pierde rinde', COL.estres]].forEach(function (l) {
+    [[0, 45, COL.estres], [45, 70, AMA], [70, 90, COL.optimo], [90, 100, COL.alto]].forEach(function (b) { s += '<rect x="' + x0 + '" y="' + yv(b[1]) + '" width="' + (x1 - x0) + '" height="' + (yv(b[0]) - yv(b[1])) + '" fill="' + b[2] + '" opacity="0.09"/>'; });
+    [[100, 'capacidad de campo (lleno)', COL.exceso], [70, 'arrancar el pivot', COL.bajo], [45, 'estrés: se pierde rinde', COL.estres]].forEach(function (l) {
       s += '<line x1="' + x0 + '" x2="' + x1 + '" y1="' + yv(l[0]) + '" y2="' + yv(l[0]) + '" stroke="' + l[2] + '" stroke-dasharray="5 4"/><text x="' + (x0 + 6) + '" y="' + (yv(l[0]) - 4) + '" font-size="11" fill="' + l[2] + '">' + l[1] + ' · ' + l[0] + ' %</text>';
     });
     // curva: sin riego (punteada) y con el pivot prendido a tiempo (sólida)
-    var dias = 9, xd = function (d) { return x0 + 20 + d / dias * (x1 - x0 - 40); }, sin = [96, 90, 83, 77, 71, 64, 57, 50, 43, 37], con = [96, 90, 83, 77, 71, 72, 74, 78, 84, 90];
+    var dias = 9, xd = function (d) { return x0 + 20 + d / dias * (x1 - x0 - 40); }, sin = [96, 90, 83, 77, 70, 64, 57, 50, 43, 37], con = [96, 90, 83, 77, 70, 71, 73, 78, 84, 90];
     s += '<path d="M' + sin.map(function (p, d) { return xd(d).toFixed(0) + ' ' + yv(p).toFixed(0); }).join(' L') + '" fill="none" stroke="' + COL.estres + '" stroke-width="2" stroke-dasharray="5 4"/>';
     s += '<path d="M' + con.map(function (p, d) { return xd(d).toFixed(0) + ' ' + yv(p).toFixed(0); }).join(' L') + '" fill="none" stroke="' + COL.exceso + '" stroke-width="2.6"/>';
-    s += '<circle cx="' + xd(4) + '" cy="' + yv(71) + '" r="5" fill="#fff" stroke="#2E3236" stroke-width="2"/><text x="' + xd(4) + '" y="' + (yv(71) + 22) + '" font-size="11" text-anchor="middle" fill="#2E3236" font-weight="700">se prende el pivot</text>';
+    s += '<circle cx="' + xd(4) + '" cy="' + yv(70) + '" r="5" fill="#fff" stroke="#2E3236" stroke-width="2"/><text x="' + xd(4) + '" y="' + (yv(70) + 22) + '" font-size="11" text-anchor="middle" fill="#2E3236" font-weight="700">se prende el pivot</text>';
     s += '<line x1="' + xd(4) + '" x2="' + xd(8.6) + '" y1="' + (H - 18) + '" y2="' + (H - 18) + '" stroke="#2E3236" stroke-width="1.4" marker-end="url(#mrF)"/><text x="' + ((xd(4) + xd(8.6)) / 2) + '" y="' + (H - 24) + '" font-size="11" text-anchor="middle" fill="#2E3236">la vuelta del pivot tarda ~4,6 días</text>';
-    s += '<text x="' + xd(8) + '" y="' + (yv(47) - 6) + '" font-size="11" text-anchor="middle" fill="' + COL.estres + '">sin riego, estrés el día 8</text>';
+    s += '<text x="' + xd(7.4) + '" y="' + yv(27) + '" font-size="11" text-anchor="middle" fill="' + COL.estres + '">sin riego, entra en estrés el día 8</text>';   // debajo de la curva, para que no la pise
     s += '<defs><marker id="mrF" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2E3236"/></marker></defs></svg>';
-    return s + '<div class="mr-pie">Ejemplo: soja en desarrollo. Línea azul: con el pivot prendido a tiempo el agua nunca baja al punto de estrés. Línea roja punteada: si se espera, el último sector del círculo entra en estrés antes de que le llegue el agua.</div>';
+    return s + '<div class="mr-pie">Ejemplo: soja en desarrollo. Línea azul: el primer sector que moja el pivot; el último sector sigue bajando hasta que le llega el agua, pero con el pivot prendido a tiempo (al 70 %) no alcanza el estrés. Línea roja punteada: si se espera, el último sector del círculo entra en estrés antes de que le llegue el agua.</div>';
   }
 
   var RUTINA = {
     operador: ['<b>Cada mañana</b>, abrí <b>Operador</b>, elegí el pivot y leé el mensaje grande de la ficha de agua. Ese es el trabajo del día.',
-      '<b>Cargá cada riego</b> apenas termina la vuelta: fecha y milímetros (o horas y porcentaje). Si no se carga, SAFIA cree que el suelo está más seco y va a pedir riego de más.',
-      '<b>Cargá la lluvia del pluviómetro</b> del campo. La lluvia medida en el lugar manda sobre la del satélite.',
+      '<b>Cargá cada riego</b> apenas termina la vuelta: fecha y milímetros aplicados (botón Riego). Si no se carga, SAFIA cree que el suelo está más seco y va a pedir riego de más.',
+      '<b>Cargá la lluvia del pluviómetro</b> del campo (botón Lluvia): la medida en el lugar manda sobre la del satélite. Si no hay pluviómetro, no hace falta cargar nada: SAFIA usa sola la del satélite (se ve en Eventos como "Clima · automática").',
       '<b>Horímetro</b> del pivot y de la bomba, para el mantenimiento.',
       '<b>Una vez por semana</b>, sacá tierra con la pala a 20–30 cm. Si no coincide con lo que dice SAFIA (por ejemplo, SAFIA dice 40 % y el suelo está húmedo), avisale al encargado: seguramente falta cargar un riego o una lluvia.'],
-    encargado: ['<b>Tabla de lotes:</b> ordená por la columna <b>Agua útil</b>. Primero atendé los rojos (estrés), después los amarillos (bajo: arrancar el pivot).',
+    encargado: ['<b>Tabla de lotes:</b> ya viene ordenada por urgencia. Mirá la columna <b>Agua útil</b>: primero atendé los rojos (estrés), después los amarillos (bajo: arrancar el pivot).',
       '<b>Planificá la semana</b> con las fechas <b>"Arrancar el"</b> de cada pivot: si varios arrancan el mismo día y comparten bomba o energía, adelantá el que tenga la vuelta más larga.',
       '<b>"El equipo no alcanza la demanda"</b>: ese pivot tiene que girar sin parar en floración y llenado. Si igual no alcanza, se revisa la lámina, el caudal o se prioriza ese lote.',
       '<b>Controlá la carga:</b> que cada operador cargue riegos y lluvias todos los días (columna Última carga). Sin carga, la ficha de agua pierde precisión.',
       '<b>Consultá al Asistente IA</b> "¿Tengo que regar hoy?" o "¿Cómo viene mi cosecha?": junta todo sin buscar pantalla por pantalla.'],
-    propietario: ['<b>Vista de todos los campos:</b> el color de cada pivot resume su estado (rojo = estrés, amarillo = hay que arrancar, verde = bien, azul = lleno o viene lluvia).',
+    propietario: ['<b>Vista de todos los campos:</b> el color de cada pivot resume su estado (rojo = en estrés, amarillo = arrancar el pivot, verde = bien, azul = no regar porque viene lluvia).',
       '<b>Qué mirar:</b> que no haya rojos. Un rojo significa rinde que ya se está perdiendo; el Banco (Agua por etapa) dice cuánto.',
       '<b>Equipos que no alcanzan:</b> si un pivot aparece seguido con "el equipo no alcanza la demanda", es una decisión de inversión (más caudal, más lámina o menos superficie por equipo).',
       '<b>Asistente IA:</b> preguntá "¿Cómo viene mi cosecha?" para tener agua, satélite, nutrición y meta en una sola respuesta.']
@@ -54,7 +54,7 @@
 
   function contenido(rol) {
     var h = '';
-    h += '<h3>1. La idea</h3><p>SAFIA lleva la cuenta del agua del suelo como una <b>cuenta de banco</b>: entra la lluvia y el riego, sale lo que consume el cultivo. El número grande, <b>% de agua útil</b>, dice cuánto queda en la zona de las raíces: 100 % es lleno (capacidad de campo) y 0 % es seco (punto de marchitez).</p>';
+    h += '<h3>1. La idea</h3><p>SAFIA lleva la cuenta del agua del suelo como una <b>cuenta de banco</b>: entra la lluvia y el riego, sale lo que consume el cultivo. El número grande, <b>% de agua útil</b>, dice cuánto queda en la zona de las raíces: 100 % es lleno (capacidad de campo) y 0 % es seco (punto de marchitez). La cuenta <b>arranca el día de la siembra</b> que se cargó en la campaña y sigue todos los días hasta hoy.</p>';
     h += '<h3>2. Las 5 franjas (los mismos nombres que FieldNET)</h3><table class="mr-t"><tbody>' +
       '<tr><td>' + chip(COL.exceso, 'Exceso') + '</td><td>Llovió o se regó de más: el agua se va por debajo de las raíces y se lleva nutrientes.</td><td>No regar.</td></tr>' +
       '<tr><td>' + chip(COL.alto, 'Alto') + '</td><td>Casi lleno. Poco lugar para guardar una lluvia.</td><td>No regar; si viene lluvia, aprovecharla.</td></tr>' +
@@ -66,20 +66,21 @@
       '<p class="mr-nota">La idea es <b>mantener el agua en el verde</b>: el pivot se prende apenas el suelo baja del <b>70 %</b> (nunca más abajo), así cuando termina la vuelta el último sector sigue alrededor del 60–65 %, lejos del estrés. El estrés (rojo) nunca se pone por debajo del 45 %. Con mucho consumo y vueltas largas la raya de arranque sube sola (~75 %), y en pico aparece "mantener el pivot girando".</p>' +
       '<p class="mr-nota">La raya de arranque se mueve sola: sube cuando hace calor y el cultivo consume mucho, y sube si el pivot es lento. La lluvia del pronóstico no baja la raya (por si no llega): corre la fecha de arranque para más adelante y, si es mucha, aparece "No regar: viene lluvia".</p>';
     h += '<h3>4. De dónde sale el cálculo</h3><div class="mr-g">' +
-      '<div><b>Clima</b>Lluvia medida por satélite (CHIRPS), la estación del campo si hay, o el pluviómetro cargado; evaporación del día (Penman-Monteith FAO-56); pronóstico de 16 días.</div>' +
+      '<div><b>Clima</b>La lluvia entra sola, sin cargar nada: primero la <b>estación del campo</b> si hay, después el <b>pluviómetro cargado</b> y, si no hay ninguno, el <b>satélite (CHIRPS)</b>. Evaporación del día (Penman-Monteith FAO-56) y pronóstico de 16 días.</div>' +
       '<div><b>Cultivo</b>Cuánto consume según su etapa (curva FAO-56), <b>corregido con el satélite</b> Sentinel-2: si el cultivo cubre menos o más de lo normal, consume menos o más.</div>' +
-      '<div><b>Suelo</b>Cuánta agua guarda, según el análisis de suelo (arcilla). La raíz crece con los días y aprovecha más perfil.</div>' +
-      '<div><b>Equipo</b>Capacidad del pivot (mm por día), eficiencia (85 %) y los riegos cargados. Con eso sale cuánto tarda la vuelta.</div></div>';
+      '<div><b>Suelo</b>Cuánta agua guarda, según el análisis de suelo (arcilla) o el tipo de suelo del campo. La raíz crece con los días y aprovecha más perfil. Con sonda de humedad, manda lo medido.</div>' +
+      '<div><b>Equipo</b>Capacidad del pivot (mm por día), eficiencia (85 %: de cada 100 mm que tira el pivot, 85 llegan a la raíz) y los riegos cargados. Con eso sale cuánto tarda la vuelta.</div></div>';
     h += '<h3>5. Qué significa cada mensaje</h3><table class="mr-t"><tbody>' +
-      '<tr><td><b>No regar: viene lluvia</b></td><td>Se esperan 15 mm o más en los próximos días. Volver a mirar después de la lluvia.</td></tr>' +
-      '<tr><td><b>Arrancar el pivot hoy: X mm</b></td><td>Llegó a la raya de arranque. Prenderlo hoy con esa lámina.</td></tr>' +
+      '<tr><td><b>No regar: viene lluvia</b></td><td>Se esperan 15 mm o más en los próximos 5 días (igual en todas las pantallas). Volver a mirar después de la lluvia.</td></tr>' +
+      '<tr><td><b>Arrancar el pivot hoy: X mm</b></td><td>Llegó a la raya de arranque. Prenderlo hoy con esa lámina: es la que tiene que <b>aplicar el pivot</b> (ya incluye la eficiencia).</td></tr>' +
       '<tr><td><b>Arrancar el pivot el (día)</b></td><td>Todavía no, pero ese día toca. Sirve para planificar la semana.</td></tr>' +
       '<tr><td><b>Sin riego entra en estrés el (día)</b></td><td>La fecha límite si nadie riega (como el "vence el" de FieldNET).</td></tr>' +
       '<tr><td><b>Mantener el pivot girando</b></td><td>El cultivo consume más de lo que el pivot puede poner por día: no pararlo.</td></tr>' +
       '<tr><td><b>Regar ya: el cultivo está en estrés</b></td><td>Ya se está perdiendo rinde. Regar aunque se anuncie lluvia.</td></tr>' +
+      '<tr><td><b>Lote de secano</b></td><td>No se riega: SAFIA sigue la lluvia y avisa el estrés (por debajo del 45 %). El balance completo está en el Banco → Agua.</td></tr>' +
       '</tbody></table>';
     h += '<h3>6. Qué te toca a vos (' + (rol === 'encargado' ? 'Encargado' : rol === 'propietario' ? 'Propietario' : 'Operador') + ')</h3><ol class="mr-ol">' + (RUTINA[rol] || RUTINA.operador).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>';
-    h += '<h3>7. Lo que hay que saber</h3><ul class="mr-ol"><li>Es un <b>cálculo</b>, no una medición: una sonda de humedad lo reemplaza cuando existe.</li><li>Lo que no se carga no existe para SAFIA: <b>riegos y lluvias cargados = recomendación precisa</b>.</li><li>La decisión final es del productor y del agrónomo; SAFIA avisa a tiempo y muestra el porqué.</li></ul>';
+    h += '<h3>7. Lo que hay que saber</h3><ul class="mr-ol"><li>Es un <b>cálculo</b>, no una medición: una sonda de humedad lo reemplaza cuando existe.</li><li>El <b>riego</b> que no se carga no existe para SAFIA: sin riegos cargados el suelo aparece más seco de lo real. La lluvia entra sola por el satélite, pero el pluviómetro del campo es más preciso.</li><li>La decisión final es del productor y del agrónomo; SAFIA avisa a tiempo y muestra el porqué.</li></ul>';
     h += '<div class="mr-fuentes">Fuentes: FAO-56 (Allen et al. 1998) y FAO-56 dual (Allen et al. 2005); Rhoads & Yonts, National Corn Handbook NCH-20 (arranque del pivot según la vuelta); SDSU Extension, cap. 49 (soja); Lindsay FieldNET Advisor (folletos 2017 y 2024).</div>';
     return h;
   }
