@@ -519,7 +519,7 @@
     var sinLluvia = etcF.map(function () { return 0; });
     function arranqueEn(i2, prm2) {
       var e0 = Math.round((1 - prm2.p) * 100);
-      if (!(eficiencia > 0)) return { dr: prm2.raw, drEstres: prm2.raw, estresPct: e0, arranquePct: e0, dias: null, lamina: null, gasto: 0, supuesto: false };
+      if (!(eficiencia > 0)) { var m0 = umbralManejo(prm2.taw, prm2.p, 0); return { dr: m0.drEstres, drEstres: m0.drEstres, estresPct: m0.estresPct, arranquePct: m0.estresPct, dias: null, lamina: null, gasto: 0, supuesto: false }; }   // secano: sin pivot, solo el estrés (piso 45 %)
       var a = arranquePivot(prm2.raw, eficiencia, capB, etcF, sinLluvia, i2), m = umbralManejo(prm2.taw, prm2.p, a.gasto);
       return Object.assign(a, { dr: m.drArranque, drEstres: m.drEstres, estresPct: m.estresPct, arranquePct: m.arranquePct });
     }
@@ -537,7 +537,7 @@
       var fuenteHum = 'modelo';
       if (humedadSonda && humedadSonda[k] != null && (esPasado || esHoy)) {
         // lectura medida: el agotamiento del día es el medido (θCC − θ) × Zr
-        dr = Math.max(0, Math.min(prm.taw, (suelo.cc - humedadSonda[k]) / 100 * prm.zr * 1000)); fuenteHum = 'sonda'; ultimaSonda = { fecha: k, valor: humedadSonda[k], dr: dr }; fuentes.sonda++; if (esHoy) drHoyInicio = dr;
+        dr = Math.max(0, Math.min(prm.taw, (suelo.cc - humedadSonda[k]) / 100 * prm.zr * 1000)); fuenteHum = 'sonda'; ultimaSonda = { fecha: k, valor: humedadSonda[k], dr: dr }; fuentes.sonda++; if (esHoy) { drHoyInicio = dr; drInicio = dr; }
       }
       if (esPasado || esHoy) { if (lluvia.fuente === 'estacion' || prm.fuenteEt0 === 'estacion') fuentes.estacion++; else fuentes.meteo++; if (lluvia.fuente === 'manual') fuentes.manual++; } else fuentes.pronostico++;
 
@@ -548,26 +548,29 @@
         continue;
       }
 
-      // Día de hoy o futuro: estado y recomendación
-      var disponible = prm.taw - dr, pct = prm.taw > 0 ? disponible / prm.taw * 100 : 0;
+      // Día de hoy o futuro: estado y recomendación. El estado del día es el agua al EMPEZAR el día (lo que hay antes de que el
+      // cultivo consuma): así coincide con porcentajeHoy (la aguja), con estadoHoy y con la proyección arrancarEl/venceEl.
+      // (Antes se usaba el fin del día y la Predicción marcaba 'arrancar' un día antes que la ficha.)
+      var disponible = prm.taw - drInicio, pct = prm.taw > 0 ? disponible / prm.taw * 100 : 0;
       var arrDia = conCultivo ? arranqueEn(i, prm) : { dr: prm.raw, estresPct: Math.round((1 - prm.p) * 100), arranquePct: Math.round((1 - prm.p) * 100) };
       var estresDia = arrDia.estresPct, critico = Math.max(estresDia, arrDia.arranquePct);
       var estado, mmRegar = 0, mmRegarTotal = 0, drenajeDia = paso.dp;
       if (lluvia.mm >= 10) estado = 'lluvia';
-      else if (dr > arrDia.dr) {
+      else if (drInicio > arrDia.dr) {
         estado = 'regar';
-        if (eficiencia > 0) { mmRegarTotal = Math.ceil(dr / eficiencia / 5) * 5; mmRegar = Math.max(10, Math.min(35, mmRegarTotal)); }
-        if (asumirRiego && mmRegar > 0) { var p2 = pasoDia(dr, Object.assign({}, prm, { etc: 0 }), mmRegar * eficiencia); dr = p2.dr; drenajeDia += p2.dp; }
+        if (eficiencia > 0) { mmRegarTotal = Math.ceil(drInicio / eficiencia / 5) * 5; mmRegar = Math.max(10, Math.min(35, mmRegarTotal)); }
+        // si se asume que se riega ese día, el riego entra en el balance del día (junto con la lluvia y el riego cargado)
+        if (asumirRiego && mmRegar > 0) { paso = pasoDia(drInicio, prm, lluvia.mm + riegoEf + mmRegar * eficiencia); dr = paso.dr; drenajeDia = paso.dp; }
       } else if (pct < critico + 10) estado = 'atencion';
       else estado = 'ok';
-      var umbDia = (conCultivo && eficiencia > 0) ? { URGENTE: estresDia, CRITICO: critico, ATENCION: Math.min(100, critico + 10), ESTRES: estresDia, ARRANQUE: critico } : umbr;
+      var umbDia = conCultivo ? { URGENTE: estresDia, CRITICO: critico, ATENCION: Math.min(100, critico + 10), ESTRES: estresDia, ARRANQUE: eficiencia > 0 ? critico : null, secano: !(eficiencia > 0) } : umbr;
 
       totales.lluviaBruta += lluvia.mm; totales.lluviaEfectiva += lluvia.mm; totales.riegoBruto += riegoBruto; totales.riegoEfectivo += riegoEf; totales.etc += prm.etc; totales.eta += paso.eta; totales.drenaje += drenajeDia;
       var pmpMM = suelo.pmp / 100 * prm.zr * 1000;
       dias.push({
         fecha: daily.time[i], fechaObj: new Date(k + 'T12:00:00'), esHoy: esHoy, esFuturo: i > indiceHoy,
         humedadInicio: pmpMM + (prm.taw - drInicio), humedadFin: pmpMM + (prm.taw - dr),
-        aguaDisponible: disponible, porcentajeAAU: pct, dr: dr, taw: prm.taw, raw: prm.raw, zr: prm.zr, p: prm.p, umbralCriticoPct: critico, umbralEstresPct: estresDia, umbrales: umbDia, drArranque: arrDia.dr,
+        aguaDisponible: disponible, porcentajeAAU: pct, porcentajeFin: prm.taw > 0 ? (prm.taw - dr) / prm.taw * 100 : 0, drInicio: drInicio, dr: dr, taw: prm.taw, raw: prm.raw, zr: prm.zr, p: prm.p, umbralCriticoPct: critico, umbralEstresPct: estresDia, umbrales: umbDia, drArranque: arrDia.dr,
         lluviaBruta: lluvia.mm, lluviaEfectiva: lluvia.mm, fuenteLluvia: lluvia.fuente, riegoBruto: riegoBruto, riegoEfectivo: riegoEf,
         etoDia: prm.et0, fuenteEt0: prm.fuenteEt0, kc: prm.kc, etapa: prm.etapaLegacy, etapaFAO: prm.etapa, nombreEtapa: prm.nombreEtapa, dds: prm.dds, ky: prm.ky,
         etcDia: prm.etc, etaDia: paso.eta, ks: paso.ks, estres: paso.ks < 1, drenaje: drenajeDia, estado: estado, mmRegar: mmRegar, mmRegarTotal: mmRegarTotal, fuenteHumedad: fuenteHum,
@@ -588,7 +591,7 @@
     if (drHoy > arrHoy.dr) { regar = true; estadoHoy = 'regar'; if (eficiencia > 0) { mmTotalHoy = Math.ceil(drHoy / eficiencia / 5) * 5; mmHoy = Math.max(10, Math.min(35, mmTotalHoy)); } }
     else if (pctHoy < arranqueHoy + 10) estadoHoy = 'atencion';
     var ksHoy = drHoy > prmHoy.raw ? Math.max(0, (tawHoy - drHoy) / ((1 - prmHoy.p) * tawHoy)) : 1;
-    if (conCultivo && eficiencia > 0) umbr = { URGENTE: estresHoy, CRITICO: arranqueHoy, ATENCION: Math.min(100, arranqueHoy + 10), ESTRES: estresHoy, ARRANQUE: arranqueHoy };
+    if (conCultivo) umbr = { URGENTE: estresHoy, CRITICO: arranqueHoy, ATENCION: Math.min(100, arranqueHoy + 10), ESTRES: estresHoy, ARRANQUE: eficiencia > 0 ? arranqueHoy : null, secano: !(eficiencia > 0) };   // secano: CRITICO = estrés (no hay pivot que arrancar)
 
     // Proyección SIN riego nuevo (como FieldNET): cuándo hay que arrancar y cuándo "vence" (entra en estrés)
     var arrancarEl = null, venceEl = null, dP = drHoy, etcMax = 0;

@@ -41,7 +41,8 @@
   // Franjas con los mismos nombres que FieldNET NextGen: Estrés, Bajo (arrancar el pivot), Óptimo, Alto, Exceso (drena)
   function drenaReciente(r) { var p = (r && r.pasado) || [], ult = p[p.length - 1], hoy = ((r && r.dias) || []).filter(function (d) { return d.esHoy; })[0]; return !!((ult && ult.drenaje > 1) || (hoy && hoy.drenaje > 1)); }
   function bandaDe(pct, U, r) { return pct < U.URGENTE ? 'estres' : pct < U.CRITICO ? 'bajo' : pct < Math.max(U.CRITICO, 90) ? 'optimo' : (pct >= 95 && drenaReciente(r) ? 'exceso' : 'alto'); }
-  function bandas(U, conExceso) { var o = Math.max(U.CRITICO, 90), b = [['estres', 0, U.URGENTE], ['bajo', U.URGENTE, U.CRITICO], ['optimo', U.CRITICO, o], ['alto', o, 100]]; if (conExceso) b.push(['exceso', 100, ESC]); return b; }
+  // secano (U.secano o crítico = estrés): no hay pivot que arrancar, la franja 'bajo' no existe
+  function bandas(U, conExceso) { var o = Math.max(U.CRITICO, 90), b = [['estres', 0, U.URGENTE], ['bajo', U.URGENTE, U.CRITICO], ['optimo', U.CRITICO, o], ['alto', o, 100]]; if (conExceso) b.push(['exceso', 100, ESC]); return b.filter(function (x) { return x[2] > x[1]; }); }
   var ESC = 110;   // la barra va de 0 a 110: más allá de capacidad de campo (100 %) está el exceso, el agua que drena
   function pos(v) { return Math.max(0, Math.min(100, v / ESC * 100)); }
   var NOMBRE_BANDA = { estres: 'estrés', bajo: 'bajo: arrancar el pivot', optimo: 'óptimo', alto: 'alto', exceso: 'exceso: está drenando', regar: 'arrancar el pivot', atencion: 'atención', lleno: 'lleno' };
@@ -188,11 +189,11 @@
     if (!r || r.porcentajeHoy == null) return '';
     var h = '<div class="fa">';
     if (opciones.titulo !== false) h += '<div class="fa-titulo">' + esc(opciones.titulo || 'Agua en el suelo') + '</div>';
-    h += medidor(r) + leyendaFranjas() + titular(r, opciones.equipo) + semana(r) + satelite(r);
+    h += medidor(r) + leyendaFranjas(r) + titular(r, opciones.equipo) + semana(r) + satelite(r);
     if (!opciones.compacta) h += grafico(r, { diasAtras: opciones.diasAtras || 30 });
     return h + '</div>';
   }
-  function leyendaFranjas() { return '<div class="fa-leyenda" style="margin:-4px 0 6px;">' + [['estres', 'Estrés'], ['bajo', 'Bajo: arrancar el pivot'], ['optimo', 'Óptimo'], ['alto', 'Alto'], ['exceso', 'Exceso: drena']].map(function (b) { return '<span><i style="background:' + COL[b[0]] + ';border-radius:2px"></i>' + b[1] + '</span>'; }).join('') + '</div>'; }
+  function leyendaFranjas(r) { var sec = !!(r && r.umbrales && (r.umbrales.secano || r.umbrales.CRITICO === r.umbrales.URGENTE)); return '<div class="fa-leyenda" style="margin:-4px 0 6px;">' + [['estres', 'Estrés'], ['bajo', 'Bajo: arrancar el pivot'], ['optimo', 'Óptimo'], ['alto', 'Alto'], ['exceso', 'Exceso: drena']].filter(function (b) { return !(sec && b[0] === 'bajo'); }).map(function (b) { return '<span><i style="background:' + COL[b[0]] + ';border-radius:2px"></i>' + b[1] + '</span>'; }).join('') + '</div>'; }
   // Como WaterTrend de FieldNET: lo que va a consumir el cultivo y lo que se espera que llueva en 7 días
   function semana(r) { var p = r.pronostico && r.pronostico.semana; if (!p || !p.dias) return ''; return '<div class="fa-resumen"><b>Próximos ' + p.dias + ' días:</b> el cultivo va a consumir <b>' + fmt(p.consumoMM, 0) + ' mm</b> y se esperan <b>' + fmt(p.lluviaMM, 0) + ' mm</b> de lluvia' + (p.balanceMM < 0 ? ' → faltan <b style="color:' + COL.regar + ';">' + fmt(-p.balanceMM, 0) + ' mm</b> que tiene que poner el pivot o el suelo' : ' → la lluvia cubre el consumo') + (r.pronostico.total && r.pronostico.total.dias > p.dias ? ' (pronóstico a ' + r.pronostico.total.dias + ' días: consumo ' + fmt(r.pronostico.total.consumoMM, 0) + ' mm, lluvia ' + fmt(r.pronostico.total.lluviaMM, 0) + ' mm)' : '') + '.</div>'; }
   function satelite(r) { var s = r.satelite; if (!s) return ''; var u = s.ultima, dif = u.factor < 0.97 ? 'menos' : (u.factor > 1.03 ? 'más' : 'lo mismo'); return '<div class="fa-resumen"><b>Satélite:</b> pasada del ' + fmtF(u.fecha) + ' (día ' + u.dds + '), cobertura del cultivo ' + u.coberturaPct + ' %: consume ' + dif + ' que la curva de referencia (Kc ' + fmt(u.kcSatelite, 2) + ' contra ' + fmt(u.kcFao, 2) + '). El cálculo ya usa este dato.</div>'; }

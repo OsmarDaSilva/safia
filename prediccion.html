@@ -317,11 +317,12 @@
         equipo: ev.equipo,
         kcDef: ev.kcDef,
         fechaSiembra: ev.cultivo.fechaSiembra,
-        diasFuturo: 7
+        diasFuturo: 7,
+        asumirRiegoRecomendado: false   // como el Dashboard: la curva muestra qué pasa si NO se riega
       });
 
       const suelo = r.suelo;
-      const UM = r.umbrales || UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
+      const UM = r.umbrales || UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
 
       // Adaptar la salida del motor al shape que ya consume el render.
       const dias = r.dias.map((d, i) => {

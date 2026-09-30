@@ -797,7 +797,7 @@
         diasFuturo: 5,
         asumirRiegoRecomendado: false
       });
-      const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
+      const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
       const pct = r.porcentajeHoy;
       const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);
 

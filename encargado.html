@@ -748,7 +748,7 @@
 
           // Semáforo según humedad del suelo (% agua útil HOY) + lluvia próxima.
           // Unificado con el motor: antes usaba un balance neto bruto de 7 días.
-          const U = balance.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
+          const U = balance.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
           const pct = balance.pct;
           const mmRegar = (balance.mmRegar || 0).toFixed(0);
           // Pivot (como FieldNET): arrancar antes del estrés según lo que tarda la vuelta del equipo

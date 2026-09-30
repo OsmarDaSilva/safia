@@ -1229,6 +1229,8 @@
 
       const campo = campos.find(c => c.id === equipo.campoId);
       if (SafiaBalance.esSecano(equipo)) {
+        // sin ficha de agua: si quedó la del pivot anterior en pantalla, se esconde
+        const facS = document.getElementById('fichaAguaCard'); if (facS) { facS.style.display = 'none'; const faS = document.getElementById('fichaAgua'); if (faS) faS.innerHTML = ''; }
         icono.textContent = ''; titulo.textContent = 'Lote de secano';
         detalle.innerHTML = 'Acá no se riega: SAFIA sigue las lluvias, las aplicaciones y la campaña. El balance de agua de este lote se ve en el Banco Agronómico (Agua → Balance hídrico por etapa).';
         card.className = 'reco-card visible'; return;
@@ -1312,11 +1314,11 @@
           equipo,
           kcDef,
           fechaSiembra,
-          diasFuturo: 4,
+          diasFuturo: 5,
           asumirRiegoRecomendado: false
         });
 
-        const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
+        const U = r.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
         const pct = r.porcentajeHoy;                                  // % agua útil HOY
         const deficitCC = r.deficitHastaCC;                           // mm para reponer hasta CC
         const lluviaProxima = r.dias.reduce((s, d) => s + d.lluviaBruta, 0);  // lluvia ventana próxima

@@ -327,7 +327,7 @@
           if (base.tipo === 'secano') return Object.assign(base, { recomendacion: 'Lote de secano: no se riega; el agua es la que llueve.' });
           if (!cu) return Object.assign(base, { recomendacion: 'Sin campaña activa en este lote: no hay cultivo para calcular el balance.' });
           var kcDef = B.obtenerCultivoKc(cu.cultivo);
-          var r = B.simular({ campo: c, daily: d, eventos: evs, equipoId: e.id, equipo: e, kcDef: kcDef, fechaSiembra: cu.fechaSiembra, diasFuturo: 4, asumirRiegoRecomendado: false });
+          var r = B.simular({ campo: c, daily: d, eventos: evs, equipoId: e.id, equipo: e, kcDef: kcDef, fechaSiembra: cu.fechaSiembra, diasFuturo: 5, asumirRiegoRecomendado: false });
           var U = r.umbrales || B.UMBRALES, p = FA ? FA.proximoRiego(r, e) : { titulo: r.recomendacion.regar ? 'Regar hoy: ' + r.recomendacion.mm + ' mm' : 'Sin riego hoy', detalle: '' };
           var tp = r.totalesPasado || {}, ult7 = (r.pasado || []).slice(-7);
           return Object.assign(base, {
@@ -336,7 +336,7 @@
             pivot: r.recomendacion.pivot ? { arrancar_el: r.recomendacion.pivot.arrancarEl, entra_en_estres_sin_riego_el: r.recomendacion.pivot.venceEl, dias_hasta_estres: r.recomendacion.pivot.diasHastaEstres, horizonte_dias: r.recomendacion.pivot.horizonteDias,
               vuelta_dias: r.recomendacion.pivot.vueltaDias, lamina_vuelta_mm: r.recomendacion.pivot.laminaVuelta, vuelta_supuesta_sin_datos_del_equipo: r.recomendacion.pivot.vueltaSupuesta, capacidad_neta_mm_dia: r.recomendacion.pivot.capacidadNeta,
               consumo_maximo_7_dias_mm: r.recomendacion.pivot.consumoMax7, equipo_no_alcanza_la_demanda: r.recomendacion.pivot.noAlcanza,
-              regla: 'se prende antes del estrés: arranque = estrés + consumo durante la vuelta − lluvia prevista (NCH-20; como FieldNET Advisor: Start = Due By − Refill Time)' } : null,
+              regla: 'se prende antes del estrés: arranque = estrés + consumo del cultivo durante la vuelta, nunca por debajo del 70 % de agua útil (la lluvia prevista no se resta del margen: ya entra en la proyección del suelo y corre la fecha de arranque; como FieldNET Advisor: Start = Due By − Refill Time)' } : null,
             agua_disponible_mm: r0(r.aguaDisponibleHoy), reserva_total_raiz_mm: r0(r.tawHoy), falta_para_capacidad_campo_mm: r0(r.deficitHastaCC),
             lamina_sugerida_hoy_mm: r.recomendacion.mm || 0, eficiencia_riego: r.eficiencia,
             dias_desde_siembra: r.etapaHoy.dds, etapa: r.etapaHoy.nombre || null, etapa_critica: !!r.etapaHoy.critica, raiz_cm: r.etapaHoy.zr ? Math.round(r.etapaHoy.zr * 100) : null, kc_hoy: r.etapaHoy.kc,

@@ -830,10 +830,10 @@
       const titulo = document.getElementById('recoTitulo');
       const detalle = document.getElementById('recoDetalle');
 
-      // Lluvia prevista próximos 3 días (override "viene lluvia").
+      // Lluvia prevista próximos 5 días (override "viene lluvia"; misma ventana que las demás pantallas).
       let lluviaProxima = 0;
       const h0 = indiceHoyDe(datos.daily);
-      for (let i = h0; i < h0 + 3; i++) {
+      for (let i = h0; i < h0 + 5; i++) {
         lluviaProxima += datos.daily.precipitation_sum[i] || 0;
       }
 
@@ -855,7 +855,7 @@
 
       // Recomendación basada en la humedad del suelo de HOY (% de agua útil),
       // unificada con el resto de las páginas vía el motor compartido.
-      const U = rBal.umbrales || SafiaBalance.UMBRALES;   // umbrales del cultivo (soja 50 %, maíz 45 %)
+      const U = rBal.umbrales || SafiaBalance.UMBRALES;   // umbrales de manejo del motor (estrés ≥ 45 %, arranque del pivot ≥ 70 %)
       const pct = rBal.porcentajeHoy;
       const mmRegar = (rBal.recomendacion.mm || 0);
 
