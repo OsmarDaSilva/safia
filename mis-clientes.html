@@ -170,6 +170,19 @@
 
     function ayudaTelefono() { const a = document.getElementById('telefonoAyuda'); if (a) a.textContent = window.SafiaTelefono ? SafiaTelefono.ayuda(document.getElementById('telefono').value) : ''; }
 
+    // Repetidos: el RUC se compara solo por sus dígitos (1234567-8 = 1234567 8 = 12345678), el nombre sin acentos, mayúsculas ni puntuación (S.A. = SA), el correo en minúsculas
+    const soloDigitos = (v) => String(v || '').replace(/\D/g, '');
+    const nombreClave = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    function clienteRepetido(clientes, c, exceptoId) {
+      const doc = soloDigitos(c.documento), nom = nombreClave(c.nombre), mail = String(c.email || '').trim().toLowerCase();
+      for (const x of clientes) {
+        if (exceptoId !== null && exceptoId !== undefined && x.id === exceptoId) continue;
+        if (doc && doc.length >= 5 && soloDigitos(x.documento) === doc) return { cliente: x, motivo: 'el mismo RUC / documento (' + x.documento + ')' };
+        if (nom && nombreClave(x.nombre) === nom) return { cliente: x, motivo: 'el mismo nombre' };
+        if (mail && String(x.email || '').trim().toLowerCase() === mail) return { cliente: x, motivo: 'el mismo correo (' + mail + ')' };
+      }
+      return null;
+    }
     function guardarOActualizar() {
       const nombre = document.getElementById('nombre').value.trim();
       const tipo = document.getElementById('tipo').value;
@@ -184,6 +197,13 @@
       }
 
       const clientes = obtenerClientes();
+      // No se guarda un cliente repetido: mismo RUC/documento, mismo nombre o mismo correo que otro ya cargado
+      const dup = clienteRepetido(clientes, { nombre, documento, email }, editandoId);
+      if (dup) {
+        mostrarToast('Ya existe ' + dup.cliente.nombre + ' con ' + dup.motivo + '. Editá ese cliente en vez de cargar otro.', true);
+        const fila = document.querySelector('tr[data-id="' + dup.cliente.id + '"]'); if (fila) { fila.classList.add('editando'); fila.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => fila.classList.remove('editando'), 4000); }
+        return;
+      }
 
       if (editandoId !== null) {
         const idx = clientes.findIndex(c => c.id === editandoId);
@@ -289,7 +309,7 @@
       lista.innerHTML = clientes.map(c => {
         const ed = editandoId === c.id ? 'editando' : '';
         return `
-          <tr class="${ed}">
+          <tr class="${ed}" data-id="${c.id}">
             <td><span class="num">${c.nombre || '—'}</span>${c.estado === 'prospecto' ? ' <span class="badge amber" title="Evaluado en Evaluar proyecto; todavía sin riego activo">Prospecto</span>' : ''} <a href="evaluar.html?cliente=${c.id}" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-left:4px;" title="Evaluaciones de proyecto de este cliente">Evaluar</a>${sinCampo(c.id) ? ` <a href="mis-campos.html?cliente=${c.id}" style="font-size:11px;font-weight:700;color:var(--green-d);text-decoration:none;margin-left:4px;" title="Este cliente todavía no tiene campo: cargarlo">+ campo</a>` : ''}</td>
             <td>${c.tipo ? `<span class="badge muted">${c.tipo}</span>` : '—'}</td>
             <td>${c.documento || '—'}</td>
