@@ -36,6 +36,30 @@
     .gps-status.ok{background:var(--green-t);color:var(--green-d);}
     .gps-status.error{background:var(--red-t);color:var(--red);}
     .opcional{color:var(--label);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;margin-left:4px;}
+    /* Formulario compacto (30-sep-2026): pliegues y franja "SAFIA completa sola" */
+    .formcard{padding:16px 18px;margin-bottom:12px;}
+    .formcard .formsub{margin-bottom:10px;}
+    .form-grid{gap:10px;}
+    .field{gap:3px;}
+    .field input,.field select,.field textarea{padding:8px 11px;}
+    .field .hint{font-size:11px;line-height:1.35;}
+    .field .hint a{color:#1565C0;font-weight:600;text-decoration:none;}
+    .field textarea{min-height:56px;}
+    .auto-strip{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:7px 12px;margin:10px 0 6px;font-size:12.5px;color:var(--head);line-height:1.5;}
+    .auto-strip .auto-t{font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--green-d);margin-bottom:2px;}
+    .auto-strip .auto-k{color:var(--label);font-weight:600;}
+    .auto-strip .auto-nota{color:var(--label);font-size:12px;}
+    .auto-strip a{color:#1565C0;font-weight:600;text-decoration:none;font-size:12px;}
+    details.pliegue{border-top:1px solid var(--bd);}
+    details.pliegue summary{list-style:none;cursor:pointer;padding:9px 2px;font-size:13px;font-weight:600;color:var(--head);display:flex;align-items:center;gap:8px;}
+    details.pliegue summary::-webkit-details-marker{display:none;}
+    details.pliegue summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:2px solid var(--label);border-bottom:2px solid var(--label);transform:rotate(45deg);}
+    details.pliegue[open] summary::after{transform:rotate(-135deg);}
+    details.pliegue summary .pliegue-sub{font-size:12px;font-weight:500;color:var(--label);}
+    details.pliegue .pliegue-cuerpo{padding:4px 0 6px;}
+    .suelo-info{margin-top:8px;padding:10px 12px;}
+    .form-actions{margin-top:12px;}
+    #localidadResultados .note{margin:6px 0;}
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
@@ -116,58 +140,37 @@
 
       <div class="formcard" id="tarjetaForm">
         <h3 id="tituloForm">+ Agregar un campo / estancia</h3>
-        <div class="formsub">Elegí el cliente y completá los datos del establecimiento.</div>
+        <div class="formsub">Cliente, nombre y el punto del campo. La ubicación la deduce SAFIA; lo demás queda opcional.</div>
 
         <div class="form-grid">
-          <div class="field full">
+          <div class="field">
             <label>Cliente / Productor</label>
             <select id="cliente"><option value="">Seleccionar cliente...</option></select>
           </div>
-          <div class="field full">
+          <div class="field">
             <label>Nombre del campo / estancia</label>
-            <input type="text" id="nombre" placeholder="Ej: Estancia La María / Lote del Río">
+            <input type="text" id="nombre" placeholder="Ej: Estancia La María">
           </div>
           <div class="field">
-            <label>Superficie total (ha)</label>
+            <label>Coordenadas del campo <span class="opcional">(pegar de Google Maps)</span></label>
+            <input type="text" id="gpsCompleto" placeholder="Ej: -24.3572, -54.4869" oninput="parsearGPS()">
+            <div class="hint">Clic derecho en Google Maps sobre el campo y copiá el punto. <a href="#" onclick="abrirMasDatos('localidad'); return false;">¿No lo tenés? Buscar por localidad</a></div>
+            <div id="gpsValidacion"></div>
+          </div>
+          <div class="field">
+            <label>Superficie total (ha) <span class="opcional">(opcional)</span></label>
             <input type="number" id="superficie" placeholder="Ej: 250">
-          </div>
-          <div class="field">
-            <label>Departamento / Provincia</label>
-            <input type="text" id="departamento" placeholder="Ej: Canindeyú">
-          </div>
-          <div class="field">
-            <label>Localidad / Ciudad</label>
-            <input type="text" id="localidad" placeholder="Ej: Katueté">
-          </div>
-          <div class="field">
-            <label>País</label>
-            <select id="pais">
-              <option value="">Seleccionar...</option>
-              <option value="Paraguay">Paraguay</option>
-              <option value="Brasil">Brasil</option>
-              <option value="Argentina">Argentina</option>
-              <option value="Bolivia">Bolivia</option>
-              <option value="Uruguay">Uruguay</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Tipo de actividad</label>
-            <select id="actividad">
-              <option value="">Seleccionar...</option>
-              <option value="Agrícola">Agrícola</option>
-              <option value="Ganadera">Ganadera</option>
-              <option value="Mixta (agrícola + ganadera)">Mixta</option>
-              <option value="Frutícola">Frutícola</option>
-              <option value="Hortícola">Hortícola</option>
-              <option value="Otro">Otro</option>
-            </select>
           </div>
         </div>
 
-        <div class="section-title" style="margin-top:18px;"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-8"/><path d="M12 13c0-3.3-2.2-5-5.5-5C6.5 11.3 8.7 13 12 13z"/><path d="M12 12c0-3 2-4.6 5-4.6C17 10.3 15 12 12 12z"/></svg> Tipo de suelo · importante para riego</div>
-        <div class="field">
-          <label>Clasificación del suelo del lote</label>
+        <div class="auto-strip" id="ubicacionResumen"></div>
+        <div id="localidadResultados"></div>
+
+        <details class="pliegue" id="pliegueSuelo">
+          <summary>Suelo <span class="pliegue-sub" id="sueloSub">tipo aproximado para el riego</span></summary>
+          <div class="pliegue-cuerpo">
+            <div class="field">
+              <label>Clasificación del suelo</label>
           <select id="tipoSuelo" onchange="mostrarInfoSuelo()">
             <option value="">Seleccionar tipo de suelo...</option>
             <option value="arenoso">🏖️ Arenoso (suelto, drena rápido)</option>
@@ -180,60 +183,87 @@
             <option value="franco_arcillo_limoso">Franco arcillo limoso (pesado y limoso)</option>
             <option value="arcillo_limoso">Arcillo limoso (muy pesado y limoso; bajos del Chaco)</option>
           </select>
-          <div class="hint">Si no estás seguro, elegí "Franco" — es lo más común en la Región Oriental. En el Chaco Central predominan los <b>franco limosos</b>; en los bajos del Chaco Húmedo, los arcillosos. Con un análisis que traiga arena, limo y arcilla, SAFIA clasifica solo por el triángulo textural.</div>
+              <div class="hint">Si no estás seguro, elegí "Franco" (lo más común en la Región Oriental; en el Chaco Central predominan los franco limosos). El análisis de laboratorio va en <a href="banco.html">Banco Agronómico → Análisis de suelo</a> y el motor de agua lo prefiere a este tipo.</div>
           <div class="note warn" id="avisoChaco" style="display:none;margin-top:8px;">En el Chaco, antes de regar, pedí al laboratorio <b>conductividad eléctrica (CE)</b> y <b>sodio intercambiable (PSI)</b> del suelo, y analizá el <b>agua de riego</b> (CE y RAS): hay suelos salinos y sódicos y napas saladas. Los limosos además forman costra y dejan entrar poca agua de golpe: láminas chicas y frecuentes.</div>
-        </div>
-        <div class="suelo-info" id="suelo-info"></div>
-        <div class="note info" style="margin-top:10px;">
-          🧪 <strong>¿El cliente tiene análisis de laboratorio del suelo?</strong> Este casillero de arriba es el tipo de suelo aproximado (para el riego). El <strong>análisis completo</strong> —pH, materia orgánica, calcio, textura— con su PDF se carga en el
-          <a href="banco.html" style="font-weight:700;text-decoration:underline;">Banco Agronómico → pestaña "Análisis de suelo"</a>, eligiendo este campo. Ahí se guarda cada análisis con su fecha y se ve la evolución del suelo con los años. <span class="muted">(Guardá primero el campo y después cargalo.)</span>
-        </div>
+            </div>
+            <div class="suelo-info" id="suelo-info"></div>
+          </div>
+        </details>
 
-        <div class="section-title" style="margin-top:18px;"><svg class="ic-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> Coordenadas GPS · importante para clima</div>
-        <div class="note info" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <span style="flex:1;min-width:200px;">📍 Cargá la <strong>localidad</strong> arriba y traé una coordenada aproximada del pueblo. Después ajustala al campo exacto del cliente pegando el punto de Google Maps.</span>
-          <button type="button" class="btn green" id="btnBuscarLocalidad" onclick="buscarCoordenadasLocalidad()">Buscar por localidad</button>
-        </div>
-        <div id="localidadResultados"></div>
-        <div class="form-grid">
-          <div class="field">
-            <label>Latitud</label>
-            <input type="number" id="latitud" placeholder="Ej: -24.3572" step="any" onchange="latLonManual()">
-            <div class="hint">Negativo si estás al sur del Ecuador</div>
-          </div>
-          <div class="field">
-            <label>Longitud</label>
-            <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any" onchange="latLonManual()">
-            <div class="hint">Negativo si estás al oeste de Greenwich</div>
-          </div>
-          <div class="field full" style="border-top:1px solid var(--bd);padding-top:12px;margin-top:4px;">
-            <label>Estación meteorológica del campo <span class="opcional">(METOS / FieldClimate, si el cliente tiene)</span></label>
+        <details class="pliegue" id="pliegueEstacion">
+          <summary>Estación meteorológica <span class="pliegue-sub" id="estacionSub">si el cliente tiene Metos / FieldClimate</span></summary>
+          <div class="pliegue-cuerpo">
+            <div class="field full">
+              <label>Estación del campo</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
               <select id="estacionId" style="min-width:260px;"><option value="">— sin estación —</option></select>
               <button type="button" class="btn" id="btnBuscarEstaciones" onclick="buscarEstaciones()">Buscar estaciones de la cuenta</button>
               <span class="hint" id="estacionHint" style="flex-basis:100%;">Con la estación asignada, SAFIA trae la lluvia, la temperatura, la ET0 y la humedad de suelo medidas en el campo (Banco → Agua mes a mes → "Traer de la estación") y las usa en el clima de cada campaña en vez del estimado.</span>
             </div>
+            </div>
           </div>
-          <div class="field full">
-            <label>O pegar las dos coordenadas juntas <span class="opcional">(de Google Maps)</span></label>
-            <input type="text" id="gpsCompleto" placeholder="Ej: -24.3572, -54.4869" oninput="parsearGPS()">
-            <div class="hint">Pegá lo que copiaste con clic derecho en Google Maps. Se separa solo.</div>
-          </div>
-          <div class="field">
-            <label>Altitud <span class="opcional">(metros sobre el nivel del mar)</span></label>
-            <input type="number" id="altitud" placeholder="Se completa sola con las coordenadas" step="any">
-            <div class="hint" id="altitudHint">Se obtiene sola de las coordenadas · podés corregirla</div>
-          </div>
-        </div>
-        <div class="note info">
-          📍 <strong>¿Cómo obtener las coordenadas?</strong> Andá a <a href="https://www.google.com/maps" target="_blank" style="font-weight:700;text-decoration:underline;">Google Maps</a>, buscá tu campo, hacé <strong>clic derecho</strong> sobre el centro y tocá las coordenadas para copiarlas. Pegalas arriba.
-        </div>
-        <div id="gpsValidacion"></div>
+        </details>
 
-        <div class="field full" style="margin-top:14px;">
-          <label>Observaciones (opcional)</label>
-          <textarea id="observaciones" placeholder="Cualquier dato adicional sobre el campo..."></textarea>
-        </div>
+        <details class="pliegue" id="pliegueMas">
+          <summary>Más datos <span class="pliegue-sub">actividad, ubicación a mano, altitud, observaciones</span></summary>
+          <div class="pliegue-cuerpo">
+            <div class="form-grid">
+              <div class="field">
+                <label>Tipo de actividad</label>
+            <select id="actividad">
+              <option value="">Seleccionar...</option>
+              <option value="Agrícola">Agrícola</option>
+              <option value="Ganadera">Ganadera</option>
+              <option value="Mixta (agrícola + ganadera)">Mixta</option>
+              <option value="Frutícola">Frutícola</option>
+              <option value="Hortícola">Hortícola</option>
+              <option value="Otro">Otro</option>
+            </select>
+              </div>
+              <div class="field">
+                <label>Localidad / Ciudad</label>
+                <div style="display:flex;gap:6px;">
+                  <input type="text" id="localidad" placeholder="Ej: Katueté" style="flex:1;">
+                  <button type="button" class="btn" id="btnBuscarLocalidad" onclick="buscarCoordenadasLocalidad()" title="Trae una coordenada aproximada del pueblo">Buscar</button>
+                </div>
+                <div class="hint">Si no tenés el punto, escribí el pueblo y tocá Buscar: SAFIA trae una coordenada aproximada.</div>
+              </div>
+              <div class="field">
+                <label>Departamento / Provincia</label>
+                <input type="text" id="departamento" placeholder="Ej: Canindeyú">
+              </div>
+              <div class="field">
+                <label>País</label>
+            <select id="pais">
+              <option value="">Seleccionar...</option>
+              <option value="Paraguay">Paraguay</option>
+              <option value="Brasil">Brasil</option>
+              <option value="Argentina">Argentina</option>
+              <option value="Bolivia">Bolivia</option>
+              <option value="Uruguay">Uruguay</option>
+              <option value="Otro">Otro</option>
+            </select>
+              </div>
+              <div class="field">
+                <label>Latitud</label>
+                <input type="number" id="latitud" placeholder="Ej: -24.3572" step="any" onchange="latLonManual()">
+              </div>
+              <div class="field">
+                <label>Longitud</label>
+                <input type="number" id="longitud" placeholder="Ej: -54.4869" step="any" onchange="latLonManual()">
+              </div>
+              <div class="field">
+                <label>Altitud <span class="opcional">(m s. n. m.)</span></label>
+                <input type="number" id="altitud" placeholder="Se completa sola" step="any">
+                <div class="hint" id="altitudHint">Se obtiene sola de las coordenadas; podés corregirla.</div>
+              </div>
+              <div class="field full">
+                <label>Observaciones <span class="opcional">(opcional)</span></label>
+                <textarea id="observaciones" placeholder="Cualquier dato adicional sobre el campo..."></textarea>
+              </div>
+            </div>
+          </div>
+        </details>
 
         <div class="form-actions">
           <button class="btn green" id="botonGuardar" onclick="guardarOActualizar()">✓ Guardar campo</button>
@@ -314,6 +344,7 @@
       cargarSelectorClientes();
       cargarFiltroClientes();
       mostrarCampos();
+      CAMPOS_UBI.forEach(id => { document.getElementById(id).dataset.auto = '1'; }); refrescarUbicacion();
       // Llegaron datos nuevos de la nube (ej. un cliente recién creado): listas al día sin perder lo elegido
       window.addEventListener('safia:datos', function () { verificarClientes(); cargarSelectorClientes(); cargarFiltroClientes(); mostrarCampos(); });
       // Listas para elegir departamento y localidad (base de referencia + campos cargados)
@@ -360,6 +391,42 @@
       if (elegido) select.value = elegido;
     }
 
+    /* ---- Lo que SAFIA completa sola: localidad, departamento, país y región a partir del punto; altitud; y la franja que lo muestra ---- */
+    const CAMPOS_UBI = ['localidad', 'departamento', 'pais'];
+    CAMPOS_UBI.forEach(id => { const el = document.getElementById(id); el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { el.dataset.auto = '0'; refrescarUbicacion(); }); });
+    document.getElementById('altitud').addEventListener('input', () => { document.getElementById('altitud').dataset.auto = '0'; refrescarUbicacion(); });
+    document.getElementById('tipoSuelo').addEventListener('change', () => { const s = TIPOS_SUELO[document.getElementById('tipoSuelo').value]; document.getElementById('sueloSub').textContent = s ? s.nombre + ' · agua útil ' + s.AAU + ' mm en 60 cm' : 'tipo aproximado para el riego'; });
+    function abrirMasDatos(foco) { document.getElementById('pliegueMas').open = true; const el = document.getElementById(foco); if (el) { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
+    let _tUbi = null, _ultimaUbi = '';
+    function deducirUbicacion(lat, lon) {
+      const clave = lat.toFixed(4) + ',' + lon.toFixed(4); if (clave === _ultimaUbi) return; _ultimaUbi = clave;
+      const pendientes = CAMPOS_UBI.filter(id => { const el = document.getElementById(id); return !el.value || el.dataset.auto === '1'; });
+      if (!pendientes.length || !window.SafiaCasos || !SafiaCasos.ubicacionDesde) { refrescarUbicacion(); return; }
+      refrescarUbicacion('Buscando la localidad del punto…');
+      clearTimeout(_tUbi); _tUbi = setTimeout(() => {
+        SafiaCasos.ubicacionDesde(lat, lon).then(u => {
+          if (u) pendientes.forEach(id => { const el = document.getElementById(id); const v = u[id] || ''; if (el.tagName === 'SELECT') { el.value = [...el.options].some(o => o.value === v) ? v : (v ? 'Otro' : ''); } else el.value = v; el.dataset.auto = v ? '1' : '0'; });
+          avisoChaco(); refrescarUbicacion(u ? '' : 'No se pudo deducir la localidad del punto: cargala en Más datos.');
+        });
+      }, 400);
+    }
+    function refrescarUbicacion(nota) {
+      const r = document.getElementById('ubicacionResumen'); if (!r) return;
+      const v = id => document.getElementById(id).value.trim();
+      const lat = parseFloat(v('latitud')), lon = parseFloat(v('longitud')), hayPunto = !isNaN(lat) && !isNaN(lon);
+      const lugar = [v('localidad'), v('departamento'), v('pais')].filter(Boolean).join(', ');
+      const reg = window.SafiaCasos ? SafiaCasos.regionNombre(SafiaCasos.region({ departamento: v('departamento'), pais: v('pais') || 'Paraguay', lat: hayPunto ? lat : null, lon: hayPunto ? lon : null })) : '';
+      const auto = CAMPOS_UBI.some(id => document.getElementById(id).dataset.auto === '1');
+      const partes = [];
+      if (lugar) partes.push('<b>' + lugar.replace(/[<>]/g, '') + '</b>' + (auto ? ' <span class="auto-nota">(deducido del punto)</span>' : ''));
+      if (reg) partes.push(reg);
+      if (v('altitud')) partes.push(v('altitud') + ' m de altitud');
+      if (hayPunto) partes.push('lluvia y ETo de la zona listas');
+      r.innerHTML = '<div class="auto-t">SAFIA completa sola</div><div>' +
+        (partes.length ? partes.join(' · ') : '<span class="auto-nota">' + (hayPunto ? 'Buscando…' : 'Pegá el punto del campo y SAFIA deduce localidad, departamento, país, región y altitud.') + '</span>') +
+        (nota ? ' <span class="auto-nota">' + nota + '</span>' : '') +
+        ' <a href="#" onclick="abrirMasDatos(\'localidad\'); return false;">' + (lugar ? 'corregir' : 'cargar a mano') + '</a></div>';
+    }
     function parsearGPS() {
       const valor = document.getElementById('gpsCompleto').value.trim();
       const limpio = valor.replace(/[°NSEWnsew]/g, '').replace(/\s+/g, '').trim();
@@ -376,6 +443,7 @@
     }
 
     // Estación meteorológica: lista de la cuenta de FieldClimate (vía la edge function safia-fieldclimate)
+    document.getElementById('estacionId').addEventListener('change', function () { const o = this.options[this.selectedIndex]; document.getElementById('estacionSub').textContent = this.value ? (o.dataset.nombre || o.textContent) : 'si el cliente tiene Metos / FieldClimate'; });
     function ponerEstacion(id, nombre) {
       const sel = document.getElementById('estacionId');
       if (!id) { sel.value = ''; return; }
@@ -402,7 +470,7 @@
       const depto = document.getElementById('departamento').value.trim();
       const pais = document.getElementById('pais').value;
       const cont = document.getElementById('localidadResultados');
-      if (!localidad) { alert('Cargá primero la localidad / ciudad (ej: Katueté).'); return; }
+      if (!localidad) { abrirMasDatos('localidad'); alert('Escribí la localidad / ciudad (ej: Katueté) y tocá Buscar.'); return; }
 
       const boton = document.getElementById('btnBuscarLocalidad');
       boton.disabled = true; boton.textContent = 'Buscando…';
@@ -427,7 +495,7 @@
       }).catch(() => {
         cont.innerHTML = '<div class="note danger">No se pudo buscar (sin internet). Pegá el punto de Google Maps abajo.</div>';
       }).finally(() => {
-        boton.disabled = false; boton.textContent = 'Buscar por localidad';
+        boton.disabled = false; boton.textContent = 'Buscar';
       });
     }
 
@@ -437,6 +505,7 @@
       document.getElementById('gpsCompleto').value = x.latitude + ', ' + x.longitude;
       // la localidad encontrada también corrige el nombre si estaba distinto
       if (x.name && x.fuente !== 'OpenStreetMap') document.getElementById('localidad').value = x.name;
+      document.getElementById('localidad').dataset.auto = '0'; _ultimaUbi = '';
       document.getElementById('altitud').value = ''; // dejar que se recalcule para este punto
       validarGPS(x.latitude, x.longitude);
       const cont = document.getElementById('localidadResultados');
@@ -457,6 +526,7 @@
       let region = lat < 0 ? '🌎 Hemisferio Sur' : '🌍 Hemisferio Norte';
       div.innerHTML = `<span class="gps-status ok">✓ Coordenadas válidas · ${region}</span>`;
       autocompletarAltitud(lat, lon);
+      deducirUbicacion(lat, lon);
       return true;
     }
 
@@ -465,7 +535,7 @@
     let ultimoElevKey = '';
     function autocompletarAltitud(lat, lon) {
       const campoAlt = document.getElementById('altitud');
-      if (campoAlt.value.trim() !== '') return; // respeta valor manual
+      if (campoAlt.value.trim() !== '' && campoAlt.dataset.auto !== '1') return; // respeta valor manual (la automática se recalcula si cambia el punto)
       const clave = lat.toFixed(5) + ',' + lon.toFixed(5);
       if (clave === ultimoElevKey) return;
       ultimoElevKey = clave;
@@ -475,9 +545,10 @@
         .then(r => r.json())
         .then(j => {
           const m = j && Array.isArray(j.elevation) ? j.elevation[0] : null;
-          if (m != null && campoAlt.value.trim() === '') {
-            campoAlt.value = Math.round(m);
+          if (m != null && (campoAlt.value.trim() === '' || campoAlt.dataset.auto === '1')) {
+            campoAlt.value = Math.round(m); campoAlt.dataset.auto = '1';
             if (hint) hint.textContent = '✓ Altitud obtenida de las coordenadas (podés corregirla)';
+            refrescarUbicacion();
           } else if (hint) {
             hint.textContent = 'Importante para comparar rindes entre zonas';
           }
@@ -569,6 +640,10 @@
       document.getElementById('altitud').value = campo.altitud || '';
       document.getElementById('observaciones').value = campo.observaciones || '';
       ponerEstacion(campo.estacionId, campo.estacionNombre);
+      CAMPOS_UBI.forEach(id => { document.getElementById(id).dataset.auto = '0'; }); _ultimaUbi = ''; document.getElementById('altitud').dataset.auto = campo.altitud ? '0' : '1';
+      document.getElementById('pliegueSuelo').open = !!campo.tipoSuelo; document.getElementById('pliegueEstacion').open = !!campo.estacionId; document.getElementById('pliegueMas').open = false;
+      document.getElementById('tipoSuelo').dispatchEvent(new Event('change')); document.getElementById('estacionSub').textContent = campo.estacionNombre ? campo.estacionNombre : 'si el cliente tiene Metos / FieldClimate';
+      refrescarUbicacion();
 
       mostrarInfoSuelo();
 
@@ -619,6 +694,11 @@
       document.getElementById('observaciones').value = '';
       document.getElementById('gpsValidacion').innerHTML = '';
       document.getElementById('suelo-info').classList.remove('visible');
+      document.getElementById('localidadResultados').innerHTML = '';
+      CAMPOS_UBI.forEach(id => { document.getElementById(id).dataset.auto = '1'; }); document.getElementById('altitud').dataset.auto = '1'; _ultimaUbi = ''; ultimoElevKey = '';
+      ['pliegueSuelo', 'pliegueEstacion', 'pliegueMas'].forEach(id => { document.getElementById(id).open = false; });
+      document.getElementById('sueloSub').textContent = 'tipo aproximado para el riego'; document.getElementById('estacionSub').textContent = 'si el cliente tiene Metos / FieldClimate';
+      refrescarUbicacion();
     }
 
     function mostrarCampos() {

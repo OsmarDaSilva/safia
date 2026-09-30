@@ -551,6 +551,17 @@
         });
     }).catch(function () { return []; });
   }
+  // Con el punto del campo, OpenStreetMap (Nominatim, zoom 10 = distrito) devuelve localidad, departamento y país
+  function ubicacionDesde(lat, lon) {
+    lat = num(lat); lon = num(lon); if (lat == null || lon == null) return Promise.resolve(null);
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&accept-language=es&zoom=10&lat=' + lat + '&lon=' + lon;
+    return fetch(url).then(function (r) { return r.json(); }).then(function (x) {
+      var a = (x && x.address) || {}; if (!a.country) return null;
+      var loc = a.town || a.city || a.village || a.municipality || a.hamlet || a.county || x.name || '';
+      var pais = a.country; Object.keys(COD_PAIS_GEO).forEach(function (p) { if (COD_PAIS_GEO[p].toLowerCase() === String(a.country_code || '').toLowerCase()) pais = p; });
+      return { localidad: loc, departamento: a.state || a.region || '', pais: pais, region: a.region || '', fuente: 'OpenStreetMap' };
+    }).catch(function () { return null; });
+  }
   function buscarLocalidad(loc, depto, pais) {
     pais = pais || 'Paraguay';
     var vars = variantesLocalidad(loc), res = [];
@@ -744,7 +755,7 @@
     armarCasos: armarCasos,
     listasUbicacion: listasUbicacion,
     conectarListasUbicacion: conectarListasUbicacion,
-    buscarLocalidad: buscarLocalidad,
+    buscarLocalidad: buscarLocalidad, ubicacionDesde: ubicacionDesde,
     normLoc: normLoc,
     nombreLocalidad: nombreLocalidad,
     climaDelCiclo: climaDelCiclo,
