@@ -1,4 +1,5 @@
-// SAFIA · Edge Function: safia-asistente (v8: la misma pregunta, como máximo 2 veces por día para operador, encargado y dueño;
+// SAFIA · Edge Function: safia-asistente (v9: cupo mensual de preguntas por cliente, 100 por cada pivot con suscripción vigente;
+//   v8: la misma pregunta, como máximo 2 veces por día para operador, encargado y dueño;
 //   v7: lluvia automática, estrés 50 % / arranque 75 %, secano, agua de riego, rotación y quién carga qué según el rol;
 //   v6: no gasta IA si el usuario no tiene ningún pivot con suscripción vigente)
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
@@ -134,7 +135,9 @@ const HERRAMIENTAS = [
   },
 ];
 
-// ---- Límite de preguntas repetidas (v8) ----
+// ---- Límites del Asistente (v8 y v9) ----
+// v9: además, cada cliente tiene una bolsa de preguntas por mes (100 por pivot vigente + extra que suma Irrigar), compartida
+// entre todos sus usuarios; cualquier pregunta descuenta 1 (SQL safia_asistente_cupo.sql). Al agotarse, no se consulta a la IA.
 // La misma pregunta se responde hasta 2 veces por día (hora de Paraguay) al operador, al encargado y al dueño; Irrigar no tiene
 // límite. Lo decide la base (safia_asistente_consultar / safia_asistente_registrar, SQL safia_asistente_limite.sql). "La misma"
 // = las mismas palabras, sin contar acentos, signos, mayúsculas, el orden ni las palabras de relleno. A la tercera vez no se
@@ -192,24 +195,26 @@ Deno.serve(async (req: Request) => {
       } catch (_e) { /* sin verificar: se sigue */ }
     }
 
-    // Límite de la misma pregunta por día. Cuenta la pregunta que abre la conversación y las repreguntas de 3 palabras o más
-    // (un "¿y mañana?" depende de lo anterior y no se limita). Si el SQL no está corrido o no se puede verificar, se sigue sin límite.
+    // Límites: (1) la misma pregunta, 2 veces por día: vale para la pregunta que abre la conversación y las repreguntas de 3
+    // palabras o más (un "¿y mañana?" depende de lo anterior); (2) la bolsa de preguntas del mes del cliente: vale para TODAS.
+    // Si el SQL no está corrido o no se puede verificar, se sigue sin límite.
     const preg = ultimaPregunta(messages);
-    let clave: string | null = null;
+    let clave: string | null = null, repetible = false;
     if (preg && urlSb && anon && auth) {
       const h = await huellaDe(preg.texto);
-      if (preg.abre || h.palabras >= 3) clave = h.clave;
+      clave = h.clave; repetible = preg.abre || h.palabras >= 3;
     }
     const rpc = (nombre: string, cuerpoRpc: unknown) => fetch(urlSb + '/rest/v1/rpc/' + nombre, { method: 'POST', headers: { apikey: anon as string, Authorization: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpoRpc) });
     if (clave && preg && preg.indice === messages.length - 1) {   // es una pregunta nueva (no la vuelta de una herramienta)
       try {
-        const rl = await rpc('safia_asistente_consultar', { p_clave: clave });
+        let rl = await rpc('safia_asistente_consultar', { p_clave: clave, p_repetible: repetible });
+        if (!rl.ok && repetible) rl = await rpc('safia_asistente_consultar', { p_clave: clave });   // base todavía sin el cupo mensual
         if (rl.ok) {
           const u = await rl.json();
           if (u && u.permitido === false) {
-            const aviso = 'Ya hiciste esta misma pregunta ' + u.veces + ' veces hoy. El Asistente responde cada pregunta hasta ' + u.limite + ' veces por día; mañana la podés volver a hacer.' +
+            const aviso = (u.mensaje ? String(u.mensaje) : 'Ya hiciste esta misma pregunta ' + u.veces + ' veces hoy. El Asistente responde cada pregunta hasta ' + u.limite + ' veces por día; mañana la podés volver a hacer.') +
               (u.respuesta ? '\n\n**Esta es la respuesta que te dio hoy' + (u.hora ? ' a las ' + u.hora : '') + ':**\n\n' + u.respuesta : '');
-            console.log('asistente: pregunta repetida, sin consultar a la IA');
+            console.log('asistente: sin consultar a la IA (' + (u.motivo || 'repetida') + ')');
             return json({ content: [{ type: 'text', text: aviso }], stop_reason: 'end_turn', stop_details: null, model: null, usage: null, limite: true });
           }
         }

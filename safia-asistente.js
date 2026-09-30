@@ -733,9 +733,19 @@
       '<div id="asSug" style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;">' + SUGERENCIAS.map(function (s) { return '<button type="button" class="btn" data-sug style="font-size:12.5px;white-space:normal;text-align:left;">' + esc(s) + '</button>'; }).join('') + '</div>' +
       '<form id="asForm" style="display:flex;gap:8px;align-items:flex-end;margin-top:6px;"><textarea id="asTexto" rows="2" placeholder="Preguntale a SAFIA sobre tus campos, rindes, suelos, variedades, clima o riego…" style="flex:1;font:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;resize:vertical;"></textarea>' +
       '<button class="btn green" type="submit" id="asEnviar">Preguntar</button><button class="btn" type="button" id="asNueva" title="Empezar una conversación nueva">Nueva</button></form>' +
-      '<div class="muted" style="font-size:11px;margin-top:6px;">SAFIA responde con los datos del banco (casos reales, referencia de la zona, clima y motor agronómico) que vos podés ver. Compara e interpreta; la prescripción la decide el ingeniero agrónomo.' + (window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin() ? '' : ' La misma pregunta se responde hasta 2 veces por día.') + '</div>';
+      '<div class="muted" style="font-size:11px;margin-top:6px;">SAFIA responde con los datos del banco (casos reales, referencia de la zona, clima y motor agronómico) que vos podés ver. Compara e interpreta; la prescripción la decide el ingeniero agrónomo.' + (window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin() ? '' : ' La misma pregunta se responde hasta 2 veces por día.<span id="asCupo"></span>') + '</div>';
     var hist = el.querySelector('#asHist'), txt = el.querySelector('#asTexto'), btn = el.querySelector('#asEnviar');
     var burbuja = function (html, yo) { var d = document.createElement('div'); d.style.cssText = 'max-width:900px;padding:12px 14px;border-radius:12px;line-height:1.55;font-size:14px;' + (yo ? 'align-self:flex-end;background:#E9F6EC;border:1px solid #CDE9D3;' : 'align-self:stretch;background:#fff;border:1px solid var(--bd);'); d.innerHTML = html; hist.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; };
+    // Bolsa de preguntas del mes del cliente (100 por cada pivot con suscripción vigente); Irrigar no tiene cupo
+    var pintarCupo = function () {
+      var s = el.querySelector('#asCupo'); if (!s || !window.safiaSupabase || !window.safiaSupabase.rpc) return;
+      Promise.resolve(window.safiaSupabase.rpc('safia_asistente_cupos')).then(function (r) {
+        var c = r && !r.error && Array.isArray(r.data) ? r.data[0] : null; if (!c || c.cupo == null) return;
+        var f = String(c.renueva || '').split('-');
+        s.textContent = ' Preguntas de este mes: ' + c.usadas + ' de ' + c.cupo + ' usadas' + (f.length === 3 ? ' (se renuevan el ' + (+f[2]) + '/' + (+f[1]) + ')' : '') + '.';
+      }, function () {});
+    };
+    pintarCupo();
     var actual = null;
     var al = {
       inicio: function (t) { el.querySelector('#asSug').style.display = 'none'; burbuja(esc(t), true); actual = burbuja('<div class="as-pasos muted" style="font-size:12px;">Pensando…</div><div class="as-resp"></div>'); btn.disabled = true; btn.textContent = 'Pensando…'; },
@@ -745,6 +755,7 @@
         actual.querySelector('.as-resp').innerHTML = r.error ? '<div class="note warn" style="margin:0;">' + esc(r.error) + '</div>' : md(r.texto);
         if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar(actual); } catch (e) {}
         btn.disabled = false; btn.textContent = 'Preguntar'; actual.scrollIntoView({ block: 'start', behavior: 'smooth' }); txt.focus();
+        pintarCupo();
       }
     };
     var enviar = function () { var t = txt.value; if (!t.trim()) return; txt.value = ''; preguntar(t, al); };
