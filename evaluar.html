@@ -336,10 +336,26 @@
       var m=j&&j.elevation&&j.elevation[0]; if(m!=null){ alt.value=Math.round(m); hint.textContent='✓ Altitud obtenida de las coordenadas'; } else hint.textContent='';
     }).catch(function(){ hint.textContent='No se pudo obtener la altitud'; });
   }
+  // Con el punto, SAFIA deduce localidad, departamento y país (OpenStreetMap); no pisa lo que ya estaba escrito
+  var _ultUbi='';
+  function deducirUbicacion(lat,lon){
+    var dep=document.getElementById('pDepto'), loc=document.getElementById('pLocalidad'), pais=document.getElementById('pPais'), hint=document.getElementById('geoHint');
+    if(!window.SafiaCasos||!SafiaCasos.ubicacionDesde) return; var clave=lat.toFixed(4)+','+lon.toFixed(4); if(clave===_ultUbi) return; _ultUbi=clave;
+    if(dep.value.trim() && loc.value.trim()) return;
+    if(hint) hint.textContent='Buscando la localidad del punto…';
+    SafiaCasos.ubicacionDesde(lat,lon).then(function(u){
+      if(!u){ if(hint) hint.textContent='No se pudo deducir la localidad: escribila arriba.'; return; }
+      if(!dep.value.trim() && u.departamento) dep.value=u.departamento;
+      if(!loc.value.trim() && u.localidad) loc.value=u.localidad;
+      if(u.pais && Array.prototype.some.call(pais.options,function(o){return o.value===u.pais;})) pais.value=u.pais;
+      if(hint) hint.textContent='Ubicación deducida del punto: '+[u.localidad,u.departamento,u.pais].filter(Boolean).join(', ')+'. Corregila si no es.';
+      dep.dispatchEvent(new Event('change',{bubbles:true}));
+    });
+  }
   function ponerCoordenadas(lat,lon){
     document.getElementById('pLat').value=lat; document.getElementById('pLon').value=lon;
     document.getElementById('pGps').value=lat+', '+lon;
-    autocompletarAltitud(lat,lon);
+    autocompletarAltitud(lat,lon); deducirUbicacion(lat,lon);
   }
   document.getElementById('pGps').addEventListener('input',function(){
     var partes=this.value.replace(/[°NSEWnsew]/g,'').replace(/\s+/g,'').split(',');
@@ -719,7 +735,7 @@
     var resumen=document.getElementById('rResumen'), bloques=document.getElementById('bloquesCultivo');
     resumen.innerHTML=''; bloques.innerHTML='';
     document.getElementById('resultados').style.display='';
-    document.getElementById('rResumenSub').textContent=filas.length+' cultivo(s) · '+(localidad||depto||'sin ubicación');
+    document.getElementById('rResumenSub').textContent=filas.length+' cultivo(s) · '+(localidad||depto||(base.lat!=null&&base.lon!=null?'punto '+base.lat+', '+base.lon:'sin ubicación'));
 
     var cadena=Promise.resolve(), paraGuardar=[];
     ultimasRefs=[]; refsListas=false; ultimasFilas=filas; document.getElementById('rEconomia').innerHTML='<div class="muted" style="padding:8px 0;">Calculando…</div>';
