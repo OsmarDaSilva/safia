@@ -556,6 +556,7 @@
               <div class="campo"><label>Largo (m)</label><input type="number" id="pivote-largo" placeholder="Ej: 450"></div>
               <div class="campo"><label>Torres</label><input type="number" id="pivote-torres" placeholder="Ej: 7"></div>
               <div class="campo"><label>Ángulo (°)</label><input type="number" id="pivote-angulo" placeholder="Ej: 360" max="360"></div>
+              <div class="campo"><label>Piquete 1 desde el norte (°)</label><input type="number" id="pivote-piquete1Angulo" placeholder="Ej: 0" min="0" max="359"><div class="ayuda">Pastura en piquetes: grados, en sentido horario, donde empieza el piquete 1. SAFIA divide el pivot en porciones desde ahí.</div></div>
             </div>
             <div class="fila">
               <div class="campo"><label>Corner extensible</label><select id="pivote-corner"><option>No</option><option>Sí</option></select></div>
@@ -1134,7 +1135,7 @@
 
     // ===== LÓGICA EXISTENTE =====
     const camposPorTipo = {
-      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
       goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],

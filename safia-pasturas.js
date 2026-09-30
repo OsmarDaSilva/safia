@@ -238,6 +238,7 @@
     if (cultivo && cultivo.sistemaPastoreo) h += '<div style="font-size:11px;color:#8C9196;">' + esc(nombreSistema(cultivo.sistemaPastoreo)) + (cultivo.piquetes ? ' · ' + esc(cultivo.piquetes) + ' piquetes' : '') + (cultivo.diasOcupacion ? ' · ' + esc(cultivo.diasOcupacion) + ' d ocupación' : '') + (cultivo.diasDescanso ? ' · ' + esc(cultivo.diasDescanso) + ' d descanso' : '') + '</div>';
     if (balance && balance.pastura) h += htmlTemperatura(balance.pastura);
     h += '<div style="margin-top:8px;">' + htmlPiquetes(equipoId, cultivo) + '</div>';
+    if (window.SafiaPiquetes) { var eqP = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }); if (eqP && SafiaPiquetes.sectores(eqP, cultivo)) { var gp = SafiaPiquetes.serieGuardada(equipoId); h += '<div style="margin-top:8px;">' + SafiaPiquetes.htmlPanel(eqP, cultivo, { pasadas: gp.pasadas, ultima: gp.pasadas[gp.pasadas.length - 1] || null }) + '</div>'; } }
     return h;
   }
   function htmlOperador(equipoId, cultivo) {

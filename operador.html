@@ -1063,6 +1063,7 @@
   <script src="safia-balance.js"></script>
   <script src="safia-sensores.js"></script>
   <script src="safia-pasturas.js"></script>
+<script src="safia-piquetes.js"></script>
   <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
@@ -1556,7 +1557,26 @@
       const esPast = camp && window.SafiaPasturas && SafiaPasturas.esPastura(camp.cultivo);
       panel.style.display = esPast ? '' : 'none'; if (!esPast) return;
       const ref = SafiaPasturas.alturasReferencia((camp.variedad || '') + ' ' + (camp.cultivo || ''));
-      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Piquetes</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) + SafiaPasturas.htmlGuia(ref);
+      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Piquetes</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
+        '<div id="piquetesSat" style="margin-top:10px;border-top:1px solid #EEF0F2;padding-top:8px;"></div>' + SafiaPasturas.htmlGuia(ref);
+      pintarPiquetesSatelite(camp);
+    }
+    // Vigor satelital por piquete: primero lo guardado (rápido), después pide las pasadas nuevas
+    function pintarPiquetesSatelite(camp) {
+      const cont = document.getElementById('piquetesSat'); if (!cont || !window.SafiaPiquetes) return;
+      const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId)); if (!eq) return;
+      const g = SafiaPiquetes.sectores(eq, camp);
+      if (!g) { cont.innerHTML = '<div style="font-size:12px;color:#8C9196;">Para ver el vigor por piquete hace falta el polígono del pivot (Equipos y lotes) y la cantidad de piquetes en la campaña.</div>'; return; }
+      const guard = SafiaPiquetes.serieGuardada(eq.id);
+      const titulo = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Vigor por piquete (satélite) <span id="piqSatEstado" style="font-weight:500;text-transform:none;letter-spacing:0;color:#8C9196;"></span></div>';
+      cont.innerHTML = titulo + SafiaPiquetes.htmlPanel(eq, camp, { pasadas: guard.pasadas, ultima: guard.pasadas[guard.pasadas.length - 1] || null });
+      const est = document.getElementById('piqSatEstado'); if (est) est.textContent = '· buscando pasadas nuevas…';
+      const campoId = eq.campoId;
+      SafiaPiquetes.actualizar(eq, camp, campoId).then(d => {
+        if (String(equipoSeleccionadoId) !== String(eq.id)) return;
+        cont.innerHTML = titulo + SafiaPiquetes.htmlPanel(eq, camp, d);
+        const e2 = document.getElementById('piqSatEstado'); if (e2) e2.textContent = d.ultima ? '' : (d.fechasDisponibles ? '· sin imagen limpia todavía' : '· sin pasadas sin nubes en los últimos 45 días');
+      }).catch(() => { const e3 = document.getElementById('piqSatEstado'); if (e3) e3.textContent = '· sin conexión con el satélite (se muestra lo guardado)'; });
     }
     function cerrarModal() {
       document.getElementById('modalOverlay').classList.remove('visible');

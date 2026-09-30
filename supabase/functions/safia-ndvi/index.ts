@@ -31,6 +31,17 @@ function evaluatePixel(s) {
   var c = rampa((s.B08 - s.B04) / (s.B08 + s.B04 + 0.000001));
   return [c[0], c[1], c[2], 255];
 }`;
+// Capa 'valores': el NDVI va codificado en el canal rojo (0..255 = -1..1) para que el navegador lo promedie por piquete;
+// afuera del polígono alfa 0, nube alfa 150, dato válido alfa 255.
+const EVAL_IMG_VALORES = `//VERSION=3
+function setup() { return { input: [{ bands: ['B04', 'B08', 'SCL', 'dataMask'] }], output: { bands: 4, sampleType: 'UINT8' } }; }
+function evaluatePixel(s) {
+  if (s.dataMask === 0) return [0, 0, 0, 0];
+  var nube = (s.SCL === 0 || s.SCL === 1 || s.SCL === 3 || s.SCL === 8 || s.SCL === 9 || s.SCL === 10 || s.SCL === 11);
+  if (nube) return [0, 0, 0, 150];
+  var v = (s.B08 - s.B04) / (s.B08 + s.B04 + 0.000001);
+  return [Math.max(0, Math.min(255, Math.round((v + 1) * 127.5))), 0, 0, 255];
+}`;
 // Color real (bandas rojo, verde, azul con ganancia)
 const EVAL_IMG_COLOR = `//VERSION=3
 function setup() { return { input: [{ bands: ['B04', 'B03', 'B02', 'dataMask'] }], output: { bands: 4, sampleType: 'UINT8' } }; }
@@ -99,7 +110,7 @@ Deno.serve(async (req: Request) => {
     try { cuerpo = await req.json(); } catch { return json({ error: 'Pedido inválido' }, 400); }
     const { equipoId, campoId, partes, desde, hasta } = cuerpo;
     if (!partes || !partes.length || !partes[0][0] || partes[0][0].length < 3) return json({ error: 'El lote no tiene polígono: cargalo en Equipos y lotes' }, 400);
-    // ---- modo imagen: PNG del lote para una fecha (NDVI coloreado o color real) ----
+    // ---- modo imagen: PNG del lote para una fecha (NDVI coloreado, color real o valores para promediar por piquete) ----
     if (cuerpo.tipo === 'imagen') {
       const fecha = String(cuerpo.fecha || '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return json({ error: 'Falta la fecha de la imagen' }, 400);
@@ -116,13 +127,13 @@ Deno.serve(async (req: Request) => {
           data: [{ type: 'sentinel-2-l2a', dataFilter: { timeRange: { from: fecha + 'T00:00:00Z', to: fecha + 'T23:59:59Z' }, mosaickingOrder: 'leastCC' } }],
         },
         output: { width: ancho, height: alto, responses: [{ identifier: 'default', format: { type: 'image/png' } }] },
-        evalscript: cuerpo.capa === 'color' ? EVAL_IMG_COLOR : EVAL_IMG_NDVI,
+        evalscript: cuerpo.capa === 'color' ? EVAL_IMG_COLOR : (cuerpo.capa === 'valores' ? EVAL_IMG_VALORES : EVAL_IMG_NDVI),
       };
       const ri = await fetch(PROCESS_URL, { method: 'POST', headers: { Authorization: 'Bearer ' + tk2, 'Content-Type': 'application/json', Accept: 'image/png' }, body: JSON.stringify(pedidoImg) });
       if (!ri.ok) { const t = await ri.text(); console.error('ndvi imagen:', ri.status, t.slice(0, 400)); return json({ error: 'Copernicus no pudo armar la imagen (' + ri.status + ')', detalle: t.slice(0, 300) }, 502); }
       const png = base64De(await ri.arrayBuffer());
       console.log('ndvi imagen: ok', fecha, cuerpo.capa || 'ndvi', ancho + 'x' + alto);
-      return json({ ok: true, fecha, capa: cuerpo.capa === 'color' ? 'color' : 'ndvi', png, bounds: [[bbox[1], bbox[0]], [bbox[3], bbox[2]]], ancho, alto });
+      return json({ ok: true, fecha, capa: cuerpo.capa === 'color' ? 'color' : (cuerpo.capa === 'valores' ? 'valores' : 'ndvi'), png, bounds: [[bbox[1], bbox[0]], [bbox[3], bbox[2]]], ancho, alto });
     }
 
     if (!desde || !hasta) return json({ error: 'Faltan las fechas desde / hasta' }, 400);
