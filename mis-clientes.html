@@ -120,7 +120,8 @@
           </div>
           <div class="field">
             <label>Teléfono / WhatsApp</label>
-            <input type="text" id="telefono" placeholder="Ej: +595 981 234567">
+            <input type="text" id="telefono" placeholder="Ej: 0981 234567 · de otro país: +55 67 …" oninput="ayudaTelefono()">
+            <div class="muted" id="telefonoAyuda" style="font-size:11px;margin-top:4px;"></div>
           </div>
           <div class="field">
             <label>Email</label>
@@ -166,6 +167,8 @@
     function guardarClientes(clientes) {
       localStorage.setItem('clientes', JSON.stringify(clientes));
     }
+
+    function ayudaTelefono() { const a = document.getElementById('telefonoAyuda'); if (a) a.textContent = window.SafiaTelefono ? SafiaTelefono.ayuda(document.getElementById('telefono').value) : ''; }
 
     function guardarOActualizar() {
       const nombre = document.getElementById('nombre').value.trim();
@@ -220,7 +223,7 @@
       document.getElementById('nombre').value = cliente.nombre || '';
       document.getElementById('tipo').value = cliente.tipo || '';
       document.getElementById('documento').value = cliente.documento || '';
-      document.getElementById('telefono').value = cliente.telefono || '';
+      document.getElementById('telefono').value = cliente.telefono || ''; ayudaTelefono();
       document.getElementById('email').value = cliente.email || '';
       document.getElementById('localidad').value = cliente.localidad || '';
 
@@ -247,7 +250,7 @@
       document.getElementById('nombre').value = '';
       document.getElementById('tipo').value = '';
       document.getElementById('documento').value = '';
-      document.getElementById('telefono').value = '';
+      document.getElementById('telefono').value = ''; ayudaTelefono();
       document.getElementById('email').value = '';
       document.getElementById('localidad').value = '';
 

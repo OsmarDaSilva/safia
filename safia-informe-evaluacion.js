@@ -398,7 +398,7 @@
     var nombre = (cliente && cliente.nombre || '').split(' ')[0];
     return 'Hola ' + nombre + ', te comparto la evaluación del proyecto de riego de ' + (campo ? campo.nombre : '') + ', preparada con SAFIA:\n' + (linkActual || '') + '\n(el link vale 30 días)\n' + ($('autor').value.trim() || config.agronomo || '') + (config.empresa ? ' · ' + config.empresa : '');
   }
-  function telefonoWa(t) { var d = String(t || '').replace(/\D/g, ''); if (!d) return ''; if (d.indexOf('595') === 0) return d; if (d.indexOf('0') === 0) return '595' + d.slice(1); return d.length <= 10 ? '595' + d : d; }
+  function telefonoWa(t) { return window.SafiaTelefono ? SafiaTelefono.wa(t) : String(t || '').replace(/\D/g, ''); }   // regla única en safia-sync.js (respeta el código de país)
 
   /* ---------- selectores ---------- */
   function llenarSelector(elegido) {

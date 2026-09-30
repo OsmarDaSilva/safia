@@ -45,7 +45,7 @@
       '<div class="form-grid">' +
       '<div class="field full"><label>Nombre y apellido</label><input type="text" id="accNombre" placeholder="Ej: Anderson Pereira"></div>' +
       '<div class="field"><label>Correo o nombre de usuario (con esto entra)</label><input type="text" id="accEmail" placeholder="correo@ejemplo.com o, si no tiene correo, un usuario: anderson" autocomplete="off"><div class="muted" id="accEmailAyuda" style="font-size:11px;margin-top:4px;"></div></div>' +
-      '<div class="field"><label>WhatsApp</label><input type="tel" id="accTelefono" placeholder="+595 981 234567"></div>' +
+      '<div class="field"><label>WhatsApp</label><input type="tel" id="accTelefono" placeholder="0981 234567 · de otro país: +55 67 …"><div class="muted" id="accTelAyuda" style="font-size:11px;margin-top:4px;"></div></div>' +
       '<div class="field"><label>Rol</label><select id="accRol"></select></div>' +
       '<div class="field"><label>Cliente al que pertenece</label><select id="accCliente"></select></div>' +
       '<div class="field full" id="accCamposWrap" style="display:none;"><label>Estancias que ve y en las que carga</label><div id="accCampos" style="padding-top:4px;"></div><div class="muted" style="font-size:11px;margin-top:2px;">Sin marcar ninguna = todas las estancias del cliente.</div></div>' +
@@ -58,11 +58,13 @@
       '<div id="accListo" style="display:none;">' +
       '<div class="note ok">Acceso creado. Pasale estos datos al cliente.</div>' +
       '<div id="accCred" style="background:var(--bg,#F2F3F5);border:1px dashed var(--bd,#E1E4E7);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.7;margin:10px 0;"></div>' +
+      '<div class="muted" id="accWaDestino" style="font-size:12px;margin:0 0 10px;"></div>' +
       '<div class="modal-actions"><a class="btn green" id="accWhatsApp" target="_blank" rel="noopener">Enviar por WhatsApp</a><button class="btn" id="accCopiar">Copiar</button><button class="btn" id="accCerrar">Cerrar</button></div>' +
       '</div></div>';
     document.body.appendChild(d);
     $('accGenerar').addEventListener('click', function () { $('accPass').value = generarClave(); });
     $('accEmail').addEventListener('input', ayudaUsuario);
+    $('accTelefono').addEventListener('input', ayudaTelefono);
     $('accCancelar').addEventListener('click', cerrar);
     $('accCerrar').addEventListener('click', function () { cerrar(); if (estado.onDone) estado.onDone(estado.resultado); });
     $('accCrear').addEventListener('click', crear);
@@ -77,6 +79,7 @@
     var u = window.SafiaUsuario ? SafiaUsuario.aUsuario(SafiaUsuario.aCorreo(v)) : v;
     a.textContent = 'Sin correo: entra escribiendo el usuario "' + u + '" y su contraseña. Si la olvida, se la cambiás vos desde Usuarios.';
   }
+  function ayudaTelefono() { var a = $('accTelAyuda'); if (a) a.textContent = window.SafiaTelefono ? SafiaTelefono.ayuda($('accTelefono').value) : ''; }
   function aviso2(t) { var el = document.getElementById('toast'); if (el) { el.textContent = t; el.className = 'toast visible ok'; setTimeout(function () { el.className = 'toast'; }, 3000); } }
   var estado = { onDone: null, resultado: null };
   function cerrar() { var m = $('modalAcceso'); if (m) m.classList.remove('visible'); }
@@ -89,7 +92,7 @@
     $('accTitulo').textContent = opts.titulo || ('Crear acceso a SAFIA' + (pre.nombre ? ' para ' + pre.nombre : ''));
     var intro = $('accIntro'); if (opts.intro) { intro.textContent = opts.intro; intro.style.display = ''; } else intro.style.display = 'none';
     $('accNombre').value = pre.nombre || ''; $('accEmail').value = pre.email || ''; $('accTelefono').value = pre.telefono || '';
-    ayudaUsuario();
+    ayudaUsuario(); ayudaTelefono();
     var selRol = $('accRol'), soyProp = window.SafiaSync && SafiaSync.esPropietario && SafiaSync.esPropietario();
     selRol.innerHTML = OPCIONES_ROL + (soyProp ? '<option value="admin">Administrador (Irrigar, soporte)</option><option value="propietario">Propietario (sin límites)</option>' : '');
     $('accRol').value = pre.rol || 'cliente'; $('accCliente').innerHTML = opcionesClientes(pre.clienteId || ''); $('accPass').value = generarClave();
@@ -125,7 +128,8 @@
       $('accCred').innerHTML = (r.existia ? 'Ese correo ya tenía cuenta en el grupo: quedó <b>activo en SAFIA</b> con su contraseña de siempre.<br>' : 'Contraseña temporal: <b style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;">' + esc(datos.password) + '</b><br>') +
         (interno ? 'Usuario: <b>' : 'Correo: <b>') + esc(usuarioMostrar) + '</b><br>Rol: ' + ROL[datos.rol] + (datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : '') + (datos.campos && datos.campos.length ? ' · ' + esc(leer('campos').filter(function (c) { return datos.campos.indexOf(String(c.id)) >= 0; }).map(function (c) { return c.nombre; }).join(', ')) : '');
       $('accCred').dataset.texto = texto;
-      var tel = datos.telefono.replace(/[^0-9]/g, ''); if (tel.indexOf('0') === 0) tel = '595' + tel.slice(1); else if (tel && tel.indexOf('595') !== 0) tel = '595' + tel;
+      var tel = window.SafiaTelefono ? SafiaTelefono.wa(datos.telefono) : datos.telefono.replace(/[^0-9]/g, '');   // respeta el código de país (+55 Brasil, etc.)
+      $('accWaDestino').textContent = tel && window.SafiaTelefono ? SafiaTelefono.ayuda(datos.telefono) : (tel ? '' : 'Sin número cargado: WhatsApp se abre sin destinatario y elegís el contacto a mano.');
       $('accWhatsApp').href = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(texto);
       estado.resultado = Object.assign({}, r, datos);
       $('accForm').style.display = 'none'; $('accListo').style.display = '';

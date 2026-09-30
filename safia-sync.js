@@ -39,6 +39,35 @@
   function esUsuarioInterno(email) { return String(email || '').toLowerCase().endsWith('@' + DOMINIO_USUARIO); }
   window.SafiaUsuario = { DOMINIO: DOMINIO_USUARIO, aCorreo: usuarioACorreo, aUsuario: correoAUsuario, esInterno: esUsuarioInterno };
 
+  /* Teléfono para WhatsApp (wa.me quiere el número completo, con código de país y sin +).
+     - Con "+" o "00" adelante: ya trae el código de país y se respeta tal cual (clientes de Brasil, Argentina, etc.).
+     - Escrito como se marca en Paraguay (0981 234567 o 981 234567): se le pone 595.
+     - Sin "+" pero empezando con 595 o 55 y con el largo de un número completo: se respeta.
+     - Cualquier otro caso queda "dudoso": se usa como está y la pantalla avisa que falta el código de país. */
+  var TEL_PAISES = [['595', 'Paraguay'], ['598', 'Uruguay'], ['591', 'Bolivia'], ['55', 'Brasil'], ['54', 'Argentina'], ['56', 'Chile'], ['51', 'Perú'], ['57', 'Colombia'], ['1', 'Estados Unidos / Canadá']];
+  function telPais(d) { for (var i = 0; i < TEL_PAISES.length; i++) if (d.indexOf(TEL_PAISES[i][0]) === 0) return TEL_PAISES[i]; return null; }
+  function telAnalizar(t) {
+    var s = String(t || '').trim(), d = s.replace(/\D/g, ''), inter = null;
+    if (!d) return { wa: '', pais: '', dudoso: false, vacio: true };
+    if (s.charAt(0) === '+') inter = d;
+    else if (d.indexOf('00') === 0) inter = d.slice(2);
+    else if (d.charAt(0) === '0') inter = '595' + d.slice(1);
+    else if (d.length <= 9) inter = '595' + d;
+    else if (d.indexOf('595') === 0 && d.length >= 11 && d.length <= 12) inter = d;
+    else if (d.indexOf('55') === 0 && d.length >= 12 && d.length <= 13) inter = d;
+    if (inter == null) return { wa: d, pais: '', dudoso: true, vacio: false };
+    var p = telPais(inter);
+    return { wa: inter, pais: p ? p[1] : '', codigo: p ? p[0] : '', dudoso: false, vacio: false };
+  }
+  function telWa(t) { return telAnalizar(t).wa; }
+  // Texto corto para mostrar debajo del campo: a qué número va a ir el WhatsApp, o qué le falta
+  function telAyuda(t) {
+    var a = telAnalizar(t); if (a.vacio) return '';
+    if (a.dudoso) return 'Falta el código del país: escribilo con + adelante (Paraguay +595, Brasil +55).';
+    return 'El WhatsApp va a ir al +' + (a.codigo ? a.codigo + ' ' + a.wa.slice(a.codigo.length) : a.wa) + (a.pais ? ' · ' + a.pais : '') + '.';
+  }
+  window.SafiaTelefono = { analizar: telAnalizar, wa: telWa, ayuda: telAyuda };
+
   // clave de localStorage -> tabla en Supabase
   var TABLAS = {
     clientes:        'safia_clientes',

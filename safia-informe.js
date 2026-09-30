@@ -457,7 +457,7 @@
     ['btnEnvCopiar', 'btnEnvCorreo', 'btnEnvWhatsapp'].forEach(function (id) { $(id).disabled = true; }); $('envLink').innerHTML = ''; linkActual = null;
     publicar();
   }
-  function telefonoWa(t) { var d = String(t || '').replace(/\D/g, ''); if (!d) return ''; if (d.indexOf('595') === 0) return d; if (d.indexOf('0') === 0) return '595' + d.slice(1); return d.length <= 10 ? '595' + d : d; }
+  function telefonoWa(t) { return window.SafiaTelefono ? SafiaTelefono.wa(t) : String(t || '').replace(/\D/g, ''); }   // regla única en safia-sync.js (respeta el código de país)
   function iniciar() {
     llenarSelectores();
     $('selCampo').addEventListener('change', function () { campoActual = leer('campos').find(function (c) { return String(c.id) === String($('selCampo').value); }) || null; llenarLotes(); preparar(); });
