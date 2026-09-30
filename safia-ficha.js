@@ -39,11 +39,29 @@
     leer('equipos').forEach(function (e) { var ca = campos.find(function (c) { return String(c.id) === String(e.campoId); }); if (ca) out.push({ id: e.id, nombre: e.nombre, campoId: ca.id, campo: ca.nombre, tipo: e.tipo, etiqueta: ca.nombre + ' · ' + e.nombre, superficie: e.superficie }); });
     return out.sort(function (a, b) { return a.etiqueta.localeCompare(b.etiqueta); });
   }
-  function nombreZafra(fechaSiembra, cultivo) {
-    var f = fechaISO(fechaSiembra); if (!f) return '';
-    var y = parseInt(f.slice(0, 4), 10), m = parseInt(f.slice(5, 7), 10);
-    if (esPastura(cultivo)) return 'Pastura ' + y;
-    return m >= 7 ? 'Zafra ' + y + '/' + String(y + 1).slice(2) : 'Zafra ' + y;
+  // 'Soja 2026/27 · Pivot-1' (igual que en Campañas): siembra de agosto a diciembre = zafra de verano; enero a abril = zafriña; mayo a julio = invierno
+  function nombreZafra(fechaSiembra, cultivo, lote) {
+    var f = fechaISO(fechaSiembra), cu = String(cultivo || '').trim(); if (!f && !cu) return '';
+    var zafra = '';
+    if (f) {
+      var y = parseInt(f.slice(0, 4), 10), m = parseInt(f.slice(5, 7), 10);
+      zafra = esPastura(cu) ? String(y) : (m >= 8 ? y + '/' + String(y + 1).slice(2) : (m <= 4 ? 'zafriña ' + y : 'invierno ' + y));
+    }
+    return ((cu || 'Campaña') + (zafra ? ' ' + zafra : '') + (lote ? ' · ' + lote : '')).trim();
+  }
+  // Qué hubo antes en el mismo lote: el último cultivo sembrado antes de esta fecha (para completar antecesor y manejo)
+  function anteriorEnLote(equipoId, fechaSiembra) {
+    if (!equipoId) return null;
+    var fs0 = fechaISO(fechaSiembra), mejor = null;
+    leer('campanas').forEach(function (c) {
+      if (String(c.equipoId) !== String(equipoId)) return;
+      (c.cultivos || []).forEach(function (cu) {
+        if (!cu.fechaSiembra) return;
+        if (fs0 && cu.fechaSiembra >= fs0) return;
+        if (!mejor || cu.fechaSiembra > mejor.fechaSiembra) mejor = { cultivo: cu.cultivo, fechaSiembra: cu.fechaSiembra, campana: c.nombre, dato: cu };
+      });
+    });
+    return mejor;
   }
 
   /* ---------- validar y guardar una ficha ---------- */
@@ -103,7 +121,7 @@
       if (f.nombre) camp.nombre = f.nombre;
       camp.fechaModificacion = ahora;
     } else {
-      camp = { id: Date.now(), nombre: f.nombre || nombreZafra(fs, cultivo), equipoId: eq.id, estado: 'Activa', cultivos: [cu], insumos: [], fechaCreacion: ahora, origen: f.origen || 'ficha' };
+      camp = { id: Date.now(), nombre: f.nombre || nombreZafra(fs, cultivo, eq.nombre), equipoId: eq.id, estado: 'Activa', cultivos: [cu], insumos: [], fechaCreacion: ahora, origen: f.origen || 'ficha' };
       campanas.push(camp); cIdx = 0; accion = 'creada';
     }
     if (f.observaciones) camp.observaciones = String(f.observaciones).trim();
@@ -156,7 +174,7 @@
   var COLS = [
     { k: 'lote', t: 'Lote', ayuda: 'Elegí de la lista (campo · lote)', w: 34, lista: 'lotes' },
     { k: 'loteId', t: 'Código del lote (no tocar)', ayuda: 'Se completa solo', w: 16, formula: true },
-    { k: 'nombre', t: 'Nombre de la campaña', ayuda: 'Ej: Zafra 2026/27 (si queda vacío, SAFIA lo pone)', w: 20 },
+    { k: 'nombre', t: 'Nombre de la campaña', ayuda: 'Si queda vacío, SAFIA lo arma (cultivo, zafra y lote)', w: 20 },
     { k: 'cultivo', t: 'Cultivo', ayuda: 'Elegí de la lista', w: 26, lista: 'cultivos' },
     { k: 'variedad', t: 'Variedad / híbrido', ayuda: 'Texto libre', w: 20 },
     { k: 'finalidad', t: 'Finalidad', ayuda: 'Grano, semilla, ensilaje, forraje', w: 18, lista: 'finalidades' },
@@ -311,5 +329,5 @@
     });
   }
 
-  window.SafiaFicha = { FINALIDADES: FINALIDADES, DESTINOS: DESTINOS, COLS: COLS, lotesDe: lotesDe, nombreZafra: nombreZafra, validar: validar, guardar: guardar, desdeCampana: desdeCampana, buscarCampana: buscarCampana, plantilla: plantilla, leerPlanilla: leerPlanilla, fechaISO: fechaISO, cultivosCatalogo: cultivosCatalogo, esPastura: esPastura };
+  window.SafiaFicha = { FINALIDADES: FINALIDADES, DESTINOS: DESTINOS, COLS: COLS, lotesDe: lotesDe, nombreZafra: nombreZafra, anteriorEnLote: anteriorEnLote, validar: validar, guardar: guardar, desdeCampana: desdeCampana, buscarCampana: buscarCampana, plantilla: plantilla, leerPlanilla: leerPlanilla, fechaISO: fechaISO, cultivosCatalogo: cultivosCatalogo, esPastura: esPastura };
 })();

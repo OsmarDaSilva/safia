@@ -16,6 +16,22 @@
   <link rel="stylesheet" href="safia-theme.css">
   <style>
     .paso{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+    /* Formulario compacto (30-sep-2026, igual que Campañas) */
+    .formcard{padding:16px 18px;margin-bottom:12px;}
+    .formcard .formsub{margin-bottom:10px;}
+    .form-grid{gap:10px;}
+    .field{gap:3px;}
+    .field input,.field select,.field textarea{padding:8px 11px;}
+    .field .hint{font-size:11px;}
+    .chips label{padding:5px 10px;font-size:12px;}
+    details.pliegue{border-top:1px solid var(--bd);margin-top:10px;}
+    details.pliegue summary{list-style:none;cursor:pointer;padding:9px 2px;font-size:13px;font-weight:600;color:var(--head);display:flex;align-items:center;gap:8px;}
+    details.pliegue summary::-webkit-details-marker{display:none;}
+    details.pliegue summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:2px solid var(--label);border-bottom:2px solid var(--label);transform:rotate(45deg);}
+    details.pliegue[open] summary::after{transform:rotate(-135deg);}
+    details.pliegue summary .pliegue-sub{font-size:12px;font-weight:500;color:var(--label);}
+    details.pliegue .pliegue-cuerpo{padding:4px 0 2px;}
+    @media print{ details.pliegue{display:block;} details.pliegue .pliegue-cuerpo{display:block;} }
     .paso .n{width:26px;height:26px;border-radius:50%;background:var(--green);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:none;}
     .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
     .chips label{display:inline-flex;align-items:center;gap:7px;margin:0;padding:7px 12px;border:1px solid var(--bd);border-radius:8px;background:#fff;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--head);cursor:pointer;}
@@ -148,10 +164,10 @@
           <div class="field" id="campoFinalidad"><label>Finalidad</label><select id="fFinalidad"></select></div>
           <div class="field"><label id="labelSiembra">Fecha de siembra</label><input type="date" id="fFechaSiembra"></div>
           <div class="field"><label>Fin de ciclo estimado <span class="hint">SAFIA lo completa</span></label><input type="date" id="fFechaCosecha"><div class="hint" id="fCicloAyuda"></div></div>
-          <div class="field"><label>Superficie (ha)</label><input type="number" id="fSuperficie" step="0.1" min="0" placeholder="Si queda vacío, la del lote"></div>
+          <div class="field"><label>Superficie (ha)</label><input type="number" id="fSuperficie" step="0.1" min="0" placeholder="La del lote"><div class="hint" id="fSupAyuda"></div></div>
           <div class="field" id="campoDensidad"><label>Densidad (plantas/ha) <span class="hint">opcional</span></label><input type="number" id="fDensidad" min="0" placeholder="Ej: 75000"></div>
           <div class="field"><label id="labelMeta">Meta de rinde (kg/ha) <span class="hint">opcional</span></label><input type="number" id="fMeta" min="0" step="100"></div>
-          <div class="field"><label>Nombre de la campaña <span class="hint">se sugiere solo</span></label><input type="text" id="fNombre" placeholder="Ej: Zafra 2026/27"></div>
+          <div class="field"><label>Nombre de la campaña <span class="hint">SAFIA lo arma solo</span></label><input type="text" id="fNombre" placeholder="Cultivo, zafra y lote"></div>
         </div>
 
         <div id="bloquePastura" class="oculto" style="margin-top:14px;padding:12px 14px;background:#F2F7F3;border:1px dashed #9fd3a9;border-radius:10px;">
@@ -164,8 +180,9 @@
           </div>
         </div>
 
-        <div id="bloqueAntes" style="margin-top:14px;">
-          <div class="section-title" style="margin:6px 0 10px;">Antes de sembrar</div>
+        <details class="pliegue" id="bloqueAntes">
+          <summary>Antes de sembrar <span class="pliegue-sub" id="antesSub">antecesor, cobertura, sistema de siembra, encalado, labores</span></summary>
+          <div class="pliegue-cuerpo">
           <div class="form-grid">
             <div class="field"><label>Cultivo anterior</label><input type="text" id="fAnterior" list="listaAnteriores" autocomplete="off" placeholder="Ej: Maíz"><datalist id="listaAnteriores"></datalist></div>
             <div class="field"><label>Cobertura previa</label><select id="fCobertura"></select></div>
@@ -176,7 +193,8 @@
             <div class="field full"><label>Nota de fertilización <span class="hint">solo texto, no suma N-P-K: la fórmula y la dosis van en el paso 3 (Insumos)</span></label><input type="text" id="fFertilizacion" placeholder="Opcional. Ej: base con 04-30-10 y urea en cobertura"></div>
             <div class="field full"><label>Labores entre la cosecha anterior y esta siembra</label><div class="chips" id="fLabores"></div></div>
           </div>
-        </div>
+          </div>
+        </details>
       </div>
 
       <!-- 3 · Insumos -->
@@ -314,7 +332,28 @@
       $('tituloSiembra').textContent = past ? 'Implantación y manejo' : 'Siembra';
       sugerirNombre();
     }
-    function sugerirNombre() { if (!$('fNombre').value.trim() || $('fNombre').dataset.auto === '1') { $('fNombre').value = SafiaFicha.nombreZafra($('fFechaSiembra').value, $('fCultivo').value); $('fNombre').dataset.auto = '1'; } }
+    function nombreLote() { const o = $('fLote').selectedOptions[0]; return o && $('fLote').value ? o.textContent.replace(/ \(secano\)$/, '') : ''; }
+    function sugerirNombre() { if (!$('fNombre').value.trim() || $('fNombre').dataset.auto === '1') { $('fNombre').value = SafiaFicha.nombreZafra($('fFechaSiembra').value, $('fCultivo').value, nombreLote()); $('fNombre').dataset.auto = '1'; } }
+    /* ---- Lo que SAFIA completa sola al elegir el lote: superficie, antecesor y manejo de la campaña anterior ---- */
+    const CAMPOS_MANEJO = { fCobertura: 'cobertura', fCoberturaManejo: 'coberturaManejo', fSistemaSiembra: 'sistemaSiembra', fConsorcio: 'consorcio' };
+    function autoSuperficie() {
+      const s = $('fSuperficie'); if (s.value && s.dataset.auto !== '1') return;
+      const eq = leer('equipos').find(e => String(e.id) === String($('fLote').value));
+      const n = eq && eq.superficie ? Math.round(parseFloat(String(eq.superficie).replace(',', '.')) * 10) / 10 : null;
+      s.value = n ? String(n) : ''; s.dataset.auto = n ? '1' : '0'; $('fSupAyuda').textContent = n ? 'La del lote; cambiala si sembraste una parte.' : '';
+    }
+    function autoAntes() {
+      if (fichaCargada) return;   // ficha existente: se muestra lo guardado
+      const ant = SafiaFicha.anteriorEnLote($('fLote').value, $('fFechaSiembra').value);
+      const a = $('fAnterior');
+      if (!a.value || a.dataset.auto === '1') { a.value = ant ? ant.cultivo : ''; a.dataset.auto = ant ? '1' : '0'; }
+      let copiado = false;
+      Object.keys(CAMPOS_MANEJO).forEach(id => { const el = $(id); if (el.value && el.dataset.auto !== '1') return; const v = ant && ant.dato ? (ant.dato[CAMPOS_MANEJO[id]] || '') : ''; el.value = v; el.dataset.auto = v ? '1' : '0'; if (v) copiado = true; });
+      $('antesSub').textContent = ant ? ('antecesor ' + ant.cultivo + (copiado ? ' y manejo como la campaña anterior del lote' : '') + ' (' + (ant.campana || '') + '); abrí para cambiarlo') : 'antecesor, cobertura, sistema de siembra, encalado, labores';
+    }
+    $('fAnterior').addEventListener('input', () => { $('fAnterior').dataset.auto = '0'; });
+    Object.keys(CAMPOS_MANEJO).forEach(id => $(id).addEventListener('change', () => { $(id).dataset.auto = '0'; }));
+    $('fSuperficie').addEventListener('input', () => { $('fSuperficie').dataset.auto = '0'; $('fSupAyuda').textContent = ''; });
 
     /* ---------- insumos ---------- */
     function filaInsumo(it, i) {
@@ -356,6 +395,8 @@
       $('fNombre').value = f.nombre || ''; $('fNombre').dataset.auto = f.nombre ? '0' : '1';
       $('fFechaCosecha').value = f.fechaCosecha || f.fechaCosechaEstimada || ''; $('fFechaCosecha').dataset.auto = f.fechaCosechaAuto || !$('fFechaCosecha').value ? '1' : '0'; $('fCicloAyuda').textContent = ''; if (typeof programarMaterial === 'function') programarMaterial();
       $('fAnterior').value = f.cultivoAnterior || ''; $('fCobertura').value = f.cobertura || ''; $('fCoberturaManejo').value = f.coberturaManejo || ''; $('fSistemaSiembra').value = f.sistemaSiembra || ''; $('fConsorcio').value = f.consorcio || ''; $('fEncalado').value = f.encaladoTnHa || ''; $('fFertilizacion').value = f.fertilizacion || '';
+      ['fAnterior', 'fCobertura', 'fCoberturaManejo', 'fSistemaSiembra', 'fConsorcio'].forEach(id => { $(id).dataset.auto = '0'; }); $('fSuperficie').dataset.auto = '0'; $('fSupAyuda').textContent = '';
+      $('bloqueAntes').open = !!(f.cultivoAnterior || f.cobertura || f.sistemaSiembra || f.encaladoTnHa || f.fertilizacion || (f.labores || []).length); $('antesSub').textContent = 'antecesor, cobertura, sistema de siembra, encalado, labores';
       $('fLabores').querySelectorAll('input').forEach(i => { i.checked = (f.labores || []).indexOf(i.value) !== -1; i.parentNode.classList.toggle('on', i.checked); });
       $('fSistemaPastoreo').value = f.sistemaPastoreo || ''; $('fPiquetes').value = f.piquetes || ''; $('fOcupacion').value = f.diasOcupacion || ''; $('fDescanso').value = f.diasDescanso || '';
       insumos = (f.insumos || []).map(i => Object.assign({}, i)); pintarInsumos(); $('fManejoCompleto').checked = !!f.manejoCompleto;
@@ -367,9 +408,11 @@
       ['fVariedad', 'fFechaSiembra', 'fSuperficie', 'fDensidad', 'fMeta', 'fNombre', 'fAnterior', 'fEncalado', 'fFertilizacion', 'fPiquetes', 'fOcupacion', 'fDescanso', 'fCosechaFecha', 'fCosechaKg', 'fCosechaSup', 'fCosechaHumedad', 'fRiegoMM', 'fLluviaMM', 'fObs'].forEach(id => { $(id).value = ''; });
       ['fCobertura', 'fCoberturaManejo', 'fSistemaSiembra', 'fConsorcio', 'fSistemaPastoreo'].forEach(id => { $(id).value = ''; });
       $('fFinalidad').value = 'Granos Comercial'; $('fCosechaDestino').value = 'cooperativa'; $('fNombre').dataset.auto = '1';
+      ['fAnterior', 'fCobertura', 'fCoberturaManejo', 'fSistemaSiembra', 'fConsorcio', 'fSuperficie'].forEach(id => { $(id).dataset.auto = '1'; }); $('bloqueAntes').open = false;
       $('fLabores').querySelectorAll('input').forEach(i => { i.checked = false; i.parentNode.classList.remove('on'); });
       insumos = []; pintarInsumos(); $('rindeCalc').textContent = ''; $('fManejoCompleto').checked = false;
       if (todo) { $('fCultivo').value = ''; alCambiarCultivo(); $('fExistente').value = ''; $('estadoGuardado').textContent = ''; }
+      if (typeof autoSuperficie === 'function') { autoSuperficie(); autoAntes(); }
       if ($('filaProxima')) $('filaProxima').style.display = 'none';
     }
     function calcRinde() { const kg = parseFloat($('fCosechaKg').value), sup = parseFloat($('fCosechaSup').value) || parseFloat($('fSuperficie').value); $('rindeCalc').textContent = kg > 0 && sup > 0 ? 'Rinde: ' + Math.round(kg / sup).toLocaleString('es-PY') + ' kg/ha' : ''; }
@@ -452,13 +495,15 @@
     /* ---------- arranque ---------- */
     llenarCatalogos(); llenarClientes(); pintarInsumos();
     $('fCliente').addEventListener('change', llenarCampos); $('fCampo').addEventListener('change', llenarLotes); $('fLote').addEventListener('change', llenarExistentes); $('fExistente').addEventListener('change', cargarExistente);
-    $('fCultivo').addEventListener('change', alCambiarCultivo); $('fFechaSiembra').addEventListener('change', sugerirNombre);
+    $('fCultivo').addEventListener('change', alCambiarCultivo); $('fFechaSiembra').addEventListener('change', () => { sugerirNombre(); autoAntes(); });
+    $('fLote').addEventListener('change', () => { sugerirNombre(); autoSuperficie(); autoAntes(); }); $('fExistente').addEventListener('change', () => { if (!$('fExistente').value) { autoSuperficie(); autoAntes(); } });
     /* ---- Material y ciclo: con la variedad y la fecha de siembra, SAFIA completa la ficha del material y el fin de ciclo ---- */
     const _material = { gm: null, ciclo: null }; let _tMat = null, _pedidoMat = 0;
     function actualizarMaterial() {
       if (!window.SafiaCiclo) return;
       const cultivo = $('fCultivo').value, variedad = $('fVariedad').value.trim(), siembra = $('fFechaSiembra').value, out = $('fFechaCosecha'), ayuda = $('fCicloAyuda');
-      $('fMatFicha').textContent = cultivo && variedad ? SafiaCiclo.fichaMaterial(cultivo, variedad) : '';
+      const fichaM = cultivo && variedad ? SafiaCiclo.fichaMaterial(cultivo, variedad) : '', pM = fichaM.split(' · ');
+      $('fMatFicha').textContent = pM.slice(0, 3).join(' · ') + (pM.length > 3 ? ' · más al pasar el mouse' : ''); $('fMatFicha').title = fichaM;
       const d = cultivo && variedad && window.SafiaMateriales ? SafiaMateriales.buscar(cultivo, variedad) : null; _material.gm = d && d.gm != null ? d.gm : null;
       const campo = leer('campos').find(c => String(c.id) === String($('fCampo').value)) || {};
       const pedido = ++_pedidoMat;
