@@ -76,9 +76,11 @@
     var buenas = lista.filter(function (s) { return s.fecha >= desde && (s.nubes_pct == null || s.nubes_pct < 40) && s.ndvi != null; }).map(function (s) { return s.fecha; });
     if (buenas.length) return Promise.resolve(buenas);
     if (!window.safiaSupabase) return Promise.resolve([]);
-    return window.safiaSupabase.functions.invoke('safia-ndvi', { body: { equipoId: String(equipo.id), campoId: campoId != null ? String(campoId) : null, partes: equipo.poligono.partes, desde: desde, hasta: hoy() } })
+    // las pasadas ya calculadas por la pestaña Vigor satelital están en la tabla safia_ndvi: se usan sin volver a pedirlas a Copernicus
+    var deTabla = window.safiaSupabase.from ? window.safiaSupabase.from('safia_ndvi').select('fecha,ndvi_media,nubes_pct').eq('equipo_id', String(equipo.id)).gte('fecha', desde).order('fecha').then(function (r) { return (r.data || []).filter(function (s) { return (s.nubes_pct == null || s.nubes_pct < 40) && s.ndvi_media != null; }).map(function (s) { return s.fecha; }); }).catch(function () { return []; }) : Promise.resolve([]);
+    return deTabla.then(function (ft) { if (ft.length) return ft; return window.safiaSupabase.functions.invoke('safia-ndvi', { body: { equipoId: String(equipo.id), campoId: campoId != null ? String(campoId) : null, partes: equipo.poligono.partes, desde: desde, hasta: hoy() } })
       .then(function (r) { var d = r && r.data; var serie = (d && (d.serie || d.datos || d.filas)) || []; return serie.filter(function (s) { return (s.nubes_pct == null || s.nubes_pct < 40) && (s.ndvi != null || s.ndvi_media != null); }).map(function (s) { return s.fecha; }); })
-      .catch(function () { return []; });
+      .catch(function () { return []; }); });
   }
   function decodificarPng(b64) {
     return new Promise(function (ok, no) {
