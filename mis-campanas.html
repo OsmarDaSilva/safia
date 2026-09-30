@@ -661,6 +661,9 @@
 <script src="safia-precios.js"></script>
 <script src="safia-senave.js"></script>
 <script src="safia-catalogo.js"></script>
+<script src="safia-materiales-datos.js"></script>
+<script src="safia-materiales.js"></script>
+<script src="safia-ciclo.js"></script>
 <script src="safia-lluvia.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-sensores.js"></script>
@@ -797,7 +800,7 @@
 
           <div class="campo">
             <label>Equipo de riego o lote de secano</label>
-            <select id="equipo" onchange="fijarFiltroPorEquipo(this.value); autoCompletarAntecesores(); refrescarAntecesoresEnPantalla();">
+            <select id="equipo" onchange="fijarFiltroPorEquipo(this.value); autoCompletarAntecesores(); refrescarAntecesoresEnPantalla(); cultivosTemp.forEach(c => programarMaterial(c.idTemp));">
               <option value="">Seleccionar equipo...</option>
             </select>
           </div>
@@ -1877,9 +1880,40 @@
       if (!c) return;
       c[campo] = valor;
       if (campo === 'cultivoAnterior') c.cultivoAnteriorAuto = false;   // lo escribió el usuario: se respeta
+      if (campo === 'fechaCosecha') { c.fechaCosechaAuto = false; const a = document.getElementById('cosAyuda-' + idTemp); if (a) a.textContent = valor ? '' : ''; }   // la escribió el usuario: no se pisa
+      if (campo === 'variedad' || campo === 'fechaSiembra' || campo === 'cultivo') programarMaterial(idTemp);
       if (campo === 'fechaSiembra' || campo === 'cultivo') { autoCompletarAntecesores(); refrescarAntecesoresEnPantalla(); }
       if (campo === 'cultivo') renderizarCultivos();
     }
+    /* ---- Material y ciclo: con la variedad y la fecha de siembra, SAFIA completa la ficha y propone la fecha de fin de ciclo ---- */
+    const escHtml = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    const _tMaterial = {};
+    function programarMaterial(idTemp) { clearTimeout(_tMaterial[idTemp]); _tMaterial[idTemp] = setTimeout(() => actualizarMaterial(idTemp), 350); }
+    function coordDelEquipo() {
+      const eqId = document.getElementById('equipo') ? document.getElementById('equipo').value : '';
+      const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(eqId)); if (!eq) return {};
+      const campo = JSON.parse(localStorage.getItem('campos') || '[]').find(x => String(x.id) === String(eq.campoId)); if (!campo) return {};
+      return { lat: parseFloat(String(campo.latitud || '').replace(',', '.')), lon: parseFloat(String(campo.longitud || '').replace(',', '.')) };
+    }
+    function actualizarMaterial(idTemp) {
+      const c = cultivosTemp.find(x => x.idTemp === idTemp); if (!c || !window.SafiaCiclo) return;
+      const ficha = c.cultivo && c.variedad ? SafiaCiclo.fichaMaterial(c.cultivo, c.variedad) : '';
+      c.fichaMaterial = ficha; const fEl = document.getElementById('matFicha-' + idTemp); if (fEl) fEl.textContent = ficha;
+      const d = c.cultivo && c.variedad && window.SafiaMateriales ? SafiaMateriales.buscar(c.cultivo, c.variedad) : null;
+      c.gm = d && d.gm != null ? d.gm : null;
+      if (!c.fechaSiembra || !d) { if (c.fechaCosechaAuto) { c.fechaCosecha = ''; c.fechaCosechaAuto = false; c.ciclo = null; const ci = document.getElementById('cosecha-' + idTemp); if (ci) ci.value = ''; const a0 = document.getElementById('cosAyuda-' + idTemp); if (a0) a0.textContent = ''; } return; }
+      const co = coordDelEquipo(), pedido = ++_pedidoMaterial;
+      SafiaCiclo.estimar({ cultivo: c.cultivo, variedad: c.variedad, fechaSiembra: c.fechaSiembra, lat: co.lat, lon: co.lon }).then(r => {
+        if (pedido !== _pedidoMaterial) return;   // llegó tarde: ya hay otro pedido
+        const cur = cultivosTemp.find(x => x.idTemp === idTemp); if (!cur) return;
+        const ayuda = document.getElementById('cosAyuda-' + idTemp), inp = document.getElementById('cosecha-' + idTemp);
+        if (!r) { if (cur.fechaCosechaAuto) { cur.fechaCosecha = ''; cur.fechaCosechaAuto = false; if (inp) inp.value = ''; } cur.ciclo = null; if (ayuda) ayuda.textContent = cur.variedad && cur.fechaSiembra ? 'SAFIA no tiene el ciclo de este material con fuente: cargá la fecha estimada a mano.' : ''; return; }
+        cur.ciclo = { dias: r.dias, metodo: r.metodo, texto: r.texto, fuente: r.fuente, material: r.material, gdu: r.gdu || null };
+        if (!cur.fechaCosecha || cur.fechaCosechaAuto) { cur.fechaCosecha = r.fechaFin; cur.fechaCosechaAuto = true; if (inp) inp.value = r.fechaFin; if (ayuda) ayuda.textContent = SafiaCiclo.textoEstimacion(r); }
+        else if (ayuda) ayuda.textContent = 'La estimación de SAFIA sería ' + r.dias + ' días (' + r.texto + '); se respeta la fecha que cargaste.';
+      });
+    }
+    let _pedidoMaterial = 0;
     function alternarLabor(idTemp, labor, marcado) {
       const c = cultivosTemp.find(c => c.idTemp === idTemp);
       if (!c) return;
@@ -2054,6 +2088,7 @@
               <div class="campo">
                 <label>Variedad / Híbrido <span class="opcional">(opcional)</span></label>
                 <input type="text" list="listaVariedades" autocomplete="off" placeholder="${cultivo.cultivo ? 'Elegí del catálogo o escribí' : 'Primero elegí el cultivo'}" value="${cultivo.variedad || ''}" onfocus="armarListaVariedades(${cultivo.idTemp})" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'variedad', this.value)">
+                <div class="ayuda" id="matFicha-${cultivo.idTemp}" style="color:#17692A;font-weight:600;">${escHtml(cultivo.fichaMaterial || '')}</div>
                 <div class="ayuda">${cultivo.cultivo ? 'Primero salen las ya usadas, después el catálogo verificado de SAFIA y todo lo inscripto en SENAVE para ' + cultivo.cultivo + '. Si no está, escribila: queda guardada y la próxima vez aparece como ya usada.' : 'El catálogo de variedades depende del cultivo: elegilo arriba y acá aparecen las de ese cultivo.'}</div>
               </div>
             </div>
@@ -2075,7 +2110,8 @@
 
               <div class="campo">
                 <label>${esPastura ? 'Fin previsto <span class="opcional">(solo si se renueva)</span>' : 'Fecha estimada cosecha <span class="opcional">(opcional)</span>'}</label>
-                <input type="date" value="${cultivo.fechaCosecha || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaCosecha', this.value)">
+                <input type="date" id="cosecha-${cultivo.idTemp}" value="${cultivo.fechaCosecha || ''}" oninput="actualizarCultivoTemp(${cultivo.idTemp}, 'fechaCosecha', this.value)">
+                <div class="ayuda" id="cosAyuda-${cultivo.idTemp}">${escHtml(cultivo.ciclo && cultivo.fechaCosechaAuto && window.SafiaCiclo ? SafiaCiclo.textoEstimacion(Object.assign({ fechaFin: cultivo.fechaCosecha }, cultivo.ciclo)) : '')}</div>
               </div>
             </div>
 
@@ -2218,6 +2254,7 @@
               superficie: c.superficie || '',
               fechaSiembra: c.fechaSiembra,
               fechaCosecha: c.fechaCosecha || '',
+              fechaCosechaAuto: !!c.fechaCosechaAuto, gm: c.gm != null ? c.gm : null, ciclo: c.ciclo || null,
               densidad: c.densidad || '',
               espaciamiento: c.espaciamiento || '',
               rendimientoObj: c.rendimientoObj || '',
@@ -2272,6 +2309,7 @@
             superficie: c.superficie || '',
             fechaSiembra: c.fechaSiembra,
             fechaCosecha: c.fechaCosecha || '',
+            fechaCosechaAuto: !!c.fechaCosechaAuto, gm: c.gm != null ? c.gm : null, ciclo: c.ciclo || null,
             densidad: c.densidad || '',
             espaciamiento: c.espaciamiento || '',
             rendimientoObj: c.rendimientoObj || '',

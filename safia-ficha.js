@@ -85,7 +85,7 @@
     var enc = buscarCampana(campanas, f), ahora = new Date().toISOString(), accion;
     var cu = {
       cultivo: cultivo, variedad: String(f.variedad || '').trim().replace(/\s+/g, ' '), superficie: num(f.superficie) != null ? String(num(f.superficie)) : (eq && eq.superficie ? String(eq.superficie) : ''),
-      fechaSiembra: fs, fechaCosecha: fechaISO(f.fechaCosechaEstimada) || '', densidad: num(f.densidad) != null ? String(num(f.densidad)) : '', espaciamiento: f.espaciamiento || '',
+      fechaSiembra: fs, fechaCosecha: fechaISO(f.fechaCosechaEstimada) || '', fechaCosechaAuto: !!f.fechaCosechaAuto, gm: f.gm != null ? f.gm : null, ciclo: f.ciclo || null, densidad: num(f.densidad) != null ? String(num(f.densidad)) : '', espaciamiento: f.espaciamiento || '',
       rendimientoObj: num(f.rendimientoObj) != null ? String(num(f.rendimientoObj)) : '', finalidad: pastura ? 'Forraje' : (FINALIDADES.indexOf(f.finalidad) >= 0 ? f.finalidad : 'Granos Comercial'),
       encaladoTnHa: num(f.encaladoTnHa) != null ? String(num(f.encaladoTnHa)) : '', fertilizacion: String(f.fertilizacion || '').trim(), cultivoAnterior: String(f.cultivoAnterior || '').trim(),
       cobertura: porNombreOClave(ins().COBERTURAS, f.cobertura) || (f.cobertura || ''), coberturaDetalle: String(f.coberturaDetalle || '').trim(), coberturaManejo: porNombreOClave(ins().MANEJO_COBERTURA, f.coberturaManejo),

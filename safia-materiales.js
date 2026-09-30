@@ -105,6 +105,33 @@
   var IDX = { soja: {}, maiz: {} };
   SOJA.forEach(function (r) { IDX.soja[base(r[0])] = { nombre: r[0], gm: r[1], habito: r[2], sanidad: r[3], url: r[4], nivel: r[5], nota: r[6] || '' }; });
   MAIZ.forEach(function (r) { IDX.maiz[base(r[0])] = { nombre: r[0], ciclo: r[1], gmBayer: r[2], gduFlor: r[3], gduMad: r[4], senave: r[5], url: r[6], nivel: r[7], nota: r[8] || '' }; });
+  // Fichas recolectadas de las páginas de obtentores y distribuidores (safia-materiales-datos.js, generado por scripts/gen-materiales.js):
+  // completan lo que falta en las filas de arriba (ciclo en días, densidad…) y agregan los materiales que no estaban. El GM ya
+  // verificado arriba no se pisa: si la ficha recolectada trae otro, queda anotado.
+  function sumarExtra(cu, lista) {
+    if (!Array.isArray(lista)) return; IDX[cu] = IDX[cu] || {};
+    lista.forEach(function (x) {
+      if (!x || !x.nombre) return;
+      var claves = [base(x.nombre)].concat(x.nombreSenave ? String(x.nombreSenave).split('/').map(function (n) { return base(n); }) : []).filter(function (k, i, a) { return k && a.indexOf(k) === i; });
+      var d = null; claves.forEach(function (k) { if (!d && IDX[cu][k]) d = IDX[cu][k]; });
+      if (!d) {
+        d = { nombre: x.nombre, gm: x.gm != null ? x.gm : null, habito: x.habito || '', sanidad: x.sanidad || '', url: x.url || '', nivel: x.nivel || 'distribuidor', nota: x.nota || '',
+          ciclo: x.ciclo || '', gmBayer: null, gmEmpresa: x.gmEmpresa || '', gduFlor: x.gduFlor != null ? x.gduFlor : null, gduMad: x.gduMad != null ? x.gduMad : null, gduBase: x.gduBase || null, senave: '' };
+      } else {
+        if (x.gm != null && d.gm != null && Math.abs(x.gm - d.gm) >= 0.05) d.nota = (d.nota ? d.nota + '; ' : '') + 'otra fuente (' + (x.url || '').replace(/^https?:\/\/(www\.)?/, '').split('/')[0] + ') dice GM ' + x.gm;
+        if (d.gm == null && x.gm != null) { d.gm = x.gm; d.url = d.url || x.url; }
+        ['habito', 'sanidad', 'ciclo', 'gmEmpresa'].forEach(function (k) { if (!d[k] && x[k]) d[k] = x[k]; });
+        ['gduFlor', 'gduMad', 'gduBase'].forEach(function (k) { if (d[k] == null && x[k] != null) d[k] = x[k]; });
+        if (!d.url && x.url) { d.url = x.url; d.nivel = x.nivel || d.nivel; }
+      }
+      ['cicloDias', 'cicloTexto', 'cicloRegion', 'densidad', 'tecnologia', 'grano', 'obtentor'].forEach(function (k) { if ((d[k] == null || d[k] === '') && x[k] != null && x[k] !== '') d[k] = x[k]; });
+      if (x.url && d.url !== x.url) d.urlExtra = x.url;
+      claves.forEach(function (k) { IDX[cu][k] = d; });
+    });
+  }
+  if (window.SAFIA_MATERIALES_EXTRA) Object.keys(window.SAFIA_MATERIALES_EXTRA).forEach(function (cu) { sumarExtra(cu, window.SAFIA_MATERIALES_EXTRA[cu]); });
+  // todos los materiales de un cultivo (sin repetir), para estadísticas como el ciclo por grupo de madurez
+  function todos(cultivo) { var t = IDX[cultivoClave(cultivo)] || {}, vistos = [], out = []; Object.keys(t).forEach(function (k) { if (vistos.indexOf(t[k]) < 0) { vistos.push(t[k]); out.push(t[k]); } }); return out; }
   function buscar(cultivo, nombre) {
     if (!nombre) return null;
     var cu = cultivoClave(cultivo), t = IDX[cu];
@@ -350,5 +377,5 @@
 
   // mapa del paralelo 25 en un contenedor cualquiera (lat/lon del campo opcionales)
   function mapaZona(div, lat, lon) { return cargarLeaflet().then(function () { return dibujarMapa(div, coord(lat), coord(lon)); }); }
-  window.SafiaMateriales = { recomendacionHTML: recomendacionHTML, mejoresEnsayos: mejoresEnsayos, mapaZona: mapaZona, buscar: buscar, base: base, zonaGM: zonaGM, lectura: lectura, corto: corto, ensayosDe: ensayosDe, ensayosHTML: ensayosHTML, notaHTML: notaHTML, FUENTES: F };
+  window.SafiaMateriales = { todos: todos, recomendacionHTML: recomendacionHTML, mejoresEnsayos: mejoresEnsayos, mapaZona: mapaZona, buscar: buscar, base: base, zonaGM: zonaGM, lectura: lectura, corto: corto, ensayosDe: ensayosDe, ensayosHTML: ensayosHTML, notaHTML: notaHTML, FUENTES: F };
 })();

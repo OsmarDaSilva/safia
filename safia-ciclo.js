@@ -1,0 +1,124 @@
+/* SAFIA — Ciclo del cultivo: cuánto dura y cuándo termina (fecha estimada de cosecha)
+   -------------------------------------------------------------------
+   Con la variedad o el híbrido y la fecha de siembra, SAFIA propone la fecha de fin de ciclo para que el humano
+   intervenga lo mínimo posible (pedido de Osmar, 30-sep-2026). Siempre dice de dónde sale el número:
+   1. Ciclo publicado por el obtentor o un distribuidor para ese material (días), de safia-materiales.js.
+   2. Soja sin ciclo publicado pero con grupo de madurez (GM): promedio de los materiales del catálogo con GM parecido
+      que sí tienen ciclo publicado. Es una estimación y se dice.
+   3. Maíz con grados-día a madurez fisiológica publicados (GDU): se suman los grados-día con las temperaturas de
+      10 años del lugar (Open-Meteo, reanálisis ERA5). Fórmula de Embrapa Milho e Sorgo (Sistemas de
+      Produção 2, "Plantio"): GDU del día = (Tmáx + Tmín)/2 − 10, con Tmáx tope 30 °C y Tmín piso 10 °C.
+      https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf
+   Lo que no se puede estimar con fuente queda vacío: nunca se inventa un ciclo.
+   Uso: SafiaCiclo.estimar({ cultivo, variedad, fechaSiembra, lat, lon }) → Promise<{ dias, fechaFin, metodo, texto, fuente } | null>
+        SafiaCiclo.fichaMaterial(cultivo, variedad) → texto corto para mostrar debajo de la variedad */
+(function () {
+  'use strict';
+  function num(v) { if (v == null || v === '') return null; var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  function fmt(n, d) { return n == null || isNaN(n) ? '—' : Number(n).toLocaleString('es-PY', { maximumFractionDigits: d == null ? 0 : d }); }
+  function cultivoClave(c) { var n = String(c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return n.indexOf('soj') === 0 ? 'soja' : (n.indexOf('maiz') === 0 ? 'maiz' : n.split(/[\s(\/]/)[0]); }
+  function sumarDias(iso, n) { var d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); d.setDate(d.getDate() + Math.round(n)); return d.toISOString().slice(0, 10); }
+  function fmtF(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
+  var EMBRAPA_GDU = { n: 'Embrapa Milho e Sorgo, Sistemas de Produção 2 (Plantio): grados-día con 30 °C y 10 °C como temperaturas de referencia', url: 'https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf' };
+
+  function material(cultivo, variedad) { return window.SafiaMateriales && variedad ? window.SafiaMateriales.buscar(cultivo, variedad) : null; }
+
+  /* ---------- 1) ciclo publicado ---------- */
+  function publicado(d) {
+    if (!d || !(num(d.cicloDias) > 0)) return null;
+    return { dias: Math.round(num(d.cicloDias)), metodo: 'publicado', confianza: 'alta',
+      texto: 'ciclo publicado' + (d.cicloTexto ? ': ' + d.cicloTexto : ': ' + Math.round(num(d.cicloDias)) + ' días') + (d.cicloRegion ? ' (' + d.cicloRegion + ')' : ''),
+      fuente: { n: (d.nivel === 'obtentor' ? 'el obtentor' : d.nivel === 'distribuidor' ? 'un distribuidor' : d.nivel || 'fuente') + (d.url ? ': ' + d.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : ''), url: d.url || '' } };
+  }
+
+  /* ---------- 2) soja: por grupo de madurez, con los materiales que sí tienen ciclo publicado ---------- */
+  function porGM(d) {
+    if (!d || d.gm == null || !window.SafiaMateriales || !window.SafiaMateriales.todos) return null;
+    var todos = window.SafiaMateriales.todos('soja').filter(function (m) { return m.gm != null && num(m.cicloDias) > 0; });
+    if (todos.length < 3) return null;
+    var cerca = todos.filter(function (m) { return Math.abs(m.gm - d.gm) <= 0.3; });
+    var usados = cerca.length >= 3 ? cerca : todos, dias;
+    if (cerca.length >= 3) dias = usados.reduce(function (s, m) { return s + num(m.cicloDias); }, 0) / usados.length;
+    else {
+      // recta días = a + b·GM con todos los materiales que tienen ambos datos
+      var n = usados.length, sx = 0, sy = 0, sxx = 0, sxy = 0;
+      usados.forEach(function (m) { var x = m.gm, y = num(m.cicloDias); sx += x; sy += y; sxx += x * x; sxy += x * y; });
+      var b = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), a = (sy - b * sx) / n;
+      dias = a + b * d.gm;
+    }
+    if (!(dias > 60 && dias < 200)) return null;
+    return { dias: Math.round(dias), metodo: 'gm', confianza: 'media',
+      texto: 'estimado por el grupo de madurez (GM ' + fmt(d.gm, 1) + '): ' + (cerca.length >= 3 ? 'promedio de ' + cerca.length + ' materiales de GM ' + fmt(d.gm - 0.3, 1) + ' a ' + fmt(d.gm + 0.3, 1) + ' con ciclo publicado' : 'tendencia de ' + usados.length + ' materiales con ciclo publicado'),
+      fuente: { n: 'catálogo de materiales de SAFIA (cada uno con su fuente)', url: '' } };
+  }
+
+  /* ---------- 3) maíz: grados-día a madurez fisiológica con el clima del lugar ---------- */
+  function gduDia(tmax, tmin) { if (tmax == null || tmin == null) return null; var mx = Math.min(30, tmax), mn = Math.max(10, tmin); return Math.max(0, (mx + mn) / 2 - 10); }
+  // Temperaturas diarias de los últimos 10 años completos del lugar (Open-Meteo, reanálisis ERA5); se guardan en la sesión
+  var _temp = {};
+  function temperaturas10(lat, lon) {
+    var hasta = new Date().getFullYear() - 1, desde = hasta - 9, k = Number(lat).toFixed(3) + ',' + Number(lon).toFixed(3) + ',' + desde;
+    if (_temp[k]) return _temp[k];
+    try { var g = sessionStorage.getItem('gdu10_' + k); if (g) { _temp[k] = Promise.resolve(JSON.parse(g)); return _temp[k]; } } catch (e) {}
+    var url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon + '&start_date=' + desde + '-01-01&end_date=' + hasta + '-12-31&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FAsuncion';
+    _temp[k] = fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      var d = j && j.daily; if (!d || !d.time) throw new Error('sin datos');
+      var h = { desde: desde, hasta: hasta, time: d.time, tmax: d.temperature_2m_max, tmin: d.temperature_2m_min };
+      try { sessionStorage.setItem('gdu10_' + k, JSON.stringify(h)); } catch (e) {}
+      return h;
+    });
+    _temp[k].catch(function () { delete _temp[k]; });
+    return _temp[k];
+  }
+  function porGDU(d, fechaSiembra, lat, lon) {
+    if (!d || !(num(d.gduMad) > 0) || lat == null || lon == null || !fechaSiembra) return Promise.resolve(null);
+    return temperaturas10(lat, lon).then(function (h) {
+      if (!h || !h.time || !h.tmax || !h.tmin) return null;
+      var suma = {}, cuenta = {};
+      h.time.forEach(function (t, i) { var k = String(t).slice(5, 10), g = gduDia(h.tmax[i], h.tmin[i]); if (g == null) return; suma[k] = (suma[k] || 0) + g; cuenta[k] = (cuenta[k] || 0) + 1; });
+      var meta = num(d.gduMad), base = num(d.gduBase) || 10, acum = 0, dia = new Date(String(fechaSiembra).slice(0, 10) + 'T12:00:00'), n = 0;
+      while (acum < meta && n < 320) {
+        var k = dia.toISOString().slice(5, 10); if (k === '02-29') k = '02-28';
+        if (!cuenta[k]) return null;
+        acum += suma[k] / cuenta[k]; dia.setDate(dia.getDate() + 1); n++;
+      }
+      if (acum < meta) return null;
+      return { dias: n, metodo: 'gdu', confianza: 'media', gdu: meta,
+        texto: 'madurez fisiológica estimada: ' + fmt(meta, 0) + ' grados-día (base ' + fmt(base, 0) + ' °C) sumados desde la siembra con las temperaturas de ' + h.desde + '–' + h.hasta + ' del lugar',
+        fuente: { n: 'GDU del material: ' + (d.url ? d.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : 'ficha') + ' · fórmula: ' + EMBRAPA_GDU.n + ' · temperaturas: Open-Meteo (ERA5)', url: EMBRAPA_GDU.url },
+        nota: 'La cosecha viene después, cuando el grano seca en la planta.' };
+    }).catch(function () { return null; });
+  }
+
+  function estimar(o) {
+    o = o || {}; var cu = cultivoClave(o.cultivo), d = material(o.cultivo, o.variedad);
+    if (!d || !o.fechaSiembra) return Promise.resolve(null);
+    var p = publicado(d);
+    var fin = function (r) { if (!r) return null; r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d.nombre; return r; };
+    if (p) return Promise.resolve(fin(p));
+    if (cu === 'soja') return Promise.resolve(fin(porGM(d)));
+    if (cu === 'maiz') return porGDU(d, o.fechaSiembra, num(o.lat), num(o.lon)).then(fin);
+    return Promise.resolve(null);
+  }
+
+  /* ---------- texto corto del material para la pantalla de campañas ---------- */
+  function fichaMaterial(cultivo, variedad) {
+    var d = material(cultivo, variedad); if (!d) return '';
+    var cu = cultivoClave(cultivo), p = [];
+    if (d.soloSenave) return 'Sin ficha verificada en SAFIA. ' + (d.nota || d.senave || '');
+    if (cu === 'soja') { if (d.gm != null) p.push('GM ' + fmt(d.gm, 1)); else p.push('GM sin dato verificado'); if (d.habito) p.push(d.habito); }
+    if (cu === 'maiz') { if (d.ciclo) p.push(d.ciclo); if (d.gduFlor) p.push(fmt(d.gduFlor, 0) + ' GDU a floración'); if (d.gduMad) p.push(fmt(d.gduMad, 0) + ' a madurez'); }
+    if (d.cicloTexto || num(d.cicloDias) > 0) p.push('ciclo ' + (d.cicloTexto || Math.round(num(d.cicloDias)) + ' días') + (d.cicloRegion ? ' (' + d.cicloRegion + ')' : ''));
+    if (d.densidad) p.push(d.densidad);
+    if (d.sanidad) p.push(d.sanidad);
+    var fuente = d.nivel ? ' · fuente: ' + d.nivel + (d.url ? ' (' + d.url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] + ')' : '') : '';
+    var reg = d.registro && window.SafiaSenave ? ' · ' + window.SafiaSenave.etiqueta(d.registro) : '';
+    return (d.exacto === false ? 'Dato de ' + d.nombre + ': ' : '') + p.join(' · ') + fuente + reg;
+  }
+  function textoEstimacion(r) {
+    if (!r) return '';
+    return 'Estimada por SAFIA: ' + r.dias + ' días desde la siembra → ' + fmtF(r.fechaFin) + ' (' + r.texto + ').' + (r.nota ? ' ' + r.nota : '') + ' Podés corregirla.';
+  }
+
+  window.SafiaCiclo = { estimar: estimar, fichaMaterial: fichaMaterial, textoEstimacion: textoEstimacion, gduDia: gduDia, EMBRAPA_GDU: EMBRAPA_GDU };
+})();

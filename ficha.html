@@ -54,6 +54,9 @@
 <script src="safia-insumos.js"></script>
 <script src="safia-senave.js"></script>
 <script src="safia-catalogo.js"></script>
+<script src="safia-materiales-datos.js"></script>
+<script src="safia-materiales.js"></script>
+<script src="safia-ciclo.js"></script>
 <script src="safia-balance.js"></script>
 <script src="safia-pasturas.js"></script>
 <script src="safia-ficha.js"></script>
@@ -141,9 +144,10 @@
         <div class="formsub">Con cultivo y fecha de siembra ya se puede guardar. Lo demás se completa cuando se tenga.</div>
         <div class="form-grid">
           <div class="field"><label>Cultivo</label><select id="fCultivo"></select></div>
-          <div class="field"><label>Variedad / híbrido</label><input type="text" id="fVariedad" list="listaVariedades" autocomplete="off" placeholder="Elegí o escribí"><datalist id="listaVariedades"></datalist></div>
+          <div class="field"><label>Variedad / híbrido</label><input type="text" id="fVariedad" list="listaVariedades" autocomplete="off" placeholder="Elegí o escribí"><datalist id="listaVariedades"></datalist><div class="hint" id="fMatFicha" style="color:#17692A;font-weight:600;"></div></div>
           <div class="field" id="campoFinalidad"><label>Finalidad</label><select id="fFinalidad"></select></div>
           <div class="field"><label id="labelSiembra">Fecha de siembra</label><input type="date" id="fFechaSiembra"></div>
+          <div class="field"><label>Fin de ciclo estimado <span class="hint">SAFIA lo completa</span></label><input type="date" id="fFechaCosecha"><div class="hint" id="fCicloAyuda"></div></div>
           <div class="field"><label>Superficie (ha)</label><input type="number" id="fSuperficie" step="0.1" min="0" placeholder="Si queda vacío, la del lote"></div>
           <div class="field" id="campoDensidad"><label>Densidad (plantas/ha) <span class="hint">opcional</span></label><input type="number" id="fDensidad" min="0" placeholder="Ej: 75000"></div>
           <div class="field"><label id="labelMeta">Meta de rinde (kg/ha) <span class="hint">opcional</span></label><input type="number" id="fMeta" min="0" step="100"></div>
@@ -337,7 +341,8 @@
     /* ---------- leer / pintar / limpiar ---------- */
     function leerFicha() {
       return {
-        equipoId: $('fLote').value, nombre: $('fNombre').value.trim(), cultivo: $('fCultivo').value, variedad: $('fVariedad').value, finalidad: $('fFinalidad').value, fechaSiembra: $('fFechaSiembra').value, superficie: $('fSuperficie').value, densidad: $('fDensidad').value, rendimientoObj: $('fMeta').value,
+        equipoId: $('fLote').value, nombre: $('fNombre').value.trim(), cultivo: $('fCultivo').value, variedad: $('fVariedad').value, finalidad: $('fFinalidad').value, fechaSiembra: $('fFechaSiembra').value,
+        fechaCosechaEstimada: $('fFechaCosecha').value, fechaCosechaAuto: $('fFechaCosecha').dataset.auto === '1', gm: _material.gm, ciclo: _material.ciclo, superficie: $('fSuperficie').value, densidad: $('fDensidad').value, rendimientoObj: $('fMeta').value,
         cultivoAnterior: $('fAnterior').value, cobertura: $('fCobertura').value, coberturaManejo: $('fCoberturaManejo').value, sistemaSiembra: $('fSistemaSiembra').value, consorcio: $('fConsorcio').value, encaladoTnHa: $('fEncalado').value, fertilizacion: $('fFertilizacion').value,
         labores: [...$('fLabores').querySelectorAll('input:checked')].map(i => i.value), observaciones: $('fObs').value,
         sistemaPastoreo: $('fSistemaPastoreo').value, piquetes: $('fPiquetes').value, diasOcupacion: $('fOcupacion').value, diasDescanso: $('fDescanso').value,
@@ -349,6 +354,7 @@
       $('fCultivo').value = f.cultivo || ''; alCambiarCultivo();
       $('fVariedad').value = f.variedad || ''; $('fFinalidad').value = f.finalidad || 'Granos Comercial'; $('fFechaSiembra').value = f.fechaSiembra || ''; $('fSuperficie').value = f.superficie || ''; $('fDensidad').value = f.densidad || ''; $('fMeta').value = f.rendimientoObj || '';
       $('fNombre').value = f.nombre || ''; $('fNombre').dataset.auto = f.nombre ? '0' : '1';
+      $('fFechaCosecha').value = f.fechaCosecha || f.fechaCosechaEstimada || ''; $('fFechaCosecha').dataset.auto = f.fechaCosechaAuto || !$('fFechaCosecha').value ? '1' : '0'; $('fCicloAyuda').textContent = ''; if (typeof programarMaterial === 'function') programarMaterial();
       $('fAnterior').value = f.cultivoAnterior || ''; $('fCobertura').value = f.cobertura || ''; $('fCoberturaManejo').value = f.coberturaManejo || ''; $('fSistemaSiembra').value = f.sistemaSiembra || ''; $('fConsorcio').value = f.consorcio || ''; $('fEncalado').value = f.encaladoTnHa || ''; $('fFertilizacion').value = f.fertilizacion || '';
       $('fLabores').querySelectorAll('input').forEach(i => { i.checked = (f.labores || []).indexOf(i.value) !== -1; i.parentNode.classList.toggle('on', i.checked); });
       $('fSistemaPastoreo').value = f.sistemaPastoreo || ''; $('fPiquetes').value = f.piquetes || ''; $('fOcupacion').value = f.diasOcupacion || ''; $('fDescanso').value = f.diasDescanso || '';
@@ -447,6 +453,28 @@
     llenarCatalogos(); llenarClientes(); pintarInsumos();
     $('fCliente').addEventListener('change', llenarCampos); $('fCampo').addEventListener('change', llenarLotes); $('fLote').addEventListener('change', llenarExistentes); $('fExistente').addEventListener('change', cargarExistente);
     $('fCultivo').addEventListener('change', alCambiarCultivo); $('fFechaSiembra').addEventListener('change', sugerirNombre);
+    /* ---- Material y ciclo: con la variedad y la fecha de siembra, SAFIA completa la ficha del material y el fin de ciclo ---- */
+    const _material = { gm: null, ciclo: null }; let _tMat = null, _pedidoMat = 0;
+    function actualizarMaterial() {
+      if (!window.SafiaCiclo) return;
+      const cultivo = $('fCultivo').value, variedad = $('fVariedad').value.trim(), siembra = $('fFechaSiembra').value, out = $('fFechaCosecha'), ayuda = $('fCicloAyuda');
+      $('fMatFicha').textContent = cultivo && variedad ? SafiaCiclo.fichaMaterial(cultivo, variedad) : '';
+      const d = cultivo && variedad && window.SafiaMateriales ? SafiaMateriales.buscar(cultivo, variedad) : null; _material.gm = d && d.gm != null ? d.gm : null;
+      const campo = leer('campos').find(c => String(c.id) === String($('fCampo').value)) || {};
+      const pedido = ++_pedidoMat;
+      if (!d || !siembra) { if (out.dataset.auto === '1') { out.value = ''; out.dataset.auto = '0'; } _material.ciclo = null; ayuda.textContent = ''; return; }
+      SafiaCiclo.estimar({ cultivo, variedad, fechaSiembra: siembra, lat: parseFloat(String(campo.latitud || '').replace(',', '.')), lon: parseFloat(String(campo.longitud || '').replace(',', '.')) }).then(r => {
+        if (pedido !== _pedidoMat) return;
+        if (!r) { if (out.dataset.auto === '1') { out.value = ''; out.dataset.auto = '0'; } _material.ciclo = null; ayuda.textContent = 'SAFIA no tiene el ciclo de este material con fuente: cargá la fecha a mano si la sabés.'; return; }
+        _material.ciclo = { dias: r.dias, metodo: r.metodo, texto: r.texto, fuente: r.fuente, material: r.material, gdu: r.gdu || null };
+        if (!out.value || out.dataset.auto === '1') { out.value = r.fechaFin; out.dataset.auto = '1'; ayuda.textContent = SafiaCiclo.textoEstimacion(r); }
+        else ayuda.textContent = 'La estimación de SAFIA sería ' + r.dias + ' días (' + r.texto + '); se respeta la fecha que cargaste.';
+      });
+    }
+    const programarMaterial = () => { clearTimeout(_tMat); _tMat = setTimeout(actualizarMaterial, 350); };
+    ['fVariedad', 'fFechaSiembra'].forEach(id => $(id).addEventListener('input', programarMaterial));
+    ['fCultivo', 'fCampo', 'fLote'].forEach(id => $(id).addEventListener('change', programarMaterial));
+    $('fFechaCosecha').addEventListener('input', () => { $('fFechaCosecha').dataset.auto = '0'; $('fCicloAyuda').textContent = ''; });
     // Ficha existente con otro cultivo u otra fecha de siembra = campaña NUEVA tomando la vieja como modelo: se limpia lo que no puede heredar (cosecha, totales de riego)
     function comoModelo() {
       if (!fichaCargada) return;
