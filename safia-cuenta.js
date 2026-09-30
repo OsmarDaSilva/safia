@@ -30,7 +30,7 @@
 
   /* ---------- menú y permisos por rol ---------- */
   var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'informe-evaluacion.html', 'backup.html', 'precios.html', 'suscripciones.html', 'conexiones.html'];
-  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html'];
+  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html', 'mis-campanas.html'];   // Campañas desde el 30-sep-2026 (la base deja cargar y cambiar, no borrar)
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
     if (rol === 'operador' || rol === 'encargado') return PAGINAS_OPERADOR.indexOf(pag) < 0;   // el encargado ve lo mismo que el operador
@@ -42,12 +42,22 @@
     var rol = u.rol, pag = paginaActual();
     // Redirigir solo con el usuario confirmado por la nube (el guardado en el navegador puede estar viejo)
     if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : rol === 'encargado' ? 'encargado.html' : 'index.html'); return; }
-    var aplicar = function () {
-      document.querySelectorAll('aside a[href], nav a[href], .sidebar a[href]').forEach(function (a) {
+    var ocultarFuera = function (raiz, sel) {
+      if (!raiz || !raiz.querySelectorAll) return;
+      raiz.querySelectorAll(sel).forEach(function (a) {
         var h = (a.getAttribute('href') || '').split(/[?#]/)[0].toLowerCase();
         if (!/\.html$/.test(h)) return;
         if (fueraDeRol(rol, h)) a.style.display = 'none';
       });
+    };
+    var soloCarga = rol === 'operador' || rol === 'encargado';
+    var aplicar = function () {
+      ocultarFuera(document, soloCarga ? 'a[href]' : 'aside a[href], nav a[href], .sidebar a[href]');
+      // operador y encargado: también los enlaces del cuerpo de la página que se dibujan después (listas, avisos)
+      if (soloCarga && window.MutationObserver && document.body && !aplicarRol.observando) {
+        aplicarRol.observando = true;
+        new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) ocultarFuera(n.parentNode || n, 'a[href]'); }); }); }).observe(document.body, { childList: true, subtree: true });
+      }
       // grupos del menú que quedaron sin enlaces visibles
       document.querySelectorAll('.sidebar-grupo, .nav-title, .grupo').forEach(function (g) {
         var n = g.nextElementSibling, alguno = false;
