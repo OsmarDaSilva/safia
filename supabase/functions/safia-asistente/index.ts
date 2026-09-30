@@ -1,5 +1,6 @@
-// SAFIA · Edge Function: safia-asistente (v7: lluvia automática, estrés 50 % / arranque 75 %, secano, agua de riego, rotación y quién carga qué según el rol;
-//   v6: no gasta IA si el usuario no tiene ningún pivot con suscripción vigente)
+// SAFIA · Edge Function: safia-asistente (v8: la misma pregunta, como máximo 2 veces por día para operador, encargado y dueño;
+//   v7: lluvia automática, estrés 50 % / arranque 75 %, secano, agua de riego, rotación y quién carga qué según el rol;
+//   v6: no gasta IA si el usuario no tiene ningún pivot con suscripción vigente
 // El agrónomo inteligente de SAFIA: responde preguntas con los datos reales del banco.
 // Arquitectura: esta función solo habla con Claude (la llave vive acá, como secreto). Las HERRAMIENTAS se ejecutan en el
 // navegador del usuario (safia-asistente.js), sobre los datos que ese usuario ya puede ver con su rol: un cliente ve lo
@@ -133,6 +134,41 @@ const HERRAMIENTAS = [
   },
 ];
 
+// ---- Límite de preguntas repetidas (v8) ----
+// La misma pregunta se responde hasta 2 veces por día (hora de Paraguay) al operador, al encargado y al dueño; Irrigar no tiene
+// límite. Lo decide la base (safia_asistente_consultar / safia_asistente_registrar, SQL safia_asistente_limite.sql). "La misma"
+// = las mismas palabras, sin contar acentos, signos, mayúsculas, el orden ni las palabras de relleno. A la tercera vez no se
+// consulta a la IA: se devuelve la respuesta que ya recibió ese día.
+const RELLENO = new Set(['a', 'al', 'de', 'del', 'el', 'la', 'las', 'los', 'lo', 'le', 'les', 'un', 'una', 'unos', 'unas', 'y', 'o', 'en', 'con', 'para', 'por', 'que', 'se', 'me', 'te', 'mi', 'mis', 'tu', 'tus', 'su', 'sus', 'es', 'hay', 'ya', 'safia', 'hola', 'favor', 'porfa', 'porfavor', 'gracias', 'decime', 'contame', 'quiero', 'saber', 'puedo', 'podes', 'podrias', 'buen', 'buenos', 'buenas', 'tardes', 'noches']);
+// deno-lint-ignore no-explicit-any
+function textoDe(m: any): string {
+  if (!m || m.role !== 'user') return '';
+  if (typeof m.content === 'string') return m.content;
+  if (!Array.isArray(m.content)) return '';
+  // deno-lint-ignore no-explicit-any
+  if (m.content.some((b: any) => b && b.type === 'tool_result')) return '';   // resultados de herramientas: no es una pregunta
+  // deno-lint-ignore no-explicit-any
+  return m.content.filter((b: any) => b && b.type === 'text').map((b: any) => String(b.text || '')).join(' ');
+}
+// La última pregunta escrita por el usuario (sin el bloque de contexto que agrega el navegador) y si es la que abre la conversación
+// deno-lint-ignore no-explicit-any
+function ultimaPregunta(messages: any[]): { texto: string; indice: number; abre: boolean } | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const t = textoDe(messages[i]).replace(/^\[Contexto de SAFIA[\s\S]*?\]\n\n/, '').trim();
+    if (t) return { texto: t, indice: i, abre: !messages.slice(0, i).some((m) => textoDe(m).trim()) };
+  }
+  return null;
+}
+function palabrasDe(t: string): string[] {
+  const l = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w && !RELLENO.has(w));
+  return Array.from(new Set(l)).sort();
+}
+async function huellaDe(t: string): Promise<{ clave: string; palabras: number }> {
+  const p = palabrasDe(t);
+  const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p.join(' ')));
+  return { clave: Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, '0')).join(''), palabras: p.length };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   const json = (obj: unknown, status = 200) => new Response(JSON.stringify(obj), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
@@ -153,6 +189,30 @@ Deno.serve(async (req: Request) => {
       try {
         const rv = await fetch(urlSb + '/rest/v1/rpc/safia_tengo_vigente', { method: 'POST', headers: { apikey: anon, Authorization: auth, 'Content-Type': 'application/json' }, body: '{}' });
         if (rv.ok && (await rv.json()) === false) return json({ error: 'Tu suscripción de SAFIA está vencida: el Asistente funciona con al menos un pivot vigente. Para renovar, hablá con Irrigar.' }, 402);
+      } catch (_e) { /* sin verificar: se sigue */ }
+    }
+
+    // Límite de la misma pregunta por día. Cuenta la pregunta que abre la conversación y las repreguntas de 3 palabras o más
+    // (un "¿y mañana?" depende de lo anterior y no se limita). Si el SQL no está corrido o no se puede verificar, se sigue sin límite.
+    const preg = ultimaPregunta(messages);
+    let clave: string | null = null;
+    if (preg && urlSb && anon && auth) {
+      const h = await huellaDe(preg.texto);
+      if (preg.abre || h.palabras >= 3) clave = h.clave;
+    }
+    const rpc = (nombre: string, cuerpoRpc: unknown) => fetch(urlSb + '/rest/v1/rpc/' + nombre, { method: 'POST', headers: { apikey: anon as string, Authorization: auth, 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpoRpc) });
+    if (clave && preg && preg.indice === messages.length - 1) {   // es una pregunta nueva (no la vuelta de una herramienta)
+      try {
+        const rl = await rpc('safia_asistente_consultar', { p_clave: clave });
+        if (rl.ok) {
+          const u = await rl.json();
+          if (u && u.permitido === false) {
+            const aviso = 'Ya hiciste esta misma pregunta ' + u.veces + ' veces hoy. El Asistente responde cada pregunta hasta ' + u.limite + ' veces por día; mañana la podés volver a hacer.' +
+              (u.respuesta ? '\n\n**Esta es la respuesta que te dio hoy' + (u.hora ? ' a las ' + u.hora : '') + ':**\n\n' + u.respuesta : '');
+            console.log('asistente: pregunta repetida, sin consultar a la IA');
+            return json({ content: [{ type: 'text', text: aviso }], stop_reason: 'end_turn', stop_details: null, model: null, usage: null, limite: true });
+          }
+        }
       } catch (_e) { /* sin verificar: se sigue */ }
     }
 
@@ -185,6 +245,11 @@ Deno.serve(async (req: Request) => {
     let content: any[] = r.content || [];
     const ultimoFallback = content.map((b) => b.type).lastIndexOf('fallback');
     if (ultimoFallback > 0) content = content.filter((b, i) => i >= ultimoFallback || b.type === 'text');
+    // Respuesta terminada: se anota para el límite de la misma pregunta por día (y queda guardada para mostrarla si la repite)
+    if (clave && preg && r.stop_reason === 'end_turn') {
+      const texto = content.filter((b) => b && b.type === 'text').map((b) => String(b.text || '')).join('\n').trim();
+      if (texto) { try { await rpc('safia_asistente_registrar', { p_clave: clave, p_pregunta: preg.texto.slice(0, 500), p_respuesta: texto.slice(0, 20000) }); } catch (_e) { /* no frena la respuesta */ } }
+    }
     console.log('asistente:', r.stop_reason, 'entrada', r.usage?.input_tokens, 'cache', r.usage?.cache_read_input_tokens, 'salida', r.usage?.output_tokens);
     return json({ content, stop_reason: r.stop_reason, stop_details: r.stop_details || null, model: r.model, usage: r.usage || null });
   } catch (e) {
