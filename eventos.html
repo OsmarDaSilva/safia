@@ -654,6 +654,7 @@
         ev.cantidad = cantidad;
       }
 
+      if (window.SafiaSuscripcion && !SafiaSuscripcion.puedeTocar(ev)) { mostrarToast(SafiaSuscripcion.mensajeBloqueo(ev)); return; }
       ev.fechaModificacion = new Date().toISOString();
       eventos[index] = ev;
       localStorage.setItem('eventos', JSON.stringify(eventos));
@@ -669,6 +670,8 @@
       if (borrarPendiente !== id) { borrarPendiente = id; mostrarToast('Tocá Borrar otra vez para confirmar (no se puede deshacer)'); setTimeout(() => { if (borrarPendiente === id) borrarPendiente = null; }, 5000); return; }
       borrarPendiente = null;
       let eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
+      const evB = eventos.find(e => e.id === id);
+      if (evB && window.SafiaSuscripcion && !SafiaSuscripcion.puedeTocar(evB)) { mostrarToast(SafiaSuscripcion.mensajeBloqueo(evB)); return; }
       eventos = eventos.filter(e => e.id !== id);
       localStorage.setItem('eventos', JSON.stringify(eventos));
       mostrarToast('✓ Evento borrado');

@@ -2653,9 +2653,10 @@
       if (!confirm('¿Seguro que querés borrar esta campaña? Se perderán los datos de los cultivos.')) {
         return;
       }
-      if (editandoId === id) cancelarEdicion();
-
       let campanas = JSON.parse(localStorage.getItem('campanas') || '[]');
+      const camB = campanas.find(c => c.id === id);
+      if (camB && window.SafiaSuscripcion && !SafiaSuscripcion.puedeTocar(camB)) { mostrarToast(SafiaSuscripcion.mensajeBloqueo(camB), true); return; }
+      if (editandoId === id) cancelarEdicion();
       campanas = campanas.filter(c => c.id !== id);
       localStorage.setItem('campanas', JSON.stringify(campanas));
       mostrarCampanas();

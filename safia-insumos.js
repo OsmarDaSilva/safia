@@ -195,12 +195,12 @@
     if (m) return { n: parseFloat(m[1].replace(',', '.')), p: parseFloat(m[2].replace(',', '.')), k: parseFloat(m[3].replace(',', '.')), s: (t.match(/\+\s*(\d+)\s*S/i) ? parseFloat(RegExp.$1) : 0), origen: 'fórmula' };
     for (var i = 0; i < FERTILIZANTES.length; i++) if (FERTILIZANTES[i].re.test(t)) return { n: FERTILIZANTES[i].n, p: FERTILIZANTES[i].p, k: FERTILIZANTES[i].k, s: FERTILIZANTES[i].s, b: FERTILIZANTES[i].b || 0, zn: FERTILIZANTES[i].zn || 0, origen: 'producto' };
     // Fuentes sin N-P-K: azufre elemental, boro y zinc. El % se lee del texto ("Azufre elemental 90 %", "Ulexita 10 % B"); si no está, el típico del producto.
-    var pct = t.match(/(d{1,2}(?:[.,]d)?)s*%/), pv = pct ? parseFloat(pct[1].replace(',', '.')) : null;
-    if (/(azufre|enxofre|sulfur|Ss*elemental)/i.test(t) && !/sulfato/i.test(t)) return { n: 0, p: 0, k: 0, s: pv != null ? pv : 90, b: 0, zn: 0, origen: 'producto' };
+    var pct = t.match(/(\d{1,2}(?:[.,]\d)?)\s*%/), pv = pct ? parseFloat(pct[1].replace(',', '.')) : null;
+    if (/(azufre|enxofre|sulfur|\bS\s*elemental)/i.test(t) && !/sulfato/i.test(t)) return { n: 0, p: 0, k: 0, s: pv != null ? pv : 90, b: 0, zn: 0, origen: 'producto' };
     if (/ulexita/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 10, zn: 0, origen: 'producto' };
     if (/b[oó]rax/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 11, zn: 0, origen: 'producto' };
     if (/[aá]cido b[oó]rico/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 17, zn: 0, origen: 'producto' };
-    if (/boro|Bs*d|ds*%s*B/i.test(t) && pv != null) return { n: 0, p: 0, k: 0, s: 0, b: pv, zn: 0, origen: 'producto' };
+    if (/\bboro\b|\bB\s*\d|\d\s*%\s*B\b/i.test(t) && pv != null) return { n: 0, p: 0, k: 0, s: 0, b: pv, zn: 0, origen: 'producto' };
     if (/sulfato de zinc/i.test(t)) return { n: 0, p: 0, k: 0, s: pv != null ? 0 : 11, b: 0, zn: pv != null ? pv : 20, origen: 'producto' };
     if (/[oó]xido de zinc/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: 0, zn: pv != null ? pv : 50, origen: 'producto' };
     return null;

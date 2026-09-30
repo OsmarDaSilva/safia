@@ -146,6 +146,7 @@
     function filtrar(clave, nueva, vieja) {
       if (!SUSC_GUARDADAS[clave] || !activa() || soyIrrigar() || !Array.isArray(nueva)) return null;
       var V = mapa(vieja), fuera = [], salida = [];
+      var N = mapa(nueva);
       nueva.forEach(function (r) {
         if (!r || r.id == null) { salida.push(r); return; }
         var ant = V[String(r.id)];
@@ -153,24 +154,30 @@
         if (permitido(r)) { salida.push(r); return; }
         fuera.push(r); if (ant) salida.push(ant);
       });
-      return fuera.length ? { lista: salida, frenados: fuera } : null;
+      // borrados: lo que estaba y ya no está tampoco se toca en un pivot vencido (decisión de Osmar 30-sep: ve todo, no toca nada)
+      var borrados = [];
+      (vieja || []).forEach(function (r) { if (r && r.id != null && N[String(r.id)] === undefined && !permitido(r)) { borrados.push(r); salida.push(r); } });
+      return fuera.length || borrados.length ? { lista: salida, frenados: fuera, borrados: borrados } : null;
     }
     var ultimoAviso = 0;
-    function avisarFrenado(registros) {
-      if (!registros || !registros.length || Date.now() - ultimoAviso < 1500) return;
+    function avisarFrenado(registros, borrados) {
+      registros = (registros || []).concat(borrados || []);
+      if (!registros.length || Date.now() - ultimoAviso < 1500) return;
       ultimoAviso = Date.now();
-      var nombres = Array.from(new Set(registros.map(nombreDe))).join(', ');
+      var soloBorrar = !(arguments[0] || []).length, nombres = Array.from(new Set(registros.map(nombreDe))).join(', ');
       var poner = function () {
         var t = document.getElementById('safiaSuscToast');
         if (!t) { t = document.createElement('div'); t.id = 'safiaSuscToast'; document.body.appendChild(t); }
         t.style.cssText = 'position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:100000;max-width:min(560px,calc(100vw - 32px));background:#7A1F16;color:#fff;font:500 13px/1.45 system-ui,sans-serif;padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);';
-        t.innerHTML = '<b>No se guardó.</b> La suscripción de ' + String(nombres).replace(/</g, '&lt;') + ' está vencida: podés ver lo cargado, pero para cargar datos nuevos hay que renovarla con Irrigar.';
+        t.innerHTML = '<b>' + (soloBorrar ? 'No se borró.' : 'No se guardó.') + '</b> La suscripción de ' + String(nombres).replace(/</g, '&lt;') + ' está vencida: podés ver todo lo cargado, pero no cargar, cambiar ni borrar nada hasta renovarla con Irrigar.';
         clearTimeout(t._h); t._h = setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 7000);
       };
       if (document.body) poner(); else document.addEventListener('DOMContentLoaded', poner);
       try { window.dispatchEvent(new CustomEvent('safia-suscripcion-frenado', { detail: { registros: registros } })); } catch (e) {}
     }
-    return { activa: activa, estado: estado, puedeCargar: puedeCargar, puedeCargarCampo: puedeCargarCampo, campoVigente: campoVigente, algunaVigente: algunaVigente,
+    function puedeTocar(r) { return !activa() || soyIrrigar() || !r || permitido(r); }
+    function mensajeBloqueo(r) { return 'La suscripción de ' + nombreDe(r || {}) + ' está vencida: podés ver todo lo cargado, pero no cargar, cambiar ni borrar nada hasta renovarla con Irrigar.'; }
+    return { activa: activa, estado: estado, puedeCargar: puedeCargar, puedeTocar: puedeTocar, mensajeBloqueo: mensajeBloqueo, puedeCargarCampo: puedeCargarCampo, campoVigente: campoVigente, algunaVigente: algunaVigente,
       avisos: avisos, filtrar: filtrar, avisarFrenado: avisarFrenado, soyIrrigar: soyIrrigar, registro: registro, fecha: fecha, hoy: hoy, dias: dias, GUARDADAS: SUSC_GUARDADAS };
   })();
   window.SafiaSuscripcion = SafiaSuscripcion;
@@ -190,7 +197,7 @@
     window.safiaSupabase = PADRE.safiaSupabase;
     var _setEmb = Storage.prototype.setItem;
     Storage.prototype.setItem = function (clave, valor) {
-      if (this === window.localStorage && SUSC_GUARDADAS[clave]) { var fe = SafiaSuscripcion.filtrar(clave, leerLista(valor), leerLista(_giSusc.call(this, clave))); if (fe) { valor = JSON.stringify(fe.lista); SafiaSuscripcion.avisarFrenado(fe.frenados); } }
+      if (this === window.localStorage && SUSC_GUARDADAS[clave]) { var fe = SafiaSuscripcion.filtrar(clave, leerLista(valor), leerLista(_giSusc.call(this, clave))); if (fe) { valor = JSON.stringify(fe.lista); SafiaSuscripcion.avisarFrenado(fe.frenados, fe.borrados); } }
       _setEmb.call(this, clave, valor);
       if (this === window.localStorage && TABLAS.hasOwnProperty(clave)) { try { PADRE.SafiaSync._subir(clave, leerLista(valor)); } catch (e) { console.error('SAFIA sync (embebido):', e); } }
     };
@@ -357,7 +364,7 @@
   Storage.prototype.setItem = function (clave, valor) {
     if (this === window.localStorage && SUSC_GUARDADAS[clave]) {
       var fs = SafiaSuscripcion.filtrar(clave, leerLista(valor), leerLista(_getItem.call(this, clave)));
-      if (fs) { valor = JSON.stringify(fs.lista); SafiaSuscripcion.avisarFrenado(fs.frenados); }
+      if (fs) { valor = JSON.stringify(fs.lista); SafiaSuscripcion.avisarFrenado(fs.frenados, fs.borrados); }
     }
     _setItem.call(this, clave, valor);
     if (this === window.localStorage && TABLAS.hasOwnProperty(clave)) {

@@ -49,7 +49,7 @@
       '<div class="field"><label>Rol</label><select id="accRol"></select></div>' +
       '<div class="field"><label>Cliente al que pertenece</label><select id="accCliente"></select></div>' +
       '<div class="field full" id="accCamposWrap" style="display:none;"><label>Estancias que ve y en las que carga</label><div id="accCampos" style="padding-top:4px;"></div><div class="muted" style="font-size:11px;margin-top:2px;">Sin marcar ninguna = todas las estancias del cliente.</div></div>' +
-      '<div class="field full"><label>Contraseña temporal (se la pasás vos; la puede cambiar con "Olvidé mi contraseña")</label><div style="display:flex;gap:8px;"><input type="text" id="accPass" style="font-family:ui-monospace,Menlo,Consolas,monospace;"><button class="btn" type="button" id="accGenerar" style="white-space:nowrap;">Generar</button></div></div>' +
+      '<div class="field full"><label>Contraseña temporal (se la pasás vos; después la cambia en Mi cuenta o se la renovás desde Usuarios)</label><div style="display:flex;gap:8px;"><input type="text" id="accPass" style="font-family:ui-monospace,Menlo,Consolas,monospace;"><button class="btn" type="button" id="accGenerar" style="white-space:nowrap;">Generar</button></div></div>' +
       '</div>' +
       '<div id="accAviso" class="note" style="display:none;margin-top:8px;"></div>' +
       '<div class="muted" style="font-size:11px;margin-top:6px;">Si el correo ya tiene cuenta en otra app del grupo (SIGA, AGROinvest360) no se crea otra: se le da acceso a SAFIA con la contraseña que ya usa.</div>' +
@@ -73,7 +73,7 @@
   function ayudaUsuario() {
     var v = $('accEmail').value.trim(), a = $('accEmailAyuda'); if (!a) return;
     if (!v) { a.textContent = ''; return; }
-    if (v.indexOf('@') !== -1) { a.textContent = 'Entra con este correo. Puede recuperar la contraseña con "Olvidé mi contraseña".'; return; }
+    if (v.indexOf('@') !== -1) { a.textContent = 'Entra con este correo. Si olvida la contraseña, se la renovás desde Usuarios → Contraseña.'; return; }
     var u = window.SafiaUsuario ? SafiaUsuario.aUsuario(SafiaUsuario.aCorreo(v)) : v;
     a.textContent = 'Sin correo: entra escribiendo el usuario "' + u + '" y su contraseña. Si la olvida, se la cambiás vos desde Usuarios.';
   }
@@ -120,8 +120,8 @@
       b.disabled = false; b.textContent = 'Crear acceso';
       var url = location.origin === 'null' || /^file:/.test(location.href) ? 'https://safia-beige.vercel.app/login.html' : location.origin + location.pathname.replace(/[^\/]*$/, '') + 'login.html';
       var texto = r.existia
-        ? 'Hola ' + datos.nombre + ', ya tenés acceso a SAFIA.\nEntrá en ' + url + ' con tu ' + (interno ? 'usuario ' : 'correo ') + usuarioMostrar + ' y la misma contraseña que usás en las otras apps del grupo.' + (interno ? '' : ' Si no la recordás, tocá "Olvidé mi contraseña".')
-        : 'Hola ' + datos.nombre + ', te creamos el acceso a SAFIA.\nEntrá en ' + url + '\n' + (interno ? 'Usuario: ' : 'Correo: ') + usuarioMostrar + '\nContraseña: ' + datos.password + (interno ? '\nSi la olvidás, avisá a Irrigar y te damos una nueva.' : '\nPodés cambiarla con "Olvidé mi contraseña".');
+        ? 'Hola ' + datos.nombre + ', ya tenés acceso a SAFIA.\nEntrá en ' + url + ' con tu ' + (interno ? 'usuario ' : 'correo ') + usuarioMostrar + ' y la misma contraseña que usás en las otras apps del grupo.' + (interno ? '' : ' Si no la recordás, avisá a Irrigar y te damos una nueva.')
+        : 'Hola ' + datos.nombre + ', te creamos el acceso a SAFIA.\nEntrá en ' + url + '\n' + (interno ? 'Usuario: ' : 'Correo: ') + usuarioMostrar + '\nContraseña: ' + datos.password + (interno ? '\nSi la olvidás, avisá a Irrigar y te damos una nueva.' : '\nDespués podés cambiarla en Mi cuenta; si la olvidás, avisá a Irrigar y te damos una nueva.');
       $('accCred').innerHTML = (r.existia ? 'Ese correo ya tenía cuenta en el grupo: quedó <b>activo en SAFIA</b> con su contraseña de siempre.<br>' : 'Contraseña temporal: <b style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;">' + esc(datos.password) + '</b><br>') +
         (interno ? 'Usuario: <b>' : 'Correo: <b>') + esc(usuarioMostrar) + '</b><br>Rol: ' + ROL[datos.rol] + (datos.clienteId ? ' · ' + esc(nombreCliente(datos.clienteId)) : '') + (datos.campos && datos.campos.length ? ' · ' + esc(leer('campos').filter(function (c) { return datos.campos.indexOf(String(c.id)) >= 0; }).map(function (c) { return c.nombre; }).join(', ')) : '');
       $('accCred').dataset.texto = texto;

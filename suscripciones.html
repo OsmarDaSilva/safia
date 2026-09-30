@@ -231,8 +231,8 @@
       const d = document.createElement('div'); d.className = 'modal-overlay visible'; d.id = 'modalConf';
       d.innerHTML = '<div class="modal"><div class="modal-titulo">Confirmar</div><div class="sub" style="margin-bottom:12px;">' + esc(texto) + '</div><div class="modal-actions"><button class="btn green" id="cSi">Sí, guardar</button><button class="btn" id="cNo">Cancelar</button></div></div>';
       document.body.appendChild(d);
-      $('cNo').onclick = () => d.remove();
-      $('cSi').onclick = () => { d.remove(); aprobado = true; if (accionPendiente) accionPendiente(); };
+      $('cNo').onclick = () => { d.remove(); pendiente = null; accionPendiente = null; aprobado = false; };
+      $('cSi').onclick = () => { d.remove(); if (pendiente) { aprobado = true; pendiente = null; } const a = accionPendiente; accionPendiente = null; if (a) a(); else aprobado = false; };
     }
     function renovarConConfirm(eqId) { accionPendiente = () => renovar(eqId); renovar(eqId); }
     function sumarDias(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
