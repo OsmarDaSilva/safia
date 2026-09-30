@@ -54,30 +54,54 @@
   function regionDe(campo) { var d = norm(campo && campo.departamento); return CHACO.some(function (c) { return d.indexOf(c) !== -1; }) ? 'Occidental/Chaco' : 'Oriental/Centro'; }
 
   /* ---------- alturas de manejo (entrada y salida de los animales) ----------
-     Fuente [4]: Embrapa Rondônia, folder "Pastejo rotativo", Quadro 3 Metas de manejo: Mombaça 90/40 cm, BRS Zuri 70/35 cm,
-     Xaraés 45/20 cm, Marandu y BRS Piatã 35/20 cm (https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1072007/1/PastejoRotacionadoFINAL.pdf).
-     Fuente [5]: Portal Embrapa, Panicum maximum BRS Zuri: entrada 70-75 cm, salida 30-35 cm
-     (https://www.embrapa.br/busca-de-solucoes-tecnologicas/-/produto-servico/1309/panicum-maximum---brs-zuri). */
+     Fuente [4]: Embrapa Gado de Corte, "Régua de Manejo de Pastagens", edição revisada (Comunicado Técnico), Tabela 2
+     (panicuns bajo pastoreo rotacionado, entrada/salida): Mombaça 85/45, Zuri 80/40, Tanzânia 70/35, Quênia 65/35, Massai 55/30,
+     Tamani 50/25 cm; Tabela 1 (braquiárias bajo pastoreo continuo, altura máxima/mínima): Xaraés 40/20, Piatã 40/20, Marandu 35/20,
+     Paiaguás 35/20, Ipyporã 35/20, decumbens 30/15, humidícola (Tupi) 20/10 cm.
+     https://www.infoteca.cnptia.embrapa.br/infoteca/bitstream/doc/1077406/1/Reguademanejodepastagens.pdf
+     Fuente [5]: Embrapa Rondônia, folder "Pastejo rotativo" (Quadro 3): Mombaça 90/40, BRS Zuri 70/35, Xaraés 45/20, Marandu/Piatã 35/20
+     (valores algo más bajos para Zuri y Mombaça; se muestra la Régua por ser la edición revisada del obtentor).
+     Decisión de Osmar 30-sep-2026: SAFIA usa las medidas de Embrapa (no la tabla del manual de Irrigar). */
+  var FUENTE_REGUA = 'Embrapa Gado de Corte, Régua de Manejo de Pastagens (ed. revisada)';
   var ALTURAS = [
-    { re: /mombaca|momba/, nombre: 'Mombaça', entrada: 90, salida: 40, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3)' },
-    { re: /zuri/, nombre: 'BRS Zuri', entrada: 70, salida: 35, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3); Portal Embrapa: 70-75 / 30-35 cm' },
-    { re: /xaraes|xaraes|mg-?5|xara/, nombre: 'Xaraés (MG-5)', entrada: 45, salida: 20, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3)' },
-    { re: /marandu|piata|brizantha|brizanta/, nombre: 'Marandu / BRS Piatã', entrada: 35, salida: 20, fuente: 'Embrapa Rondônia, Pastejo rotativo (Quadro 3)' }
+    { re: /mombaca|momba/, nombre: 'Mombaça', entrada: 85, salida: 45, tipo: 'rotacionado', fuente: FUENTE_REGUA + ', Tabela 2' },
+    { re: /zuri/, nombre: 'BRS Zuri', entrada: 80, salida: 40, tipo: 'rotacionado', fuente: FUENTE_REGUA + ', Tabela 2 (Embrapa Rondônia: 70/35)' },
+    { re: /tanzania|tanzan/, nombre: 'Tanzânia', entrada: 70, salida: 35, tipo: 'rotacionado', fuente: FUENTE_REGUA + ', Tabela 2' },
+    { re: /quenia|kenia/, nombre: 'BRS Quênia', entrada: 65, salida: 35, tipo: 'rotacionado', fuente: FUENTE_REGUA + ', Tabela 2' },
+    { re: /massai/, nombre: 'Massai', entrada: 55, salida: 30, tipo: 'rotacionado', fuente: FUENTE_REGUA + ', Tabela 2' },
+    { re: /tamani/, nombre: 'BRS Tamani', entrada: 50, salida: 25, tipo: 'rotacionado', fuente: FUENTE_REGUA + ', Tabela 2' },
+    { re: /xaraes|mg-?5|xara/, nombre: 'Xaraés (MG-5)', entrada: 40, salida: 20, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1 (altura máxima/mínima)' },
+    { re: /piata/, nombre: 'BRS Piatã', entrada: 40, salida: 20, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1' },
+    { re: /paiaguas/, nombre: 'BRS Paiaguás', entrada: 35, salida: 20, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1' },
+    { re: /ipypora/, nombre: 'BRS Ipyporã', entrada: 35, salida: 20, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1' },
+    { re: /marandu|brizantha|brizanta/, nombre: 'Marandu', entrada: 35, salida: 20, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1' },
+    { re: /decumbens|basilisk/, nombre: 'Brachiaria decumbens', entrada: 30, salida: 15, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1' },
+    { re: /humidicola|tupi/, nombre: 'Humidícola (Tupi)', entrada: 20, salida: 10, tipo: 'continuo', fuente: FUENTE_REGUA + ', Tabela 1' }
   ];
   function alturasReferencia(texto) {
     var n = String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    for (var i = 0; i < ALTURAS.length; i++) if (ALTURAS[i].re.test(n)) return ALTURAS[i];
-    return null;
+    // gana la especie que aparece antes en el texto (la variedad va primero: 'BRS Zuri Pastura tropical (Brachiaria, Mombaça, Tifton)' → Zuri)
+    var mejor = null, pos = Infinity;
+    for (var i = 0; i < ALTURAS.length; i++) { var m = n.match(ALTURAS[i].re); if (m && m.index < pos) { pos = m.index; mejor = ALTURAS[i]; } }
+    return mejor;
+  }
+  // Color de una altura frente a la meta: verde = a punto para entrar, amarillo = creciendo, rojo = en la altura de salida o menos
+  function clasificarAltura(ref, alt) {
+    if (!ref || !(alt > 0)) return { clase: 'sin', color: '#8C9196', texto: '' };
+    if (alt >= ref.entrada) return { clase: 'listo', color: '#178029', texto: 'a punto para entrar' };
+    if (alt <= ref.salida) return { clase: 'bajo', color: '#B5371C', texto: 'en la altura de salida o menos' };
+    if (alt >= ref.entrada * 0.85) return { clase: 'casi', color: '#4E9A2E', texto: 'casi en la meta' };
+    return { clase: 'creciendo', color: '#B8731A', texto: 'creciendo' };
   }
   // Texto para el formulario de pastoreo: la meta de la especie y, si ya se escribió la altura, cómo viene
   function textoAltura(ref, accion, alt) {
-    if (!ref) return 'Altura del pasto medida con regla (promedio de varios puntos). Si cargás la variedad en la campaña (Zuri, Mombaça, Marandu, Xaraés), SAFIA te muestra la meta de Embrapa.';
+    if (!ref) return 'Altura del pasto medida con regla (promedio de varios puntos). Si cargás la variedad en la campaña (Zuri, Mombaça, Tanzania, Marandu, Xaraés…), SAFIA te muestra la meta de Embrapa.';
     var meta = ref.nombre + ': entrada a ' + ref.entrada + ' cm, salida a ' + ref.salida + ' cm (' + ref.fuente + ').';
     if (!(alt > 0)) return meta;
     if (accion === 'entrada') {
       if (alt < ref.salida) return meta + ' <b style="color:#B5371C;">' + alt + ' cm es menos que la altura de salida: el piquete todavía no se recuperó.</b>';
       if (alt < ref.entrada * 0.85) return meta + ' <b style="color:#8a5713;">' + alt + ' cm: entran temprano, el pasto todavía no llegó a la meta.</b>';
-      if (alt > ref.entrada * 1.25) return meta + ' <b style="color:#8a5713;">' + alt + ' cm: pasto pasado, pierde calidad y se acama; adelantá la entrada o hacé un corte.</b>';
+      if (alt > ref.entrada * 1.25) return meta + ' <b style="color:#8a5713;">' + alt + ' cm: pasto pasado, pierde calidad y se acama; adelantá la entrada o hacé un corte (rozado a la altura de salida).</b>';
       return meta + ' <b style="color:#178029;">' + alt + ' cm: en la meta.</b>';
     }
     if (accion === 'salida' || accion === 'corte') {
@@ -86,6 +110,69 @@
       return meta + ' <b style="color:#178029;">' + alt + ' cm: en la meta.</b>';
     }
     return meta;
+  }
+
+  /* ---------- lectura diaria de altura (la planilla de Irrigar, en el celular) ----------
+     evento { tipo: 'lectura', equipoId, fecha, piquete, medidas: [cm...], alturaCm: promedio }. Se toman varias medidas
+     recorriendo el piquete (la planilla de Irrigar usa 10, una cada 1/10 del largo) y se guarda el promedio. */
+  function lecturasLote(equipoId) {
+    return leer('eventos').filter(function (e) { return e.tipo === 'lectura' && String(e.equipoId) === String(equipoId) && e.fecha && e.alturaCm > 0; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)) || (a.id || 0) - (b.id || 0); });
+  }
+  function promedio(lista) { var v = (lista || []).map(parseFloat).filter(function (x) { return x > 0; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + x; }, 0) / v.length * 10) / 10 : null; }
+  // Estado de cada piquete: último movimiento, última lectura de altura y qué hacer
+  function estadoPiquetes(equipoId, cultivo) {
+    var c = cultivo || {}, n = parseInt(c.piquetes, 10) || 0, ref = alturasReferencia((c.variedad || '') + ' ' + (c.cultivo || ''));
+    var desc = parseFloat(c.diasDescanso) || null, h = hoy();
+    var movs = eventosLote(equipoId), lects = lecturasLote(equipoId);
+    var nombres = {}; for (var i = 1; i <= n; i++) nombres[String(i)] = 1;
+    movs.concat(lects).forEach(function (e) { if (e.piquete) nombres[String(e.piquete)] = 1; });
+    var ocupado = null; var ultMov = movs[movs.length - 1]; if (ultMov && ultMov.accion === 'entrada') ocupado = String(ultMov.piquete);
+    var out = Object.keys(nombres).sort(function (a, b) { var na = parseInt(a, 10), nb = parseInt(b, 10); return (isNaN(na) || isNaN(nb)) ? a.localeCompare(b) : na - nb; }).map(function (p) {
+      var mp = movs.filter(function (e) { return String(e.piquete) === p; }), lp = lects.filter(function (e) { return String(e.piquete) === p; });
+      var um = mp[mp.length - 1] || null, ul = lp[lp.length - 1] || null, pl = lp.length > 1 ? lp[lp.length - 2] : null;
+      var salida = null; for (var k = mp.length - 1; k >= 0; k--) if (mp[k].accion === 'salida' || mp[k].accion === 'corte') { salida = mp[k]; break; }
+      var diasDesc = salida ? diasEntre(salida.fecha, h) : null;
+      var alt = ul ? parseFloat(ul.alturaCm) : null, cls = clasificarAltura(ref, alt);
+      var crec = (ul && pl && diasEntre(pl.fecha, ul.fecha) > 0) ? Math.round((parseFloat(ul.alturaCm) - parseFloat(pl.alturaCm)) / diasEntre(pl.fecha, ul.fecha) * 10) / 10 : null;   // cm/día entre las dos últimas lecturas
+      var estado, color, texto;
+      if (ocupado === p) { estado = 'ocupado'; color = '#2E72C8'; texto = 'Animales adentro desde el ' + fmtFecha(um.fecha) + (alt ? ' · ' + alt + ' cm' + (ref && alt <= ref.salida ? ': ya están en la altura de salida, sacarlos' : '') : ''); }
+      else if (alt && ref && alt >= ref.entrada) { estado = 'listo'; color = '#178029'; texto = 'A punto: ' + alt + ' cm el ' + fmtFecha(ul.fecha) + ' (meta ' + ref.entrada + ')'; }
+      else if (alt && ref && alt >= ref.entrada * 0.85 && crec > 0) { var faltan = Math.ceil((ref.entrada - alt) / crec); estado = 'casi'; color = '#4E9A2E'; texto = alt + ' cm, crece ' + crec + ' cm/día: a punto en ' + faltan + ' día' + (faltan === 1 ? '' : 's'); }
+      else if (alt && ref) { estado = cls.clase; color = cls.color; texto = alt + ' cm el ' + fmtFecha(ul.fecha) + ' · ' + cls.texto + (crec != null ? ' · ' + (crec > 0 ? '+' : '') + crec + ' cm/día' : '') + (diasDesc != null && crec != null && crec <= 0 && diasDesc > 7 ? ' · no crece: revisar riego y fertilización' : ''); }
+      else if (!alt && diasDesc != null && desc && diasDesc >= desc) { estado = 'descanso_ok'; color = '#178029'; texto = 'Cumplió ' + diasDesc + ' días de descanso (meta ' + desc + '): medir la altura, debería estar a punto'; }
+      else if (diasDesc != null) { estado = 'descanso'; color = '#8C9196'; texto = 'Descansa hace ' + diasDesc + ' día' + (diasDesc === 1 ? '' : 's') + (desc ? ' de ' + desc : '') + (alt ? ' · ' + alt + ' cm' : ' · sin lectura de altura'); }
+      else { estado = 'sin_datos'; color = '#8C9196'; texto = alt ? alt + ' cm el ' + fmtFecha(ul.fecha) : 'Sin movimientos ni lecturas'; }
+      return { piquete: p, estado: estado, color: color, texto: texto, altura: alt, fechaLectura: ul ? ul.fecha : null, crecimiento: crec, diasDescanso: diasDesc };
+    });
+    return { piquetes: out, ref: ref, ocupado: ocupado, listos: out.filter(function (x) { return x.estado === 'listo' || x.estado === 'descanso_ok'; }).map(function (x) { return x.piquete; }) };
+  }
+  function fmtFecha(f) { var p = String(f || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] : String(f || ''); }
+  // Tablero de piquetes para el Operador y el Encargado
+  function htmlPiquetes(equipoId, cultivo) {
+    var st = estadoPiquetes(equipoId, cultivo);
+    if (!st.piquetes.length) return '<div style="font-size:12px;color:#8C9196;">Cargá la cantidad de piquetes en la campaña y las lecturas de altura con el botón Altura del pasto.</div>';
+    var orden = { ocupado: 0, listo: 1, descanso_ok: 2, casi: 3, creciendo: 4, bajo: 5, descanso: 6, sin_datos: 7, sin: 7 };
+    var filas = st.piquetes.slice().sort(function (a, b) { return (orden[a.estado] != null ? orden[a.estado] : 9) - (orden[b.estado] != null ? orden[b.estado] : 9); });
+    var h = '<div style="font-size:12px;color:#3A3E41;margin-bottom:4px;">' + (st.listos.length ? '<b style="color:#178029;">Piquete' + (st.listos.length > 1 ? 's' : '') + ' a punto: ' + st.listos.join(', ') + '</b>' : 'Ningún piquete a punto todavía.') +
+      (st.ref ? ' <span style="color:#8C9196;">Meta ' + esc(st.ref.nombre) + ': entrar a ' + st.ref.entrada + ' cm, sacar a ' + st.ref.salida + ' cm.</span>' : ' <span style="color:#8C9196;">Cargá la variedad de la pastura en la campaña para tener la meta de altura.</span>') + '</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;">' + filas.map(function (x) {
+      return '<div style="border:1px solid #E1E4E7;border-left:4px solid ' + x.color + ';border-radius:8px;padding:6px 8px;font-size:12px;background:#fff;"><b>Piquete ' + esc(x.piquete) + '</b>' + (x.altura ? ' · <b style="color:' + x.color + ';">' + x.altura + ' cm</b>' : '') + '<div style="color:#3A3E41;line-height:1.35;margin-top:2px;">' + esc(x.texto) + '</div></div>';
+    }).join('') + '</div>';
+    return h;
+  }
+  // Guía rápida del manejo (resumen del Manual de pastura irrigada de Irrigar 2025 con las alturas de Embrapa)
+  function htmlGuia(ref) {
+    var alt = ref ? ref.nombre + ': entrar a <b>' + ref.entrada + ' cm</b>, sacar a <b>' + ref.salida + ' cm</b>' : 'entrar a la altura óptima de la especie y sacar a la mínima';
+    var tarjetas = [
+      ['Las dos decisiones de cada día', 'Mover los animales AL piquete que llegó a la altura de entrada (' + alt + '). Sacarlos DEL piquete cuando comieron hasta la altura de salida: ese resto de hojas es lo que hace rebrotar rápido. Ni afeitar ni dejar pasar el pasto.'],
+      ['Medir con regla, todos los días', 'Recorrer el piquete y medir en varios puntos (la planilla usa 10, uno cada décimo del largo); SAFIA promedia y pinta el color. Con esas lecturas el satélite aprende cuándo un piquete está a punto.'],
+      ['Riego y pastoreo separados', 'No regar el piquete ocupado ni los 3 a 5 siguientes: los animales pisan siempre suelo seco (cero compactación, cero barro en las pezuñas). Regar el resto según el balance de agua.'],
+      ['Un lote parejo, carga ajustable', 'Un solo lote por pivot, animales parejos (5 a 10 % de diferencia de peso). Si falta pasto (invierno, media de temperatura bajo 15 °C), sacar animales; nunca sobrecargar los piquetes.'],
+      ['Primer pastoreo y corrección', 'Primer ingreso a los 50 a 75 días de la germinación, con animales livianos, cuando el pasto llega al 75 % de su altura de manejo. Si un piquete se pasó, rozarlo a la altura de salida: es una corrección, no una rutina.']
+    ];
+    return '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:12px;font-weight:600;color:#2E3236;">Guía rápida de manejo (Irrigar · alturas Embrapa)</summary><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px;margin-top:6px;">' +
+      tarjetas.map(function (t) { return '<div style="border:1px solid #E1E4E7;border-radius:8px;padding:7px 9px;font-size:12px;background:#fff;"><b>' + t[0] + '</b><div style="color:#3A3E41;line-height:1.4;margin-top:2px;">' + t[1] + '</div></div>'; }).join('') +
+      '</div><div style="font-size:11px;color:#8C9196;margin-top:4px;">Alturas: ' + (ref ? esc(ref.fuente) : FUENTE_REGUA) + '. Manejo: Manual de pastura irrigada, Irrigar S.A. 2025.</div></details>';
   }
 
   /* ---------- eventos de pastoreo ---------- */
@@ -150,6 +237,7 @@
     var r = resumenLote(equipoId, cultivo), h = '<div style="margin-top:6px;font-size:12px;' + (r.alerta ? 'color:#8a5713;font-weight:600;' : 'color:#3A3E41;') + '">' + r.texto + '</div>';
     if (cultivo && cultivo.sistemaPastoreo) h += '<div style="font-size:11px;color:#8C9196;">' + esc(nombreSistema(cultivo.sistemaPastoreo)) + (cultivo.piquetes ? ' · ' + esc(cultivo.piquetes) + ' piquetes' : '') + (cultivo.diasOcupacion ? ' · ' + esc(cultivo.diasOcupacion) + ' d ocupación' : '') + (cultivo.diasDescanso ? ' · ' + esc(cultivo.diasDescanso) + ' d descanso' : '') + '</div>';
     if (balance && balance.pastura) h += htmlTemperatura(balance.pastura);
+    h += '<div style="margin-top:8px;">' + htmlPiquetes(equipoId, cultivo) + '</div>';
     return h;
   }
   function htmlOperador(equipoId, cultivo) {
@@ -194,5 +282,5 @@
     cargarReferencia().then(function (filas) { el.innerHTML = htmlBanco(c, filas); });
   }
 
-  window.SafiaPasturas = { alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
+  window.SafiaPasturas = { alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, clasificarAltura: clasificarAltura, lecturasLote: lecturasLote, promedio: promedio, estadoPiquetes: estadoPiquetes, htmlPiquetes: htmlPiquetes, htmlGuia: htmlGuia, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
 })();

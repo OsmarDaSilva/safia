@@ -894,7 +894,12 @@
             <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20c4-6 6-12 8-16 2 4 4 10 8 16"/><path d="M8 14c2-1 6-1 8 0"/><path d="M6 18c3-1.5 9-1.5 12 0"/></svg></div>
             <div class="boton-carga-label">Pastoreo</div>
           </button>
+          <button class="boton-carga boton-aplicacion" id="btnLectura" style="display:none;" onclick="abrirModal('lectura')">
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18"/><path d="M6 6h3M6 10h4M6 14h3M6 18h4"/><path d="M13 21c2-4 3-8 3-12M17 21c2-5 2-9 2-13"/></svg></div>
+            <div class="boton-carga-label">Altura del pasto</div>
+          </button>
         </div>
+        <div id="pasturaPanel" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:12px 14px;"></div>
 
         <div id="eventosSeccion" style="display:none;">
           <div class="eventos-titulo">
@@ -954,6 +959,19 @@
           <label>Altura del pasto (cm) <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional)</span></label>
           <input type="number" id="modalAltura" placeholder="Ej: 35" min="0" step="1" oninput="avisoAlturaPasto()">
           <div class="ayuda" id="modalAlturaRef" style="margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <div id="camposLectura" style="display:none;">
+        <div class="campo">
+          <label>Piquete (número o nombre)</label>
+          <input type="text" id="lecPiquete" placeholder="Ej: 3" oninput="resumenLectura()">
+        </div>
+        <div class="campo">
+          <label>Medidas con la regla (cm) <span style="color:#aaa;font-weight:400;font-size:11px;">(varios puntos del piquete; la planilla usa 10)</span></label>
+          <div id="lecMedidas" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;"></div>
+          <button type="button" class="btn" style="margin-top:6px;padding:6px 10px;font-size:12px;" onclick="agregarMedidas(5)">+ 5 medidas más</button>
+          <div class="ayuda" id="lecResumen" style="margin-top:6px;font-size:13px;"></div>
         </div>
       </div>
 
@@ -1180,6 +1198,8 @@
       }
       const esPastura = window.SafiaPasturas && SafiaPasturas.esPastura(primerCultivo.cultivo);
       const bp = document.getElementById('btnPastoreo'); if (bp) bp.style.display = esPastura ? '' : 'none';
+      const bl = document.getElementById('btnLectura'); if (bl) bl.style.display = esPastura ? '' : 'none';
+      setTimeout(pintarPanelPastura, 0);
       if (esPastura) { metaTexto = metaTexto.replace('días desde siembra', 'días desde la implantación') + SafiaPasturas.htmlOperador(equipoSeleccionadoId, primerCultivo); }
 
       document.getElementById('campanaCultivo').textContent = cultivosTexto;
@@ -1467,6 +1487,7 @@
       document.getElementById('npkPreview').style.display = 'none';
       document.getElementById('modalObservaciones').value = '';
       document.getElementById('camposPastoreo').style.display = 'none';
+      document.getElementById('camposLectura').style.display = 'none';
       document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
 
@@ -1494,6 +1515,14 @@
         if (ult && ult.accion === 'entrada') { document.getElementById('modalAccion').value = 'salida'; document.getElementById('modalPiquete').value = ult.piquete || ''; }
         else if (ult && /^\d+$/.test(String(ult.piquete || ''))) { document.getElementById('modalAccion').value = 'entrada'; document.getElementById('modalPiquete').value = String(parseInt(ult.piquete, 10) + 1); }
         avisoAlturaPasto();
+      } else if (tipo === 'lectura') {
+        titulo.innerHTML = 'Lectura de altura del pasto';
+        camposRiegoLluvia.style.display = 'none';
+        camposAplicacion.style.display = 'none';
+        document.getElementById('camposLectura').style.display = 'block';
+        document.getElementById('lecPiquete').value = ''; document.getElementById('lecMedidas').innerHTML = ''; agregarMedidas(10); resumenLectura();
+        const st = SafiaPasturas.estadoPiquetes(equipoSeleccionadoId, campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null);
+        if (st.ocupado) document.getElementById('lecPiquete').value = st.ocupado;   // lo más común: medir el piquete ocupado y el siguiente
       }
 
       document.getElementById('modalOverlay').classList.add('visible');
@@ -1508,6 +1537,27 @@
       el.innerHTML = SafiaPasturas.textoAltura(ref, accion, alt);
     }
     document.getElementById('modalAccion').addEventListener('change', avisoAlturaPasto);
+    function agregarMedidas(n) {
+      const cont = document.getElementById('lecMedidas'), desde = cont.querySelectorAll('input').length;
+      for (let i = 0; i < n; i++) { const inp = document.createElement('input'); inp.type = 'number'; inp.min = '0'; inp.step = '1'; inp.placeholder = String(desde + i + 1); inp.className = 'lec-medida'; inp.style.cssText = 'padding:8px 6px;font-size:14px;text-align:center;'; inp.setAttribute('inputmode', 'numeric'); inp.addEventListener('input', resumenLectura); inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const sig = inp.nextElementSibling; if (sig) sig.focus(); } }); cont.appendChild(inp); }
+    }
+    function medidasLeidas() { return Array.from(document.querySelectorAll('#lecMedidas input')).map(i => parseFloat(i.value)).filter(v => v > 0); }
+    function resumenLectura() {
+      const el = document.getElementById('lecResumen'); if (!el) return;
+      const m = medidasLeidas(), prom = SafiaPasturas.promedio(m);
+      const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null, ref = SafiaPasturas.alturasReferencia(camp ? (camp.variedad || '') + ' ' + (camp.cultivo || '') : '');
+      if (!prom) { el.innerHTML = ref ? 'Meta ' + ref.nombre + ': entrar a ' + ref.entrada + ' cm, sacar a ' + ref.salida + ' cm.' : 'Cargá la variedad de la pastura en la campaña para ver la meta de altura.'; return; }
+      const c = SafiaPasturas.clasificarAltura(ref, prom);
+      el.innerHTML = m.length + ' medida' + (m.length === 1 ? '' : 's') + ' · promedio <b style="color:' + c.color + ';font-size:15px;">' + prom + ' cm</b>' + (c.texto ? ' · <b style="color:' + c.color + ';">' + c.texto + '</b>' : '') + (ref ? ' <span style="color:#8C9196;">(meta ' + ref.entrada + ' / ' + ref.salida + ' cm)</span>' : '');
+    }
+    function pintarPanelPastura() {
+      const panel = document.getElementById('pasturaPanel'); if (!panel) return;
+      const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null;
+      const esPast = camp && window.SafiaPasturas && SafiaPasturas.esPastura(camp.cultivo);
+      panel.style.display = esPast ? '' : 'none'; if (!esPast) return;
+      const ref = SafiaPasturas.alturasReferencia((camp.variedad || '') + ' ' + (camp.cultivo || ''));
+      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Piquetes</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) + SafiaPasturas.htmlGuia(ref);
+    }
     function cerrarModal() {
       document.getElementById('modalOverlay').classList.remove('visible');
     }
@@ -1539,6 +1589,12 @@
         if (!cantidad || cantidad <= 0) { mostrarToast('Cargá la cantidad en mm.'); return; }
         evento.cantidad = cantidad;
         evento.unidad = 'mm';
+
+      } else if (tipoEventoActual === 'lectura') {
+        const piquete = document.getElementById('lecPiquete').value.trim(), m = medidasLeidas();
+        if (!piquete) { mostrarToast('Cargá el piquete que mediste.'); return; }
+        if (!m.length) { mostrarToast('Cargá al menos una medida en cm.'); return; }
+        evento.piquete = piquete; evento.medidas = m; evento.alturaCm = SafiaPasturas.promedio(m);
 
       } else if (tipoEventoActual === 'pastoreo') {
         const piquete = document.getElementById('modalPiquete').value.trim();
@@ -1578,6 +1634,7 @@
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
       eventos.push(evento);
       localStorage.setItem('eventos', JSON.stringify(eventos));
+      setTimeout(pintarPanelPastura, 0);
 
       cerrarModal();
       mostrarToast('✓ ' + capitalizar(tipoEventoActual) + ' guardado');
@@ -1652,6 +1709,10 @@
           icono = '🔧';
           titulo = `Mantenimiento: ${ev.tarea || ''}`;
           detalle = `${diaSemana} ${fechaStr}${ev.horasEquipo != null ? ' · a las ' + ev.horasEquipo + ' h' : ''}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'lectura') {
+          icono = '📏';
+          titulo = 'Altura piquete ' + (ev.piquete || '?') + ': ' + ev.alturaCm + ' cm';
+          detalle = `${diaSemana} ${fechaStr} · ${(ev.medidas || []).length} medida${(ev.medidas || []).length === 1 ? '' : 's'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'pastoreo') {
           icono = '🐄';
           titulo = (ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte') + ' · piquete ' + (ev.piquete || '?') + (ev.cabezas ? ' · ' + ev.cabezas + ' cab.' : '') + (ev.kgMsHa ? ' · ' + ev.kgMsHa + ' kg MS/ha' : '');

@@ -415,6 +415,7 @@
         else if (ev.tipo === 'lluvia') { badgeClase = 'blue'; tipoLabel = 'Lluvia'; cantidad = `${ev.cantidad} mm`; }
         else if (ev.tipo === 'horimetro') { badgeClase = 'muted'; tipoLabel = 'Horímetro'; cantidad = (ev.cantidad != null && ev.cantidad !== '' ? Number(ev.cantidad).toLocaleString('es-PY') : '—') + ' h'; prodSub = '<div class="sub">' + ({ pivote: 'Pivot', bomba: 'Bomba', canon: 'Cañón final' }[ev.contador] || 'Pivot') + '</div>'; }
         else if (ev.tipo === 'mantenimiento') { badgeClase = 'muted'; tipoLabel = 'Mantenimiento'; cantidad = ev.horasEquipo != null && ev.horasEquipo !== '' ? Number(ev.horasEquipo).toLocaleString('es-PY') + ' h' : '—'; prodSub = ev.tarea ? '<div class="sub">' + textoSeguro(ev.tarea) + '</div>' : ''; }
+        else if (ev.tipo === 'lectura') { badgeClase = 'green'; tipoLabel = 'Altura del pasto'; cantidad = (ev.alturaCm || '—') + ' cm'; prodSub = '<div class="sub">piquete ' + (ev.piquete || '?') + ' · ' + ((ev.medidas || []).length) + ' medidas</div>'; }
         else if (ev.tipo === 'pastoreo') { badgeClase = 'green'; tipoLabel = ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte'; cantidad = 'piquete ' + (ev.piquete || '?'); prodSub = '<div class="sub">' + [ev.cabezas ? ev.cabezas + ' cab.' : '', ev.kgMsHa ? ev.kgMsHa + ' kg MS/ha' : '', ev.alturaCm ? ev.alturaCm + ' cm' : ''].filter(Boolean).join(' · ') + '</div>'; }
         else { badgeClase = 'amber'; tipoLabel = 'Aplicación'; cantidad = `${ev.dosis || ''} ${ev.unidad || ''}`.trim() || '—'; prodSub = ev.producto ? `<div class="sub">${ev.producto}</div>` : ''; }
 
@@ -474,7 +475,7 @@
         selectEquipo.appendChild(opt);
       });
 
-      if (ev.tipo === 'pastoreo') {
+      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura') {
         document.getElementById('editCamposRiegoLluvia').style.display = 'none';
         document.getElementById('editCamposAplicacion').style.display = 'none';
       } else if (ev.tipo === 'aplicacion') {
@@ -696,8 +697,8 @@
       const ca = campanas.find(c => c.equipoId === equipoId && c.estado === 'Activa');
       ev.campanaId = ca ? ca.id : null;
 
-      if (ev.tipo === 'pastoreo') {
-        // fecha, lote y observaciones se editan; el detalle del pastoreo se carga desde el Operador
+      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura') {
+        // fecha, lote y observaciones se editan; el detalle del pastoreo o de la lectura se carga desde el Operador
       } else if (ev.tipo === 'aplicacion') {
         const producto = document.getElementById('editProducto').value.trim();
         const dosis = parseFloat(document.getElementById('editDosis').value);
@@ -752,7 +753,7 @@
 
         return {
           fecha: ev.fecha,
-          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : ev.tipo === 'horimetro' ? ('Horímetro ' + ({ pivote: 'pivot', bomba: 'bomba', canon: 'cañón final' }[ev.contador] || 'pivot')) : ev.tipo === 'mantenimiento' ? ('Mantenimiento: ' + (ev.tarea || '')) : 'Aplicación',
+          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : ev.tipo === 'lectura' ? ('Altura piquete ' + (ev.piquete || '') + ' ' + (ev.alturaCm || '') + ' cm') : ev.tipo === 'horimetro' ? ('Horímetro ' + ({ pivote: 'pivot', bomba: 'bomba', canon: 'cañón final' }[ev.contador] || 'pivot')) : ev.tipo === 'mantenimiento' ? ('Mantenimiento: ' + (ev.tarea || '')) : 'Aplicación',
           cliente: cliente ? cliente.nombre : '',
           campo: campo ? campo.nombre : '',
           equipo: equipo ? equipo.nombre : '',
