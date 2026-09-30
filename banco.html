@@ -63,6 +63,7 @@
 <script src="safia-senave.js"></script>
 <script src="safia-catalogo.js"></script>
 <script src="safia-fertilidad.js"></script>
+<script src="safia-planilla-suelo.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-lotes.js"></script>
 <script src="safia-mapas.js"></script>
@@ -307,12 +308,12 @@
               <div class="field"><label>Limo (%)</label><input type="number" id="aLimo" step="0.1" min="0" max="100"></div>
               <div class="field"><label>Arcilla (%)</label><input type="number" id="aArcilla" step="0.1" min="0" max="100"></div>
               <div class="field full">
-                <label>Foto o PDF del laboratorio</label>
-                <input type="file" id="aArchivo" accept=".pdf,image/*">
+                <label>Archivo del laboratorio <span class="hint">PDF o foto (lo lee la IA) · Excel o CSV (planilla de resultados o muestreo en grilla, se lee al instante)</span></label>
+                <input type="file" id="aArchivo" accept=".pdf,image/*,.xlsx,.xls,.xlsm,.csv,.txt">
                 <span class="hint" id="aArchivoActual"></span>
                 <div style="margin-top:8px;">
-                  <button type="button" class="btn green" id="btnLeerIA">✨ Leer análisis con IA y completar solo</button>
-                  <span class="hint" id="leerIAHint" style="display:block;margin-top:6px;">Subí la foto o PDF del laboratorio y tocá el botón: la IA completa los casilleros. Revisá los valores antes de guardar.</span>
+                  <button type="button" class="btn green" id="btnLeerIA">✨ Leer el archivo y completar solo</button>
+                  <span class="hint" id="leerIAHint" style="display:block;margin-top:6px;">Foto o PDF: lo lee la IA. Excel o CSV del laboratorio o del muestreo en grilla: se lee al instante, con todas sus muestras. Revisá los valores antes de guardar.</span>
                 </div>
               </div>
               <div class="field full"><label>Observaciones</label><textarea id="aObs"></textarea></div>
@@ -1591,8 +1592,23 @@
     if (!window.safiaSupabase) { toast('Sin conexión a internet', true); return; }
     if (window.SafiaSuscripcion && campoActual && !SafiaSuscripcion.puedeCargarCampo(campoActual.id)) { toast('La suscripción de este campo está vencida: podés ver lo cargado, pero para leer y cargar análisis nuevos hay que renovarla con Irrigar.', true); return; }
 
-    var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
     var boton = this;
+    if (window.SafiaPlanillaSuelo && SafiaPlanillaSuelo.esPlanilla(archivo)) {
+      boton.disabled = true; boton.textContent = 'Leyendo la planilla…'; hint.textContent = 'Leyendo la planilla…';
+      SafiaPlanillaSuelo.leerPlanilla(archivo).then(function (r) {
+        if (r.error) throw new Error(r.error);
+        var ms = r.muestras.map(function (m) { var o = Object.assign({}, m); if (o.codigo_lab && o.muestra) o.observaciones = 'Cód. lab. ' + o.codigo_lab; if (!o.muestra && o.codigo_lab) o.muestra = o.codigo_lab; if (o.localidad && !o.observaciones) o.observaciones = o.localidad; return o; });
+        mostrarMuestrasIA(ms);
+        volcarAnalisis(ms.length > 1 ? Object.assign(SafiaPlanillaSuelo.promedio(ms), { laboratorio: r.laboratorio }) : ms[0]);
+        if (!document.getElementById('aFecha').value) document.getElementById('aFecha').value = (ms[0] && ms[0].fecha) || new Date().toISOString().slice(0, 10);
+        hint.innerHTML = '✓ ' + SafiaPlanillaSuelo.resumenHTML(r) + (ms.length > 1 ? '<br>En los casilleros quedó el <b>promedio</b> de la grilla. Con el botón verde de abajo se guardan las ' + ms.length + ' muestras (y el promedio si marcás "misma parcela"); el Excel queda adjunto.' : '');
+        if (!r.conGps) hint.innerHTML += '<br><span class="muted">La planilla no trae coordenadas: para el mapa de precisión (pestaña Mapas georreferenciados) hace falta el archivo de puntos del muestreo (CSV con lat/lon, KML o shapefile).</span>';
+        toast('Planilla leída: ' + ms.length + ' muestra' + (ms.length === 1 ? '' : 's'));
+      }).catch(function (e) { hint.textContent = 'No se pudo leer la planilla: ' + (e && e.message ? e.message : 'error'); toast('No se pudo leer la planilla', true); })
+        .finally(function () { boton.disabled = false; boton.textContent = '✨ Leer el archivo y completar solo'; });
+      return;
+    }
+    var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
     boton.disabled = true; boton.textContent = '✨ Leyendo…';
     hint.textContent = 'Leyendo el análisis con IA, esto tarda unos segundos…';
 
@@ -1622,7 +1638,7 @@
         e.context.json().then(function (j) { explicar((j && (j.error + (j.detalle ? ' · ' + j.detalle : ''))) || e.message); }).catch(function () { explicar(e.message); });
       } else explicar((e && e.message) || '');
     }).finally(function () {
-      boton.disabled = false; boton.textContent = '✨ Leer análisis con IA y completar solo';
+      boton.disabled = false; boton.textContent = '✨ Leer el archivo y completar solo';
     });
   });
 
@@ -1644,7 +1660,7 @@
   }
 
   // Datos que la IA lee pero el formulario no tiene casillero: se guardan igual en el análisis y en Observaciones.
-  var EXTRAS_IA = [['h_al', 'hAl', 'H+Al', 'cmolc/dm³'], ['ph_smp', 'phSmp', 'pH SMP', ''], ['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³']];
+  var EXTRAS_IA = [['h_al', 'hAl', 'H+Al', 'cmolc/dm³'], ['ph_smp', 'phSmp', 'pH SMP', ''], ['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³'], ['hierro', 'hierro', 'Fe', 'mg/dm³'], ['sb', 'sb', 'SB', 'cmolc/dm³']];
   var extrasIA = null;
   function extrasDeMuestra(m) {
     var o = {}, hay = false;
@@ -1732,6 +1748,7 @@
     set('aArena', d.arena);
     set('aLimo', d.limo);
     set('aArcilla', d.arcilla);
+    set('aHal', d.h_al); set('aSmp', d.ph_smp);
     document.getElementById('aObs').value = obsDeMuestra(d);
     extrasIA = extrasDeMuestra(d);
     var loteIA = loteParaMuestra(d.muestra);

@@ -48,6 +48,7 @@
 <script src="safia-lluvia.js"></script>
 <script src="safia-casos.js"></script>
 <script src="safia-fertilidad.js"></script>
+<script src="safia-planilla-suelo.js"></script>
 <script src="safia-agronomia.js"></script>
 <script src="safia-precios.js"></script>
 <script src="safia-meta.js"></script>
@@ -166,8 +167,8 @@
           <div class="formsub">Subí la foto o el PDF del laboratorio y la IA completa los valores, o cargalos a mano.</div>
           <div class="form-grid">
             <div class="field full" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;">
-              <input type="file" id="pArchivo" accept=".pdf,image/*" style="max-width:260px;">
-              <button class="btn green" id="btnLeerIA">✨ Leer análisis con IA</button>
+              <input type="file" id="pArchivo" accept=".pdf,image/*,.xlsx,.xls,.xlsm,.csv,.txt" style="max-width:260px;">
+              <button class="btn green" id="btnLeerIA">✨ Leer el archivo (PDF, foto o Excel)</button>
               <span class="hint" id="iaHint"></span>
             </div>
             <div class="field"><label>pH</label><input type="number" id="s_ph" step="0.1"></div>
@@ -381,7 +382,19 @@
   function aBase64(a){ return new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(String(fr.result).split(',')[1]);}; fr.onerror=rej; fr.readAsDataURL(a); }); }
   document.getElementById('btnLeerIA').addEventListener('click',function(){
     var f=document.getElementById('pArchivo').files[0], hint=document.getElementById('iaHint'), b=this;
-    if(!f){ toast('Elegí la foto o PDF del análisis',true); return; }
+    if(!f){ toast('Elegí la foto, PDF o planilla del análisis',true); return; }
+    if(window.SafiaPlanillaSuelo&&SafiaPlanillaSuelo.esPlanilla(f)){
+      b.disabled=true; hint.textContent='Leyendo la planilla…';
+      SafiaPlanillaSuelo.leerPlanilla(f).then(function(r){
+        if(r.error) throw new Error(r.error);
+        var d=r.muestras.length>1?SafiaPlanillaSuelo.promedio(r.muestras):r.muestras[0];
+        var mapa={ph:'ph',mo:'materia_organica',p:'fosforo',k:'potasio',ca:'calcio',mg:'magnesio',cic:'cic',satBases:'saturacion_bases',arena:'arena',limo:'limo',arcilla:'arcilla'};
+        var n=0; Object.keys(mapa).forEach(function(k){ var v=d[mapa[k]]; if(v!==null&&v!==undefined&&v!==''){ document.getElementById('s_'+k).value=v; n++; } });
+        hint.innerHTML='✓ '+SafiaPlanillaSuelo.resumenHTML(r)+(r.muestras.length>1?'<br>Cargado el <b>promedio</b> de las '+r.muestras.length+' muestras como suelo del proyecto ('+n+' valores).':'');
+      }).catch(function(e){ hint.textContent='No se pudo leer la planilla: '+(e&&e.message?e.message:'error'); })
+      .finally(function(){ b.disabled=false; });
+      return;
+    }
     if(!window.safiaSupabase){ toast('Sin conexión',true); return; }
     var esPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
     b.disabled=true; b.textContent='✨ Leyendo…'; hint.textContent='Leyendo con IA…';
@@ -393,7 +406,7 @@
       var n=0; Object.keys(mapa).forEach(function(k){ var v=d[mapa[k]]; if(v!==null&&v!==undefined&&v!==''){ document.getElementById('s_'+k).value=v; n++; } });
       hint.textContent='✓ '+n+' valores cargados. Revisalos.';
     }).catch(function(){ hint.textContent='No se pudo leer. Cargá los valores a mano.'; })
-    .finally(function(){ b.disabled=false; b.textContent='✨ Leer análisis con IA'; });
+    .finally(function(){ b.disabled=false; b.textContent='✨ Leer el archivo (PDF, foto o Excel)'; });
   });
 
   /* ---------- análisis de agua del proyecto (mismo motor que el Banco: safia-calidad-agua.js) ---------- */
