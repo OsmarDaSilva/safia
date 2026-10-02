@@ -8,7 +8,7 @@
    - Nunca cachea llamadas a Supabase, Open-Meteo ni a la IA: esas
      necesitan internet y el sync ya trabaja en modo local sin ella.
    Cambiar VERSION al publicar cambios grandes para limpiar cachés viejas. */
-var VERSION = 'safia-v69';
+var VERSION = 'safia-v70';
 var SHELL = [
   './', './index.html', './login.html', './mis-clientes.html', './mis-campos.html', './mis-equipos.html', './mis-cultivos.html',
   './mis-campanas.html', './ficha.html', './usuarios.html', './banco.html', './referencia.html', './referencia-forraje.html', './clima.html', './prediccion.html', './evaluar.html', './rankings.html', './asistente.html', './suscripciones.html', './conexiones.html',
@@ -53,4 +53,25 @@ self.addEventListener('fetch', function (e) {
       return enCache || red;
     }));
   }
+});
+
+/* ---- avisos al celular: la notificación llega aunque SAFIA esté cerrada (la manda la edge safia-avisos) ---- */
+self.addEventListener('push', function (e) {
+  var d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { titulo: 'SAFIA', cuerpo: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.titulo || 'SAFIA', {
+    body: d.cuerpo || '', icon: 'icons/safia-192.png', badge: 'icons/safia-192.png',
+    tag: d.tag || undefined, renotify: !!d.tag, data: { url: d.url || './' }
+  }));
+});
+// Al tocar el aviso se abre SAFIA en la pantalla que corresponde (el pivot del aviso)
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var destino = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) {
+    for (var i = 0; i < cs.length; i++) {
+      if ('focus' in cs[i]) { if ('navigate' in cs[i]) { try { cs[i].navigate(destino); } catch (x) {} } return cs[i].focus(); }
+    }
+    return self.clients.openWindow(destino);
+  }));
 });

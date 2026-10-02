@@ -142,6 +142,7 @@
         '<div style="font-size:11px;color:#8C9196;margin-top:4px;">Para cargar o revisar lo de un productor con sus pantallas ya en su campo.</div></div>';
     }
     h += '<a href="#" id="safiaCuentaClave" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;">Cambiar mi contraseña</a>';
+    h += '<a href="#" id="safiaCuentaAvisos" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Avisos al celular</a>';
     if (alto) h += '<a href="usuarios.html" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Usuarios y accesos</a>';
     if (usuario.rol === 'propietario') h += '<a href="backup.html" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Copia de seguridad (.json)</a>';
     h += '<a href="#" id="safiaCuentaAcerca" style="display:block;padding:9px 12px;color:#2E3236;text-decoration:none;font-size:13px;border-top:1px solid #f0f2f4;">Qué significa SAFIA</a>';
@@ -149,11 +150,13 @@
     m.innerHTML = h; m.style.display = 'block';
     var sel = $('safiaVerComoSel'); if (sel) sel.addEventListener('change', function () { if (sel.value) verComo(sel.value); else salirVerComo(); });
     $('safiaCuentaClave').addEventListener('click', function (ev) { ev.preventDefault(); cerrarMenu(); modalClave(); });
+    $('safiaCuentaAvisos').addEventListener('click', function (ev) { ev.preventDefault(); cerrarMenu(); modalAvisos(); });
     $('safiaCuentaSalir').addEventListener('click', function (ev) { ev.preventDefault(); salir(); });
     $('safiaCuentaAcerca').addEventListener('click', function (ev) { ev.preventDefault(); cerrarMenu(); modalAcerca(); });
   }
   function salir() {
     try { ['safia_usuario', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo'].forEach(function (k) { localStorage.removeItem(k); }); sessionStorage.removeItem('banco_campo'); } catch (e) {}
+    if (!salir._avisosListo) { salir._avisosListo = true; var seguir = function () { salir(); }; Promise.race([AV.desactivar().catch(function () {}), new Promise(function (r) { setTimeout(r, 1500); })]).then(seguir, seguir); return; }
     if (window.SafiaSync && SafiaSync.cerrarSesion) { SafiaSync.cerrarSesion(); return; }
     var sb = window.safiaSupabase;
     try { Object.keys(localStorage).forEach(function (k) { if (/^sb-.*-auth-token/.test(k)) localStorage.removeItem(k); }); } catch (e) {}
@@ -250,6 +253,7 @@
     pill.onclick = function () { abierto ? cerrarMenu() : abrirMenu(); };
     franja();
     suscripcionEnPantalla(usuario);
+    avisosEnPantalla(usuario);
   }
 
   /* ---------- Suscripciones por pivot: enlace del menú (Irrigar) y aviso arriba de la pantalla ---------- */
@@ -314,5 +318,150 @@
   }
   try { var uGuardado = JSON.parse(localStorage.getItem('safia_usuario') || 'null'); if (uGuardado) enlaceSuscripciones(uGuardado); } catch (e) {}
 
-  window.SafiaCuenta = { acerca: modalAcerca, montar: montar, aplicarRol: aplicarRol, fueraDeRol: fueraDeRol, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
+  /* ---------- Avisos al celular (notificaciones de la app; edge safia-avisos) ----------
+     El celular se suscribe una vez (permiso del navegador) y queda guardado para ese usuario. Cada mañana el servidor
+     calcula el riego, la rotación de piquetes y el mantenimiento con el mismo motor de las pantallas y avisa. */
+  function b64u(b) { var s = ''; for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function deB64u(t) { var x = String(t).replace(/-/g, '+').replace(/_/g, '/'); var s = atob(x + new Array((4 - x.length % 4) % 4 + 1).join('=')); var b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+  function hoyK() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function esteCelular() { var ua = navigator.userAgent || ''; var so = /android/i.test(ua) ? 'Android' : /iphone|ipad|ipod/i.test(ua) ? 'iPhone' : /windows/i.test(ua) ? 'PC Windows' : /mac os/i.test(ua) ? 'Mac' : 'Otro'; var nav = /edg\//i.test(ua) ? 'Edge' : /chrome|crios/i.test(ua) ? 'Chrome' : /firefox|fxios/i.test(ua) ? 'Firefox' : /safari/i.test(ua) ? 'Safari' : ''; return so + (nav ? ' · ' + nav : ''); }
+  var AV = {
+    soportado: function () { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && (location.protocol === 'https:' || location.hostname === 'localhost'); },
+    esIOS: /iphone|ipad|ipod/i.test(navigator.userAgent || ''),
+    instalada: function () { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; },
+    invocar: function (accion, extra) {
+      var sb = window.safiaSupabase; if (!sb) return Promise.reject(new Error('Sin conexión con la nube.'));
+      var cuerpo = extra || {}; cuerpo.accion = accion;
+      return sb.functions.invoke('safia-avisos', { body: cuerpo }).then(function (r) {
+        if (r.error) {
+          var ctx = r.error.context;
+          if (ctx && typeof ctx.json === 'function') return ctx.json().then(function (j) { return j; }, function () { return null; }).then(function (j) { throw new Error((j && j.error) || r.error.message || 'No se pudo conectar'); });
+          throw new Error(r.error.message || 'No se pudo conectar');
+        }
+        if (r.data && r.data.error) throw new Error(r.data.error);
+        return r.data;
+      });
+    },
+    suscripcion: function () { if (!AV.soportado()) return Promise.resolve(null); return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }); },
+    activar: function () {
+      if (!AV.soportado()) return Promise.reject(new Error('Este navegador no permite avisos. En iPhone hay que instalar SAFIA primero (Compartir → Agregar a inicio).'));
+      return Notification.requestPermission().then(function (p) {
+        if (p !== 'granted') throw new Error(p === 'denied' ? 'Las notificaciones de SAFIA están bloqueadas en este dispositivo: hay que permitirlas en los ajustes del navegador (candado de la barra de dirección → Notificaciones) y volver a tocar Activar.' : 'No se dio el permiso para avisar.');
+        return Promise.all([navigator.serviceWorker.ready, AV.invocar('clave')]);
+      }).then(function (x) {
+        var reg = x[0], publica = x[1].publica;
+        return reg.pushManager.getSubscription().then(function (s) {
+          var misma = s && s.options && s.options.applicationServerKey && b64u(new Uint8Array(s.options.applicationServerKey)) === publica;
+          if (s && !misma) return s.unsubscribe().then(function () { return null; });   // suscripción de otra llave: se renueva
+          return s;
+        }).then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: deB64u(publica) }); });
+      }).then(function (s) {
+        return AV.invocar('suscribir', { suscripcion: s.toJSON(), dispositivo: esteCelular() }).then(function () { try { localStorage.setItem('safia_avisos_sync', hoyK()); } catch (e) {} return s; });
+      });
+    },
+    desactivar: function () {
+      return AV.suscripcion().then(function (s) {
+        if (!s) return null;
+        var ep = s.endpoint;
+        return AV.invocar('desuscribir', { endpoint: ep }).catch(function () {}).then(function () { return s.unsubscribe(); });
+      });
+    }
+  };
+  function modalAvisos() {
+    var d = $('safiaAvisosModal'); if (d) d.remove();
+    d = document.createElement('div'); d.id = 'safiaAvisosModal';
+    d.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
+    var alto = esAlto(usuario), rol = usuario && usuario.rol;
+    var queLlega = alto ? 'Como Irrigar te llegan las suscripciones que están por vencer (a 30, 15, 7, 3 y 1 día).' :
+      rol === 'operador' ? 'Te avisa cuándo arrancar el pivot, cuándo regar ya porque el cultivo entró en estrés y cuándo toca rotar los animales de piquete.' :
+      rol === 'encargado' ? 'Te avisa cuándo arrancar el pivot, cuándo un cultivo entra en estrés, cuándo toca rotar los animales y cuándo hay mantenimiento vencido.' :
+      'Te avisa cuando un cultivo entra en estrés y cuando hay mantenimiento vencido. Si en la estancia no hay operador ni encargado cargado, también cuándo arrancar el pivot y rotar los animales.';
+    var btn = 'padding:10px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;';
+    d.innerHTML = '<div style="background:#fff;border-radius:14px;padding:22px;max-width:460px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
+      '<div style="font-size:17px;font-weight:800;color:#2E3236;margin-bottom:6px;">Avisos al celular</div>' +
+      '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:10px;">SAFIA calcula todas las mañanas a las 6 y manda una notificación a este dispositivo, aunque la app esté cerrada. ' + queLlega + '</div>' +
+      '<div id="safiaAvEstado" style="font-size:13px;padding:9px 12px;border-radius:8px;background:#F4F5F6;color:#41464B;margin-bottom:10px;">Revisando…</div>' +
+      '<div id="safiaAvMsg" style="display:none;font-size:13px;font-weight:600;padding:9px 12px;border-radius:8px;margin-bottom:10px;line-height:1.45;"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+        '<button id="safiaAvActivar" style="' + btn + 'border:0;background:#22A93A;color:#fff;">Activar en este dispositivo</button>' +
+        '<button id="safiaAvProbar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#2E3236;display:none;">Enviar aviso de prueba</button>' +
+        '<button id="safiaAvQuitar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#C0392B;display:none;">Desactivar acá</button>' +
+        '<button id="safiaAvCerrar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#41464B;margin-left:auto;">Cerrar</button>' +
+      '</div>' +
+      '<div id="safiaAvUltimos" style="margin-top:12px;"></div>' +
+      (alto ? '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e1e4e7;"><div style="font-size:11px;font-weight:700;color:#8C9196;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Irrigar · todos los clientes</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="safiaAvVista" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#2E3236;">Ver qué se avisaría hoy</button><button id="safiaAvEnviar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#2E3236;">Enviar los avisos de hoy ahora</button></div>' +
+        '<div id="safiaAvVistaRes" style="margin-top:10px;font-size:12px;color:#41464B;line-height:1.5;"></div></div>' : '') +
+      '</div>';
+    document.body.appendChild(d);
+    var msg = function (t, ok) { var m = $('safiaAvMsg'); if (!t) { m.style.display = 'none'; return; } m.textContent = t; m.style.display = 'block'; m.style.background = ok ? '#E7F6EA' : '#FBECEA'; m.style.color = ok ? '#178029' : '#C0392B'; };
+    var ocupar = function (b, texto) { var antes = b.textContent; b.disabled = true; b.textContent = texto; return function () { b.disabled = false; b.textContent = antes; }; };
+    function pintar() {
+      var est = $('safiaAvEstado'); if (!est) return;
+      if (!AV.soportado()) {
+        est.innerHTML = AV.esIOS && !AV.instalada() ? '<b>En iPhone, primero instalá SAFIA:</b> tocá Compartir y después "Agregar a inicio". Abrí SAFIA desde ese ícono y volvé a esta ventana para activar los avisos.' : 'Este navegador no permite avisos. Usá Chrome o Edge (Android o PC), o SAFIA instalada en iPhone.';
+        $('safiaAvActivar').style.display = 'none'; return;
+      }
+      Promise.all([AV.suscripcion(), AV.invocar('estado').catch(function (e) { return { error: e.message }; })]).then(function (x) {
+        var s = x[0], e = x[1] || {};
+        if (!$('safiaAvEstado')) return;
+        var lista = e.dispositivos || [], aca = !!(s && lista.some(function (k) { return k.endpoint === s.endpoint; }));
+        if (e.sinBase) est.innerHTML = 'Falta preparar la base de los avisos (el bloque SQL que corre Irrigar una sola vez).';
+        else if (e.error) est.textContent = 'No se pudo consultar el estado: ' + e.error;
+        else est.innerHTML = (aca ? '<b style="color:#178029;">Activados en este dispositivo.</b>' : (Notification.permission === 'denied' ? '<b style="color:#C0392B;">Las notificaciones están bloqueadas en este dispositivo.</b> Permitilas en los ajustes del navegador.' : '<b>Todavía no activados en este dispositivo.</b>')) +
+          (lista.length ? ' Tu usuario tiene avisos en ' + lista.length + ' dispositivo' + (lista.length === 1 ? '' : 's') + ': ' + lista.map(function (k) { return esc(k.dispositivo || 'dispositivo'); }).join(', ') + '.' : '');
+        $('safiaAvActivar').style.display = aca ? 'none' : ''; $('safiaAvQuitar').style.display = aca ? '' : 'none'; $('safiaAvProbar').style.display = lista.length ? '' : 'none';
+        var ult = e.ultimos || [];
+        $('safiaAvUltimos').innerHTML = ult.length ? '<div style="font-size:11px;font-weight:700;color:#8C9196;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Últimos avisos</div>' + ult.map(function (a) { return '<div style="font-size:12px;color:#41464B;padding:5px 0;border-top:1px solid #f0f2f4;"><b>' + esc(String(a.fecha).slice(8, 10) + '/' + String(a.fecha).slice(5, 7)) + ' · ' + esc(a.titulo) + '</b><br>' + esc(a.cuerpo) + '</div>'; }).join('') : '';
+      });
+    }
+    $('safiaAvCerrar').addEventListener('click', function () { d.remove(); });
+    $('safiaAvActivar').addEventListener('click', function () { var fin = ocupar(this, 'Activando…'); msg(''); AV.activar().then(function () { msg('Listo: este dispositivo va a recibir los avisos. Probá con "Enviar aviso de prueba".', true); var b = $('safiaAvisoInvita'); if (b) b.remove(); }, function (e) { msg(e.message); }).then(function () { fin(); pintar(); }); });
+    $('safiaAvQuitar').addEventListener('click', function () { var fin = ocupar(this, 'Quitando…'); msg(''); AV.desactivar().then(function () { msg('Este dispositivo ya no recibe avisos.', true); }, function (e) { msg(e.message); }).then(function () { fin(); pintar(); }); });
+    $('safiaAvProbar').addEventListener('click', function () { var fin = ocupar(this, 'Enviando…'); msg(''); AV.invocar('probar').then(function (r) { msg(r.enviados ? 'Enviado a ' + r.enviados + ' dispositivo' + (r.enviados === 1 ? '' : 's') + '. Tiene que aparecer en unos segundos.' : 'No se pudo entregar: ' + ((r.fallos || []).join('; ') || 'sin detalle'), !!r.enviados); }, function (e) { msg(e.message); }).then(function () { fin(); pintar(); }); });
+    if (alto) {
+      var mostrar = function (r) {
+        var h = '<b>' + (r.modo === 'diario' ? 'Enviados ' + r.enviados + ' avisos (' + r.nuevos + ' nuevos de ' + r.calculados + ' calculados; lo ya avisado hoy no se repite).' : 'Vista del ' + String(r.hoy).slice(8, 10) + '/' + String(r.hoy).slice(5, 7) + ' · ' + r.celulares + ' dispositivo(s) con avisos activados. No se envió nada.') + '</b>';
+        (r.clientes || []).forEach(function (c) {
+          h += '<div style="margin-top:8px;font-weight:700;color:#2E3236;">' + esc(c.cliente || 'Cliente') + '</div>' + (c.salteado ? '<div style="color:#8C9196;">' + esc(c.salteado) + '</div>' : '') + (c.error ? '<div style="color:#C0392B;">' + esc(c.error) + '</div>' : '');
+          (c.pivots || []).forEach(function (p) {
+            var e = p.estado || {};
+            h += '<div style="padding:4px 0;border-top:1px solid #f0f2f4;"><b>' + esc(p.pivot) + '</b> · ' + esc(p.error ? 'error: ' + p.error : e.sinCampana ? 'sin campaña activa' : e.secano ? 'secano' : e.sinCoordenadas ? 'sin coordenadas' : e.sinClima ? 'sin clima al día: no se avisa' : ((e.pct != null ? 'agua útil ' + e.pct + ' % · ' : '') + (e.recomendacion || ''))) +
+              (p.avisos || []).map(function (a) { return '<div style="margin:3px 0 0 10px;"><span style="color:#178029;font-weight:700;">' + esc(a.titulo) + '</span><br>' + esc(a.cuerpo) + '<br><span style="color:#8C9196;">Para: ' + esc((a.para || []).join(', ') || 'nadie (no hay usuarios de ese rol)') + '</span></div>'; }).join('') + '</div>';
+          });
+        });
+        if ((r.suscripciones || []).length) h += '<div style="margin-top:8px;font-weight:700;color:#2E3236;">Suscripciones</div>' + r.suscripciones.map(function (s) { return '<div>' + esc(s.titulo) + ' · ' + esc(s.cuerpo) + '</div>'; }).join('');
+        if ((r.fallos || []).length) h += '<div style="margin-top:8px;color:#C0392B;">Fallos: ' + esc(r.fallos.join('; ')) + '</div>';
+        $('safiaAvVistaRes').innerHTML = h;
+      };
+      $('safiaAvVista').addEventListener('click', function () { var fin = ocupar(this, 'Calculando…'); $('safiaAvVistaRes').textContent = 'Calculando el riego de cada pivot (tarda unos segundos)…'; AV.invocar('vista').then(mostrar, function (e) { $('safiaAvVistaRes').textContent = 'No se pudo: ' + e.message; }).then(fin); });
+      $('safiaAvEnviar').addEventListener('click', function () { var b = this; if (b.dataset.seguro !== '1') { b.dataset.seguro = '1'; b.textContent = '¿Enviar a los celulares? Tocá de nuevo'; setTimeout(function () { b.dataset.seguro = ''; b.textContent = 'Enviar los avisos de hoy ahora'; }, 4000); return; } b.dataset.seguro = ''; b.textContent = 'Enviar los avisos de hoy ahora'; var fin = ocupar(b, 'Enviando…'); AV.invocar('diario').then(mostrar, function (e) { $('safiaAvVistaRes').textContent = 'No se pudo: ' + e.message; }).then(fin); });
+    }
+    pintar();
+  }
+  // Una vez por día, el celular confirma su suscripción (queda a nombre del usuario que está adentro). Y una invitación corta, una sola vez.
+  function avisosEnPantalla(u) {
+    if (!u || !AV.soportado() || !window.safiaSupabase) return;
+    var ir = function () {
+      if (Notification.permission === 'granted') {
+        var ya = null; try { ya = localStorage.getItem('safia_avisos_sync'); } catch (e) {}
+        if (ya === hoyK()) return;
+        AV.suscripcion().then(function (s) { if (!s) return; return AV.invocar('suscribir', { suscripcion: s.toJSON(), dispositivo: esteCelular() }).then(function () { try { localStorage.setItem('safia_avisos_sync', hoyK()); } catch (e) {} }); }).catch(function () {});
+        return;
+      }
+      if (Notification.permission !== 'default' || ['operador', 'encargado', 'cliente'].indexOf(u.rol) < 0) return;
+      var visto = null; try { visto = localStorage.getItem('safia_avisos_invita'); } catch (e) {}
+      if (visto || $('safiaAvisoInvita') || paginaActual() === 'login.html') return;
+      var b = document.createElement('div'); b.id = 'safiaAvisoInvita';
+      b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99990;max-width:520px;margin:0 auto;background:#2E3236;color:#fff;border-radius:12px;padding:12px 14px;font:500 13px/1.45 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+      b.innerHTML = '<span style="flex:1 1 220px;">SAFIA te puede avisar al celular cuándo arrancar el pivot, aunque la app esté cerrada.</span><button id="safiaAvisoSi" style="padding:8px 12px;border:0;border-radius:8px;background:#22A93A;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">Activar avisos</button><button id="safiaAvisoNo" style="padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#C9CDD1;font-weight:600;font-size:13px;cursor:pointer;">Ahora no</button>';
+      document.body.appendChild(b);
+      var cerrar = function () { try { localStorage.setItem('safia_avisos_invita', hoyK()); } catch (e) {} b.remove(); };
+      $('safiaAvisoNo').addEventListener('click', cerrar);
+      $('safiaAvisoSi').addEventListener('click', function () { cerrar(); modalAvisos(); setTimeout(function () { var a = $('safiaAvActivar'); if (a && a.style.display !== 'none') a.click(); }, 400); });
+    };
+    setTimeout(ir, 2500);
+  }
+
+  window.SafiaCuenta = { avisos: modalAvisos, acerca: modalAcerca, montar: montar, aplicarRol: aplicarRol, fueraDeRol: fueraDeRol, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
 })();
