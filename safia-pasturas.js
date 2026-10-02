@@ -122,6 +122,8 @@
   // Estado de cada piquete: último movimiento, última lectura de altura y qué hacer
   function estadoPiquetes(equipoId, cultivo) {
     var c = cultivo || {}, n = parseInt(c.piquetes, 10) || 0, ref = alturasReferencia((c.variedad || '') + ' ' + (c.cultivo || ''));
+    // el alambrado real (modelo de piquetes del equipo) manda sobre el número cargado en la campaña
+    if (window.SafiaPiquetes && SafiaPiquetes.total) { var eqM = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }), nM = eqM ? SafiaPiquetes.total(eqM, c) : null; if (nM) n = nM; }
     var desc = parseFloat(c.diasDescanso) || null, h = hoy();
     var movs = eventosLote(equipoId), lects = lecturasLote(equipoId);
     var nombres = {}; for (var i = 1; i <= n; i++) nombres[String(i)] = 1;

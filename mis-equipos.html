@@ -305,6 +305,7 @@
 <script src="safia-iconos.js"></script>
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-lotes.js"></script>
+<script src="safia-piquetes.js"></script>
 <script src="safia-mantenimiento.js"></script>
 </head>
 <body>
@@ -557,8 +558,34 @@
               <div class="campo"><label>Largo (m)</label><input type="number" id="pivote-largo" placeholder="Ej: 450"></div>
               <div class="campo"><label>Torres</label><input type="number" id="pivote-torres" placeholder="Ej: 7"></div>
               <div class="campo"><label>Ángulo (°)</label><input type="number" id="pivote-angulo" placeholder="Ej: 360" max="360"></div>
-              <div class="campo"><label>Piquete 1 desde el norte (°)</label><input type="number" id="pivote-piquete1Angulo" placeholder="Ej: 0" min="0" max="359"><div class="ayuda">Pastura en piquetes: grados, en sentido horario, donde empieza el piquete 1. SAFIA divide el pivot en porciones desde ahí.</div></div>
             </div>
+            <details class="pliegue" id="plieguePiquetes" style="margin:6px 0 10px;">
+              <summary>Piquetes de pastura <span class="pliegue-sub" id="piqSub">cómo está alambrado el pivot: porciones desde el centro o sectores con anillos</span></summary>
+              <div class="pliegue-cuerpo">
+                <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;">
+                  <div style="flex:1 1 320px;min-width:0;">
+                    <div class="fila">
+                      <div class="campo"><label>Modelo</label><select id="pivote-piqModelo"><option value="">Porciones desde el centro (pizza)</option><option value="anillos">Sectores con anillos (alambrado interno)</option></select></div>
+                      <div class="campo"><label>Piquetes por anillo</label><input type="text" id="pivote-piqSectores" placeholder="Ej: 16, 16"><div class="ayuda" id="piqSectoresAyuda">De adentro hacia afuera. En pizza, un solo número; vacío = el de la campaña.</div></div>
+                    </div>
+                    <div class="fila" id="piqFilaAnillos">
+                      <div class="campo"><label>Alambrado interno (% del radio)</label><input type="text" id="pivote-piqRadios" placeholder="Vacío = misma superficie"><div class="ayuda">Distancia del centro al alambrado interno, medida en el vértice. Con 3 anillos: dos valores, "45, 75".</div></div>
+                      <div class="campo"><label>Forma del alambrado interno</label><select id="pivote-piqBorde"><option value="recto2">Recto cada dos potreros (bebedero en el vértice)</option><option value="recto">Recto entre divisorias</option><option value="circulo">Circular</option></select></div>
+                    </div>
+                    <div class="fila">
+                      <div class="campo"><label>Piquete 1 desde el norte (°)</label><input type="number" id="pivote-piquete1Angulo" placeholder="Ej: 0" min="0" max="359"><div class="ayuda">Grados, en sentido horario desde el norte, donde empieza el piquete 1 (el oeste es 270).</div></div>
+                      <div class="campo"><label>Sentido de la numeración</label><select id="pivote-piqSentido"><option value="">Horario</option><option value="antihorario">Antihorario</option></select></div>
+                      <div class="campo" id="piqCampoNum"><label>Se numera</label><select id="pivote-piqNumeracion"><option value="">De adentro hacia afuera</option><option value="afuera">De afuera hacia adentro</option></select></div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                      <button type="button" class="btn" onclick="piqPreset('irrigar32')">Modelo Irrigar 32 potreros</button>
+                      <button type="button" class="btn" onclick="piqPreset('pizza')">Volver a pizza</button>
+                    </div>
+                  </div>
+                  <div style="flex:0 1 250px;min-width:200px;"><div id="piqVista"></div><div class="ayuda" id="piqVistaTxt" style="text-align:center;margin-top:4px;"></div></div>
+                </div>
+              </div>
+            </details>
             <div class="fila">
               <div class="campo"><label>Corner extensible</label><select id="pivote-corner"><option>No</option><option>Sí</option></select></div>
               <div class="campo"><label>Tipo aspersores</label><select id="pivote-aspersores"><option value="">Seleccionar...</option><option>Impacto</option><option>Rotator</option><option>Spray</option><option>LDN</option><option>Mixto</option></select></div>
@@ -1136,7 +1163,7 @@
 
     // ===== LÓGICA EXISTENTE =====
     const camposPorTipo = {
-      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
       goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],
@@ -1227,6 +1254,37 @@
     function marcaSubtitulo() { const m = document.getElementById('marca'), mo = document.getElementById('modelo'), el = document.getElementById('marcaSub'); if (!el) return; const t = [m.value, mo.value.trim()].filter(Boolean).join(' '); el.textContent = t || 'marca, modelo, número de serie, año'; }
     document.getElementById('marca').addEventListener('change', marcaSubtitulo); document.getElementById('modelo').addEventListener('input', marcaSubtitulo);
     // GPS del equipo: acepta grados-minutos-segundos y los convierte; avisa si queda lejos del polígono del lote
+    // Piquetes: vista previa del modelo con lo que hay en los casilleros (el mismo dibujo que después ve el Operador)
+    function piqVista() {
+      const v = id => { const el = document.getElementById('pivote-' + id); return el ? el.value : ''; };
+      const esAnillos = v('piqModelo') === 'anillos';
+      document.getElementById('piqFilaAnillos').style.display = esAnillos ? '' : 'none';
+      document.getElementById('piqCampoNum').style.display = esAnillos ? '' : 'none';
+      const cont = document.getElementById('piqVista'), txt = document.getElementById('piqVistaTxt'), sub = document.getElementById('piqSub');
+      if (!window.SafiaPiquetes) return;
+      const eq = editandoId ? JSON.parse(localStorage.getItem('equipos') || '[]').find(e => e.id === editandoId) : null;
+      const campana = eq ? JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(eq.id) && c.estado === 'Activa') : null;
+      const cultivo = campana && campana.cultivos ? campana.cultivos[0] : null;
+      const dt = { piqModelo: v('piqModelo'), piqSectores: v('piqSectores'), piqRadios: v('piqRadios'), piqBorde: v('piqBorde'), piqSentido: v('piqSentido'), piqNumeracion: v('piqNumeracion'), piquete1Angulo: v('piquete1Angulo'), angulo: v('angulo') };
+      const pol = poligonoAlGuardar(eq ? eq.poligono : null), largo = parseFloat(v('largo'));
+      const falso = { id: eq ? eq.id : 'nuevo', datosTecnicos: dt, poligono: pol };
+      const centro = SafiaPiquetes.centroRadio(falso) || { lat: 0, lon: 0, kLon: 111320, radio: largo > 0 ? largo : 0 };
+      const g = SafiaPiquetes.sectores(falso, cultivo || { piquetes: '' }, centro);
+      if (!g) { cont.innerHTML = ''; txt.textContent = 'Cargá la cantidad de piquetes (o la campaña de pastura) para ver el dibujo.'; if (sub) sub.textContent = 'cómo está alambrado el pivot: porciones desde el centro o sectores con anillos'; return; }
+      const tonos = ['#7BAE5A', '#5E9A47', '#93BF6E', '#4C8A3C'];
+      cont.innerHTML = SafiaPiquetes.svgPivot(g, s => tonos[(s.anillo * 2 + s.i) % tonos.length], null, null);
+      const desc = SafiaPiquetes.describir(g);
+      txt.textContent = (centro.radio ? desc : desc.replace(/ \([^)]*ha c\/u\)/g, '')) + (centro.radio ? '' : ' · con el polígono o el largo del pivot se calculan las hectáreas') + (cultivo && parseInt(cultivo.piquetes, 10) && parseInt(cultivo.piquetes, 10) !== g.param.n ? ' · la campaña dice ' + parseInt(cultivo.piquetes, 10) + ' piquetes: SAFIA usa los ' + g.param.n + ' de este modelo' : '');
+      if (sub) sub.textContent = desc;
+    }
+    function piqPreset(cual) {
+      const set = (id, val) => { const el = document.getElementById('pivote-' + id); if (el) el.value = val; };
+      if (cual === 'irrigar32') { set('piqModelo', 'anillos'); set('piqSectores', '16, 16'); set('piqRadios', '67'); set('piqBorde', 'recto2'); set('piquete1Angulo', '270'); set('piqSentido', ''); set('piqNumeracion', ''); }
+      else { set('piqModelo', ''); set('piqSectores', ''); set('piqRadios', ''); set('piqBorde', 'recto2'); set('piqSentido', ''); set('piqNumeracion', ''); }
+      piqVista();
+    }
+    ['piqModelo', 'piqSectores', 'piqRadios', 'piqBorde', 'piqSentido', 'piqNumeracion', 'piquete1Angulo', 'angulo', 'largo'].forEach(id => { const el = document.getElementById('pivote-' + id); if (el) { el.addEventListener('input', piqVista); el.addEventListener('change', piqVista); } });
+    document.getElementById('plieguePiquetes').addEventListener('toggle', piqVista);
     function revisarGps(avisar) {
       const inp = document.getElementById('gps'), ay = document.getElementById('gpsAyuda'), txt = inp.value.trim();
       const base = 'Centro del pivot. Podés pegarlo de Google Maps o de Lindsay (grados, minutos y segundos): SAFIA lo pasa a decimales.';
@@ -1353,6 +1411,9 @@
         });
       }
       const dt = equipo.datosTecnicos || {}, esen = (ESENCIALES_TIPO[equipo.tipo === 'microaspersion' ? 'goteo' : equipo.tipo] || []);
+      ['piqModelo', 'piqSectores', 'piqRadios', 'piqSentido', 'piqNumeracion'].forEach(k => { const el = document.getElementById('pivote-' + k); if (el && dt[k] === undefined) el.value = ''; });
+      if (dt.piqBorde === undefined) document.getElementById('pivote-piqBorde').value = 'recto2';
+      document.getElementById('plieguePiquetes').open = !!(dt.piqModelo || dt.piqSectores); setTimeout(piqVista, 0);
       document.getElementById('pliegueMarca').open = !!(equipo.marca || equipo.modelo || equipo.numeroSerie || equipo.anio);
       document.getElementById('pliegueTecnico').open = Object.keys(dt).some(k => dt[k] !== '' && dt[k] != null && dt[k] !== 'No' && esen.indexOf(k) < 0 && !/^bomba/.test(k));
       document.getElementById('pliegueBomba').open = !!(equipo.energia || equipo.fuenteAgua || equipo.eficiencia || Object.keys(dt).some(k => /^bomba/.test(k) && dt[k]));

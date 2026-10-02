@@ -89,7 +89,7 @@ const CONDUCTOR = `
             cuerpo: 'Están en el piquete ' + ocup.piquete + ' hace ' + adentro + (adentro === 1 ? ' día' : ' días') + (diasOcup ? ' (ocupación ' + diasOcup + ')' : '') + '.' + (bajo ? ' El pasto ya está en la altura de salida (' + ocup.altura + ' cm).' : '') + (proximo ? ' Piquete a punto: ' + proximo + '.' : ' Medí la altura del piquete que sigue antes de entrar.') });
         }
         var sr = window.SafiaPiquetes ? SafiaPiquetes.sectoresSinRiego(equipo, cultivo, 3) : null;
-        if (sr && sr.ocupado && sr.piquetes.length) sinRiegoTxt = ' No regar del ' + sr.grados[0] + '° al ' + sr.grados[1] + '° (piquetes ' + sr.piquetes.join(', ') + ').';
+        if (sr && sr.ocupado && sr.piquetes.length) sinRiegoTxt = ' No regar ' + (sr.texto || ('del ' + sr.grados[0] + '° al ' + sr.grados[1] + '°')) + ' (piquetes ' + sr.piquetes.join(', ') + ').';
         out.estado.piquete = st.ocupado || null;
       } catch (e) { out.estado.errorPastura = String(e && e.message || e); }
     }
