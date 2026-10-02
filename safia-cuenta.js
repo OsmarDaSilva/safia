@@ -373,13 +373,13 @@
     d.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
     var alto = esAlto(usuario), rol = usuario && usuario.rol;
     var queLlega = alto ? 'Como Irrigar te llegan las suscripciones que están por vencer (a 30, 15, 7, 3 y 1 día).' :
-      rol === 'operador' ? 'Te avisa cuándo arrancar el pivot, cuándo regar ya porque el cultivo entró en estrés y cuándo toca rotar los animales de piquete.' :
-      rol === 'encargado' ? 'Te avisa cuándo arrancar el pivot, cuándo un cultivo entra en estrés, cuándo toca rotar los animales y cuándo hay mantenimiento vencido.' :
-      'Te avisa cuando un cultivo entra en estrés y cuando hay mantenimiento vencido. Si en la estancia no hay operador ni encargado cargado, también cuándo arrancar el pivot y rotar los animales.';
+      rol === 'operador' ? 'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También cuándo toca rotar los animales de piquete.' :
+      rol === 'encargado' ? 'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También cuándo toca rotar los animales y cuándo hay mantenimiento vencido.' :
+      'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También el mantenimiento vencido.';
     var btn = 'padding:10px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;';
     d.innerHTML = '<div style="background:#fff;border-radius:14px;padding:22px;max-width:460px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
       '<div style="font-size:17px;font-weight:800;color:#2E3236;margin-bottom:6px;">Avisos al celular</div>' +
-      '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:10px;">SAFIA calcula todas las mañanas a las 6 y manda una notificación a este dispositivo, aunque la app esté cerrada. ' + queLlega + '</div>' +
+      '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:10px;">SAFIA calcula todas las mañanas a las 6 y manda la notificación a este dispositivo, aunque la app esté cerrada. ' + queLlega + '</div>' +
       '<div id="safiaAvEstado" style="font-size:13px;padding:9px 12px;border-radius:8px;background:#F4F5F6;color:#41464B;margin-bottom:10px;">Revisando…</div>' +
       '<div id="safiaAvMsg" style="display:none;font-size:13px;font-weight:600;padding:9px 12px;border-radius:8px;margin-bottom:10px;line-height:1.45;"></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
@@ -454,7 +454,7 @@
       if (visto || $('safiaAvisoInvita') || paginaActual() === 'login.html') return;
       var b = document.createElement('div'); b.id = 'safiaAvisoInvita';
       b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99990;max-width:520px;margin:0 auto;background:#2E3236;color:#fff;border-radius:12px;padding:12px 14px;font:500 13px/1.45 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
-      b.innerHTML = '<span style="flex:1 1 220px;">SAFIA te puede avisar al celular cuándo arrancar el pivot, aunque la app esté cerrada.</span><button id="safiaAvisoSi" style="padding:8px 12px;border:0;border-radius:8px;background:#22A93A;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">Activar avisos</button><button id="safiaAvisoNo" style="padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#C9CDD1;font-weight:600;font-size:13px;cursor:pointer;">Ahora no</button>';
+      b.innerHTML = '<span style="flex:1 1 220px;">SAFIA te puede mandar cada mañana al celular cómo está el agua de cada pivot, si viene lluvia y si hay que regar.</span><button id="safiaAvisoSi" style="padding:8px 12px;border:0;border-radius:8px;background:#22A93A;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">Activar avisos</button><button id="safiaAvisoNo" style="padding:8px 10px;border:0;border-radius:8px;background:transparent;color:#C9CDD1;font-weight:600;font-size:13px;cursor:pointer;">Ahora no</button>';
       document.body.appendChild(b);
       var cerrar = function () { try { localStorage.setItem('safia_avisos_invita', hoyK()); } catch (e) {} b.remove(); };
       $('safiaAvisoNo').addEventListener('click', cerrar);

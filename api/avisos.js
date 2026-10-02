@@ -16,7 +16,8 @@
      { datos: { campos, equipos, campanas, eventos, analisis_suelo,
                 clima_estacion, cultivos_custom, ndvi: { <equipoId>: [..] } },
        equipos: [ids a evaluar] }
-   Salida: { ok, hoy, resultados: [{ equipoId, nombre, campoId, avisos: [{ tipo, titulo, cuerpo }], estado }] }
+   Salida: { ok, hoy, resultados: [{ equipoId, nombre, campoId, avisos: [{ tipo, nivel, titulo, cuerpo }], estado }] }
+     tipo 'riego' = el parte de cada mañana (nivel info / arrancar / estres), 'rotar', 'mantenimiento'
    ===================================================================== */
 import vm from 'node:vm';
 import fs from 'node:fs';
@@ -111,19 +112,36 @@ const CONDUCTOR = `
     var pv = r.recomendacion.pivot;
     out.estado.pct = Math.round(pct); out.estado.lluviaProxima = Math.round(lluviaProxima); out.estado.arrancarEl = pv && pv.arrancarEl || null; out.estado.venceEl = pv && pv.venceEl || null;
     out.estado.etapa = r.etapaHoy ? r.etapaHoy.nombre : null; out.estado.umbrales = { estres: U.URGENTE, arranque: U.CRITICO };
+    // Parte de cada mañana: SIEMPRE dice cómo está el agua, si viene lluvia y qué hacer (mismas ramas que la tarjeta del Operador)
     var vuelta = pv && pv.vueltaDias ? ' La vuelta tarda ' + pv.vueltaDias.toLocaleString('es-PY') + ' días.' : '';
+    var hasta = r.dias.length ? corta(r.dias[r.dias.length - 1].fecha) : '';
+    var lluviaTxt = lluviaProxima >= 1 ? ' Lluvia prevista: ' + Math.round(lluviaProxima) + ' mm hasta el ' + hasta + '.' : ' Sin lluvia prevista hasta el ' + hasta + '.';
+    var vence = pv && pv.venceEl ? ' Sin riego entra en estrés ' + (pv.diasHastaEstres === 0 ? 'hoy' : 'el ' + corta(pv.venceEl)) + '.' : '';
+    var P = out.nombre + ': ' + Math.round(pct) + ' % de agua útil';
+    var nivel, titulo, cuerpo;
     if (lluviaProxima >= 15 && !r.recomendacion.enEstres) {
-      out.estado.recomendacion = 'No regar: viene lluvia (' + Math.round(lluviaProxima) + ' mm)';
+      nivel = 'info'; out.estado.recomendacion = 'No regar: viene lluvia (' + Math.round(lluviaProxima) + ' mm)';
+      titulo = P + ' · no regar, viene lluvia';
+      cuerpo = 'Se esperan ' + Math.round(lluviaProxima) + ' mm entre hoy y el ' + hasta + '.' + vence;
     } else if (r.recomendacion.enEstres || pct < (U.URGENTE || 50)) {
-      out.estado.recomendacion = 'Regar ya: en estrés';
-      out.avisos.push({ tipo: 'estres', titulo: out.nombre + ': regar ya, el cultivo está en estrés', cuerpo: 'Agua útil en ' + Math.round(pct) + ' %, debajo del punto de estrés (' + U.URGENTE + ' %). Regar ' + Math.round(mmRegar) + ' mm hoy.' + (pv && pv.noAlcanza ? ' El equipo no alcanza la demanda: mantenerlo girando.' : '') + sinRiegoTxt });
+      nivel = 'estres'; out.estado.recomendacion = 'Regar ya: en estrés';
+      titulo = P + ' · regar ya, cultivo en estrés';
+      cuerpo = 'Está debajo del punto de estrés (' + U.URGENTE + ' %). Regar ' + Math.round(mmRegar) + ' mm hoy.' + (pv && pv.noAlcanza ? ' El equipo no alcanza la demanda: mantenerlo girando.' : '') + lluviaTxt + sinRiegoTxt;
     } else if (pct < U.CRITICO) {
       var girando = pv && pv.noAlcanza;
-      out.estado.recomendacion = girando ? 'Mantener el pivot girando' : 'Arrancar el pivot hoy';
-      out.avisos.push({ tipo: 'arrancar', titulo: out.nombre + (girando ? ': mantener el pivot girando' : ': arrancar el pivot hoy'), cuerpo: 'Agua útil en ' + Math.round(pct) + ' %: llegó al punto de arranque (' + U.CRITICO + ' %). Regar ' + Math.round(mmRegar) + ' mm.' + vuelta + (pv && pv.venceEl ? ' Sin riego entra en estrés el ' + corta(pv.venceEl) + '.' : '') + sinRiegoTxt });
+      nivel = 'arrancar'; out.estado.recomendacion = girando ? 'Mantener el pivot girando' : 'Arrancar el pivot hoy';
+      titulo = P + (girando ? ' · mantener el pivot girando' : ' · arrancar el pivot hoy');
+      cuerpo = 'Llegó al punto de arranque (' + U.CRITICO + ' %). Regar ' + Math.round(mmRegar) + ' mm.' + vuelta + vence + lluviaTxt + sinRiegoTxt;
+    } else if (pct >= U.ATENCION) {
+      nivel = 'info'; out.estado.recomendacion = 'Sin necesidad de riego';
+      titulo = P + ' · no hace falta regar';
+      cuerpo = 'Suelo bien abastecido.' + (pv && pv.arrancarEl ? ' Arrancar el pivot el ' + corta(pv.arrancarEl) + '.' : '') + lluviaTxt;
     } else {
-      out.estado.recomendacion = pct >= U.ATENCION ? 'Sin necesidad de riego' : (pv && pv.arrancarEl ? 'Arrancar el pivot el ' + corta(pv.arrancarEl) : 'Monitorear');
+      nivel = 'info'; out.estado.recomendacion = pv && pv.arrancarEl ? 'Arrancar el pivot el ' + corta(pv.arrancarEl) : 'Monitorear';
+      titulo = P + (pv && pv.arrancarEl ? ' · arrancar el pivot el ' + corta(pv.arrancarEl) : ' · hoy no regar');
+      cuerpo = 'Cerca del punto de arranque (' + U.CRITICO + ' %).' + vence + vuelta + lluviaTxt;
     }
+    out.avisos.push({ tipo: 'riego', nivel: nivel, titulo: titulo, cuerpo: cuerpo });
     return out;
   };
 })();

@@ -99,7 +99,9 @@ async function aUsuario(admin: Cualquiera, dispositivos: Cualquiera[], usuarioId
   return { dispositivos: suyos.length, enviados, fallos };
 }
 
-const ROLES_DE: Record<string, string[]> = { arrancar: ['operador', 'encargado'], rotar: ['operador', 'encargado'], estres: ['operador', 'encargado', 'cliente'], mantenimiento: ['encargado', 'cliente'] };
+// El parte de riego de cada mañana (agua útil, lluvia prevista y qué hacer) le llega a todos los de la estancia
+const ROLES_DE: Record<string, string[]> = { riego: ['operador', 'encargado', 'cliente'], rotar: ['operador', 'encargado'], mantenimiento: ['encargado', 'cliente'] };
+const ORDEN: Record<string, number> = { estres: 0, arrancar: 1, rotar: 2, info: 3, mantenimiento: 4, suscripcion: 5 };
 
 async function ejecutar(admin: Cualquiera, enviar: boolean) {
   const hoy = hoyPY();
@@ -155,7 +157,7 @@ async function ejecutar(admin: Cualquiera, enviar: boolean) {
         const roles = hayOperativos ? (ROLES_DE[a.tipo] || []) : ['cliente'];
         const para = deCampo.filter((u) => roles.includes(u.rol));
         fila.avisos.push({ tipo: a.tipo, titulo: a.titulo, cuerpo: a.cuerpo, para: para.map((u) => u.nombre + ' (' + u.rol + (conCelular.has(u.id) ? '' : ', sin avisos activados') + ')') });
-        para.forEach((u) => pendientes.push({ usuario: u, equipoId: String(res.equipoId), tipo: a.tipo, titulo: a.titulo, cuerpo: a.cuerpo, url: 'operador.html?equipo=' + encodeURIComponent(res.equipoId) }));
+        para.forEach((u) => pendientes.push({ usuario: u, equipoId: String(res.equipoId), tipo: a.tipo, nivel: a.nivel || a.tipo, titulo: a.titulo, cuerpo: a.cuerpo, url: 'operador.html?equipo=' + encodeURIComponent(res.equipoId) }));
       }
     }
   }
@@ -170,7 +172,7 @@ async function ejecutar(admin: Cualquiera, enviar: boolean) {
     const titulo = 'Suscripción por vencer: ' + ((eq.datos && eq.datos.nombre) || 'pivot') + (eq.cliente_id ? ' · ' + nombreCliente(eq.cliente_id) : '');
     const cuerpo = (s.datos.plan === 'Prueba' ? 'La prueba gratis vence' : 'Vence') + ' el ' + fechaCorta(String(v)) + (d === 0 ? ' (hoy).' : d === 1 ? ' (mañana).' : ' (faltan ' + d + ' días).');
     porVencer.push({ titulo, cuerpo });
-    irrigar.forEach((u) => pendientes.push({ usuario: u, equipoId: String(eq.id), tipo: 'suscripcion', titulo, cuerpo, url: 'suscripciones.html' }));
+    irrigar.forEach((u) => pendientes.push({ usuario: u, equipoId: String(eq.id), tipo: 'suscripcion', nivel: 'suscripcion', titulo, cuerpo, url: 'suscripciones.html' }));
   });
 
   if (!enviar) return { ok: true, hoy, modo: 'vista', clientes: detalle, suscripciones: porVencer, celulares: dispositivos.length };
@@ -192,10 +194,11 @@ async function ejecutar(admin: Cualquiera, enviar: boolean) {
   const porUsuario: Record<string, Cualquiera[]> = {};
   nuevos.forEach((n) => { const p = pendientes.find((x) => x.usuario.id === n.usuario_id && x.equipoId === n.equipo_id && x.tipo === n.tipo); if (p) (porUsuario[n.usuario_id] = porUsuario[n.usuario_id] || []).push({ ...p, logId: n.id }); });
   for (const uid of Object.keys(porUsuario)) {
-    const lista = porUsuario[uid];
-    // más de 3 avisos para la misma persona: uno solo que los resume
+    const lista = porUsuario[uid].sort((a, b) => (ORDEN[a.nivel] ?? 9) - (ORDEN[b.nivel] ?? 9));
+    // más de 3 avisos para la misma persona: uno solo, con lo urgente primero y un renglón por pivot
+    const regar = lista.filter((p) => p.nivel === 'estres' || p.nivel === 'arrancar').length;
     const mensajes = lista.length > 3
-      ? [{ titulo: 'SAFIA: ' + lista.length + ' avisos de hoy', cuerpo: lista.slice(0, 4).map((p) => p.titulo).join(' · ') + (lista.length > 4 ? ' y ' + (lista.length - 4) + ' más' : ''), url: lista[0].tipo === 'suscripcion' ? 'suscripciones.html' : 'encargado.html', tag: 'safia-resumen-' + hoy, ids: lista.map((p) => p.logId) }]
+      ? [{ titulo: lista[0].tipo === 'suscripcion' ? 'SAFIA: ' + lista.length + ' suscripciones por vencer' : regar ? 'SAFIA: ' + regar + (regar === 1 ? ' pivot para regar hoy' : ' pivots para regar hoy') : 'SAFIA: hoy no hace falta regar', cuerpo: lista.slice(0, 6).map((p) => p.titulo).join('\n') + (lista.length > 6 ? '\ny ' + (lista.length - 6) + ' más' : ''), url: lista[0].tipo === 'suscripcion' ? 'suscripciones.html' : 'encargado.html', tag: 'safia-resumen-' + hoy, ids: lista.map((p) => p.logId) }]
       : lista.map((p) => ({ titulo: p.titulo, cuerpo: p.cuerpo, url: p.url, tag: 'safia-' + p.equipoId + '-' + p.tipo, ids: [p.logId] }));
     for (const m of mensajes) {
       const r = await aUsuario(admin, dispositivos, uid, { titulo: m.titulo, cuerpo: m.cuerpo, url: m.url, tag: m.tag }, vapid);
@@ -255,7 +258,7 @@ Deno.serve(async (req: Request) => {
       const d = await admin.from('safia_avisos_dispositivos').select('*').eq('usuario_id', yo.data.id);
       if (d.error) return json({ error: 'Falta preparar la base de los avisos: hay que correr el SQL safia_avisos.sql' }, 500);
       if (!d.data || !d.data.length) return json({ error: 'Este usuario todavía no activó los avisos en ningún celular' }, 400);
-      const r = await aUsuario(admin, d.data, yo.data.id, { titulo: 'SAFIA: aviso de prueba', cuerpo: 'Los avisos al celular están activados, ' + (yo.data.nombre || '') + '. Así te va a avisar SAFIA cuando haya que arrancar el pivot.', url: './', tag: 'safia-prueba' }, await vapidDe(admin));
+      const r = await aUsuario(admin, d.data, yo.data.id, { titulo: 'SAFIA: aviso de prueba', cuerpo: 'Los avisos al celular están activados, ' + (yo.data.nombre || '') + '. Cada mañana te va a llegar acá cómo está el agua de cada pivot, si viene lluvia y si hay que regar.', url: './', tag: 'safia-prueba' }, await vapidDe(admin));
       return json({ ok: r.enviados > 0, ...r });
     }
     if (accion === 'vista' || accion === 'diario') {
