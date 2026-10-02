@@ -616,7 +616,7 @@
       const pv = r.recomendacion.pivot, enEstres = !!r.recomendacion.enEstres, fc = f => f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) : '';
       const vueltaTxt = pv && pv.vueltaDias ? ` · vuelta ${pv.vueltaDias.toLocaleString('es-PY')} días` : '', noAlc = pv && pv.noAlcanza ? ' · el equipo no alcanza: mantenerlo girando' : '';
       if (ctx.secano) { tipo = 'secano'; titulo = 'Secano'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · sin riego`; }
-      else if (lluviaProx >= 15 && !enEstres) { tipo = 'lluvia'; titulo = 'Viene lluvia'; detalle = `Se esperan ${lluviaProx.toFixed(0)} mm en 3 días · humedad ${pct.toFixed(0)} %`; }
+      else if (lluviaProx >= 15 && !enEstres) { tipo = 'lluvia'; titulo = 'Viene lluvia'; detalle = `Se esperan ${lluviaProx.toFixed(0)} mm en 5 días · humedad ${pct.toFixed(0)} %`; }
       else if (enEstres || pct < U.URGENTE) { tipo = 'urgente'; titulo = 'Regar ya: en estrés'; detalle = `Humedad ${pct.toFixed(0)} % del agua útil · regar ${r.recomendacion.mm} mm hoy${noAlc}`; }
       else if (pct < U.CRITICO) { tipo = 'regar'; titulo = pv && pv.noAlcanza ? 'Mantener el pivot girando' : 'Arrancar el pivot'; detalle = `Humedad ${pct.toFixed(0)} % · arrancar hoy con ${r.recomendacion.mm} mm${vueltaTxt}${pv && pv.venceEl ? ' · sin riego entra en estrés el ' + fc(pv.venceEl) : ''}`; }
       else if (pct < U.ATENCION) { tipo = 'atencion'; titulo = pv && pv.arrancarEl ? 'Arrancar el pivot el ' + fc(pv.arrancarEl) : 'Monitorear'; detalle = `Humedad ${pct.toFixed(0)} % · cerca del punto de arranque (${U.CRITICO} %)${vueltaTxt}`; }
@@ -939,10 +939,19 @@
         if (rC.datos) { clima[id] = rC; alertasClimaDe(campo, rC.datos).forEach(a => alertas.push(a)); }
         else sinClima.push(campo.nombre + (rC.error && rC.error.tipo === 'sin_internet' ? ' (sin internet)' : ' (clima no disponible)'));
       }));
-      const desactualizado = Object.values(clima).find(c => c.desactualizado); SafiaClima.avisoCache(desactualizado ? desactualizado.fechaCache : null);
+      // Clima de cada pivot: si el lote tiene polígono o GPS propio, su balance usa la lluvia y la ETo de ESE punto (regla del 30-sep: el clima es del pivot, no del casco).
+      // Mismo pedido que el Operador y que los avisos al celular, para que los tres digan lo mismo.
+      const climaLote = {};
+      await Promise.all(enCiclo.map(async ctx => {
+        const co = SafiaBalance.coordenadasLote ? SafiaBalance.coordenadasLote(ctx.equipo, ctx.campo) : null;
+        if (!co || co.origen === 'campo') return;
+        const rL = await SafiaClima.obtenerClima({ lat: co.lat, lon: co.lon, daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min', pastDays: SafiaBalance.pastDaysDesde(ctx.campo.id, ctx.equipo.id), forecastDays: 16, cacheKey: co.cacheKey });
+        if (rL.datos) climaLote[ctx.equipo.id] = rL;
+      }));
+      const desactualizado = Object.values(clima).concat(Object.values(climaLote)).find(c => c.desactualizado); SafiaClima.avisoCache(desactualizado ? desactualizado.fechaCache : null);
       await pSat;
 
-      const lotes = enCiclo.map(ctx => { const c = clima[ctx.campo.id]; let ev = null; if (c) { try { ev = evaluarLote(ctx, c.datos); } catch (e) { console.error('[SAFIA] dashboard: no se pudo evaluar', ctx.equipo.nombre, e); } } return { ctx, ev }; });
+      const lotes = enCiclo.map(ctx => { const c = climaLote[ctx.equipo.id] || clima[ctx.campo.id]; let ev = null; if (c) { try { ev = evaluarLote(ctx, c.datos); } catch (e) { console.error('[SAFIA] dashboard: no se pudo evaluar', ctx.equipo.nombre, e); } } return { ctx, ev }; });
       const conRiego = lotes.filter(l => l.ev && !l.ctx.secano).sort((a, b) => ORDEN[a.ev.tipo] - ORDEN[b.ev.tipo] || a.ev.pct - b.ev.pct);
       const principal = conRiego[0] || lotes.find(l => l.ev) || null;
       const chips = [];
@@ -956,7 +965,7 @@
         <div class="dash-grid">
           ${renderLotesCard(lotes, ctxs)}
           ${principal ? renderPrediccion7Dias(principal) : renderCampanas(ctxs)}
-          ${principal ? renderClimaAhora(clima[principal.ctx.campo.id].datos, principal) : renderUltimosEventos()}
+          ${principal && clima[principal.ctx.campo.id] ? renderClimaAhora(clima[principal.ctx.campo.id].datos, principal) : renderUltimosEventos()}
           ${renderMetas(ctxs)}
           ${renderSensores()}
         </div>
