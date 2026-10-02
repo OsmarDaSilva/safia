@@ -1741,6 +1741,21 @@
       if (mapaLotes) { if (loteEnEdicion === 'nuevo') mapaLotes.cancelarDibujo(); else if (loteEnEdicion) mapaLotes.terminarEdicion(loteEnEdicion, false); }
       modoEdicion(false); loteEnEdicion = null; ayudaDibujo('');
     });
+    // Enlace directo: mis-equipos.html?editar=ID abre ese equipo en edición; con &piquetes=1 deja a la vista el modelo de piquetes
+    (function () {
+      let q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+      const id = q.get('editar'); if (!id) return;
+      const abrir = function (intento) {
+        const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(id));
+        if (!eq) { if (intento < 6) setTimeout(function () { abrir(intento + 1); }, 700); return; }   // la primera bajada de la nube puede tardar
+        editarEquipo(eq.id);
+        if (q.get('piquetes')) setTimeout(function () {
+          const t = document.getElementById('pliegueTecnico'), p = document.getElementById('plieguePiquetes');
+          if (t) t.open = true; if (p) { p.open = true; if (typeof piqVista === 'function') piqVista(); setTimeout(function () { p.scrollIntoView({ block: 'start' }); window.scrollBy(0, -70); }, 900); }   // después del desplazamiento propio de editarEquipo
+        }, 300);
+      };
+      setTimeout(function () { abrir(0); }, 400);
+    })();
     function irACampanas(equipoId, campoId) {
       const campo = leerLS('campos').find(c => String(c.id) === String(campoId));
       try { localStorage.setItem('campanas_filtro', JSON.stringify({ clienteId: campo ? String(campo.clienteId) : '', equipoId: String(equipoId) })); } catch (e) {}

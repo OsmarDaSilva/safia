@@ -1553,6 +1553,15 @@
       const c = SafiaPasturas.clasificarAltura(ref, prom);
       el.innerHTML = m.length + ' medida' + (m.length === 1 ? '' : 's') + ' · promedio <b style="color:' + c.color + ';font-size:15px;">' + prom + ' cm</b>' + (c.texto ? ' · <b style="color:' + c.color + ';">' + c.texto + '</b>' : '') + (ref ? ' <span style="color:#8C9196;">(meta ' + ref.entrada + ' / ' + ref.salida + ' cm)</span>' : '');
     }
+    // Modelo de piquetes del pivot (pizza o sectores con anillos): se carga en Equipos y lotes; Irrigar tiene el acceso directo desde acá
+    function enlaceModeloPiquetes(eq, camp) {
+      if (!eq || !window.SafiaPiquetes) return '';
+      const g = SafiaPiquetes.sectores(eq, camp), p = g ? g.param : SafiaPiquetes.parametros(eq, camp);
+      const desc = g ? SafiaPiquetes.describir(g) : (p ? p.n + ' piquetes' : 'sin modelo');
+      const esIrrigar = window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin();
+      return '<span style="font-weight:500;text-transform:none;letter-spacing:0;color:#8C9196;">' + desc.replace(/</g, '&lt;') + '</span>' +
+        (esIrrigar ? '<a href="mis-equipos.html?editar=' + encodeURIComponent(eq.id) + '&piquetes=1" style="font-weight:700;text-transform:none;letter-spacing:0;color:#1565C0;text-decoration:none;">Cambiar el modelo de piquetes</a>' : '');
+    }
     function pintarPanelPastura() {
       const panel = document.getElementById('pasturaPanel'); if (!panel) return;
       const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null;
@@ -1571,7 +1580,7 @@
         tarjeta('Animales hoy', ocup ? 'Piquete ' + ocup.piquete : 'Sin entrada cargada', ocup ? (diasAdentro != null ? 'día ' + (diasAdentro + 1) + (diasOcup ? ' de ' + diasOcup : '') + (diasOcup && diasAdentro + 1 >= diasOcup ? ' · <b style=\'color:#8a5713;\'>hoy toca rotar</b>' : '') : '') + (ocup.altura && stHoy.ref && ocup.altura <= stHoy.ref.salida ? ' · <b style=\'color:#B5371C;\'>en altura de salida: sacarlos</b>' : '') : 'Cargá la entrada con el botón Pastoreo', ocup ? '#2E72C8' : '#8C9196') +
         tarjeta('Próximo piquete', proximo ? 'Piquete ' + proximo : (casi ? 'Piquete ' + casi.piquete : '—'), proximo ? 'a punto por altura' + (stHoy.ref ? ' (meta ' + stHoy.ref.entrada + ' cm)' : '') : (casi ? casi.texto : 'medí la altura de los piquetes que descansaron más'), proximo ? '#178029' : '#B8731A') +
         tarjeta('Riego hoy', sinR && sinR.ocupado ? 'Saltar ' + (sinR.texto || (sinR.grados[0] + '° a ' + sinR.grados[1] + '°')) : 'Todo el pivot', sinR && sinR.ocupado ? 'no regar piquetes ' + sinR.piquetes.join(', ') + ' (ocupado y 3 siguientes); el resto según el agua en el suelo' : 'sin animales adentro cargados: regar según el agua en el suelo', '#2E72C8') + '</div>';
-      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pastura hoy</div>' + hoyHtml + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Piquetes</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
+      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pastura hoy</div>' + hoyHtml + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">Piquetes' + enlaceModeloPiquetes(eqHoy, camp) + '</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
         '<div id="piquetesSat" style="margin-top:10px;border-top:1px solid #EEF0F2;padding-top:8px;"></div>' + SafiaPasturas.htmlGuia(ref);
       pintarPiquetesSatelite(camp);
     }
