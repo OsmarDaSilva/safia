@@ -463,5 +463,34 @@
     setTimeout(ir, 2500);
   }
 
+  /* ---------- Coordenadas: un solo lector para toda SAFIA ----------
+     Acepta decimales ("-24.338704, -54.86421", como Google Maps) y grados-minutos-segundos
+     ("-24° 20' 19.236\" , -54° 51' 51.146\"" como Lindsay SmartSuite, o 24°20'19.2"S 54°51'51.1"W como Google Earth).
+     Devuelve { lat, lon, formato, texto } con decimales de 6 cifras, o null. */
+  function leerCoordenadas(texto) {
+    var t = String(texto == null ? '' : texto).trim(); if (!t) return null;
+    var n = function (x) { return parseFloat(String(x).replace(',', '.')); };
+    var red = function (v) { return Math.round(v * 1e6) / 1e6; };
+    var ok = function (la, lo) { return !isNaN(la) && !isNaN(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0); };
+    if (/[°º]/.test(t)) {
+      var re = /([NSEWO])?\s*(-?\d+(?:[.,]\d+)?)\s*[°º]\s*(?:(\d+(?:[.,]\d+)?)\s*['′’´]\s*)?(?:(\d+(?:[.,]\d+)?)\s*(?:"|″|”|'')\s*)?([NSEWO])?/gi, m, vals = [];
+      while ((m = re.exec(t)) && vals.length < 2) {
+        var g = n(m[2]), neg = g < 0 || /^-/.test(m[2]), h = (m[5] || m[1] || '').toUpperCase();
+        var v = Math.abs(g) + (m[3] ? n(m[3]) / 60 : 0) + (m[4] ? n(m[4]) / 3600 : 0);
+        if (neg || h === 'S' || h === 'W' || h === 'O') v = -v;
+        vals.push(v);
+      }
+      if (vals.length === 2 && ok(vals[0], vals[1])) { var la = red(vals[0]), lo = red(vals[1]); return { lat: la, lon: lo, formato: 'gms', texto: la + ', ' + lo }; }
+      return null;
+    }
+    if (t.indexOf('.') < 0 && /-?\d+,\d+\s*[;\s]\s*-?\d+,\d+/.test(t)) t = t.replace(/(\d),(\d)/g, '$1.$2');   // coma decimal: "-24,3387; -54,8642"
+    var nums = t.match(/-?\d+(?:\.\d+)?/g);
+    if (!nums || nums.length < 2) return null;
+    var a = n(nums[0]), b = n(nums[1]);
+    return ok(a, b) ? { lat: a, lon: b, formato: 'decimal', texto: a + ', ' + b } : null;
+  }
+  function kmEntre(a, b) { var R = 6371, r = Math.PI / 180, dLa = (b.lat - a.lat) * r, dLo = (b.lon - a.lon) * r, x = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) * Math.sin(dLo / 2); return 2 * R * Math.asin(Math.sqrt(x)); }
+  window.SafiaCoord = { leer: leerCoordenadas, km: kmEntre };
+
   window.SafiaCuenta = { avisos: modalAvisos, acerca: modalAcerca, montar: montar, aplicarRol: aplicarRol, fueraDeRol: fueraDeRol, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
 })();

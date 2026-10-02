@@ -427,14 +427,32 @@
         (nota ? ' <span class="auto-nota">' + nota + '</span>' : '') +
         ' <a href="#" onclick="abrirMasDatos(\'localidad\'); return false;">' + (lugar ? 'corregir' : 'cargar a mano') + '</a></div>';
     }
+    // Si el punto del campo queda lejos de los pivots que ya tiene cargados, casi seguro está mal copiado
+    function avisoLejosDeLosPivots(lat, lon) {
+      const el = document.getElementById('gpsLejos'); if (el) el.remove();
+      if (!window.SafiaCoord || typeof editandoId === 'undefined' || editandoId == null) return;
+      const lotes = JSON.parse(localStorage.getItem('equipos') || '[]').filter(e => String(e.campoId) === String(editandoId) && e.poligono && e.poligono.centro);
+      if (!lotes.length) return;
+      const cerca = lotes.map(e => ({ e, km: SafiaCoord.km({ lat, lon }, { lat: parseFloat(e.poligono.centro.lat), lon: parseFloat(e.poligono.centro.lon) }) })).sort((a, b) => a.km - b.km)[0];
+      if (!(cerca.km > 15)) return;
+      const d = document.createElement('div'); d.id = 'gpsLejos'; d.className = 'hint'; d.style.cssText = 'color:#C0392B;font-weight:600;margin-top:4px;';
+      d.innerHTML = 'Ese punto queda a ' + Math.round(cerca.km) + ' km de ' + String(cerca.e.nombre || 'su pivot').replace(/</g, '&lt;') + '. Si copiaste grados, minutos y segundos, pegalos con sus símbolos (° \' "). <a href="#" id="gpsLejosUsar">Usar el centro del pivot (' + cerca.e.poligono.centro.lat + ', ' + cerca.e.poligono.centro.lon + ')</a>';
+      document.getElementById('gpsCompleto').parentNode.appendChild(d);
+      document.getElementById('gpsLejosUsar').addEventListener('click', function (ev) { ev.preventDefault(); document.getElementById('gpsCompleto').value = cerca.e.poligono.centro.lat + ', ' + cerca.e.poligono.centro.lon; parsearGPS(); });
+    }
     function parsearGPS() {
       const valor = document.getElementById('gpsCompleto').value.trim();
-      const limpio = valor.replace(/[°NSEWnsew]/g, '').replace(/\s+/g, '').trim();
+      // grados-minutos-segundos (Lindsay, Google Earth): se convierten a decimales en el mismo casillero
+      if (/[°º]/.test(valor) && !/(["″”]|''|[NSEWOnsewo])\s*$/.test(valor)) return;   // todavía lo está escribiendo
+      const leido = window.SafiaCoord ? SafiaCoord.leer(valor) : null;
+      if (leido && leido.formato === 'gms') { document.getElementById('gpsCompleto').value = leido.texto; }
+      const limpio = (leido ? leido.texto : valor).replace(/[°NSEWnsew]/g, '').replace(/\s+/g, '').trim();
       const partes = limpio.split(',');
       if (partes.length === 2) {
         const lat = parseFloat(partes[0]);
         const lon = parseFloat(partes[1]);
         if (!isNaN(lat) && !isNaN(lon)) {
+          avisoLejosDeLosPivots(lat, lon);
           document.getElementById('latitud').value = lat;
           document.getElementById('longitud').value = lon;
           validarGPS(lat, lon);

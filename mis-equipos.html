@@ -435,6 +435,7 @@
               <div class="campo">
                 <label>Coordenadas GPS <span class="opcional">(opcional)</span></label>
                 <input type="text" id="gps" placeholder="Ej: -24.3572, -54.4869">
+                <div class="ayuda" id="gpsAyuda">Centro del pivot. Podés pegarlo de Google Maps o de Lindsay (grados, minutos y segundos): SAFIA lo pasa a decimales.</div>
               </div>
           </div>
           <div class="poli-linea">
@@ -1225,7 +1226,27 @@
     })();
     function marcaSubtitulo() { const m = document.getElementById('marca'), mo = document.getElementById('modelo'), el = document.getElementById('marcaSub'); if (!el) return; const t = [m.value, mo.value.trim()].filter(Boolean).join(' '); el.textContent = t || 'marca, modelo, número de serie, año'; }
     document.getElementById('marca').addEventListener('change', marcaSubtitulo); document.getElementById('modelo').addEventListener('input', marcaSubtitulo);
+    // GPS del equipo: acepta grados-minutos-segundos y los convierte; avisa si queda lejos del polígono del lote
+    function revisarGps(avisar) {
+      const inp = document.getElementById('gps'), ay = document.getElementById('gpsAyuda'), txt = inp.value.trim();
+      const base = 'Centro del pivot. Podés pegarlo de Google Maps o de Lindsay (grados, minutos y segundos): SAFIA lo pasa a decimales.';
+      if (!txt) { if (ay) { ay.textContent = base; ay.style.color = ''; } return true; }
+      const c = window.SafiaCoord ? SafiaCoord.leer(txt) : null;
+      if (!c) { if (ay) { ay.textContent = 'No entiendo esa coordenada. Ejemplos: -24.338704, -54.86421  o  -24° 20\' 19.236" , -54° 51\' 51.146"'; ay.style.color = '#C0392B'; } return false; }
+      if (c.formato === 'gms') inp.value = c.texto;
+      const eq = editandoId ? JSON.parse(localStorage.getItem('equipos') || '[]').find(e => e.id === editandoId) : null;
+      const pol = poligonoAlGuardar(eq ? eq.poligono : null), centro = pol && pol.centro ? { lat: parseFloat(pol.centro.lat), lon: parseFloat(pol.centro.lon) } : null;
+      const km = centro && !isNaN(centro.lat) ? SafiaCoord.km(c, centro) : null;
+      if (km != null && km > 3) {
+        if (ay) { ay.innerHTML = '<b>Ese punto queda a ' + Math.round(km) + ' km del polígono de este lote.</b> Si copiaste grados, minutos y segundos, pegalos con sus símbolos (° \' ") o usá el centro del polígono: <a href="#" onclick="document.getElementById(\'gps\').value=\'' + centro.lat + ', ' + centro.lon + '\'; revisarGps(); return false;">' + centro.lat + ', ' + centro.lon + '</a>'; ay.style.color = '#C0392B'; }
+        return false;
+      }
+      if (ay) { ay.textContent = (c.formato === 'gms' ? 'Convertido a decimales: ' + c.texto + '. ' : '') + (km != null ? 'Coincide con el polígono del lote.' : base); ay.style.color = c.formato === 'gms' || km != null ? '#178029' : ''; }
+      return true;
+    }
+    document.getElementById('gps').addEventListener('change', () => revisarGps());
     function guardarOActualizar() {
+      if (!revisarGps()) { document.getElementById('gps').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('gps').focus(); return; }
       const campoId = document.getElementById('campo').value;
       const tipo = document.getElementById('tipo').value;
       const nombre = document.getElementById('nombre').value.trim();

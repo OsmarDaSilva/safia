@@ -403,7 +403,11 @@
     autocompletarAltitud(lat,lon); deducirUbicacion(lat,lon);
   }
   document.getElementById('pGps').addEventListener('input',function(){
-    var partes=this.value.replace(/[°NSEWnsew]/g,'').replace(/\s+/g,'').split(',');
+    if(/[°º]/.test(this.value)){   // grados-minutos-segundos (Lindsay, Google Earth): se convierten cuando el texto está completo
+      if(!/(["″”]|''|[NSEWOnsewo])\s*$/.test(this.value)) return;
+      var gms=window.SafiaCoord?SafiaCoord.leer(this.value):null; if(gms) ponerCoordenadas(gms.lat,gms.lon); return;
+    }
+    var partes=this.value.replace(/[NSEWnsew]/g,'').replace(/\s+/g,'').split(',');
     if(partes.length===2){ var la=parseFloat(partes[0]),lo=parseFloat(partes[1]); if(!isNaN(la)&&!isNaN(lo)) ponerCoordenadas(la,lo); }
   });
   document.getElementById('btnGeo').addEventListener('click',function(){
