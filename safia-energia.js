@@ -25,7 +25,18 @@
   function fmtF(f) { if (!f) return '—'; var p = String(f).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; }
   function dia(f) { return String(f || '').slice(0, 10); }
   function diasEntre(a, b) { return Math.round((new Date(dia(b) + 'T12:00:00') - new Date(dia(a) + 'T12:00:00')) / 86400000); }
-  function gs(n) { return n == null ? '—' : 'Gs. ' + fmt(n); }
+  /* Monedas: cada factura guarda su moneda (PYG, BRL o USD) y el cambio de su período (unidades de esa moneda por US$),
+     congelado. La pantalla se ve en US$, Gs. o R$ (localStorage safia_moneda_vista; por defecto US$, la moneda de los
+     demás costos de SAFIA). Si a una factura le falta el cambio, se muestra en su moneda original y se avisa. */
+  var MON = { USD: { s: 'US$', n: 'dólares', k: null }, PYG: { s: 'Gs.', n: 'guaraníes', k: 'pygPorUSD' }, BRL: { s: 'R$', n: 'reales', k: 'brlPorUSD' } };
+  function vista() { try { var v = localStorage.getItem('safia_moneda_vista'); return MON[v] ? v : 'USD'; } catch (e) { return 'USD'; } }
+  function monedaDe(f) { return f && MON[f.moneda] ? f.moneda : 'PYG'; }
+  function cambioDePrecios(moneda, fecha) { if (moneda === 'USD') return 1; var p = window.SafiaPrecios ? SafiaPrecios.en(dia(fecha)) : {}; return num(p[MON[moneda].k]); }
+  function tasas(f) { var t = { USD: 1, PYG: cambioDePrecios('PYG', f.hasta), BRL: cambioDePrecios('BRL', f.hasta) }; if (num(f.cambioUSD) > 0 && monedaDe(f) !== 'USD') t[monedaDe(f)] = num(f.cambioUSD); return t; }
+  function conv(f, v, dest) { if (v == null) return null; var o = monedaDe(f); if (o === dest) return v; var t = tasas(f); if (!(t[o] > 0) || !(t[dest] > 0)) return null; return v / t[o] * t[dest]; }
+  function plata(v, m) { if (v == null || isNaN(v) || !isFinite(v)) return '—'; var a = Math.abs(v), d = m === 'PYG' ? 0 : (a >= 1000 ? 0 : a >= 10 ? 2 : 3); return MON[m].s + ' ' + fmt(v, d); }
+  function M(f, v) { var d = vista(), c = conv(f, v, d); return c != null ? plata(c, d) : plata(v, monedaDe(f)); }
+  function sinCambio(f) { return conv(f, 1, vista()) == null; }
   function limpiarNombre(n) { return String(n).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80); }
 
   /* ---------- datos ---------- */
@@ -59,32 +70,35 @@
     o.importeEnergia = iE; o.pctEnergia = total > 0 && iE ? iE / total : null;
     o.fp = kwh > 0 && kvar != null ? kwh / Math.sqrt(kwh * kwh + kvar * kvar) : null;
     var exc = num(f.importeExcesoPotencia), pc = num(f.potenciaContratadaKw), pr = Math.max(num(f.potenciaRegistradaKw) || 0, num(f.potenciaRegistradaPuntaKw) || 0) || null;
-    if (exc > 0) o.avisos.push({ nivel: 'rojo', titulo: 'Exceso de potencia reservada: ' + gs(exc) + ' (' + fmt(exc / total * 100) + ' % de la factura)',
+    if (exc > 0) o.avisos.push({ nivel: 'rojo', titulo: 'Exceso de potencia reservada: ' + M(f, exc) + ' (' + fmt(exc / total * 100) + ' % de la factura)',
       texto: (pc && pr ? 'La factura dice ' + fmt(pc) + ' kW contratados y el medidor registró ' + fmt(pr) + ' kW. ' : '') + 'Es un recargo por pasarse de la potencia contratada, no es energía consumida. Llevar esta factura a la ANDE y revisar con el electricista qué potencia conviene reservar: mientras no se corrija, se paga todos los meses.' });
     else if (pc && pr && pr > pc * 1.1) o.avisos.push({ nivel: 'ambar', titulo: 'La potencia registrada (' + fmt(pr) + ' kW) pasó la contratada (' + fmt(pc) + ' kW)', texto: 'Revisar con la ANDE si corresponde ajustar la potencia reservada.' });
     var rea = num(f.importeReactiva);
-    if (rea > 0) o.avisos.push({ nivel: 'ambar', titulo: 'Energía reactiva: ' + gs(rea) + (o.fp != null ? ' · factor de potencia ' + fmt(o.fp, 2) : ''),
+    if (rea > 0) o.avisos.push({ nivel: 'ambar', titulo: 'Energía reactiva: ' + M(f, rea) + (o.fp != null ? ' · factor de potencia ' + fmt(o.fp, 2) : ''),
       texto: (kvar != null ? 'El medidor registró ' + fmt(kvar) + ' kVArh de reactiva contra ' + fmt(kwh) + ' kWh de activa. ' : '') + 'La reactiva no riega: la generan los motores. Un banco de capacitores bien calculado la baja; consultarlo con el electricista.' });
     var kp = num(f.kwhPunta), kf = num(f.kwhFueraPunta), ip = num(f.importeEnergiaPunta), ifp = num(f.importeEnergiaFueraPunta);
     if (kp > 0 && kf > 0 && ip > 0 && ifp > 0) {
       var pp = ip / kp, pf = ifp / kf; o.precioPunta = pp; o.precioFuera = pf;
-      if (pp > pf * 1.3) o.avisos.push({ nivel: 'info', titulo: 'En horario de punta el kWh costó ' + fmt(pp) + ' contra ' + fmt(pf) + ' fuera de punta', texto: fmt(kp / (kp + kf) * 100) + ' % de la energía se consumió en punta. Regar fuera del horario de punta baja ese renglón de ' + gs(ip) + ' a unos ' + gs(kp * pf) + '.' });
+      if (pp > pf * 1.3) o.avisos.push({ nivel: 'info', titulo: 'En horario de punta el kWh costó ' + M(f, pp) + ' contra ' + M(f, pf) + ' fuera de punta', texto: fmt(kp / (kp + kf) * 100) + ' % de la energía se consumió en punta. Regar fuera del horario de punta baja ese renglón de ' + M(f, ip) + ' a unos ' + M(f, kp * pf) + '.' });
     }
     return o;
   }
 
   /* ---------- 4. informe de agua de la campaña ---------- */
   function energiaDeCampana(campo, lote, desde, hasta) {
-    var gsT = 0, kwhT = 0, mmCub = 0, usadas = 0, ha = haDe(lote);
+    var gsT = 0, kwhT = 0, mmCub = 0, usadas = 0, ha = haDe(lote), mon = vista(), partes = [];
     facturasDe(campo.id).forEach(function (f) {
       if (equiposDeFactura(f).every(function (e) { return String(e.id) !== String(lote.id); })) return;
       var d0 = dia(f.desde) > desde ? dia(f.desde) : desde, d1 = dia(f.hasta) < hasta ? dia(f.hasta) : hasta; if (d0 > d1) return;
       var r = repartir(f); if (r.gsPorMmHa == null) return;
       var mm = riegoMM(lote.id, d0, d1); if (!(mm > 0)) return;
-      gsT += mm * ha * r.gsPorMmHa; kwhT += mm * ha * r.kwhPorMmHa; mmCub += mm; usadas++;
+      partes.push({ f: f, v: mm * ha * r.gsPorMmHa }); kwhT += mm * ha * r.kwhPorMmHa; mmCub += mm; usadas++;
     });
+    var faltaCambio = partes.some(function (p) { return conv(p.f, p.v, mon) == null; }), mezcla = false;
+    if (faltaCambio && partes.length) { mon = monedaDe(partes[0].f); mezcla = partes.some(function (p) { return monedaDe(p.f) !== mon; }); }
+    partes.forEach(function (p) { gsT += conv(p.f, p.v, mon) || 0; });
     var mmTot = riegoMM(lote.id, desde, hasta);
-    return { gs: usadas ? gsT : null, kwh: usadas ? kwhT : null, facturas: usadas, mmCubiertos: mmCub, mmRiego: mmTot, cobertura: mmTot > 0 ? mmCub / mmTot : null };
+    return { moneda: mon, faltaCambio: faltaCambio, gs: usadas && !mezcla ? gsT : null, kwh: usadas ? kwhT : null, facturas: usadas, mmCubiertos: mmCub, mmRiego: mmTot, cobertura: mmTot > 0 ? mmCub / mmTot : null };
   }
   function informeCampana(campo, lote, camp) {
     return SafiaAgua.calcular(campo, lote, camp).then(function (res) {
@@ -108,7 +122,7 @@
     var dif = I.diferencia, colD = Math.abs(dif) <= Math.max(15, I.necesario * 0.15) ? '#178029' : (dif > 0 ? '#B8731A' : '#B5371C');
     var juicio = I.aplicado === 0 && I.necesario === 0 ? 'No hizo falta regar: la lluvia cubrió el consumo.' : Math.abs(dif) <= Math.max(15, I.necesario * 0.15) ? 'Se regó lo que hacía falta.' : dif > 0 ? 'Se regaron <b>' + fmt(dif) + ' mm de más</b>: agua y energía que no hacían falta.' : 'Faltaron <b>' + fmt(-dif) + ' mm</b> de riego.';
     if (I.diasEstres > 5 && dif >= -15 && I.aplicado > 0) juicio += ' Pero hubo <b>' + I.diasEstres + ' días de estrés</b>: el agua alcanzó en cantidad y llegó tarde. Arrancar el pivot cuando SAFIA lo avisa.';
-    var en = I.energia, h = '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>Informe de agua · ' + esc(I.lote.nombre) + ' · ' + esc(I.camp.cultivo) + '</h3><span class="muted">' + esc(I.camp.nombre || '') + ' · ' + fmtF(I.desde) + ' al ' + fmtF(I.hasta) + ' (' + I.dias + ' días)' + (I.camp.cosecha ? '' : ' · campaña sin cerrar') + '</span></div>';
+    var en = I.energia, gs = function (v) { return plata(v, en.moneda || vista()); }, h = '<div class="card" style="margin-top:12px;"><div class="card-h"><h3>Informe de agua · ' + esc(I.lote.nombre) + ' · ' + esc(I.camp.cultivo) + '</h3><span class="muted">' + esc(I.camp.nombre || '') + ' · ' + fmtF(I.desde) + ' al ' + fmtF(I.hasta) + ' (' + I.dias + ' días)' + (I.camp.cosecha ? '' : ' · campaña sin cerrar') + '</span></div>';
     h += '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
       dato('Riego aplicado', fmt(I.aplicado) + ' mm', I.ha ? fmt(I.aplicado * I.ha * 10) + ' m³ en ' + fmt(I.ha, 1) + ' ha' + (I.riegoDeEventos ? '' : ' · declarado en la cosecha, no cargado día por día') : 'falta la superficie del lote') +
       dato('Riego necesario', fmt(I.necesario) + ' mm', 'para que el cultivo no pasara sed con la lluvia que hubo (balance FAO-56)') +
@@ -125,7 +139,8 @@
       dato('Gasto de energía', gs(en.gs), en.facturas + ' factura' + (en.facturas > 1 ? 's' : '') + (en.cobertura != null && en.cobertura < 0.98 ? ' · <b style="color:#8a5713;">cubren ' + fmt(en.cobertura * 100) + ' % del riego: faltan facturas</b>' : ' · cubren todo el riego'), '#178029') +
       dato('Por hectárea', gs(I.gsHa), fmt(en.kwh / (I.ha || 1)) + ' kWh/ha', '#178029') +
       dato('Por mm regado', gs(I.gsMm) + '/ha', fmt(I.kwhMmHa, 1) + ' kWh por mm y por ha', '#178029') +
-      dato('Por tonelada', I.gsTon != null ? gs(I.gsTon) : '—', I.rinde ? 'de ' + esc(I.camp.cultivo) + ' cosechada' : 'falta el rinde de la cosecha', '#178029') + '</div>';
+      dato('Por tonelada', I.gsTon != null ? gs(I.gsTon) : '—', I.rinde ? 'de ' + esc(I.camp.cultivo) + ' cosechada' : 'falta el rinde de la cosecha', '#178029') + '</div>' +
+      (en.faltaCambio ? '<div class="muted" style="font-size:12px;margin-top:6px;color:#8a5713;">Se muestra en ' + MON[en.moneda].n + ' porque a alguna factura le falta el tipo de cambio: cargalo en la factura (Editar) o en Datos → Precios.</div>' : '');
     h += '<div class="muted" style="font-size:11px;margin-top:8px;line-height:1.45;">Necesario = riego bruto que hacía falta para no entrar en estrés, con la lluvia real y el mismo balance diario FAO-56 de SAFIA (suelo: ' + esc((I.res.suelo && I.res.suelo.origen) || 'franco por defecto') + '). Energía = cada factura repartida entre los pivots de su medidor según mm regados × hectáreas. Es un cálculo: el riego que no se cargó no existe para SAFIA.</div></div>';
     return h;
   }
@@ -140,7 +155,7 @@
     return '<div class="card" id="enForm" style="display:none;margin-bottom:14px;"><div class="card-h"><h3 id="enTitulo">Nueva factura de energía</h3></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><input type="file" id="enArchivo" accept="image/*,application/pdf"><button type="button" class="btn green" id="enLeer">Leer la factura con IA y completar solo</button></div>' +
       '<div class="muted" id="enHint" style="font-size:12px;margin-bottom:10px;">Sacale una foto a la factura de la ANDE o subí el PDF. SAFIA completa los datos; revisalos antes de guardar.</div>' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;">' + campoF('enDesde', 'Consumo desde', 'date') + campoF('enHasta', 'Consumo hasta', 'date') + campoF('enTotal', 'Total a pagar (Gs.)', null, 'sin la comisión de la boca de cobranza') + campoF('enNis', 'NIS (suministro)', 'text') + '</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;">' + campoF('enDesde', 'Consumo desde', 'date') + campoF('enHasta', 'Consumo hasta', 'date') + campoF('enTotal', 'Total a pagar', null, 'sin la comisión de la boca de cobranza') + '<div style="flex:1 1 160px;min-width:150px;"><label style="display:block;font-size:12px;font-weight:600;color:#3A3E41;margin-bottom:3px;">Moneda de la factura</label><select id="enMoneda" style="width:100%;padding:8px 10px;border:1px solid #D5D9DD;border-radius:8px;font:inherit;"><option value="PYG">Guaraníes (Gs.)</option><option value="BRL">Reales (R$)</option><option value="USD">Dólares (US$)</option></select></div>' + '<div id="enCambioCaja" style="flex:1 1 160px;min-width:150px;"><label id="enCambioLbl" style="display:block;font-size:12px;font-weight:600;color:#3A3E41;margin-bottom:3px;">Cambio del período</label><input id="enCambio" type="number" step="any" min="0" style="width:100%;padding:8px 10px;border:1px solid #D5D9DD;border-radius:8px;font:inherit;"><div class="muted" id="enCambioAyuda" style="font-size:11px;margin-top:2px;"></div></div>' + campoF('enNis', 'NIS (suministro)', 'text') + '</div>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">' + campoF('enKwhF', 'kWh fuera de punta') + campoF('enImpF', 'Importe fuera de punta') + campoF('enKwhP', 'kWh en punta') + campoF('enImpP', 'Importe en punta') + '</div>' +
       '<details style="margin-top:10px;"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:#2E3236;">Potencia, reactiva y otros datos de la factura</summary><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">' +
       campoF('enPotC', 'Potencia contratada (kW)') + campoF('enPotR', 'Potencia registrada (kW)') + campoF('enImpPot', 'Importe potencia reservada') + campoF('enImpExc', 'Importe exceso de potencia') + campoF('enKvar', 'Reactiva (kVArh)') + campoF('enImpR', 'Importe reactiva') + campoF('enNumero', 'N.º de factura', 'text') + campoF('enVence', 'Vencimiento', 'date') + '</div></details>' +
@@ -151,30 +166,35 @@
   }
   function htmlFactura(f) {
     var L = leerFactura(f), r = repartir(f), col = { rojo: '#B5371C', ambar: '#B8731A', info: '#2E72C8' };
-    var h = '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>' + fmtF(f.desde) + ' al ' + fmtF(f.hasta) + ' · ' + gs(f.total) + '</h3><span class="muted">' + (f.nis ? 'NIS ' + esc(f.nis) + ' · ' : '') + fmt(L.kwh) + ' kWh · <b>' + (L.gsKwh != null ? fmt(L.gsKwh) + ' Gs/kWh real' : '') + '</b>' + (L.pctEnergia != null ? ' · la energía es el ' + fmt(L.pctEnergia * 100) + ' % de la factura' : '') + '</span></div>';
+    var gs = function (v) { return M(f, v); }, orig = monedaDe(f) !== vista() && !sinCambio(f) ? ' <span class="muted" style="font-size:12px;font-weight:500;">(' + plata(num(f.total), monedaDe(f)) + ' al cambio ' + fmt(tasas(f)[monedaDe(f)], monedaDe(f) === 'PYG' ? 0 : 4) + ')</span>' : '';
+    var h = '<div class="card" style="margin-bottom:12px;"><div class="card-h"><h3>' + fmtF(f.desde) + ' al ' + fmtF(f.hasta) + ' · ' + gs(f.total) + orig + '</h3><span class="muted">' + (f.nis ? 'NIS ' + esc(f.nis) + ' · ' : '') + fmt(L.kwh) + ' kWh · <b>' + (L.gsKwh != null ? gs(L.gsKwh) + ' por kWh real' : '') + '</b>' + (L.pctEnergia != null ? ' · la energía es el ' + fmt(L.pctEnergia * 100) + ' % de la factura' : '') + '</span></div>';
+    if (sinCambio(f)) h += '<div style="border-left:4px solid #B8731A;background:#FAFBFC;border-radius:6px;padding:7px 10px;margin-bottom:6px;font-size:13px;color:#8a5713;">Falta el tipo de cambio de este período: se muestra en ' + MON[monedaDe(f)].n + '. Cargalo con Editar, o en Datos → Precios.</div>';
     L.avisos.forEach(function (a) { h += '<div style="border-left:4px solid ' + col[a.nivel] + ';background:#FAFBFC;border-radius:6px;padding:7px 10px;margin-bottom:6px;font-size:13px;"><b style="color:' + col[a.nivel] + ';">' + a.titulo + '</b><div style="color:#3A3E41;line-height:1.4;margin-top:2px;">' + a.texto + '</div></div>'; });
     if (r.sinRiego) h += '<div class="muted" style="font-size:13px;margin:6px 0;">No hay riegos cargados entre el ' + fmtF(f.desde) + ' y el ' + fmtF(f.hasta) + ' en los pivots de este medidor: no hay con qué repartir. Si se regó, cargá los riegos (Operador) y el reparto aparece solo.</div>';
-    else h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Pivot</th><th class="r">Regó (mm)</th><th class="r">Hectáreas</th><th class="r">Parte</th><th class="r">Gasto</th><th class="r">kWh</th><th class="r">Gs/ha</th></tr></thead><tbody>' +
-      r.filas.map(function (x) { return '<tr><td>' + esc(x.equipo.nombre) + '</td><td class="r">' + fmt(x.mm) + '</td><td class="r">' + (x.ha ? fmt(x.ha, 1) : '<span style="color:#B5371C;">falta</span>') + '</td><td class="r">' + (x.pct != null ? fmt(x.pct * 100) + ' %' : '—') + '</td><td class="r"><b>' + gs(x.gs) + '</b></td><td class="r">' + fmt(x.kwh) + '</td><td class="r">' + (x.gsHa != null ? fmt(x.gsHa) : '—') + '</td></tr>'; }).join('') +
+    else h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Pivot</th><th class="r">Regó (mm)</th><th class="r">Hectáreas</th><th class="r">Parte</th><th class="r">Gasto</th><th class="r">kWh</th><th class="r">Por ha</th></tr></thead><tbody>' +
+      r.filas.map(function (x) { return '<tr><td>' + esc(x.equipo.nombre) + '</td><td class="r">' + fmt(x.mm) + '</td><td class="r">' + (x.ha ? fmt(x.ha, 1) : '<span style="color:#B5371C;">falta</span>') + '</td><td class="r">' + (x.pct != null ? fmt(x.pct * 100) + ' %' : '—') + '</td><td class="r"><b>' + gs(x.gs) + '</b></td><td class="r">' + fmt(x.kwh) + '</td><td class="r">' + (x.gsHa != null ? gs(x.gsHa) : '—') + '</td></tr>'; }).join('') +
       '</tbody></table></div></div><div class="muted" style="font-size:12px;margin-top:6px;">Cada mm regado en una hectárea costó <b>' + gs(r.gsPorMmHa) + '</b> y ' + fmt(r.kwhPorMmHa, 1) + ' kWh en este período.' + (r.sinHa ? ' Falta la superficie de algún pivot (Equipos y lotes): sin hectáreas no entra en el reparto.' : '') + '</div>';
     h += '<div style="display:flex;gap:8px;margin-top:8px;">' + (f.archivoRuta ? '<button class="btn mini" data-ver="' + esc(f.id) + '">Ver la factura</button>' : '') + '<button class="btn mini" data-editar="' + esc(f.id) + '">Editar</button><button class="btn mini" data-borrar="' + esc(f.id) + '">Borrar</button></div></div>';
     return h;
   }
   function resumenAnual(campo) {
     var fs = facturasDe(campo.id); if (fs.length < 2) return '';
-    var tot = 0, kwh = 0, exc = 0, rea = 0; fs.forEach(function (f) { tot += num(f.total) || 0; kwh += kwhDe(f); exc += num(f.importeExcesoPotencia) || 0; rea += num(f.importeReactiva) || 0; });
-    return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' + dato('Facturas cargadas', String(fs.length), fmtF(fs[fs.length - 1].desde) + ' al ' + fmtF(fs[0].hasta), '#8C9196') + dato('Total pagado', gs(tot), fmt(kwh) + ' kWh · ' + (kwh ? fmt(tot / kwh) + ' Gs/kWh real' : ''), '#178029') +
+    var mon = vista(); if (fs.some(sinCambio)) { mon = monedaDe(fs[0]); if (fs.some(function (f) { return monedaDe(f) !== mon; })) return ''; }
+    var gs = function (v) { return plata(v, mon); }, tot = 0, kwh = 0, exc = 0, rea = 0; fs.forEach(function (f) { tot += conv(f, num(f.total) || 0, mon) || 0; kwh += kwhDe(f); exc += conv(f, num(f.importeExcesoPotencia) || 0, mon) || 0; rea += conv(f, num(f.importeReactiva) || 0, mon) || 0; });
+    return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">' + dato('Facturas cargadas', String(fs.length), fmtF(fs[fs.length - 1].desde) + ' al ' + fmtF(fs[0].hasta), '#8C9196') + dato('Total pagado', gs(tot), fmt(kwh) + ' kWh · ' + (kwh ? gs(tot / kwh) + ' por kWh real' : ''), '#178029') +
       dato('Exceso de potencia', gs(exc), tot ? fmt(exc / tot * 100) + ' % de lo pagado' : '', exc > 0 ? '#B5371C' : '#178029') + dato('Reactiva', gs(rea), tot ? fmt(rea / tot * 100) + ' % de lo pagado' : '', rea > 0 ? '#B8731A' : '#178029') + '</div>';
   }
   function pintar() {
     var cont = $('energiaCont'), campo = B().campoActual(); if (!cont) return;
     if (!campo) { cont.innerHTML = '<div class="muted">Elegí un campo.</div>'; return; }
     var fs = facturasDe(campo.id), piv = pivotsDe(campo.id);
-    cont.innerHTML = '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="enNueva">+ Subir factura de energía</button><span class="muted" style="font-size:12px;">Subí la factura de la ANDE de cada mes: SAFIA la lee, reparte el gasto entre los pivots según lo que regó cada uno y arma el costo real de energía de cada campaña.</span></div>' +
+    cont.innerHTML = '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><button class="btn green" id="enNueva">+ Subir factura de energía</button><span class="muted" style="font-size:12px;">Subí la factura de la ANDE de cada mes: SAFIA la lee, reparte el gasto entre los pivots según lo que regó cada uno y arma el costo real de energía de cada campaña.</span><span style="margin-left:auto;font-size:12px;color:#3A3E41;display:flex;gap:6px;align-items:center;">Ver en <select id="enVista" style="padding:6px 8px;border:1px solid #D5D9DD;border-radius:8px;font:inherit;"><option value="USD">US$ dólares</option><option value="PYG">Gs. guaraníes</option><option value="BRL">R$ reales</option></select></span></div>' +
       htmlForm(campo) + resumenAnual(campo) +
       (fs.length ? fs.map(htmlFactura).join('') : '<div class="card"><div class="muted">Todavía no hay facturas cargadas en este campo.</div></div>') +
       '<div class="card" style="margin-top:16px;"><div class="card-h"><h3>Informe de agua de la campaña</h3><span class="muted">mm aplicados contra los necesarios, aprovechamiento, kWh y gasto de energía</span></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><select id="enLote" style="padding:8px 10px;border:1px solid #D5D9DD;border-radius:8px;font:inherit;">' + piv.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join('') + '</select><select id="enCamp" style="padding:8px 10px;border:1px solid #D5D9DD;border-radius:8px;font:inherit;max-width:100%;"></select><button class="btn green" id="enVerInforme">Ver informe</button><button class="btn" id="enImprimir" style="display:none;">Imprimir</button></div><div id="enInforme"></div></div>';
+    $('enVista').value = vista(); $('enVista').addEventListener('change', function () { try { localStorage.setItem('safia_moneda_vista', $('enVista').value); } catch (e) {} pintar(); });
+    ['enMoneda', 'enHasta'].forEach(function (id) { $(id).addEventListener('change', function () { ajustarCambio(true); }); });
     $('enNueva').addEventListener('click', function () { abrirForm(null); });
     $('enCancelar').addEventListener('click', cerrarForm); $('enGuardar').addEventListener('click', guardar); $('enLeer').addEventListener('click', leerConIA);
     cont.querySelectorAll('[data-editar]').forEach(function (b) { b.addEventListener('click', function () { abrirForm(b.getAttribute('data-editar')); }); });
@@ -202,17 +222,27 @@
     w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de agua · ' + esc(c.nombre) + '</title><style>body{font-family:"Plus Jakarta Sans",Arial,sans-serif;color:#2E3236;margin:24px;} h3{margin:0 0 4px;} .muted{color:#8C9196;} .card-h{margin-bottom:10px;}</style></head><body><div style="font-size:12px;color:#178029;font-weight:700;letter-spacing:.06em;">SAFIA · IRRIGAR S.A.</div><div class="muted" style="font-size:12px;margin-bottom:8px;">' + esc(c.nombre) + '</div>' + $('enInforme').innerHTML + '</body></html>');
     w.document.close(); setTimeout(function () { w.print(); }, 300);
   }
+  // el cambio del período: se propone el de Datos → Precios vigente a la fecha de la factura; lo que se escribe manda y queda guardado
+  function ajustarCambio(proponer) {
+    var m = $('enMoneda').value, caja = $('enCambioCaja'); caja.style.display = m === 'USD' ? 'none' : '';
+    if (m === 'USD') return;
+    $('enCambioLbl').textContent = 'Cambio del período (' + MON[m].s + ' por US$)';
+    var sug = cambioDePrecios(m, $('enHasta').value || new Date().toISOString().slice(0, 10));
+    if (proponer && !$('enCambio').value && sug > 0) $('enCambio').value = sug;
+    $('enCambioAyuda').textContent = sug > 0 ? 'En Datos → Precios figura ' + fmt(sug, m === 'PYG' ? 0 : 4) + ' para esa fecha. Queda guardado con la factura.' : 'Cuántos ' + MON[m].n + ' valía un dólar en ese período. Queda guardado con la factura.';
+  }
   function abrirForm(id) {
     var f = id ? leer('facturas_energia').find(function (x) { return String(x.id) === String(id); }) : null;
     editandoId = f ? f.id : null; leida = null;
     $('enForm').style.display = ''; $('enTitulo').textContent = f ? 'Editar factura del ' + fmtF(f.desde) + ' al ' + fmtF(f.hasta) : 'Nueva factura de energía';
     CAMPOS.forEach(function (c) { $(c[0]).value = f && f[c[1]] != null ? f[c[1]] : ''; });
     $('enArchivo').value = '';
+    $('enMoneda').value = f ? monedaDe(f) : 'PYG'; $('enCambio').value = f && f.cambioUSD != null ? f.cambioUSD : ''; ajustarCambio(true);
     if (f && f.equipos && f.equipos.length) $('enEquipos').querySelectorAll('input').forEach(function (i) { i.checked = f.equipos.map(String).indexOf(String(i.value)) !== -1; });
     $('enForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function cerrarForm() { if ($('enForm')) $('enForm').style.display = 'none'; editandoId = null; leida = null; }
-  function volcar(d) { CAMPOS.forEach(function (c) { var v = d[c[1]]; if (c[1] === 'kwhFueraPunta' && v == null && d.kwhTotal != null) v = d.kwhTotal; if (c[1] === 'importeEnergiaFueraPunta' && v == null && d.importeEnergia != null) v = d.importeEnergia; if (v != null && v !== '') $(c[0]).value = v; }); }
+  function volcar(d) { if (MON[d.moneda]) { $('enMoneda').value = d.moneda; } setTimeout(function () { ajustarCambio(true); }, 0); CAMPOS.forEach(function (c) { var v = d[c[1]]; if (c[1] === 'kwhFueraPunta' && v == null && d.kwhTotal != null) v = d.kwhTotal; if (c[1] === 'importeEnergiaFueraPunta' && v == null && d.importeEnergia != null) v = d.importeEnergia; if (v != null && v !== '') $(c[0]).value = v; }); }
   function archivoABase64(a) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result).split(',')[1]); }; r.onerror = rej; r.readAsDataURL(a); }); }
   function comprimir(archivo) {
     return new Promise(function (res, rej) { var img = new Image(), url = URL.createObjectURL(archivo);
@@ -251,8 +281,10 @@
     if (!((item.kwhPunta || 0) + (item.kwhFueraPunta || 0) > 0)) { B().toast('Faltan los kWh consumidos', true); return; }
     var repetida = leer('facturas_energia').find(function (x) { return String(x.id) !== String(editandoId) && String(x.campoId) === String(c.id) && dia(x.desde) === item.desde && dia(x.hasta) === item.hasta && String(x.nis || '') === String(item.nis || ''); });
     if (repetida) { B().toast('Esa factura ya está cargada (mismo período y NIS)', true); return; }
+    item.moneda = $('enMoneda').value; item.cambioUSD = item.moneda === 'USD' ? null : num($('enCambio').value);
+    if (item.moneda !== 'USD' && item.cambioUSD != null && (item.moneda === 'PYG' ? (item.cambioUSD < 1000 || item.cambioUSD > 20000) : (item.cambioUSD < 1 || item.cambioUSD > 20))) { B().toast('Revisá el cambio: ' + item.cambioUSD + ' ' + MON[item.moneda].s + ' por dólar no parece correcto', true); return; }
     item.equipos = Array.prototype.slice.call($('enEquipos').querySelectorAll('input:checked')).map(function (i) { return i.value; });
-    if (leida) ['distribuidora', 'medidor', 'titular', 'categoria', 'tension', 'ciclo', 'emision', 'moneda', 'potenciaRegistradaPuntaKw', 'importeAlumbrado', 'iva', 'conceptos'].forEach(function (k) { if (leida[k] != null) item[k] = leida[k]; });
+    if (leida) ['distribuidora', 'medidor', 'titular', 'categoria', 'tension', 'ciclo', 'emision', 'potenciaRegistradaPuntaKw', 'importeAlumbrado', 'iva', 'conceptos'].forEach(function (k) { if (leida[k] != null) item[k] = leida[k]; });
     Object.assign(item, { id: previo ? previo.id : Date.now(), campoId: c.id, fechaCreacion: previo ? previo.fechaCreacion : new Date().toISOString() });
     var archivo = $('enArchivo').files && $('enArchivo').files[0];
     var pre = archivo && window.safiaSupabase ? window.safiaSupabase.storage.from('safia').upload('campo_' + c.id + '/energia/' + Date.now() + '_' + limpiarNombre(archivo.name), archivo, { upsert: false }).then(function (r) { if (r.error) throw r.error; item.archivoRuta = r.data && r.data.path ? r.data.path : null; item.archivoNombre = archivo.name; }).catch(function (e) { console.error(e); B().toast('El archivo no se pudo subir; los datos se guardan igual', true); }) : Promise.resolve();
@@ -272,5 +304,5 @@
   function activar() { iniciado = true; pintar(); }
   function alCambiarCampo() { if (iniciado && $('panel-energia') && $('panel-energia').classList.contains('on')) pintar(); }
 
-  window.SafiaEnergia = { activar: activar, alCambiarCampo: alCambiarCampo, facturasDe: facturasDe, repartir: repartir, leerFactura: leerFactura, informeCampana: informeCampana, htmlInforme: htmlInforme, energiaDeCampana: energiaDeCampana, kwhDe: kwhDe };
+  window.SafiaEnergia = { conv: conv, vista: vista, plata: plata, activar: activar, alCambiarCampo: alCambiarCampo, facturasDe: facturasDe, repartir: repartir, leerFactura: leerFactura, informeCampana: informeCampana, htmlInforme: htmlInforme, energiaDeCampana: energiaDeCampana, kwhDe: kwhDe };
 })();

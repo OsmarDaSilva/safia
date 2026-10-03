@@ -125,7 +125,8 @@
     var v = SafiaPrecios.vigentes(), pr = v.precios;
     $('pVigente').textContent = v.desde ? 'vigentes desde ' + fmtF(v.desde) : 'valores por defecto de SAFIA (todavía no cargaste precios)';
     $('pGranos').innerHTML = Object.keys(pr.granoUSDt).map(function (k) { return '<div class="field"><label>' + esc(NOMBRE_GRANO[k] || k) + ' US$/t</label><input type="number" step="1" min="0" data-grano="' + esc(k) + '" value="' + pr.granoUSDt[k] + '"></div>'; }).join('');
-    $('pInsumos').innerHTML = (SafiaMeta.CAMPOS_PRECIO || []).map(function (c) { return '<div class="field"><label>' + esc(c[1]) + '</label><input type="number" step="0.01" min="0" data-precio="' + esc(c[0]) + '" value="' + (pr[c[0]] != null ? pr[c[0]] : '') + '"></div>'; }).join('');
+    $('pInsumos').innerHTML = (SafiaMeta.CAMPOS_PRECIO || []).map(function (c) { return '<div class="field"><label>' + esc(c[1]) + '</label><input type="number" step="0.01" min="0" data-precio="' + esc(c[0]) + '" value="' + (pr[c[0]] != null ? pr[c[0]] : '') + '"></div>'; }).join('') +
+      [['pygPorUSD', 'Dólar: guaraníes por US$', '1'], ['brlPorUSD', 'Dólar: reales por US$', '0.0001']].map(function (c) { return '<div class="field"><label>' + c[1] + '</label><input type="number" step="' + c[2] + '" min="0" data-precio="' + c[0] + '" value="' + (pr[c[0]] != null ? pr[c[0]] : '') + '" placeholder="cambio del día"></div>'; }).join('');
     if (!$('pDesde').value) $('pDesde').value = SafiaBalance.hoyLocal();
     var h = SafiaPrecios.historial();
     $('pHistN').textContent = h.length ? h.length + ' actualización(es)' : 'sin actualizaciones todavía';
