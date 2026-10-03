@@ -86,11 +86,17 @@
     return window.safiaSupabase.from('safia_ref_produccion').select('localidad,departamento,cultivo,finalidad,epoca_siembra,riego,prod_ton_ha,costo_final_ha,costo_insumos_ha,costo_maquinas_ha,costo_fletes_ha,alquiler_ha,energia_ha,mantenimiento_ha')
       .then(function (r) { refProd = r.data || []; return refProd; }, function () { return []; });
   }
-  function campoPorNombre(nombre) {
-    var cs = propios('campos'); if (!nombre) return null;
-    var n = norm(nombre);
-    return cs.find(function (c) { return norm(c.nombre) === n; }) || cs.find(function (c) { return norm(c.nombre).indexOf(n) >= 0 || n.indexOf(norm(c.nombre)) >= 0; }) || null;
+  // El usuario nombra el campo por su nombre O por el del cliente ("Ganadera Angelita" es el cliente; su campo es "Estancia Primavera")
+  function nombreClienteDe(c) { var cl = propios('clientes').find(function (x) { return String(x.id) === String(c.clienteId); }); return cl ? (cl.nombre || cl.razonSocial || '') : ''; }
+  function camposPorNombre(nombre) {
+    var cs = propios('campos'); if (!nombre) return [];
+    var n = norm(nombre), toca = function (t) { t = norm(t); return !!t && (t.indexOf(n) >= 0 || n.indexOf(t) >= 0); };
+    var exacto = cs.filter(function (c) { return norm(c.nombre) === n; }); if (exacto.length) return exacto;
+    var porCampo = cs.filter(function (c) { return toca(c.nombre); }); if (porCampo.length) return porCampo;
+    return cs.filter(function (c) { return toca(nombreClienteDe(c)); });
   }
+  function campoPorNombre(nombre) { return camposPorNombre(nombre)[0] || null; }
+  function listaCampos() { return propios('campos').map(function (c) { var cl = nombreClienteDe(c); return c.nombre + (cl ? ' (cliente ' + cl + ')' : ''); }); }
   function sueloDeCampo(campo) {
     // el análisis más nuevo; si ese día hay varias muestras, el promedio de la parcela que arma SAFIA (esPromedio)
     var l = propios('analisis_suelo').filter(function (a) { return String(a.campoId) === String(campo.id); }).sort(function (a, b) { return String(b.fecha || '').localeCompare(String(a.fecha || '')) || ((b.esPromedio ? 1 : 0) - (a.esPromedio ? 1 : 0)); });
@@ -213,7 +219,7 @@
   function esSecanoLote(e) { return window.SafiaBalance && SafiaBalance.esSecano ? !!SafiaBalance.esSecano(e) : !!(e && e.tipo === 'secano'); }
   function lotesDe(i) {
     var campo = i && i.campo ? campoPorNombre(i.campo) : null;
-    if (i && i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+    if (i && i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
     var cps = propios('campos');
     var l = propios('equipos').filter(function (e) { return (!campo || String(e.campoId) === String(campo.id)) && (!i || !i.lote || norm(e.nombre).indexOf(norm(i.lote)) >= 0); })
       .map(function (e) { return { e: e, c: cps.find(function (x) { return String(x.id) === String(e.campoId); }) }; });
@@ -265,7 +271,7 @@
     clima_y_riego: function (i) {
       var P = window.SafiaClimaProyecto; if (!P) return { error: 'Módulo de clima no disponible' };
       var campo = i.campo ? campoPorNombre(i.campo) : null, lat = campo ? num(campo.latitud) : num(i.lat), lon = campo ? num(campo.longitud) : num(i.lon);
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '" entre los campos del usuario.', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '" entre los campos del usuario.', campos: listaCampos() };
       if (lat == null || lon == null) return { error: 'Falta la coordenada (el campo no tiene latitud y longitud cargadas).' };
       var an = campo ? sueloDeCampo(campo) : null;
       return P.historico(lat, lon).then(function (h) {
@@ -285,7 +291,7 @@
     interpretar_suelo: function (i) {
       var A = window.SafiaAgro; if (!A) return { error: 'Motor agronómico no disponible' };
       var campo = i.campo ? campoPorNombre(i.campo) : null, s = campo ? sueloDeCampo(campo) : (i.valores || null);
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
       if (!s) return { error: campo ? 'El campo no tiene análisis de suelo cargado.' : 'Faltan los valores del análisis.' };
       var inter = A.interpretarSuelo(s, i.cultivo), recs = A.recomendaciones(s, i.cultivo, i.rinde_objetivo || null);
       return { analisis: { fecha: s.fecha || null, ph: num(s.ph), mo: num(s.mo), p: num(s.p), k: num(s.k), ca: num(s.ca), mg: num(s.mg), cic: num(s.cic), sat_bases: num(s.satBases), arcilla: num(s.arcilla) },
@@ -297,7 +303,7 @@
       var B = window.SafiaBalance, K = window.SafiaClima, FA = window.SafiaFichaAgua;
       if (!B || !K) return { error: 'Módulo de agua no disponible en esta página' };
       var campo = i.campo ? campoPorNombre(i.campo) : null;
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
       var cps = propios('campos'), cams = propios('campanas'), evs = propios('eventos');
       var lista = propios('equipos').filter(function (e) { return (!campo || String(e.campoId) === String(campo.id)) && (!i.lote || norm(e.nombre).indexOf(norm(i.lote)) >= 0); })
         .map(function (e) { return { e: e, c: cps.find(function (x) { return String(x.id) === String(e.campoId); }), cam: cams.find(function (x) { return String(x.equipoId) === String(e.id) && x.estado === 'Activa'; }) }; });
@@ -367,7 +373,7 @@
       // "¿Cómo viene mi cosecha?": junta lo que el Banco muestra en varias pestañas, con los mismos motores
       // (meta viva, agua por etapa FAO-56/FAO-33, vigor satelital, foliar, insumos y balance de nutrientes, campañas anteriores del lote, mejor de la zona)
       var campo = i.campo ? campoPorNombre(i.campo) : null;
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
       var cps = propios('campos'), lista = [];
       propios('campanas').forEach(function (cam) {
         if (cam.estado !== 'Activa') return;
@@ -526,7 +532,7 @@
     },
     historial_suelo: function (i) {
       var A = window.SafiaAgro, campo = i.campo ? campoPorNombre(i.campo) : null;
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
       var cps = campo ? [campo] : propios('campos'), eqs = propios('equipos');
       return { campos: cps.map(function (c) {
         var l = propios('analisis_suelo').filter(function (a) { return String(a.campoId) === String(c.id); });
@@ -551,7 +557,7 @@
       // Los lotes de otros productores llegan sin nombre (safia_datos_zona): acá se nombran por su lugar.
       if (!C()) return { error: 'Banco de casos no disponible' };
       var campo = i.campo ? campoPorNombre(i.campo) : propios('campos')[0];
-      if (!campo) return { error: i.campo ? 'No encontré el campo "' + i.campo + '".' : 'El usuario no tiene campos.', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (!campo) return { error: i.campo ? 'No encontré el campo "' + i.campo + '".' : 'El usuario no tiene campos.', campos: listaCampos() };
       var mio = sueloDeCampo(campo), A = window.SafiaAgro, ambito = i.ambito || 'todos';
       var eqsCampo = propios('equipos').filter(function (e) { return String(e.campoId) === String(campo.id); });
       var conRiego = i.riego === 'secano' ? false : (i.riego === 'con_riego' ? true : (!eqsCampo.length || eqsCampo.some(function (e) { return !esSecanoLote(e); })));
@@ -606,7 +612,7 @@
       // Calidad del agua de riego: el mismo motor del Banco → Análisis de agua (FAO 29, USDA Manual 60)
       var Q = window.SafiaCalidadAgua; if (!Q) return { error: 'Módulo de análisis de agua no disponible en esta página' };
       var campo = i.campo ? campoPorNombre(i.campo) : null;
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
       var cps = campo ? [campo] : propios('campos');
       return { campos: cps.map(function (c) {
         puente(c);
@@ -626,10 +632,13 @@
       // Facturas de energía, reparto por pivot e informe de agua de la campaña: el mismo cálculo de Banco → Energía y agua
       var EN = window.SafiaEnergia; if (!EN) return { error: 'Módulo de energía no disponible en esta página' };
       var campo = i.campo ? campoPorNombre(i.campo) : null;
-      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
-      var cps = (campo ? [campo] : propios('campos')).slice(0, 3), salida = [], p = Promise.resolve();
-      cps.forEach(function (c) { p = p.then(function () { puente(c); return EN.paraAsistente(c, i.lote); }).then(function (r) { salida.push(r); }); });
-      return p.then(function () { return { campos: salida,
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: listaCampos() };
+      // con nombre: todos los campos de ese nombre o de ese cliente; sin nombre: primero los campos que tienen facturas cargadas
+      var conFact = {}; propios('facturas_energia').forEach(function (f) { conFact[String(f.campoId)] = 1; });
+      var todos = i.campo ? camposPorNombre(i.campo) : propios('campos').slice().sort(function (a, b) { return (conFact[String(b.id)] || 0) - (conFact[String(a.id)] || 0); });
+      var cps = todos.slice(0, 4), salida = [], p = Promise.resolve();
+      cps.forEach(function (c) { p = p.then(function () { puente(c); return EN.paraAsistente(c, i.lote); }).then(function (r) { r.cliente = nombreClienteDe(c) || null; salida.push(r); }); });
+      return p.then(function () { return { campos: salida, campos_no_revisados: todos.length > cps.length ? todos.slice(cps.length).map(function (c) { return c.nombre + (conFact[String(c.id)] ? ' (tiene facturas)' : ' (sin facturas)'); }) : undefined,
         fuente: 'Banco → Energía y agua de SAFIA: facturas de energía cargadas por el cliente (leídas de la factura) y balance diario FAO-56 de cada campaña',
         reglas: 'El total de cada factura se reparte entre los pivots del medidor según mm regados × hectáreas en el período de la factura. Riego necesario = lo que hacía falta para que el cultivo no pasara sed con la lluvia real; aprovechamiento = necesario ÷ aplicado. El exceso de potencia reservada es un recargo por pasarse de la potencia contratada (no es energía): se corrige con la ANDE. La reactiva se baja con un banco de capacitores (consultarlo con el electricista). SAFIA muestra lo que dice la factura; qué contratar lo define el cliente.',
         importante: 'El riego que no se cargó no existe para SAFIA: sin riegos cargados en el período no hay reparto. Cada factura guarda su moneda y el cambio de su período.' }; });
