@@ -341,6 +341,7 @@
               regla: 'se prende antes del estrés: arranque = estrés + consumo del cultivo durante la vuelta, nunca por debajo del 75 % de agua útil, y el estrés empieza en el 50 % (SDSU Extension: no pasar del 50 % de agotamiento desde floración) (la lluvia prevista no se resta del margen: ya entra en la proyección del suelo y corre la fecha de arranque; como FieldNET Advisor: Start = Due By − Refill Time)' } : null,
             agua_disponible_mm: r0(r.aguaDisponibleHoy), reserva_total_raiz_mm: r0(r.tawHoy), falta_para_capacidad_campo_mm: r0(r.deficitHastaCC),
             lamina_sugerida_hoy_mm: sec ? null : (r.recomendacion.mm || 0), eficiencia_riego: sec ? null : r.eficiencia,
+            como_regarlo: !sec && r.recomendacion.mm && B.consejoLamina ? (function (c) { return { vueltas: c.n, mm_por_vuelta: c.lamina, velocidad_pct: c.velocidadPct, horas_por_vuelta: c.horasVuelta, calor_hoy: c.calor, t_max_hoy: c.tMax, regla: c.nota }; })(B.consejoLamina(r, e, r.recomendacion.mm)) : null,
             dias_desde_siembra: r.etapaHoy.dds, etapa: r.etapaHoy.nombre || null, etapa_critica: !!r.etapaHoy.critica, raiz_cm: r.etapaHoy.zr ? Math.round(r.etapaHoy.zr * 100) : null, kc_hoy: r.etapaHoy.kc,
             consumo_cultivo_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.etcDia || 0); }, 0)), riego_cargado_ultimos_7_dias_mm: r0(ult7.reduce(function (s, v) { return s + (v.riegoBruto || 0); }, 0)),
             desde_siembra: { lluvia_mm: r0(tp.lluviaBruta), riego_bruto_mm: r0(tp.riegoBruto), consumo_etc_mm: r0(tp.etc), dias_con_estres: tp.diasEstres || 0 },
@@ -357,7 +358,7 @@
       return pSat.then(function () { return Promise.all(lista.map(function (x) { try { return Promise.resolve(uno(x)); } catch (er) { return Promise.resolve({ lote: x.e.nombre, error: String(er.message || er) }); } })); }).then(function (lotes) {
         return { hoy: hoyK, lotes: lotes, lotes_no_mostrados: omitidos || undefined,
           fuente: 'ficha de agua de SAFIA: balance diario FAO-56 desde el día de la siembra con los riegos cargados; la lluvia entra sola (estación del campo si hay, después el pluviómetro cargado y, si no, el satélite CHIRPS) y el pronóstico es de Open-Meteo; el mismo cálculo que ve el Operador',
-          reglas: 'El estrés empieza en el 50 % de agua útil y el pivot se arranca desde el 75 % (más arriba si la vuelta es larga o el consumo es alto). "No regar: viene lluvia" = se esperan 15 mm o más en los próximos 5 días. En secano no hay arranque: solo se avisa el estrés.',
+          reglas: 'El estrés empieza en el 50 % de agua útil y el pivot se arranca desde el 75 % (más arriba si la vuelta es larga o el consumo es alto). "No regar: viene lluvia" = se esperan 15 mm o más en los próximos 5 días. En secano no hay arranque: solo se avisa el estrés. Lámina mínima de día (criterio de Irrigar): de 9 a 18 h nunca menos de 10 mm por vuelta (las láminas chicas se evaporan y queman hojas); con más de 30 °C de día entre 10 y 14 mm; de noche puede ser menor.',
           importante: 'La humedad es calculada, no medida (salvo sonda). Si no se cargaron los riegos hechos, el suelo aparece más seco de lo real.' };
       });
     },

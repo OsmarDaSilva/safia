@@ -255,6 +255,33 @@
     return (l > 0 && h > 0) ? l / h * 24 : null;
   }
   function laminaVuelta(raw, ef) { return Math.max(10, Math.min(35, Math.ceil(raw / (ef > 0 ? ef : 1) / 5) * 5)); }
+  // Lámina mínima de DÍA (criterio operativo de Irrigar, Osmar 3-oct-2026): entre las 9 y las 18 h el pivot no aplica láminas chicas
+  // (3 a 5 mm): se evaporan antes de entrar al suelo y queman hojas, más todavía con el cultivo chico. De día nunca menos de 10 mm por
+  // vuelta; con más de 30 °C, de día entre 10 y 14 mm. De noche (18 a 9 h) la lámina puede ser menor. Regar las 24 h está bien: lo que
+  // cambia es la lámina (y por eso la velocidad) de las pasadas de día. Con lamina100/vuelta100 del equipo se traduce a % de velocidad.
+  var LAMINA_MIN_DIA = 10, LAMINA_MAX_CALOR = 14, T_CALOR = 30, LAMINA_MAX_VUELTA = 35;
+  function consejoLamina(r, equipo, mm) {
+    var dt = (equipo && equipo.datosTecnicos) || {}, lam100 = num(dt.lamina100), h100 = num(dt.vuelta100);
+    var dias = (r && r.dias) || [], hoy = null, tMax = null;
+    dias.forEach(function (d) { if (d.esHoy) hoy = d; });
+    if (hoy && hoy.tMax != null) tMax = +hoy.tMax;
+    else dias.filter(function (d) { return d.esFuturo; }).slice(0, 2).forEach(function (d) { if (d.tMax != null && (tMax == null || +d.tMax > tMax)) tMax = +d.tMax; });
+    var calor = tMax != null && tMax >= T_CALOR, dds = r && r.etapaHoy ? r.etapaHoy.dds : null, joven = dds != null && dds <= 30;
+    var out = { laminaMin: LAMINA_MIN_DIA, laminaMaxCalor: LAMINA_MAX_CALOR, tMax: tMax, calor: calor, joven: joven, n: null, lamina: null, velocidadPct: null, horasVuelta: null, horasTotal: null, texto: '', nota: '', notaCorta: '' };
+    mm = +mm || 0;
+    if (mm > 0) {
+      var tope = calor ? LAMINA_MAX_CALOR : LAMINA_MAX_VUELTA, n = Math.max(1, Math.ceil(mm / tope)), L = Math.max(LAMINA_MIN_DIA, Math.ceil(mm / n));
+      out.n = n; out.lamina = L;
+      if (lam100 > 0) { var vel = Math.max(1, Math.min(100, Math.round(lam100 / L * 100))); out.velocidadPct = vel; if (h100 > 0) { out.horasVuelta = Math.round(h100 * 100 / vel); out.horasTotal = out.horasVuelta * n; } }
+      out.texto = n + ' vuelta' + (n > 1 ? 's' : '') + ' de ' + L + ' mm' + (out.velocidadPct != null ? ' (velocidad ' + out.velocidadPct + ' %' + (out.horasVuelta ? ' ≈ ' + out.horasVuelta + ' h' + (n > 1 ? ' cada una' : '') : '') + ')' : '');
+    }
+    var t = tMax != null ? ' (hoy ' + Math.round(tMax) + ' °C)' : '';
+    out.notaCorta = 'De día no menos de ' + LAMINA_MIN_DIA + ' mm por vuelta' + (calor ? ', con calor' + t + ' entre 10 y 14 mm' : '') + '; de noche puede ser menor.';
+    out.nota = 'De día (9 a 18 h) no regar menos de ' + LAMINA_MIN_DIA + ' mm por vuelta: las láminas chicas se evaporan antes de entrar al suelo y queman hojas' + (joven ? ', y el cultivo todavía es chico' : '') + '. ' +
+      (calor ? 'Hoy hace calor (' + Math.round(tMax) + ' °C): de día regar entre 10 y 14 mm. ' : 'Con más de ' + T_CALOR + ' °C, de día entre 10 y 14 mm. ') +
+      'De noche (18 a 9 h) la lámina puede ser menor. Regar las 24 h está bien: lo que cambia es la lámina de las pasadas de día.';
+    return out;
+  }
   // mm que el cultivo gasta, neto de la lluvia prevista, durante 'dias' desde la posición i de las listas
   function gastoEnVuelta(etcs, lluvias, i, dias) {
     var n = Math.max(1, Math.ceil(dias)), s = 0;
@@ -697,7 +724,7 @@
     hoyLocal: hoyLocal, fechaLocal: fechaLocal, claveDia: claveDia, sumarDias: sumarDias, diasEntre: diasEntre,
     indexarEventos: indexarEventos, resolverLluviaDia: resolverLluviaDia, estacionDelCampo: estacionDelCampo,
     simular: simular,
-    capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
+    capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, consejoLamina: consejoLamina, LAMINA_MIN_DIA: LAMINA_MIN_DIA, LAMINA_MAX_CALOR: LAMINA_MAX_CALOR, T_CALOR: T_CALOR, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
     umbralManejo: umbralManejo, P_MAX_MANEJO: P_MAX_MANEJO, BANDA_MIN_ARRANQUE: BANDA_MIN_ARRANQUE, ARRANQUE_MIN_PCT: ARRANQUE_MIN_PCT,
     ndviGuardado: ndviGuardado, factoresSatelite: factoresSatelite, kcbSatelite: kcbSatelite, extremosNdvi: extremosNdvi, prepararSatelite: prepararSatelite, ALTURA_CULTIVO: ALTURA_CULTIVO,
     version: '2.3.0'

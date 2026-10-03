@@ -68,7 +68,9 @@
   }
 
   /* ---------- 2. próximo riego ---------- */
-  function vueltas(mm, equipo) {
+  function vueltas(mm, equipo, r) {
+    // con el motor nuevo: vueltas de 10 mm o más (10 a 14 con calor) a la velocidad que corresponda, nunca "10 vueltas de 3,7 mm al 100 %"
+    if (window.SafiaBalance && SafiaBalance.consejoLamina && mm > 0) { var c = SafiaBalance.consejoLamina(r, equipo, mm); return { n: c.n, lam: c.lamina, horas: c.horasTotal, texto: c.texto, nota: c.nota, notaCorta: c.notaCorta, calor: c.calor }; }
     var dt = (equipo && equipo.datosTecnicos) || {};
     var lam = num(dt.lamina100), horas = num(dt.vuelta100), cap = num(dt.capacidad);
     if (lam && lam > 0) { var n = Math.ceil(mm / lam); return { n: n, lam: lam, horas: horas ? n * horas : null, texto: n + ' vuelta' + (n > 1 ? 's' : '') + ' de ' + fmt(lam, 1) + ' mm al 100 %' + (horas ? ' ≈ ' + fmt(n * horas, 0) + ' h' : '') }; }
@@ -90,17 +92,17 @@
     var noAlc = pv && pv.noAlcanza ? 'El equipo no alcanza la demanda del cultivo (' + fmt(pv.consumoMax7, 1) + ' mm/día contra ' + fmt(pv.capacidadNeta, 1) + ' mm/día netos del pivot): mantenerlo girando para no quedar atrás. ' : '';
     if (lluviaProx >= 15 && !rec.enEstres) { out.tipo = 'lluvia'; out.titulo = 'No regar: viene lluvia'; out.detalle = 'Se esperan ' + fmt(lluviaProx, 0) + ' mm ' + periodoLluvia + '. ' + vence + 'Volver a mirar después de la lluvia.'; return out; }
     if (rec.regar) {
-      var mm = rec.mm || 0, v = vueltas(mm, equipo);
+      var mm = rec.mm || 0, v = vueltas(mm, equipo, r);
       out.tipo = rec.enEstres || r.porcentajeHoy < U.URGENTE ? 'urgente' : 'regar';
       out.titulo = pv && pv.noAlcanza ? 'Mantener el pivot girando: ' + fmt(mm, 0) + ' mm por vuelta' : (out.tipo === 'urgente' ? 'Regar ya, el cultivo está en estrés: ' : 'Arrancar el pivot hoy: ') + fmt(mm, 0) + ' mm';
-      out.detalle = noAlc + (out.tipo === 'regar' ? vence : '') + vuelta + (rec.mmTotal > mm ? 'Faltan ' + fmt(rec.mmTotal, 0) + ' mm para llenar la raíz; se reparte en más de una vuelta. ' : '') + (v ? cap(v.texto) + '.' : '');
+      out.detalle = noAlc + (out.tipo === 'regar' ? vence : '') + vuelta + (rec.mmTotal > mm ? 'Faltan ' + fmt(rec.mmTotal, 0) + ' mm para llenar la raíz; se reparte en más de una vuelta. ' : '') + (v ? cap(v.texto) + '.' : '') + (v && v.nota ? ' ' + v.nota : '');
       return out;
     }
     var prox = (r.dias || []).filter(function (d) { return d.esFuturo && d.estado === 'regar'; })[0], fA = pv && pv.arrancarEl ? pv.arrancarEl : (prox ? String(prox.fecha).slice(0, 10) : null);
     if (fA) {
-      var mmP = prox ? prox.mmRegar : null, v2 = mmP ? vueltas(mmP, equipo) : null;
+      var mmP = prox ? prox.mmRegar : null, v2 = mmP ? vueltas(mmP, equipo, r) : null;
       out.tipo = 'proximo'; out.titulo = 'Arrancar el pivot ' + cuando(fA) + (mmP ? ': ' + fmt(mmP, 0) + ' mm' : '');
-      out.detalle = (noAlc + vence + vuelta + (prox ? 'Ese día la humedad llega al ' + fmt(prox.porcentajeAAU, 0) + ' % si no llueve (' + fmt(prox.lluviaBruta, 0) + ' mm previstos). ' : '') + (v2 ? cap(v2.texto) + '.' : '')).trim();
+      out.detalle = (noAlc + vence + vuelta + (prox ? 'Ese día la humedad llega al ' + fmt(prox.porcentajeAAU, 0) + ' % si no llueve (' + fmt(prox.lluviaBruta, 0) + ' mm previstos). ' : '') + (v2 ? cap(v2.texto) + '.' : '') + (v2 && v2.notaCorta ? ' ' + v2.notaCorta : '')).trim();
       return out;
     }
     var n = pv ? pv.horizonteDias : (r.dias || []).filter(function (d) { return d.esFuturo; }).length, ult = (r.dias || [])[(r.dias || []).length - 1];

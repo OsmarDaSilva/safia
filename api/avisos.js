@@ -114,6 +114,10 @@ const CONDUCTOR = `
     out.estado.etapa = r.etapaHoy ? r.etapaHoy.nombre : null; out.estado.umbrales = { estres: U.URGENTE, arranque: U.CRITICO };
     // Parte de cada mañana: SIEMPRE dice cómo está el agua, si viene lluvia y qué hacer (mismas ramas que la tarjeta del Operador)
     var vuelta = pv && pv.vueltaDias ? ' La vuelta tarda ' + pv.vueltaDias.toLocaleString('es-PY') + ' días.' : '';
+    // Lámina mínima de día (Irrigar): vueltas de 10 mm o más (10 a 14 con calor), nunca láminas chicas de 9 a 18 h
+    var cl = SafiaBalance.consejoLamina ? SafiaBalance.consejoLamina(r, equipo, mmRegar) : null;
+    var lamina = cl ? (cl.texto ? ' Hacerlo en ' + cl.texto + '.' : '') + ' ' + cl.notaCorta : '';
+    out.estado.lamina = cl ? { vueltas: cl.n, mmPorVuelta: cl.lamina, velocidadPct: cl.velocidadPct, horasVuelta: cl.horasVuelta, calor: cl.calor, tMax: cl.tMax } : null;
     var hasta = r.dias.length ? corta(r.dias[r.dias.length - 1].fecha) : '';
     var lluviaTxt = lluviaProxima >= 1 ? ' Lluvia prevista: ' + Math.round(lluviaProxima) + ' mm hasta el ' + hasta + '.' : ' Sin lluvia prevista hasta el ' + hasta + '.';
     var vence = pv && pv.venceEl ? ' Sin riego entra en estrés ' + (pv.diasHastaEstres === 0 ? 'hoy' : 'el ' + corta(pv.venceEl)) + '.' : '';
@@ -126,12 +130,12 @@ const CONDUCTOR = `
     } else if (r.recomendacion.enEstres || pct < (U.URGENTE || 50)) {
       nivel = 'estres'; out.estado.recomendacion = 'Regar ya: en estrés';
       titulo = P + ' · regar ya, cultivo en estrés';
-      cuerpo = 'Está debajo del punto de estrés (' + U.URGENTE + ' %). Regar ' + Math.round(mmRegar) + ' mm hoy.' + (pv && pv.noAlcanza ? ' El equipo no alcanza la demanda: mantenerlo girando.' : '') + lluviaTxt + sinRiegoTxt;
+      cuerpo = 'Está debajo del punto de estrés (' + U.URGENTE + ' %). Regar ' + Math.round(mmRegar) + ' mm hoy.' + (pv && pv.noAlcanza ? ' El equipo no alcanza la demanda: mantenerlo girando.' : '') + lamina + lluviaTxt + sinRiegoTxt;
     } else if (pct < U.CRITICO) {
       var girando = pv && pv.noAlcanza;
       nivel = 'arrancar'; out.estado.recomendacion = girando ? 'Mantener el pivot girando' : 'Arrancar el pivot hoy';
       titulo = P + (girando ? ' · mantener el pivot girando' : ' · arrancar el pivot hoy');
-      cuerpo = 'Llegó al punto de arranque (' + U.CRITICO + ' %). Regar ' + Math.round(mmRegar) + ' mm.' + vuelta + vence + lluviaTxt + sinRiegoTxt;
+      cuerpo = 'Llegó al punto de arranque (' + U.CRITICO + ' %). Regar ' + Math.round(mmRegar) + ' mm.' + lamina + vuelta + vence + lluviaTxt + sinRiegoTxt;
     } else if (pct >= U.ATENCION) {
       nivel = 'info'; out.estado.recomendacion = 'Sin necesidad de riego';
       titulo = P + ' · no hace falta regar';

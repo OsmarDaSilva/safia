@@ -990,14 +990,14 @@
       campanas.forEach(c => { if (c.estado === 'Cerrada') return; (c.cultivos || []).forEach((cu, i) => { if (!cu || parseFloat(cu.rendimientoReal) > 0) return; const fin = cu.fechaCosecha; if (fin && diasDesde(fin) > 0) { const eq = equipos.find(e => String(e.id) === String(c.equipoId)); out.push({ campana: c, cu, i, eq, dias: diasDesde(fin) }); } }); });
       return out;
     }
-    function vueltasTexto(mm, eq) { const v = window.SafiaFichaAgua && SafiaFichaAgua.vueltas ? SafiaFichaAgua.vueltas(mm, eq) : null; return v ? ' (' + v.texto + ')' : ''; }
+    function vueltasTexto(mm, eq, r) { const v = window.SafiaFichaAgua && SafiaFichaAgua.vueltas ? SafiaFichaAgua.vueltas(mm, eq, r) : null; return v ? (v.texto ? ' (' + v.texto + ')' : '') + (v.calor ? ' · calor: de día 10 a 14 mm' : '') : ''; }
     function pintarParaHoy() {
       const div = document.getElementById('paraHoy'); if (!div) return;
       const equiposTodos = JSON.parse(localStorage.getItem('equipos') || '[]').filter(e => !e.zona);
       const enFiltro = (eqId) => !campoFiltro || String((equiposTodos.find(e => String(e.id) === String(eqId)) || {}).campoId) === String(campoFiltro);
       const items = [];
       // 1. Regar hoy
-      estadoEquipos.forEach(d => { const r = d.balance && d.balance.r; if (r && r.recomendacion && r.recomendacion.regar && enFiltro(d.equipo.id)) items.push({ col: '#C0392B', txt: '<b>Regar hoy ' + d.equipo.nombre + '</b>: ' + Math.round(r.recomendacion.mm) + ' mm' + vueltasTexto(r.recomendacion.mm, d.equipo) + (r.porcentajeHoy != null ? ' · agua útil ' + Math.round(r.porcentajeHoy) + ' %' : ''), href: 'operador.html?equipo=' + d.equipo.id }); });
+      estadoEquipos.forEach(d => { const r = d.balance && d.balance.r; if (r && r.recomendacion && r.recomendacion.regar && enFiltro(d.equipo.id)) items.push({ col: '#C0392B', txt: '<b>Regar hoy ' + d.equipo.nombre + '</b>: ' + Math.round(r.recomendacion.mm) + ' mm' + vueltasTexto(r.recomendacion.mm, d.equipo, r) + (r.porcentajeHoy != null ? ' · agua útil ' + Math.round(r.porcentajeHoy) + ' %' : ''), href: 'operador.html?equipo=' + d.equipo.id }); });
       // 2. Mantenimiento vencido o próximo
       equiposTodos.forEach(eq => { if (!enFiltro(eq.id)) return; const mt = mantenimientoDe(eq); if (mt.sinPlan) return; mt.vencidas.forEach(t => items.push({ col: '#C0392B', txt: '<b>Mantenimiento vencido ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' % del intervalo, ' + Math.round(mt.horas) + ' h)', href: 'operador.html?equipo=' + eq.id })); mt.proximas.forEach(t => items.push({ col: '#B8731A', txt: '<b>Mantenimiento próximo ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' %)', href: 'operador.html?equipo=' + eq.id })); });
       // 3. Cosechas sin cargar

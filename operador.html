@@ -1357,6 +1357,9 @@
         const vueltaTxt = pv && pv.vueltaDias ? ` La vuelta tarda <strong>${pv.vueltaDias.toLocaleString('es-PY')} días</strong>${pv.vueltaSupuesta ? ' (supuesto: cargá la capacidad del equipo)' : ''}.` : '';
         const venceTxt = pv ? (pv.venceEl ? ` Sin riego entra en estrés ${pv.diasHastaEstres === 0 ? '<strong>hoy</strong>' : 'el <strong>' + fechaCorta(pv.venceEl) + '</strong>'}.` : '') : '';
         const noAlcTxt = pv && pv.noAlcanza ? ` <strong>El equipo no alcanza la demanda</strong> (${pv.consumoMax7} mm/día contra ${pv.capacidadNeta} netos): mantenerlo girando.` : '';
+        // Lámina mínima de día (Irrigar): cómo hacer esos mm en vueltas de 10 mm o más, y la nota de calor
+        const cl = SafiaBalance.consejoLamina ? SafiaBalance.consejoLamina(r, equipo, mmRegar) : null;
+        const laminaTxt = cl ? (cl.texto ? ' Hacerlo en <strong>' + cl.texto + '</strong>.' : '') + ' ' + cl.nota : '';
         if (lluviaProxima >= 15 && !r.recomendacion.enEstres) {
           icono.textContent = "🌧️";
           titulo.textContent = "No regar — viene lluvia";
@@ -1365,12 +1368,12 @@
         } else if (r.recomendacion.enEstres || pct < (U.URGENTE || 50)) {
           icono.textContent = "⚠️";
           titulo.textContent = "REGAR YA — el cultivo está en estrés";
-          detalle.innerHTML = `Humedad del suelo en <strong>${pct.toFixed(0)}%</strong> del agua útil, debajo del punto de estrés (${U.URGENTE} %). Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.${noAlcTxt}${vueltaTxt}`;
+          detalle.innerHTML = `Humedad del suelo en <strong>${pct.toFixed(0)}%</strong> del agua útil, debajo del punto de estrés (${U.URGENTE} %). Regar <strong>${mmRegar.toFixed(0)} mm</strong> hoy.${noAlcTxt}${vueltaTxt}${laminaTxt}`;
           card.className = "reco-card visible urgente";
         } else if (pct < U.CRITICO) {
           icono.textContent = "💧";
           titulo.textContent = pv && pv.noAlcanza ? "Mantener el pivot girando" : "Arrancar el pivot hoy";
-          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil: llegó al punto de arranque (${U.CRITICO} %). Regar <strong>${mmRegar.toFixed(0)} mm</strong> para que el último sector no entre en estrés antes de que le llegue el agua.${venceTxt}${vueltaTxt}${noAlcTxt}`;
+          detalle.innerHTML = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil: llegó al punto de arranque (${U.CRITICO} %). Regar <strong>${mmRegar.toFixed(0)} mm</strong> para que el último sector no entre en estrés antes de que le llegue el agua.${venceTxt}${vueltaTxt}${noAlcTxt}${laminaTxt}`;
           card.className = "reco-card visible regar";
         } else if (pct >= U.ATENCION) {
           icono.textContent = "✅";
