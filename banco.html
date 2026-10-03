@@ -85,6 +85,7 @@
 <script src="safia-lluvia.js"></script>
 <script src="safia-agua.js"></script>
 <script src="safia-energia.js"></script>
+<script src="safia-eudr.js"></script>
 <script src="safia-seguimiento.js"></script>
 </head>
 <body>
@@ -180,6 +181,7 @@
           <button data-tab="foliar">Análisis foliar</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="energia">Energía y agua</button>
+          <button data-tab="eudr">Sin deforestación (Europa)</button>
           <button data-tab="humedad">Humedad de suelo</button>
           <button data-tab="evolucion">📈 Evolución y decisiones</button>
           <button data-tab="meta">Meta de rinde</button>
@@ -397,6 +399,7 @@
 
         <!-- ================= TAB ANÁLISIS DE AGUA (calidad del agua de riego) ================= -->
         <section class="panel" id="panel-energia"><div id="energiaCont"></div></section>
+        <section class="panel" id="panel-eudr"><div id="eudrCont"></div></section>
 
         <section class="panel" id="panel-calidadAgua">
           <style>@media (max-width: 900px) { .ca-grid { grid-template-columns: 1fr !important; } }</style>
@@ -819,6 +822,7 @@
     if (window.SafiaFoliar) SafiaFoliar.alCambiarCampo();
     if (window.SafiaCalidadAgua) SafiaCalidadAgua.alCambiarCampo();
     if (window.SafiaEnergia) SafiaEnergia.alCambiarCampo();
+    if (window.SafiaEudr) SafiaEudr.alCambiarCampo();
     if (window.SafiaSensores) SafiaSensores.activarAgua();
     if (window.SafiaHumedad) SafiaHumedad.alCambiarCampo();
     if (window.SafiaAgua) SafiaAgua.alCambiarCampo();
@@ -998,6 +1002,7 @@
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
       if (b.dataset.tab === 'calidadAgua' && window.SafiaCalidadAgua) SafiaCalidadAgua.activar();
       if (b.dataset.tab === 'energia' && window.SafiaEnergia) SafiaEnergia.activar();
+      if (b.dataset.tab === 'eudr' && window.SafiaEudr) SafiaEudr.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaSensores) SafiaSensores.activarFoliar();
       if (b.dataset.tab === 'agua' && window.SafiaSensores) SafiaSensores.activarAgua();
       if (b.dataset.tab === 'agua' && window.SafiaAgua) SafiaAgua.activar();
