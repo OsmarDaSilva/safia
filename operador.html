@@ -680,8 +680,10 @@
       html.embebido #eventosSeccion #listaEventos { max-height: 190px; overflow-y: auto; }
       html.embebido #fichaAguaCard .fa-svg { height: 200px; }
       html.embebido .contenedor { max-width: none !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
-        grid-template-areas: "alerta alerta" "camp agua" "reco agua" "carga agua" "eventos agua" "eventos mant" !important;
-        grid-template-rows: auto auto auto auto 1fr auto; }   /* el espacio que sobra por la columna del agua va abajo, no entre tarjetas */
+        grid-template-areas: "alerta alerta" "camp agua" "reco agua" "carga agua" "pulv agua" "eventos agua" "eventos mant" !important;
+        grid-template-rows: auto auto auto auto auto 1fr auto; }
+      html.embebido .contenedor > #pulvCard { grid-area: pulv; margin: 0 0 10px !important; }
+      html.embebido .contenedor > #pulvCard[style*="display: none"] { display: none !important; }   /* el espacio que sobra por la columna del agua va abajo, no entre tarjetas */
     }
   </style>
   <style id="safia-operador-pc">
@@ -692,8 +694,8 @@
       .main > .crumb { display: none; }
       .main > .topbar { margin-bottom: 10px !important; padding-bottom: 8px !important; }
       .contenedor { max-width: 1240px !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
-        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "past past" "eventos mant";
-        grid-template-rows: auto auto auto auto 1fr auto auto; }   /* el alto que sobra por la ficha de agua va abajo, no como hueco entre tarjetas */
+        grid-template-areas: "alerta alerta" "sel agua" "camp agua" "reco agua" "carga agua" "pulv agua" "past past" "eventos mant";
+        grid-template-rows: auto auto auto auto auto 1fr auto auto; }   /* el alto que sobra por la ficha de agua va abajo, no como hueco entre tarjetas */
       .contenedor > .header-operador { display: none !important; }
       .contenedor > #alertaSinEquipo { grid-area: alerta; }
       .contenedor > #selectorCard { grid-area: sel; margin-bottom: 10px !important; padding: 10px 14px !important; }
@@ -702,6 +704,8 @@
       .contenedor > #fichaAguaCard { grid-area: agua; margin: 0 !important; }
       .contenedor > #mantCard { grid-area: mant; margin: 10px 0 0 !important; padding: 12px 16px !important; }
       .contenedor > #botonesCarga { grid-area: carga; margin-bottom: 10px !important; }
+      .contenedor > #pulvCard { grid-area: pulv; margin: 0 0 10px !important; align-self: start; }
+      .contenedor > #pulvCard[style*="display: none"] { display: none !important; }
       .contenedor > #pasturaPanel { grid-area: past; margin: 0 0 10px !important; }
       .contenedor > #pasturaPanel[style*="display: none"] { display: none !important; }
       .contenedor > #eventosSeccion { grid-area: eventos; }
@@ -877,7 +881,7 @@
           </div>
           <div class="reco-detalle" id="recoDetalle">—</div>
         </div>
-        <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div><div id="pulvPanel"></div></div>
+        <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div></div>
 
         <div class="botones-carga" id="botonesCarga" style="display:none;">
           <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
@@ -905,6 +909,7 @@
             <div class="boton-carga-label">Pesada</div>
           </button>
         </div>
+        <div id="pulvCard" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:10px 14px;"><div id="pulvPanel"></div></div>
         <div id="pasturaPanel" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:12px 14px;"></div>
 
         <div id="eventosSeccion" style="display:none;">
@@ -1335,9 +1340,10 @@
 
       const lat = coords.lat;
       const lon = coords.lon;
-      // Ventana para pulverizar (pronóstico por hora del lote), plegada al pie de la tarjeta del agua
+      // Ventana para pulverizar (pronóstico por hora del lote): tarjeta propia a la izquierda, debajo de los botones de carga.
+      // En PC va abierta (hay lugar); en el celular, plegada para no alargar la pantalla.
       window._pulvCoords = { lat, lon };
-      if (window.SafiaPulverizar) SafiaPulverizar.pintar('pulvPanel', lat, lon).catch(() => {});
+      if (window.SafiaPulverizar) SafiaPulverizar.pintar('pulvPanel', lat, lon, { abierto: window.innerWidth >= 1100 }).then(R => { const pc = document.getElementById('pulvCard'); if (pc) pc.style.display = R ? '' : 'none'; }).catch(() => {});
 
       icono.textContent = '⏳';
       titulo.textContent = 'Consultando clima...';
