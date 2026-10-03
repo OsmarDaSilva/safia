@@ -86,7 +86,7 @@ const HERRAMIENTAS = [
   },
   {
     name: 'agua_hoy',
-    description: 'Estado del agua HOY en los lotes en campaña del usuario y qué hacer: % de agua útil en la raíz, si hay que regar hoy y cuántos mm, o cuándo toca el próximo riego, o si no conviene regar porque viene lluvia; más el pronóstico de 7 días (lluvia, probabilidad, temperaturas), la etapa del cultivo, el último riego y la última lluvia cargados. Es el mismo cálculo de la ficha de agua del Operador (balance FAO-56 desde la siembra). En un lote de secano devuelve el agua útil, si está en estrés y la lluvia que viene, sin recomendación de riego. Sin campo ni lote devuelve todos los lotes con campaña activa (hasta 8).',
+    description: 'Estado del agua HOY en los lotes en campaña del usuario y qué hacer: % de agua útil en la raíz, si hay que regar hoy y cuántos mm, o cuándo toca el próximo riego, o si no conviene regar porque viene lluvia; más el pronóstico de 7 días (lluvia, probabilidad, temperaturas), la etapa del cultivo, el último riego y la última lluvia cargados. Es el mismo cálculo de la ficha de agua del Operador (balance FAO-56 desde la siembra). En un lote de secano devuelve el agua útil, si está en estrés y la lluvia que viene, sin recomendación de riego. En una pastura trae además pastura_en_kilos: kilos de pasto seco por hectárea, crecimiento por día, carga real contra la que aguanta y kilos de carne producidos. Sin campo ni lote devuelve todos los lotes con campaña activa (hasta 8).',
     input_schema: { type: 'object', properties: { campo: { type: 'string', description: 'Nombre de un campo del usuario (opcional).' }, lote: { type: 'string', description: 'Nombre del pivot o lote, búsqueda parcial (opcional).' } } },
   },
   {
