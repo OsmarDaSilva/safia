@@ -1128,7 +1128,8 @@
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
   <script src="safia-manual-riego.js"></script>
-  <script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'operador', en: '.topbar-derecha' }); });</script>
+<script src="safia-manual.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'operador', en: '.topbar-derecha' }); if (window.SafiaManual) SafiaManual.montar({ rol: 'operador', en: '.topbar-derecha' }); });</script>
   <script src="safia-mantenimiento.js"></script>
   <script>
     document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', {

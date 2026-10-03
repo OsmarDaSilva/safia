@@ -647,7 +647,8 @@
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
   <script src="safia-manual-riego.js"></script>
-  <script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'encargado', en: '.enc-head-der' }); });</script>
+<script src="safia-manual.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', function () { if (window.SafiaManualRiego) SafiaManualRiego.montar({ rol: 'encargado', en: '.enc-head-der' }); if (window.SafiaManual) SafiaManual.montar({ rol: 'encargado', en: '.enc-head-der' }); });</script>
   <script src="safia-mantenimiento.js"></script>
   <script>
     let estadoEquipos = []; // Caché del análisis
