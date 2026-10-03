@@ -372,6 +372,33 @@
     return p.n + ' piquetes · ' + p.anillos.map(function (an, j) { return an.n + ' ' + nombres[j] + ha(j); }).join(' + ') + ' · alambrado interno ' + (p.borde === 'circulo' ? 'circular' : p.borde === 'recto2' ? 'recto cada dos potreros' : 'recto entre divisorias');
   }
 
+  // Ficha del modelo en renglones "etiqueta: valor" (para Equipos y para el pie del dibujo en el Operador)
+  function fichaModelo(g, extra) {
+    var p = g.param, inf = infraestructura(g), f = [], ha = function (v) { return String(Math.round(v * 100) / 100).replace('.', ','); };
+    var nombres = p.anillos.length === 2 ? ['adentro', 'afuera'] : p.anillos.length === 3 ? ['adentro', 'en el medio', 'afuera'] : p.anillos.map(function (_, i) { return 'anillo ' + (i + 1); });
+    f.push(['Piquetes', p.modelo === 'pizza' ? p.n + ' en porciones desde el centro' : p.n + ' · ' + p.anillos.map(function (an, j) { return an.n + ' ' + nombres[j]; }).join(' + ')]);
+    var conHa = g.lista.some(function (s) { return s.ha; }), conPlaza = g.lista.some(function (s) { return s.m2Plaza; });
+    if (conHa) f.push(['Pasto por piquete', p.anillos.map(function (an, j) { var s = g.lista.find(function (x) { return x.anillo === j; }); return (p.anillos.length > 1 ? nombres[j] + ' ' : '') + ha(s.ha) + ' ha'; }).join(' · ') + (conPlaza ? ' (descontada la plaza)' : '')]);
+    if (p.modelo === 'anillos') f.push(['Alambrado interno', (p.borde === 'circulo' ? 'circular' : p.borde === 'recto2' ? 'recto cada dos potreros' : 'recto entre divisorias') + ', al ' + Math.round(p.anillos[0].f1 * 100) + ' % del radio']);
+    f.push(['Piquete 1', 'desde ' + p.anguloInicio + '° del norte, ' + (p.sentido > 0 ? 'horario' : 'antihorario') + (p.numeracion === 'afuera' ? ', de afuera hacia adentro' : (p.anillos.length > 1 ? ', de adentro hacia afuera' : ''))]);
+    var acc = [];
+    if (inf.portones.length) acc.push(inf.portones.length + ' portones' + (inf.plazaDonde === 'portones' ? ' con plaza' : ' diarios'));
+    if (inf.bebederos.length) acc.push(inf.bebederos.length + ' bebederos en los vértices');
+    if (inf.entrada) acc.push('entrada por el ' + gradosTxt(inf.entrada.brujula));
+    if (acc.length) f.push(['Accesos', acc.join(' · ')]);
+    if (inf.plazaDonde === 'portones' || inf.plazaDonde === 'afuera') {
+      var pl = inf.plaza, m = function (v) { return Math.round(v).toLocaleString('es-PY'); };
+      f.push(['Plaza del lote', (inf.plazaDonde === 'portones' ? 'una en cada portón' : inf.plazas.length + ' afuera, en el perímetro') + (pl.lado ? ' · ' + pl.lado + ' × ' + pl.lado + ' m (' + m(pl.m2) + ' m²)' : '')]);
+      if (pl.animales) f.push(['Dimensionada para', m(pl.animales) + ' animales (' + pl.haPivot.toFixed(0) + ' ha × ' + pl.carga + '/ha) a ' + pl.m2Animal + ' m² por animal' + (pl.fijado ? ', lado fijado a mano' : ', sin contar comederos')]);
+      if (conPlaza && pl.m2) { var tot = inf.plazas.length * pl.m2 / 10000, haP = g.centro && g.centro.radio ? Math.PI * g.centro.radio * g.centro.radio / 10000 * p.span / 360 : 0; f.push(['Pasto en plazas', ha(tot) + ' ha' + (haP ? ' (' + Math.round(tot / haP * 100) + ' % del pivot)' : '')]); }
+    } else if (inf.centro) f.push(['Plaza del lote', 'área central con bebederos, bateas y comederos']);
+    (extra || []).forEach(function (x) { f.push(x); });
+    return f;
+  }
+  function fichaHTML(g, extra, estilo) {
+    return '<div style="font-size:11.5px;color:#3A3E41;line-height:1.45;text-align:left;' + (estilo || '') + '">' + fichaModelo(g, extra).map(function (f) { return '<div><span style="color:#8C9196;">' + esc(f[0]) + ':</span> ' + esc(f[1]) + '</div>'; }).join('') + '</div>';
+  }
+
   /* ---------- panel para Operador / Encargado ---------- */
   // Devuelve HTML con: el pivot coloreado por NDVI (última pasada), tabla por piquete (NDVI, tendencia, altura estimada), riego sin pastoreo
   function htmlPanel(equipo, cultivo, datos) {
@@ -385,7 +412,7 @@
     var colorDe = function (s) { var v = ult && ult.por[s.piquete]; return colorNdvi(v ? v.ndvi : null); };
     var etiq = function (s) { var v = ult && ult.por[s.piquete]; return v ? 'NDVI ' + v.ndvi.toFixed(2) : 'sin dato'; };
     var h = '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
-    h += '<div style="flex:0 1 240px;min-width:180px;">' + svgPivot(g, colorDe, etiq, sinR) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + ' · ' + esc(describir(g)) + ' · piquete 1 desde ' + g.param.anguloInicio + '° (norte, ' + (g.param.sentido > 0 ? 'horario' : 'antihorario') + ')' + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + (leyendaInfra(g) ? '<br>' + leyendaInfra(g) : '') + '</div></div>';
+    h += '<div style="flex:0 1 240px;min-width:180px;">' + svgPivot(g, colorDe, etiq, sinR) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + '</div>' + fichaHTML(g, null, 'margin-top:6px;') + '</div>';
     h += '<div style="flex:1 1 280px;min-width:0;">';
     if (sinR && sinR.ocupado) h += '<div style="font-size:12px;background:#E7F0FB;border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#234e85;"><b>Riego separado del pastoreo:</b> hoy no regar los piquetes ' + esc(sinR.piquetes.join(', ')) + ' (el ocupado y los 3 siguientes): saltar <b>' + esc(sinR.texto) + '</b> desde el norte, sentido horario.' + (sinR.comparten.length ? ' En ese tramo el pivot tampoco riega los piquetes ' + esc(sinR.comparten.join(', ')) + ', que comparten el ángulo.' : '') + ' Regar el resto según el balance.</div>';
     else if (sinR) h += '<div style="font-size:12px;color:#8C9196;margin-bottom:8px;">Cuando cargues la entrada de los animales a un piquete, acá aparecen los grados del pivot que no se riegan.</div>';
@@ -412,5 +439,5 @@
     return h;
   }
 
-  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
+  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, fichaModelo: fichaModelo, fichaHTML: fichaHTML, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
 })();

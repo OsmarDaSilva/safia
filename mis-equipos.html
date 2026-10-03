@@ -1291,8 +1291,10 @@
       const tonos = ['#7BAE5A', '#5E9A47', '#93BF6E', '#4C8A3C'];
       cont.innerHTML = SafiaPiquetes.svgPivot(g, s => tonos[(s.anillo * 2 + s.i) % tonos.length], null, null);
       const desc = SafiaPiquetes.describir(g);
-      const leyenda = SafiaPiquetes.leyendaInfra(g); txt.innerHTML = ''; txt.textContent = (centro.radio ? desc : desc.replace(/ \([^)]*ha c\/u\)/g, '')) + (centro.radio ? '' : ' · con el polígono o el largo del pivot se calculan las hectáreas') + (cultivo && parseInt(cultivo.piquetes, 10) && parseInt(cultivo.piquetes, 10) !== g.param.n ? ' · la campaña dice ' + parseInt(cultivo.piquetes, 10) + ' piquetes: SAFIA usa los ' + g.param.n + ' de este modelo' : '');
-      if (leyenda) txt.innerHTML += '<br>' + leyenda;
+      const extra = [];
+      if (!centro.radio) extra.push(['Hectáreas', 'se calculan con el polígono o el largo del pivot']);
+      if (cultivo && parseInt(cultivo.piquetes, 10) && parseInt(cultivo.piquetes, 10) !== g.param.n) extra.push(['Campaña', 'dice ' + parseInt(cultivo.piquetes, 10) + ' piquetes: SAFIA usa los ' + g.param.n + ' de este modelo']);
+      txt.innerHTML = SafiaPiquetes.fichaHTML(g, extra); txt.style.textAlign = 'left';
       if (sub) sub.textContent = desc;
     }
     function piqPreset(cual) {
