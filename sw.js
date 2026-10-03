@@ -8,7 +8,7 @@
    - Nunca cachea llamadas a Supabase, Open-Meteo ni a la IA: esas
      necesitan internet y el sync ya trabaja en modo local sin ella.
    Cambiar VERSION al publicar cambios grandes para limpiar cachés viejas. */
-var VERSION = 'safia-v94';
+var VERSION = 'safia-v95';
 var SHELL = [
   './', './index.html', './login.html', './mis-clientes.html', './mis-campos.html', './mis-equipos.html', './mis-cultivos.html',
   './mis-campanas.html', './ficha.html', './usuarios.html', './banco.html', './referencia.html', './referencia-forraje.html', './clima.html', './prediccion.html', './evaluar.html', './rankings.html', './asistente.html', './suscripciones.html', './conexiones.html',

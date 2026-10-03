@@ -260,10 +260,13 @@
   // vuelta; con más de 30 °C, de día entre 10 y 14 mm. De noche (18 a 9 h) la lámina puede ser menor. Regar las 24 h está bien: lo que
   // cambia es la lámina (y por eso la velocidad) de las pasadas de día. Con lamina100/vuelta100 del equipo se traduce a % de velocidad.
   var LAMINA_MIN_DIA = 10, LAMINA_MAX_CALOR = 14, T_CALOR = 30, LAMINA_MAX_VUELTA = 35;
-  // Horario de punta de la ANDE (dato de Osmar, 3-oct-2026): en Paraguay hay dos precios de energía; el caro va de las 17 a las 21/22 h
-  // y el resto del día es el barato. SAFIA usa 17 a 22 h (el borde prudente). En la factura de Ganadera Angelita (jul-2025) el kWh
-  // costó 332 Gs en punta contra 145 fuera de punta. Si el campo tiene facturas cargadas, se muestra la relación real de su factura.
-  var PUNTA_DESDE = 17, PUNTA_HASTA = 22, HORAS_SIN_PUNTA = 24 - (PUNTA_HASTA - PUNTA_DESDE);
+  // Horario de punta de la ANDE: Resolución P/Nº 49888 del 26-nov-2024 (modifica los numerales 3.4 y 3.5 del Pliego de Tarifas Nº 21):
+  // punta de carga de lunes a sábado, de 18 a 22 horas; fuera de punta de lunes a sábado de 0 a 18 y de 22 a 24 horas, y los domingos
+  // todo el día. (Antes eran 18–22 en verano y 17–21 en invierno; con el horario único quedó 18–22.) Leída el 3-oct-2026:
+  // https://www.ande.gov.py/docs/tarifas/RP49888%20-%20Modificacion%20del%20Pliego%20N%2021%20-%20ID88556715_firmado.pdf
+  // En la factura de Ganadera Angelita (jul-2025) el kWh costó 332 Gs en punta contra 145 fuera de punta. Si el campo tiene facturas
+  // cargadas, se muestra la relación real de su factura. Los clientes del grupo 731/732 pueden contratar punta de 19 a 22 h (4.11.1).
+  var PUNTA_DESDE = 18, PUNTA_HASTA = 22, HORAS_SIN_PUNTA = 24 - (PUNTA_HASTA - PUNTA_DESDE);
   function relacionPunta(equipo) {
     try {
       var fs = JSON.parse(localStorage.getItem('facturas_energia') || '[]').filter(function (f) { return equipo && String(f.campoId) === String(equipo.campoId) && +f.kwhPunta > 0 && +f.kwhFueraPunta > 0 && +f.importeEnergiaPunta > 0 && +f.importeEnergiaFueraPunta > 0; })
@@ -294,10 +297,10 @@
     var cuanto = rel ? 'el kWh cuesta ' + String(rel).replace('.', ',') + ' veces más (según tu última factura)' : 'el kWh es más caro';
     if (out.horasVuelta) punta.diasVuelta = Math.round(out.horasVuelta / HORAS_SIN_PUNTA * 10) / 10;
     if (pvP && pvP.capacidadNeta > 0 && pvP.consumoMax7 != null) { punta.capacidadSinPunta = Math.round(pvP.capacidadNeta * HORAS_SIN_PUNTA / 24 * 10) / 10; punta.alcanza = pvP.consumoMax7 <= punta.capacidadSinPunta; }
-    punta.nota = 'Energía: evitar regar de ' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h, que es el horario de punta de la ANDE y ' + cuanto + '. ' +
+    punta.nota = 'Energía: evitar regar de ' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h de lunes a sábado, que es el horario de punta de la ANDE y ' + cuanto + ' (los domingos no hay punta). ' +
       (punta.alcanza === false ? 'Ojo: con el consumo de estos días (' + String(pvP.consumoMax7).replace('.', ',') + ' mm/día) el equipo no alcanza regando solo fuera de punta (' + String(punta.capacidadSinPunta).replace('.', ',') + ' mm/día): en estos días hay que regar también en punta para no entrar en estrés.' :
         'Parando esas ' + (PUNTA_HASTA - PUNTA_DESDE) + ' horas quedan ' + HORAS_SIN_PUNTA + ' h de riego por día' + (punta.diasVuelta && out.horasVuelta > HORAS_SIN_PUNTA ? ': la vuelta de ' + out.horasVuelta + ' h lleva ' + String(punta.diasVuelta).replace('.', ',') + ' días' : '') + (punta.alcanza ? ', y el equipo alcanza la demanda del cultivo' : '') + '.');
-    punta.notaCorta = punta.alcanza === false ? 'Con este consumo hay que regar también en punta (17 a 22 h).' : 'Evitar regar de ' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h (energía más cara).';
+    punta.notaCorta = punta.alcanza === false ? 'Con este consumo hay que regar también en punta (' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h).' : 'Evitar regar de ' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h de lunes a sábado (energía más cara).';
     out.punta = punta;
     out.notaCorta = 'De día no menos de ' + LAMINA_MIN_DIA + ' mm por vuelta' + (calor ? ', con calor' + t + ' entre 10 y 14 mm' : '') + '; de noche puede ser menor. ' + punta.notaCorta;
     out.nota = 'De día (9 a 18 h) no regar menos de ' + LAMINA_MIN_DIA + ' mm por vuelta: las láminas chicas se evaporan antes de entrar al suelo y queman hojas' + (joven ? ', y el cultivo todavía es chico' : '') + '. ' +
