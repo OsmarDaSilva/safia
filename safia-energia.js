@@ -366,6 +366,11 @@
         return { periodo: dia(f.desde) + ' a ' + dia(f.hasta), nis: f.nis || null, moneda_de_la_factura: MON[monedaDe(f)].n, total: M(f, num(f.total)), kwh: r0(L.kwh), costo_real_por_kwh: L.gsKwh != null ? M(f, L.gsKwh) : null,
           la_energia_es_pct_de_la_factura: L.pctEnergia != null ? r0(L.pctEnergia * 100) : null, potencia_contratada_kw: num(f.potenciaContratadaKw), potencia_registrada_kw: num(f.potenciaRegistradaKw),
           exceso_de_potencia: num(f.importeExcesoPotencia) > 0 ? M(f, num(f.importeExcesoPotencia)) : 'no', reactiva: num(f.importeReactiva) > 0 ? M(f, num(f.importeReactiva)) : 'no', factor_de_potencia: L.fp != null ? Math.round(L.fp * 100) / 100 : null,
+          desglose_de_la_factura: (function () { var tot = num(f.total) || 0, pc = function (v) { return tot > 0 && v > 0 ? ' (' + r0(v / tot * 100) + ' %)' : ''; }, d = {}, ie = L.importeEnergia, suma = 0;
+            var poner = function (k, v) { v = num(v); if (v > 0) { d[k] = M(f, v) + pc(v); suma += v; } };
+            poner('energia_consumida', ie); poner('potencia_reservada', f.importePotencia); poner('exceso_de_potencia_reservada', f.importeExcesoPotencia); poner('energia_reactiva', f.importeReactiva); poner('alumbrado_publico', f.importeAlumbrado); poner('iva', f.iva);
+            if (tot - suma > tot * 0.01) d.sin_detallar = M(f, tot - suma) + pc(tot - suma) + ' (conceptos que no se cargaron al guardar la factura)';
+            return d; })(),
           avisos: L.avisos.map(function (a) { return txt(a.titulo + '. ' + a.texto); }),
           reparto_por_pivot: r.sinRiego ? 'sin riegos cargados en ese período: no se puede repartir' : r.filas.map(function (x) { return { pivot: x.equipo.nombre, rego_mm: r0(x.mm), hectareas: x.ha, parte_pct: x.pct != null ? r0(x.pct * 100) : null, gasto: M(f, x.gs), kwh: r0(x.kwh) }; }),
           costo_por_mm_y_hectarea: r.gsPorMmHa != null ? M(f, r.gsPorMmHa) : null }; }),
