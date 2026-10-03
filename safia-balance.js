@@ -669,6 +669,11 @@
     var estadoHoy = 'ok', regar = false, mmHoy = 0, mmTotalHoy = 0;
     if (drHoy > arrHoy.dr) { regar = true; estadoHoy = 'regar'; if (eficiencia > 0) { mmTotalHoy = Math.ceil(drHoy / eficiencia / 5) * 5; mmHoy = Math.max(10, Math.min(35, mmTotalHoy)); } }
     else if (pctHoy < arranqueHoy + 10) estadoHoy = 'atencion';
+    // Esperar la lluvia (decisión de Osmar, 3-oct-2026): aunque el cultivo esté en estrés, si la lluvia prevista para HOY y MAÑANA
+    // alcanza para reemplazar el riego (al menos lo que se iba a regar, y nunca menos de 15 mm), no se riega: se espera. Si es poca
+    // lluvia o viene más tarde, no vale la pena esperar y la orden sigue siendo regar. Antes (29-sep) el estrés nunca esperaba la lluvia.
+    var LLUVIA_ESPERA_MIN = 15, llHoy = llF[indiceHoy] || 0, llMan = llF[indiceHoy + 1] || 0;
+    var esperarLluvia = (regar && eficiencia > 0 && (llHoy + llMan) >= Math.max(LLUVIA_ESPERA_MIN, mmHoy)) ? { mm: Math.round(llHoy + llMan), mmHoy: Math.round(llHoy), mmManana: Math.round(llMan), mmRiego: mmHoy } : null;
     var ksHoy = drHoy > prmHoy.raw ? Math.max(0, (tawHoy - drHoy) / ((1 - prmHoy.p) * tawHoy)) : 1;
     if (conCultivo) umbr = { URGENTE: estresHoy, CRITICO: arranqueHoy, ATENCION: Math.min(100, arranqueHoy + 10), ESTRES: estresHoy, ARRANQUE: eficiencia > 0 ? arranqueHoy : null, secano: !(eficiencia > 0) };   // secano: CRITICO = estrés (no hay pivot que arrancar)
 
@@ -714,7 +719,7 @@
       sonda: ultimaSonda ? Object.assign({}, ultimaSonda, { antiguedadDias: diasEntre(ultimaSonda.fecha, claveHoy) }) : null,
       pastura: pasturaInfo,
       fuentes: fuentes,
-      recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta, enEstres: drHoy > (arrHoy.drEstres != null ? arrHoy.drEstres : prmHoy.raw), pivot: pivot },
+      recomendacion: { regar: regar, mm: mmHoy, mmTotal: mmTotalHoy, estado: estadoHoy, lluviaProxima: totales.lluviaBruta, enEstres: drHoy > (arrHoy.drEstres != null ? arrHoy.drEstres : prmHoy.raw), esperarLluvia: esperarLluvia, pivot: pivot },
       // Como WaterTrend de FieldNET: consumo del cultivo y lluvia prevista acumulados (7 días y todo el pronóstico)
       pronostico: (function () {
         var s = function (n) { var e = 0, l = 0, d = 0; for (var j = indiceHoy; j < claves.length && j < indiceHoy + n; j++) { e += etcF[j] || 0; l += llF[j] || 0; d++; } return { dias: d, consumoMM: Math.round(e), lluviaMM: Math.round(l), balanceMM: Math.round(l - e) }; };

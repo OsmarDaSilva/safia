@@ -34,7 +34,8 @@
         'La tarjeta del agua dice cuántos mm hacen falta y cómo darlos: cuántas <b>vueltas</b>, a qué <b>velocidad</b> (%) y cuántas <b>horas</b> tarda cada una.',
         '<b>De día (9 a 18 h) nunca menos de 10 mm por vuelta</b>: las láminas chicas se evaporan y queman hojas. Con más de 30 °C, entre 10 y 14 mm.',
         '<b>De 18 a 22 h, de lunes a sábado, es el horario caro de la ANDE</b>: conviene parar el pivot, salvo que SAFIA avise que el equipo no alcanza.',
-        'De noche (después de las 22 h) la lámina puede ser más chica.' ],
+        'De noche (después de las 22 h) la lámina puede ser más chica.',
+        'Si SAFIA dice <b>"En estrés, pero viene lluvia: esperar"</b>, no riegues hoy: la lluvia de hoy y mañana cubre lo que había que regar. Si mañana a la noche no llovió, regá.' ],
         n: 'El porqué de cada franja de color y de cada mensaje está en el botón "Cómo funciona el riego".' },
       { t: 'Cargar la lluvia', p: [
         'La lluvia <b>entra sola</b> por el satélite: no hace falta cargarla.',

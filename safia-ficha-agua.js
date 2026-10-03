@@ -91,6 +91,11 @@
     var vuelta = pv && pv.vueltaDias ? 'La vuelta tarda ' + diasTxt(pv.vueltaDias) + (pv.vueltaSupuesta ? ' (supuesto: cargá la capacidad del equipo en Equipos y lotes)' : '') + '. ' : '';
     var noAlc = pv && pv.noAlcanza ? 'El equipo no alcanza la demanda del cultivo (' + fmt(pv.consumoMax7, 1) + ' mm/día contra ' + fmt(pv.capacidadNeta, 1) + ' mm/día netos del pivot): mantenerlo girando para no quedar atrás. ' : '';
     if (lluviaProx >= 15 && !rec.enEstres) { out.tipo = 'lluvia'; out.titulo = 'No regar: viene lluvia'; out.detalle = 'Se esperan ' + fmt(lluviaProx, 0) + ' mm ' + periodoLluvia + '. ' + vence + 'Volver a mirar después de la lluvia.'; return out; }
+    if (rec.esperarLluvia && (rec.enEstres || r.porcentajeHoy < U.URGENTE)) {
+      var el = rec.esperarLluvia; out.tipo = 'lluvia'; out.titulo = 'En estrés, pero viene lluvia: esperar';
+      out.detalle = 'Se esperan ' + fmt(el.mm, 0) + ' mm entre hoy y mañana (' + fmt(el.mmHoy, 0) + ' hoy y ' + fmt(el.mmManana, 0) + ' mañana), más que los ' + fmt(el.mmRiego, 0) + ' mm que había que regar. No vale la pena gastar agua y energía hoy. Si mañana a la noche no llovió, regar ' + fmt(el.mmRiego, 0) + ' mm.';
+      return out;
+    }
     if (rec.regar) {
       var mm = rec.mm || 0, v = vueltas(mm, equipo, r);
       out.tipo = rec.enEstres || r.porcentajeHoy < U.URGENTE ? 'urgente' : 'regar';

@@ -141,6 +141,11 @@ const CONDUCTOR = `
       nivel = 'info'; out.estado.recomendacion = 'No regar: viene lluvia (' + Math.round(lluviaProxima) + ' mm)';
       titulo = P + ' · no regar, viene lluvia';
       cuerpo = 'Se esperan ' + Math.round(lluviaProxima) + ' mm entre hoy y el ' + hasta + '.' + vence;
+    } else if (r.recomendacion.esperarLluvia && (r.recomendacion.enEstres || pct < (U.URGENTE || 50))) {
+      var elE = r.recomendacion.esperarLluvia;
+      nivel = 'info'; out.estado.recomendacion = 'En estrés, pero viene lluvia: esperar (' + elE.mm + ' mm entre hoy y mañana)';
+      titulo = P + ' · en estrés, viene lluvia: esperar';
+      cuerpo = 'Se esperan ' + elE.mm + ' mm entre hoy y mañana, más que los ' + elE.mmRiego + ' mm que había que regar. Si mañana a la noche no llovió, regar ' + elE.mmRiego + ' mm.' + sinRiegoTxt;
     } else if (r.recomendacion.enEstres || pct < (U.URGENTE || 50)) {
       nivel = 'estres'; out.estado.recomendacion = 'Regar ya: en estrés';
       titulo = P + ' · regar ya, cultivo en estrés';

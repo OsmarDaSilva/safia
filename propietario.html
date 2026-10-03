@@ -808,6 +808,7 @@
       let badge, tipo;
       const enEstres = !!(r.recomendacion && r.recomendacion.enEstres);
       if (lluviaProxima >= 15 && !enEstres)  { badge = '<span class="badge badge-azul">🌧️ Lluvia</span>';   tipo = null; }
+      else if (r.recomendacion && r.recomendacion.esperarLluvia && (enEstres || pct < (U.URGENTE || 50))) { badge = '<span class="badge badge-azul">🌧️ En estrés, espera lluvia</span>'; tipo = null; }
       else if (enEstres || pct < (U.URGENTE || 50)) { badge = '<span class="badge badge-rojo">🔴 En estrés</span>';  tipo = 'urgente'; }
       else if (pct < U.CRITICO) { badge = '<span class="badge badge-amarillo">🟡 Arrancar pivot</span>'; tipo = 'atencion'; }
       else                      { badge = '<span class="badge badge-verde">🟢 OK</span>';       tipo = null; }

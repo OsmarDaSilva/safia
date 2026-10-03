@@ -762,6 +762,11 @@
             datos.semaforo = 'azul';
             datos.textoSemaforo = '🌧️ Lluvia esperada';
             datos.recomendacion = `Se esperan <strong>${balance.lluviaProxima.toFixed(0)} mm</strong> en los próximos días. No regar.${extraPv}`;
+          } else if (balance.r && balance.r.recomendacion && balance.r.recomendacion.esperarLluvia && (enEstres || pct < (U.URGENTE || 50))) {
+            const el = balance.r.recomendacion.esperarLluvia;
+            datos.semaforo = 'azul';
+            datos.textoSemaforo = '🌧️ En estrés, viene lluvia';
+            datos.recomendacion = `Humedad en <strong>${pct.toFixed(0)}%</strong> del agua útil. Se esperan <strong>${el.mm} mm entre hoy y mañana</strong>, más que los ${el.mmRiego} mm que había que regar: esperar. Si mañana a la noche no llovió, regar ${el.mmRiego} mm.${extraPv}`;
           } else if (enEstres || pct < (U.URGENTE || 50)) {
             datos.semaforo = 'rojo';
             datos.textoSemaforo = '🔴 En estrés';
@@ -999,7 +1004,7 @@
       const enFiltro = (eqId) => !campoFiltro || String((equiposTodos.find(e => String(e.id) === String(eqId)) || {}).campoId) === String(campoFiltro);
       const items = [];
       // 1. Regar hoy
-      estadoEquipos.forEach(d => { const r = d.balance && d.balance.r; if (r && r.recomendacion && r.recomendacion.regar && enFiltro(d.equipo.id)) items.push({ col: '#C0392B', txt: '<b>Regar hoy ' + d.equipo.nombre + '</b>: ' + Math.round(r.recomendacion.mm) + ' mm' + vueltasTexto(r.recomendacion.mm, d.equipo, r) + (r.porcentajeHoy != null ? ' · agua útil ' + Math.round(r.porcentajeHoy) + ' %' : ''), href: 'operador.html?equipo=' + d.equipo.id }); });
+      estadoEquipos.forEach(d => { const r = d.balance && d.balance.r; if (r && r.recomendacion && r.recomendacion.regar && !r.recomendacion.esperarLluvia && enFiltro(d.equipo.id)) items.push({ col: '#C0392B', txt: '<b>Regar hoy ' + d.equipo.nombre + '</b>: ' + Math.round(r.recomendacion.mm) + ' mm' + vueltasTexto(r.recomendacion.mm, d.equipo, r) + (r.porcentajeHoy != null ? ' · agua útil ' + Math.round(r.porcentajeHoy) + ' %' : ''), href: 'operador.html?equipo=' + d.equipo.id }); });
       // 2. Mantenimiento vencido o próximo
       equiposTodos.forEach(eq => { if (!enFiltro(eq.id)) return; const mt = mantenimientoDe(eq); if (mt.sinPlan) return; mt.vencidas.forEach(t => items.push({ col: '#C0392B', txt: '<b>Mantenimiento vencido ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' % del intervalo, ' + Math.round(mt.horas) + ' h)', href: 'operador.html?equipo=' + eq.id })); mt.proximas.forEach(t => items.push({ col: '#B8731A', txt: '<b>Mantenimiento próximo ' + eq.nombre + '</b>: ' + t.tarea + ' (' + t.pct + ' %)', href: 'operador.html?equipo=' + eq.id })); });
       // 3. Cosechas sin cargar
