@@ -70,8 +70,13 @@
     var p = { modelo: modelo, n: total, anguloInicio: a0, span: span, sentido: dt.piqSentido === 'antihorario' ? -1 : 1, borde: borde,
       numeracion: modelo === 'anillos' && dt.piqNumeracion === 'afuera' ? 'afuera' : 'adentro', anillos: anillos, paso: span / sect[0] };
     // Infraestructura del modelo (no cambia la geometría de los piquetes, así que no entra en la firma)
-    p.infra = { bebederos: dt.piqBebederos || (modelo === 'anillos' ? 'vertices' : 'ninguno'), portones: dt.piqPortones || (modelo === 'anillos' ? 'lados' : 'ninguno'),
-      entrada: num(dt.piqPortonEntrada), plazas: listaNum(dt.piqPlazas).map(function (x) { return mod(x, 360); }), centro: dt.piqCentro !== 'no' };
+    // Plaza (agua, bateas y comederos del lote): en los portones (adentro del pivot, una por portón: sirve a los 4 potreros que
+    // se juntan ahí), afuera en el perímetro, en el área central, o ninguna. Tamaño por la carga (criterio de Irrigar, 2-oct-2026:
+    // 10 animales/ha y 4 m² por animal, más el espacio de comederos; todo ajustable), o el lado fijado a mano.
+    var donde = dt.piqPlazaDonde || (listaNum(dt.piqPlazas).length ? 'afuera' : (dt.piqCentro === 'no' ? 'ninguna' : 'centro'));
+    p.infra = { bebederos: dt.piqBebederos || (modelo === 'anillos' && donde !== 'portones' ? 'vertices' : 'ninguno'), portones: dt.piqPortones || (modelo === 'anillos' ? 'lados' : 'ninguno'),
+      entrada: num(dt.piqPortonEntrada), plazas: listaNum(dt.piqPlazas).map(function (x) { return mod(x, 360); }), centro: donde === 'centro',
+      plazaDonde: donde, carga: num(dt.piqCarga) || 10, m2Animal: num(dt.piqPlazaM2Animal) || 4, plazaLado: num(dt.piqPlazaLado) };
     if (p.infra.entrada == null && dt.piqPortonEntrada !== 'ninguno') p.infra.entrada = a0;
     p.firma = [p.modelo, sect.join('+'), f.map(function (x) { return Math.round(x * 1000); }).join('+'), p.borde, p.numeracion, p.sentido, a0, span].join('|');
     return p;
@@ -120,7 +125,13 @@
     });
     lista.sort(function (x, y) { return x.orden - y.orden; });
     lista.forEach(function (s) { s.piquete = String(s.orden + 1); });
-    return { centro: c, param: p, lista: lista };
+    var g = { centro: c, param: p, lista: lista };
+    // la plaza de cada portón ocupa pasto: se descuenta en partes iguales de los piquetes que se juntan ahí
+    if (p.infra && p.infra.plazaDonde === 'portones' && c.radio) {
+      var inf = infraestructura(g);
+      if (inf.plaza && inf.plaza.m2) inf.plazas.forEach(function (o) { var vecinos = piquetesEn(g, o.fi); vecinos.forEach(function (s) { s.m2Plaza = Math.round((s.m2Plaza || 0) + inf.plaza.m2 / vecinos.length); s.ha = Math.max(0, Math.round((s.ha - inf.plaza.m2 / vecinos.length / 10000) * 100) / 100); }); });
+    }
+    return g;
   }
   // En qué piquete cae un punto: índice en la lista ordenada por número, o -1
   function indicePiquete(c, p, lat, lon) {
@@ -261,8 +272,15 @@
   var RUMBOS = ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'];
   function rumbo(brujula) { return RUMBOS[Math.round(mod(brujula, 360) / 45) % 8]; }
   function gradosTxt(brujula) { var g = Math.round(mod(brujula, 360) * 10) / 10; return rumbo(brujula) + ' (' + String(g).replace('.', ',') + '°)'; }
+  // Tamaño de la plaza del lote: animales = ha del pivot × carga; m² = animales × m²/animal (+ comederos); o el lado fijado a mano
+  function plazaTamano(g) {
+    var I = g.param.infra || {}, haPivot = g.centro && g.centro.radio ? Math.PI * g.centro.radio * g.centro.radio / 10000 * (g.param.span / 360) : null;
+    var animales = haPivot ? Math.round(haPivot * I.carga) : null, m2Base = animales ? animales * I.m2Animal : null;
+    var lado = I.plazaLado || (m2Base ? Math.ceil(Math.sqrt(m2Base)) : null);
+    return { animales: animales, m2Base: m2Base, lado: lado, m2: lado ? lado * lado : null, fijado: !!I.plazaLado, carga: I.carga, m2Animal: I.m2Animal, haPivot: haPivot };
+  }
   function infraestructura(g) {
-    var p = g.param, I = p.infra || {}, out = { bebederos: [], portones: [], entrada: null, plazas: [], centro: !!I.centro };
+    var p = g.param, I = p.infra || {}, out = { bebederos: [], portones: [], entrada: null, plazas: [], centro: !!I.centro, plazaDonde: I.plazaDonde || 'ninguna', plaza: plazaTamano(g) };
     if (p.modelo === 'anillos' && p.anillos.length > 1) {
       var an = p.anillos[0], paso = an.paso, k, fi;
       var enVertice = p.borde === 'recto', step = enVertice ? paso : 2 * paso;
@@ -270,8 +288,15 @@
       if (I.portones === 'lados') for (k = 0; (fi = (enVertice ? paso / 2 : 0) + k * step) < p.span - 1e-6; k++) out.portones.push({ fi: fi, brujula: mod(brujula(p, fi), 360), f: radioBorde(p, 0, fi) });
     }
     if (I.entrada != null) out.entrada = { brujula: mod(I.entrada, 360) };
-    (I.plazas || []).forEach(function (b) { out.plazas.push({ brujula: b }); });
+    if (out.plazaDonde === 'afuera') (I.plazas || []).forEach(function (b) { out.plazas.push({ brujula: b, afuera: true }); });
+    // plaza en cada portón: el cuadrado centrado en el portón, a caballo del alambrado interno
+    if (out.plazaDonde === 'portones') out.portones.forEach(function (o) { out.plazas.push({ fi: o.fi, brujula: o.brujula, f: o.f, enPorton: true }); });
     return out;
+  }
+  // Piquetes que tocan un punto del alambrado interno (los 4 que se juntan en un portón): los que tienen ese ángulo en un borde
+  function piquetesEn(g, fi) {
+    var eps = 0.01;
+    return g.lista.filter(function (s) { return [fi, fi + 360, fi - 360].some(function (v) { return Math.abs(v - s.f1) < eps || Math.abs(v - s.f2) < eps; }); });
   }
   // Portón y bebederos que le tocan a un piquete (los que están en sus bordes o adentro de su ángulo)
   function accesosDe(g, piquete) {
@@ -282,15 +307,21 @@
     var partes = [];
     if (portones.length) partes.push('portón del ' + gradosTxt(portones[0].brujula));
     if (beb.length) partes.push('bebedero' + (beb.length > 1 ? 's' : '') + ' del ' + beb.map(function (b) { return gradosTxt(b.brujula); }).join(' y del '));
-    if (!partes.length && inf.centro) partes.push('agua en el área central');
+    if (inf.plazaDonde === 'portones') { var pz = inf.plazas.filter(function (o) { return piquetesEn(g, o.fi).some(function (x) { return x.piquete === s.piquete; }); }); if (pz.length) partes = ['plaza con agua y comederos en el portón del ' + gradosTxt(pz[0].brujula)].concat(partes.filter(function (t) { return t.indexOf('portón') < 0; })); }
+    if (!partes.length && inf.centro) partes.push('agua y comederos en el área central');
     return { portones: portones, bebederos: beb, texto: partes.join(' · ') };
+  }
+  function textoPlaza(pl) {
+    if (!pl || !pl.lado) return '';
+    var m = function (v) { return Math.round(v).toLocaleString('es-PY'); };
+    return pl.lado + ' × ' + pl.lado + ' m (' + m(pl.m2) + ' m²' + (pl.animales ? (pl.fijado ? '; ' : ' para ') + m(pl.animales) + ' animales = ' + String(pl.haPivot.toFixed(0)) + ' ha × ' + pl.carga + '/ha, a ' + pl.m2Animal + ' m²/animal' + (pl.fijado ? '' : ' sin contar comederos') : '') + ')';
   }
   function leyendaInfra(g) {
     var inf = infraestructura(g), t = [];
     if (inf.bebederos.length) t.push('<span style="color:#2E86DE;">●</span> bebedero (' + inf.bebederos.length + ')');
-    if (inf.portones.length) t.push('<span style="color:#C0392B;">▭</span> portón diario (' + inf.portones.length + ')');
+    if (inf.portones.length) t.push('<span style="color:#C0392B;">▭</span> portón' + (inf.plazaDonde === 'portones' ? ' con plaza' : ' diario') + ' (' + inf.portones.length + ')');
     if (inf.entrada) t.push('<span style="color:#C0392B;">◆</span> entrada ' + esc(gradosTxt(inf.entrada.brujula)));
-    if (inf.plazas.length) t.push('<span style="color:#2E72C8;">■</span> plaza (' + inf.plazas.length + ')');
+    if (inf.plazas.length) t.push('<span style="color:#2E72C8;">■</span> plaza con agua y comederos' + (inf.plazaDonde === 'afuera' ? ' afuera (' + inf.plazas.length + ')' : ' en cada portón') + (textoPlaza(inf.plaza) ? ': ' + esc(textoPlaza(inf.plaza)) : ''));
     if (inf.centro) t.push('<span style="color:#2E86DE;">◯</span> área central con bebederos y bateas');
     return t.join(' · ');
   }
@@ -299,7 +330,9 @@
     if (inf.centro) h += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R * 0.085) + '" fill="#fff" stroke="#2E86DE" stroke-width="1.5"><title>Área central: bebederos, bateas y comederos</title></circle>';
     inf.portones.forEach(function (o) { var c = pt(cx, cy, R * o.f, o.brujula).split(' '); h += '<rect x="' + (c[0] - 4) + '" y="' + (c[1] - 1.8) + '" width="8" height="3.6" rx="0.6" fill="#fff" stroke="#C0392B" stroke-width="1.3" transform="rotate(' + (o.brujula) + ' ' + c[0] + ' ' + c[1] + ')"><title>Portón diario · ' + esc(gradosTxt(o.brujula)) + '</title></rect>'; });
     inf.bebederos.forEach(function (o) { var c = pt(cx, cy, R * o.f, o.brujula).split(' '); h += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="3.4" fill="#2E86DE" stroke="#fff" stroke-width="1.2"><title>Bebedero · ' + esc(gradosTxt(o.brujula)) + '</title></circle>'; });
-    inf.plazas.forEach(function (o) { var c = pt(cx, cy, R * 0.93, o.brujula).split(' '); h += '<rect x="' + (c[0] - 3.5) + '" y="' + (c[1] - 3.5) + '" width="7" height="7" fill="#2E72C8" stroke="#fff" stroke-width="1" transform="rotate(' + o.brujula + ' ' + c[0] + ' ' + c[1] + ')"><title>Plaza · ' + esc(gradosTxt(o.brujula)) + '</title></rect>'; });
+    // plazas a escala (el lado en metros sobre el radio del pivot); sin radio, un cuadrado chico
+    var ladoPx = inf.plaza && inf.plaza.lado && g.centro && g.centro.radio ? Math.max(5, Math.min(R * 0.5, R * inf.plaza.lado / g.centro.radio)) : 7;
+    inf.plazas.forEach(function (o) { var c = pt(cx, cy, o.enPorton ? R * o.f : R * 0.96, o.brujula).split(' '); h += '<rect x="' + (c[0] - ladoPx / 2) + '" y="' + (c[1] - ladoPx / 2) + '" width="' + ladoPx + '" height="' + ladoPx + '" fill="rgba(46,114,200,.55)" stroke="#fff" stroke-width="1" transform="rotate(' + o.brujula + ' ' + c[0] + ' ' + c[1] + ')"><title>Plaza con agua y comederos · ' + esc(gradosTxt(o.brujula)) + (textoPlaza(inf.plaza) ? ' · ' + esc(textoPlaza(inf.plaza)) : '') + '</title></rect>'; });
     if (inf.entrada) { var e = pt(cx, cy, R * 0.97, inf.entrada.brujula).split(' '); h += '<path d="M' + e[0] + ' ' + (e[1] - 5) + ' L' + (+e[0] + 5) + ' ' + e[1] + ' L' + e[0] + ' ' + (+e[1] + 5) + ' L' + (e[0] - 5) + ' ' + e[1] + ' Z" fill="#C0392B" stroke="#fff" stroke-width="1"><title>Portón de entrada · ' + esc(gradosTxt(inf.entrada.brujula)) + '</title></path>'; }
     return h;
   }
@@ -333,7 +366,7 @@
   }
   // Texto corto del modelo: "32 piquetes · 16 adentro (1,5 ha c/u) + 16 afuera (2,1 ha c/u) · alambrado interno recto cada dos potreros"
   function describir(g) {
-    var p = g.param, ha = function (j) { var s = g.lista.find(function (x) { return x.anillo === j; }); return s && s.ha ? ' (' + String(s.ha).replace('.', ',') + ' ha c/u)' : ''; };
+    var p = g.param, ha = function (j) { var s = g.lista.find(function (x) { return x.anillo === j; }); return s && s.ha ? ' (' + String(s.ha).replace('.', ',') + ' ha c/u' + (s.m2Plaza ? ' de pasto, descontada la plaza' : '') + ')' : ''; };
     if (p.modelo === 'pizza') return p.n + ' piquetes en porciones desde el centro' + ha(0);
     var nombres = p.anillos.length === 2 ? ['adentro', 'afuera'] : p.anillos.length === 3 ? ['adentro', 'en el medio', 'afuera'] : p.anillos.map(function (_, i) { return 'anillo ' + (i + 1); });
     return p.n + ' piquetes · ' + p.anillos.map(function (an, j) { return an.n + ' ' + nombres[j] + ha(j); }).join(' + ') + ' · alambrado interno ' + (p.borde === 'circulo' ? 'circular' : p.borde === 'recto2' ? 'recto cada dos potreros' : 'recto entre divisorias');
@@ -379,5 +412,5 @@
     return h;
   }
 
-  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
+  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
 })();
