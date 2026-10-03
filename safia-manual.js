@@ -113,7 +113,8 @@
       { t: 'Meta de rinde, rotación y satélite', p: [
         '<b>Meta de rinde</b> (Banco): elegí la campaña y la meta. SAFIA arma el plan, lo que cuesta y, durante la campaña, dice si la meta sigue siendo alcanzable.',
         '<b>Plan de rotación</b> (Banco): qué sembrar en cada temporada de los próximos años, con avisos si se repite un cultivo.',
-        '<b>Vigor satelital</b> (Banco): cómo viene el cultivo visto desde el satélite, comparado con las campañas anteriores del mismo lote.' ] },
+        '<b>Vigor satelital</b> (Banco): cómo viene el cultivo visto desde el satélite, comparado con las campañas anteriores del mismo lote.',
+        '<b>Uniformidad del pivot</b> (Banco, dentro de Vigor satelital): tocá <b>Revisar la uniformidad de este pivot</b>. SAFIA busca franjas circulares en el vigor, sobre todo cuando el cultivo está madurando: una franja que se secó antes (pico tapado) o que sigue verde (boquilla más grande). Dice a qué distancia del centro y en qué tramo ir a mirar.' ] },
       { t: 'El informe para el dueño', p: [
         'En el Banco tocá <b>Informe para el cliente (PDF)</b>.',
         'Elegí el campo y, si querés, un lote o una campaña. Destildá las secciones que no hagan falta.',

@@ -68,6 +68,7 @@
 <script src="safia-lotes.js"></script>
 <script src="safia-mapas.js"></script>
 <script src="safia-ndvi.js"></script>
+<script src="safia-uniformidad.js"></script>
 <script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
 <script src="safia-materiales.js"></script>
@@ -994,6 +995,7 @@
       document.getElementById('panel-' + b.dataset.tab).classList.add('on');
       if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
       if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
+      if (b.dataset.tab === 'ndvi' && window.SafiaUniformidad) SafiaUniformidad.montar();
       if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
       if (b.dataset.tab === 'calidadAgua' && window.SafiaCalidadAgua) SafiaCalidadAgua.activar();
