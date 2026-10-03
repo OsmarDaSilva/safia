@@ -4,7 +4,7 @@
    las HERRAMIENTAS se ejecutan acá, en el navegador, sobre los datos que este usuario ya ve con su rol (un cliente: lo
    suyo y los lotes de la zona sin nombres). Así los números los calcula SAFIA, no la IA, y nadie ve lo que no debe.
    Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, agua_hoy, como_va_campana, interpretar_suelo, mis_campos,
-   mi_lote, mantenimiento, riegos_y_lluvias, historial_suelo, comparar_con_lider, agua_de_riego, plan_rotacion.
+   mi_lote, mantenimiento, riegos_y_lluvias, historial_suelo, comparar_con_lider, agua_de_riego, plan_rotacion, energia_y_agua.
    Uso: SafiaAsistente.montar(elemento). */
 (function () {
   'use strict';
@@ -622,6 +622,18 @@
             control_de_calidad: (L.control || []).length ? L.control : 'el análisis cierra (cationes y aniones)', evaluado_para: L.aspersion ? 'riego por aspersión (pivot)' : 'riego sin mojar la hoja' } };
       }), fuente: 'Banco → Análisis de agua de SAFIA: FAO Riego y Drenaje 29 (Ayers y Westcot 1985) y USDA Handbook 60 (diagrama Riverside)' };
     },
+    energia_y_agua: function (i) {
+      // Facturas de energía, reparto por pivot e informe de agua de la campaña: el mismo cálculo de Banco → Energía y agua
+      var EN = window.SafiaEnergia; if (!EN) return { error: 'Módulo de energía no disponible en esta página' };
+      var campo = i.campo ? campoPorNombre(i.campo) : null;
+      if (i.campo && !campo) return { error: 'No encontré el campo "' + i.campo + '".', campos: propios('campos').map(function (c) { return c.nombre; }) };
+      var cps = (campo ? [campo] : propios('campos')).slice(0, 3), salida = [], p = Promise.resolve();
+      cps.forEach(function (c) { p = p.then(function () { puente(c); return EN.paraAsistente(c, i.lote); }).then(function (r) { salida.push(r); }); });
+      return p.then(function () { return { campos: salida,
+        fuente: 'Banco → Energía y agua de SAFIA: facturas de energía cargadas por el cliente (leídas de la factura) y balance diario FAO-56 de cada campaña',
+        reglas: 'El total de cada factura se reparte entre los pivots del medidor según mm regados × hectáreas en el período de la factura. Riego necesario = lo que hacía falta para que el cultivo no pasara sed con la lluvia real; aprovechamiento = necesario ÷ aplicado. El exceso de potencia reservada es un recargo por pasarse de la potencia contratada (no es energía): se corrige con la ANDE. La reactiva se baja con un banco de capacitores (consultarlo con el electricista). SAFIA muestra lo que dice la factura; qué contratar lo define el cliente.',
+        importante: 'El riego que no se cargó no existe para SAFIA: sin riegos cargados en el período no hay reparto. Cada factura guarda su moneda y el cambio de su período.' }; });
+    },
     plan_rotacion: function (i) {
       // Rotación por lote: lo que se sembró de verdad, el plan guardado (Banco → Plan de rotación) y los avisos de la rotación
       var Ro = window.SafiaRotacion; if (!Ro) return { error: 'Módulo de rotación no disponible en esta página' };
@@ -677,7 +689,7 @@
       return r.data;
     });
   }
-  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona', agua_de_riego: 'Revisando el análisis del agua de riego', plan_rotacion: 'Revisando la rotación del lote' };
+  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona', agua_de_riego: 'Revisando el análisis del agua de riego', plan_rotacion: 'Revisando la rotación del lote', energia_y_agua: 'Revisando las facturas de energía y el agua de la campaña' };
   function preguntar(texto, al) {
     if (ocupado || !texto.trim()) return Promise.resolve();
     // sin ningún pivot con suscripción vigente no se consulta a la IA (no se gasta)

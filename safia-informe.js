@@ -176,6 +176,13 @@
     return '<h2>Agua: lluvia, riego y rinde</h2>' + sonda + balances + tabla([{ t: 'Cultivo', w: 10 }, { t: 'Campaña', w: 22 }, { t: 'Lluvia', r: 1, w: 10 }, { t: 'Riego', r: 1, w: 10 }, { t: 'Total mm', r: 1, w: 12 }, { t: 'ET0 mm', r: 1, w: 12 }, { t: 'Rinde', r: 1, w: 12 }, { t: 'kg por mm', r: 1, w: 12 }], filas) + (reglas.length ? '<div class="note ok"><b>Regla práctica para el riego:</b><ul>' + reglas.join('') + '</ul></div>' : '');
   }
 
+  // Energía y riego: facturas del campo y, por pivot, el informe de agua de la última campaña cosechada (se calcula en segundo plano)
+  function secEnergia() {
+    if (!window.SafiaEnergia) return '';
+    var pivots = lotesDelCampo().filter(function (l) { return l.tipo !== 'secano'; }); if (!pivots.length) return '';
+    var bloques = pivots.map(function (l) { var c = SafiaEnergia.campanaParaInforme(l.id); return c ? '<div class="seccion" id="ene_' + esc(l.id) + '" data-camp="' + esc(c.id) + '"><div class="muted">' + esc(l.nombre) + ': calculando el informe de agua…</div></div>' : ''; }).join('');
+    return '<h2>Energía y riego</h2>' + SafiaEnergia.htmlPdf(campoActual) + bloques;
+  }
   function secSuelo(cx) {
     var lotes = lotesDelCampo(), html = '<h2>Suelo</h2>', alguno = false;
     var cultivo = cx.mios.length ? cx.mios[cx.mios.length - 1].cultivo : 'Soja';
@@ -341,6 +348,7 @@
     if (s.lotes) html += secLotes();
     if (s.campanas) html += secCampanas(cx);
     if (s.agua) html += secAgua(cx);
+    if (s.energia) html += secEnergia();
     if (s.suelo) html += secSuelo(cx);
     if (s.calidadAgua) html += secCalidadAgua();
     if (s.foliar) html += secFoliar();
@@ -355,6 +363,7 @@
     if (s.lotes) cargarImagenes();
     // balance hídrico por etapa de cada lote (se calcula en segundo plano)
     if (s.agua && window.SafiaAgua) lotesDelCampo().forEach(function (l) { var d = $('bal_' + l.id); if (!d) return; var c = SafiaAgua.campanasDelLote(l.id).find(function (x) { return x.id === d.dataset.camp; }); if (!c) return; SafiaAgua.calcular(campoActual, l, c).then(function (res) { var dd = $('bal_' + l.id); if (dd) dd.innerHTML = '<h3>' + esc(l.nombre) + ' · balance hídrico por etapa · ' + esc(c.cultivo) + ' ' + esc(c.nombre) + '</h3>' + SafiaAgua.htmlResultado(res); }).catch(function (e) { var dd = $('bal_' + l.id); if (dd) dd.innerHTML = ''; }); });
+    if (s.energia && window.SafiaEnergia) lotesDelCampo().forEach(function (l) { var d = $('ene_' + l.id); if (!d) return; var c = SafiaEnergia.campanaParaInforme(l.id, d.dataset.camp); if (!c) return; SafiaEnergia.informeCampana(campoActual, l, c).then(function (inf) { var dd = $('ene_' + l.id); if (dd) dd.innerHTML = SafiaEnergia.htmlInforme(inf); }).catch(function () { var dd = $('ene_' + l.id); if (dd) dd.innerHTML = ''; }); });
     // tiempo térmico para comparar campañas por estadio (se trae en segundo plano y se redibuja la sección NDVI)
     if (s.ndvi && window.SafiaNDVI && SafiaNDVI.prepararGdd) lotesDelCampo().forEach(function (l) { var serie = SafiaNDVI.serieDe(l.id) || []; if (!serie.length) return; SafiaNDVI.prepararGdd(l).then(function (cambio) { var d = $('ndviCamp_' + l.id); if (cambio && d) d.innerHTML = SafiaNDVI.htmlCampanas(l, serie); }).catch(function () {}); });
     if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar($('hoja')); } catch (e) {}

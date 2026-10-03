@@ -101,7 +101,14 @@
     return { moneda: mon, faltaCambio: faltaCambio, gs: usadas && !mezcla ? gsT : null, kwh: usadas ? kwhT : null, facturas: usadas, mmCubiertos: mmCub, mmRiego: mmTot, cobertura: mmTot > 0 ? mmCub / mmTot : null };
   }
   function informeCampana(campo, lote, camp) {
-    return SafiaAgua.calcular(campo, lote, camp).then(function (res) {
+    // La lluvia del satélite (CHIRPS y NASA POWER) se baja ANTES de calcular: si no, la primera vez el balance sale con la lluvia
+    // estimada por el modelo y la segunda con la del satélite, y el informe de cierre daría dos resultados distintos.
+    var pre = Promise.resolve();
+    try {
+      var co = window.SafiaBalance && SafiaBalance.coordenadasLote ? SafiaBalance.coordenadasLote(lote, campo) : null, finS = camp.cosecha || camp.cosechaEstimada || new Date().toISOString().slice(0, 10);
+      if (co && window.SafiaLluvia && SafiaLluvia.completar) pre = Promise.race([Promise.resolve(SafiaLluvia.completar(co.lat, co.lon, camp.siembra, finS)).then(function () { return SafiaLluvia.completarPower ? SafiaLluvia.completarPower(co.lat, co.lon, camp.siembra, finS) : null; }).catch(function () {}), new Promise(function (r) { setTimeout(r, 30000); })]);
+    } catch (e) {}
+    return pre.then(function () { return SafiaAgua.calcular(campo, lote, camp); }).then(function (res) {
       var reales = res.dias.filter(function (x) { return !x.pronostico; });
       var filas0 = reales.map(function (x) { return { fecha: x.fecha, et0: x.et0, lluvia: x.lluvia || 0, riego: 0 }; });
       var nec = SafiaAgua.balance(filas0, camp.cultivo, res.suelo, { riegoDeclarado: 99999, eficiencia: res.eficiencia, lamina: 10 });
@@ -111,7 +118,7 @@
       var en = energiaDeCampana(campo, lote, desde, hasta), rinde = num(camp.rinde);
       return { campo: campo, lote: lote, camp: camp, res: res, desde: desde, hasta: hasta, dias: reales.length, ha: ha, aplicado: aplicado, necesario: necesario, diferencia: aplicado - necesario,
         aprovechamiento: aplicado > 0 ? Math.min(1, necesario / aplicado) : null, lluvia: lluvia, etc: etc, eta: eta, diasEstres: estres, perdidaPct: res.perdidaPct, drenaje: res.totales ? res.totales.percolado : null,
-        eficienciaEquipo: res.eficiencia, riegoDeEventos: reales.some(function (x) { return x.riego > 0 && !x.riegoRepartido; }), rinde: rinde,
+        eficienciaEquipo: res.eficiencia, lluviaSatelite: res.fuentes ? res.fuentes.lluviaChirps || 0 : 0, lluviaCargada: !!res.lluviaDeEventos, lluviaEstacion: res.fuentes ? res.fuentes.estacion || 0 : 0, riegoDeEventos: reales.some(function (x) { return x.riego > 0 && !x.riegoRepartido; }), rinde: rinde,
         kgPorMm: rinde && (lluvia + aplicado) > 0 ? rinde / (lluvia + aplicado) : null, energia: en,
         gsHa: en.gs != null && ha ? en.gs / ha : null, gsMm: en.gs != null && en.mmCubiertos > 0 && ha ? en.gs / ha / en.mmCubiertos : null, kwhMmHa: en.kwh != null && en.mmCubiertos > 0 && ha ? en.kwh / ha / en.mmCubiertos : null,
         gsTon: en.gs != null && rinde && ha ? en.gs / (rinde * ha / 1000) : null };
@@ -129,7 +136,7 @@
       dato('Diferencia', (dif > 0 ? '+' : '') + fmt(dif) + ' mm', juicio, colD) +
       dato('Aprovechamiento', I.aprovechamiento != null ? fmt(I.aprovechamiento * 100) + ' %' : '—', 'del riego aplicado que hacía falta · eficiencia del equipo ' + fmt((I.eficienciaEquipo || 0) * 100) + ' %', I.aprovechamiento != null && I.aprovechamiento < 0.8 ? '#B8731A' : '#178029') + '</div>';
     h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">' +
-      dato('Lluvia', fmt(I.lluvia) + ' mm', 'del ciclo', '#8C9196') +
+      dato('Lluvia', fmt(I.lluvia) + ' mm', 'del ciclo · ' + (I.lluviaEstacion ? 'estación del campo' : I.lluviaSatelite >= I.dias * 0.9 ? 'satélite' : I.lluviaSatelite ? 'satélite en ' + I.lluviaSatelite + ' de ' + I.dias + ' días, el resto estimada' : 'estimada por el modelo (sin satélite)') + (I.lluviaCargada ? ' + pluviómetro cargado' : ''), I.lluviaSatelite || I.lluviaEstacion || I.lluviaCargada ? '#8C9196' : '#B8731A') +
       dato('Consumo del cultivo', fmt(I.eta) + ' mm', 'de ' + fmt(I.etc) + ' mm que pedía (ETc)', '#8C9196') +
       dato('Días con estrés', String(I.diasEstres), I.perdidaPct > 0 ? 'pérdida de rinde estimada por agua: ' + fmt(I.perdidaPct, 1) + ' %' : 'sin pérdida de rinde por agua', I.diasEstres > 5 ? '#B5371C' : '#178029') +
       dato('Kilos por mm', I.kgPorMm != null ? fmt(I.kgPorMm, 1) + ' kg/ha' : '—', I.rinde ? 'rinde ' + fmt(I.rinde) + ' kg/ha ÷ (lluvia + riego)' : 'falta el rinde de la cosecha', '#8C9196') + '</div>';
@@ -301,8 +308,85 @@
     var f = leer('facturas_energia').find(function (x) { return String(x.id) === String(id); }); if (!f || !f.archivoRuta || !window.safiaSupabase) return;
     window.safiaSupabase.storage.from('safia').createSignedUrl(f.archivoRuta, 3600).then(function (r) { if (r.data && r.data.signedUrl) window.open(r.data.signedUrl, '_blank'); else B().toast('No se pudo abrir el archivo', true); });
   }
+  /* ---------- fuera del Banco: cierre de cosecha, informe PDF y Asistente ---------- */
+  function asegurarPuente() { if (!window.SafiaBanco) window.SafiaBanco = { _energia: true, campoActual: function () { return null; }, leer: function (k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }, guardar: function () {}, toast: function () {}, refrescar: function () {} }; }
+  function imprimirHtml(titulo, sub, cuerpo) {
+    var w = window.open('', '_blank'); if (!w) return false;
+    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' + esc(titulo) + '</title><style>body{font-family:"Plus Jakarta Sans",Arial,sans-serif;color:#2E3236;margin:24px;} h3{margin:0 0 4px;} .muted{color:#8C9196;} .card-h{margin-bottom:10px;}</style></head><body><div style="font-size:12px;color:#178029;font-weight:700;letter-spacing:.06em;">SAFIA · IRRIGAR S.A.</div><div class="muted" style="font-size:12px;margin-bottom:8px;">' + esc(sub || '') + '</div>' + cuerpo + '</body></html>');
+    w.document.close(); setTimeout(function () { w.print(); }, 300); return true;
+  }
+  // La campaña que conviene informar de un lote: la pedida, o la última cosechada, o la que está en curso
+  function campanaParaInforme(loteId, idPedido) {
+    var camps = window.SafiaAgua ? SafiaAgua.campanasDelLote(loteId) : [];
+    return (idPedido && camps.find(function (x) { return x.id === idPedido; })) || camps.find(function (x) { return x.cosecha; }) || camps[0] || null;
+  }
+  // Al cerrar la cosecha en Campañas: el informe de agua de esa campaña, en una ventana encima de la pantalla
+  function mostrarAlCierre(campanaId, indiceCultivo) {
+    asegurarPuente();
+    if (!window.SafiaAgua) return false;
+    var c = leer('campanas').find(function (x) { return String(x.id) === String(campanaId); }); if (!c) return false;
+    var lote = leer('equipos').find(function (e) { return String(e.id) === String(c.equipoId); }); if (!lote || lote.tipo === 'secano') return false;
+    var campo = leer('campos').find(function (x) { return String(x.id) === String(lote.campoId); }); if (!campo) return false;
+    var camp = campanaParaInforme(lote.id, c.id + '_' + (indiceCultivo || 0)); if (!camp) return false;
+    var v = document.getElementById('enCierre'); if (v) v.remove();
+    v = document.createElement('div'); v.id = 'enCierre';
+    v.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(30,34,37,.55);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:18px 10px;';
+    v.innerHTML = '<style>#enCierre .muted{color:#8C9196;} #enCierre .card-h h3{margin:0 0 2px;font-size:17px;} #enCierre .card-h{margin-bottom:10px;} #enCierre .enBtn{padding:9px 14px;border-radius:8px;border:1px solid #D5D9DD;background:#fff;font:inherit;font-weight:600;cursor:pointer;} #enCierre .enBtn.v{background:#22A93A;border-color:#22A93A;color:#fff;}</style>' +
+      '<div style="background:#fff;border-radius:14px;max-width:920px;width:100%;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.25);"><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;">Cosecha cerrada · informe de agua de la campaña</div>' +
+      '<div id="enCierreCuerpo"><div class="muted" style="margin:14px 0;">Calculando el balance de agua de la campaña…</div></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button class="enBtn v" id="enCierreImp" style="display:none;">Imprimir</button><button class="enBtn" id="enCierreFact">Subir facturas de energía</button><button class="enBtn" id="enCierreX" style="margin-left:auto;">Cerrar</button></div></div>';
+    document.body.appendChild(v);
+    document.getElementById('enCierreX').addEventListener('click', function () { v.remove(); });
+    document.getElementById('enCierreFact').addEventListener('click', function () { try { sessionStorage.setItem('banco_campo', String(campo.id)); sessionStorage.setItem('banco_tab', 'energia'); } catch (e) {} location.href = 'banco.html'; });
+    informeCampana(campo, lote, camp).then(function (I) {
+      var cu = document.getElementById('enCierreCuerpo'); if (!cu) return;
+      cu.innerHTML = htmlInforme(I);
+      var bi = document.getElementById('enCierreImp'); bi.style.display = '';
+      bi.addEventListener('click', function () { imprimirHtml('Informe de agua · ' + campo.nombre, campo.nombre, cu.innerHTML); });
+    }).catch(function (e) { console.error(e); var cu = document.getElementById('enCierreCuerpo'); if (cu) cu.innerHTML = '<div class="muted" style="margin:14px 0;">No se pudo calcular el informe de agua ahora (' + esc((e && e.message) || 'sin clima') + '). Queda disponible en Banco → Energía y agua.</div>'; });
+    return true;
+  }
+  // Para el informe PDF del cliente: tabla de facturas del campo y avisos de la última
+  function htmlPdf(campo) {
+    var fs = facturasDe(campo.id); if (!fs.length) return '<div class="muted">Sin facturas de energía cargadas en este campo (Banco → Energía y agua).</div>';
+    var th = function (t, r) { return '<th style="text-align:' + (r ? 'right' : 'left') + ';padding:5px 7px;border-bottom:1px solid #D5D9DD;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8C9196;">' + t + '</th>'; };
+    var td = function (t, r) { return '<td style="text-align:' + (r ? 'right' : 'left') + ';padding:5px 7px;border-bottom:1px solid #EEF0F2;font-size:12px;">' + t + '</td>'; };
+    var h = resumenAnual(campo) + '<table style="width:100%;border-collapse:collapse;margin:6px 0;"><thead><tr>' + th('Período') + th('kWh', 1) + th('Total', 1) + th('Por kWh real', 1) + th('Exceso de potencia', 1) + th('Reactiva', 1) + th('Factor de potencia', 1) + th('Por mm y ha', 1) + '</tr></thead><tbody>' +
+      fs.map(function (f) { var L = leerFactura(f), r = repartir(f); return '<tr>' + td(fmtF(f.desde) + ' al ' + fmtF(f.hasta)) + td(fmt(L.kwh), 1) + td('<b>' + M(f, num(f.total)) + '</b>', 1) + td(L.gsKwh != null ? M(f, L.gsKwh) : '—', 1) + td(num(f.importeExcesoPotencia) > 0 ? M(f, num(f.importeExcesoPotencia)) : '—', 1) + td(num(f.importeReactiva) > 0 ? M(f, num(f.importeReactiva)) : '—', 1) + td(L.fp != null ? fmt(L.fp, 2) : '—', 1) + td(r.gsPorMmHa != null ? M(f, r.gsPorMmHa) : 'sin riegos cargados', 1) + '</tr>'; }).join('') + '</tbody></table>';
+    var L0 = leerFactura(fs[0]);
+    if (L0.avisos.length) h += '<div class="note warn"><b>Lo que dice la última factura (' + fmtF(fs[0].desde) + ' al ' + fmtF(fs[0].hasta) + '):</b><ul>' + L0.avisos.map(function (a) { return '<li><b>' + a.titulo + '.</b> ' + a.texto + '</li>'; }).join('') + '</ul></div>';
+    return h;
+  }
+  // Para el Asistente: facturas, reparto e informe de agua de la última campaña de cada pivot, en datos simples
+  function paraAsistente(campo, nombreLote) {
+    asegurarPuente();
+    var fs = facturasDe(campo.id), r0 = function (v) { return v == null ? null : Math.round(v); }, txt = function (s) { return String(s).replace(/<[^>]+>/g, ''); };
+    var out = { campo: campo.nombre, moneda_en_que_se_muestra: MON[vista()].n, facturas_cargadas: fs.length,
+      facturas: fs.slice(0, 6).map(function (f) { var L = leerFactura(f), r = repartir(f);
+        return { periodo: dia(f.desde) + ' a ' + dia(f.hasta), nis: f.nis || null, moneda_de_la_factura: MON[monedaDe(f)].n, total: M(f, num(f.total)), kwh: r0(L.kwh), costo_real_por_kwh: L.gsKwh != null ? M(f, L.gsKwh) : null,
+          la_energia_es_pct_de_la_factura: L.pctEnergia != null ? r0(L.pctEnergia * 100) : null, potencia_contratada_kw: num(f.potenciaContratadaKw), potencia_registrada_kw: num(f.potenciaRegistradaKw),
+          exceso_de_potencia: num(f.importeExcesoPotencia) > 0 ? M(f, num(f.importeExcesoPotencia)) : 'no', reactiva: num(f.importeReactiva) > 0 ? M(f, num(f.importeReactiva)) : 'no', factor_de_potencia: L.fp != null ? Math.round(L.fp * 100) / 100 : null,
+          avisos: L.avisos.map(function (a) { return txt(a.titulo + '. ' + a.texto); }),
+          reparto_por_pivot: r.sinRiego ? 'sin riegos cargados en ese período: no se puede repartir' : r.filas.map(function (x) { return { pivot: x.equipo.nombre, rego_mm: r0(x.mm), hectareas: x.ha, parte_pct: x.pct != null ? r0(x.pct * 100) : null, gasto: M(f, x.gs), kwh: r0(x.kwh) }; }),
+          costo_por_mm_y_hectarea: r.gsPorMmHa != null ? M(f, r.gsPorMmHa) : null }; }),
+      informes_de_agua: [] };
+    if (!fs.length) out.nota = 'Sin facturas de energía cargadas. Las sube el dueño o el gerente en Banco → Energía y agua (foto o PDF de la factura; SAFIA la lee).';
+    if (!window.SafiaAgua) return Promise.resolve(out);
+    var lotes = pivotsDe(campo.id).filter(function (e) { return !nombreLote || String(e.nombre).toLowerCase().indexOf(String(nombreLote).toLowerCase()) !== -1; }).slice(0, 4), p = Promise.resolve();
+    lotes.forEach(function (l) {
+      var camp = campanaParaInforme(l.id); if (!camp) return;
+      p = p.then(function () { return informeCampana(campo, l, camp); }).then(function (I) {
+        var en = I.energia, pl = function (v) { return v == null ? null : plata(v, en.moneda || vista()); };
+        out.informes_de_agua.push({ lote: l.nombre, cultivo: camp.cultivo, campana: camp.nombre || null, desde: I.desde, hasta: I.hasta, cerrada: !!camp.cosecha,
+          riego_aplicado_mm: I.aplicado, riego_necesario_mm: I.necesario, diferencia_mm: I.diferencia, aprovechamiento_pct: I.aprovechamiento != null ? r0(I.aprovechamiento * 100) : null,
+          lluvia_mm: I.lluvia, consumo_del_cultivo_mm: I.eta, consumo_que_pedia_mm: I.etc, dias_con_estres: I.diasEstres, perdida_de_rinde_por_agua_pct: I.perdidaPct, rinde_kg_ha: I.rinde, kg_por_mm: I.kgPorMm != null ? Math.round(I.kgPorMm * 10) / 10 : null,
+          energia: en.gs == null ? 'sin facturas que cubran los riegos de esta campaña' : { gasto: pl(en.gs), por_hectarea: pl(I.gsHa), por_mm_y_hectarea: pl(I.gsMm), por_tonelada: pl(I.gsTon), kwh: r0(en.kwh), facturas: en.facturas, las_facturas_cubren_pct_del_riego: en.cobertura != null ? r0(en.cobertura * 100) : null } });
+      }).catch(function () {});
+    });
+    return p.then(function () { return out; });
+  }
   function activar() { iniciado = true; pintar(); }
   function alCambiarCampo() { if (iniciado && $('panel-energia') && $('panel-energia').classList.contains('on')) pintar(); }
 
-  window.SafiaEnergia = { conv: conv, vista: vista, plata: plata, activar: activar, alCambiarCampo: alCambiarCampo, facturasDe: facturasDe, repartir: repartir, leerFactura: leerFactura, informeCampana: informeCampana, htmlInforme: htmlInforme, energiaDeCampana: energiaDeCampana, kwhDe: kwhDe };
+  window.SafiaEnergia = { mostrarAlCierre: mostrarAlCierre, htmlPdf: htmlPdf, paraAsistente: paraAsistente, campanaParaInforme: campanaParaInforme, conv: conv, vista: vista, plata: plata, activar: activar, alCambiarCampo: alCambiarCampo, facturasDe: facturasDe, repartir: repartir, leerFactura: leerFactura, informeCampana: informeCampana, htmlInforme: htmlInforme, energiaDeCampana: energiaDeCampana, kwhDe: kwhDe };
 })();

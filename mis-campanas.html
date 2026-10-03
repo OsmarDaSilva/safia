@@ -709,6 +709,9 @@
 <script src="safia-sensores.js"></script>
 <script src="safia-fieldnet.js"></script>
 <script src="safia-mantenimiento.js"></script>
+<script src="safia-balance.js"></script>
+<script src="safia-agua.js"></script>
+<script src="safia-energia.js"></script>
 </head>
 <body>
 
@@ -1571,6 +1574,7 @@
           if (!campanas[idx].fechaCierre) campanas[idx].fechaCierre = new Date().toISOString();
         }
         localStorage.setItem('campanas', JSON.stringify(campanas));
+        window._cierreAgua = { id: campanas[idx].id, i: cIdx };
       }
 
       // El clima del ciclo (temperatura, grados-día, ET0) se trae solo al cerrar la cosecha
@@ -1581,6 +1585,8 @@
       // guarda en la campaña: es parte de la "ficha del caso".
       traerClimaDeCampana(cosechandoCampanaId);
       mostrarToast('🌾 ¡Cosecha registrada! Campaña cerrada.');
+      // Informe de agua de la campaña que se acaba de cerrar: riego aplicado contra el necesario, kWh y gasto de energía
+      if (window.SafiaEnergia && window._cierreAgua) { const ca = window._cierreAgua; window._cierreAgua = null; setTimeout(function () { try { SafiaEnergia.mostrarAlCierre(ca.id, ca.i); } catch (e) { console.error(e); } }, 600); }
       // Al terminar es el momento de planificar la que viene: la Ficha de campaña arma la próxima a partir de esta
       (function (id, idx) {
         const camp = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => c.id === id);
