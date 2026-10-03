@@ -260,6 +260,19 @@
   // vuelta; con más de 30 °C, de día entre 10 y 14 mm. De noche (18 a 9 h) la lámina puede ser menor. Regar las 24 h está bien: lo que
   // cambia es la lámina (y por eso la velocidad) de las pasadas de día. Con lamina100/vuelta100 del equipo se traduce a % de velocidad.
   var LAMINA_MIN_DIA = 10, LAMINA_MAX_CALOR = 14, T_CALOR = 30, LAMINA_MAX_VUELTA = 35;
+  // Horario de punta de la ANDE (dato de Osmar, 3-oct-2026): en Paraguay hay dos precios de energía; el caro va de las 17 a las 21/22 h
+  // y el resto del día es el barato. SAFIA usa 17 a 22 h (el borde prudente). En la factura de Ganadera Angelita (jul-2025) el kWh
+  // costó 332 Gs en punta contra 145 fuera de punta. Si el campo tiene facturas cargadas, se muestra la relación real de su factura.
+  var PUNTA_DESDE = 17, PUNTA_HASTA = 22, HORAS_SIN_PUNTA = 24 - (PUNTA_HASTA - PUNTA_DESDE);
+  function relacionPunta(equipo) {
+    try {
+      var fs = JSON.parse(localStorage.getItem('facturas_energia') || '[]').filter(function (f) { return equipo && String(f.campoId) === String(equipo.campoId) && +f.kwhPunta > 0 && +f.kwhFueraPunta > 0 && +f.importeEnergiaPunta > 0 && +f.importeEnergiaFueraPunta > 0; })
+        .sort(function (a, b) { return String(b.hasta || '').localeCompare(String(a.hasta || '')); });
+      if (!fs.length) return null;
+      var rel = (fs[0].importeEnergiaPunta / fs[0].kwhPunta) / (fs[0].importeEnergiaFueraPunta / fs[0].kwhFueraPunta);
+      return rel > 1.05 ? Math.round(rel * 10) / 10 : null;
+    } catch (e) { return null; }
+  }
   function consejoLamina(r, equipo, mm) {
     var dt = (equipo && equipo.datosTecnicos) || {}, lam100 = num(dt.lamina100), h100 = num(dt.vuelta100);
     var dias = (r && r.dias) || [], hoy = null, tMax = null;
@@ -276,10 +289,20 @@
       out.texto = n + ' vuelta' + (n > 1 ? 's' : '') + ' de ' + L + ' mm' + (out.velocidadPct != null ? ' (velocidad ' + out.velocidadPct + ' %' + (out.horasVuelta ? ' ≈ ' + out.horasVuelta + ' h' + (n > 1 ? ' cada una' : '') : '') + ')' : '');
     }
     var t = tMax != null ? ' (hoy ' + Math.round(tMax) + ' °C)' : '';
-    out.notaCorta = 'De día no menos de ' + LAMINA_MIN_DIA + ' mm por vuelta' + (calor ? ', con calor' + t + ' entre 10 y 14 mm' : '') + '; de noche puede ser menor.';
+    // energía: fuera del horario de punta el kWh es más barato; cuánto alcanza el equipo regando solo en las horas baratas
+    var rel = relacionPunta(equipo), pvP = r && r.recomendacion ? r.recomendacion.pivot : null, punta = { desde: PUNTA_DESDE, hasta: PUNTA_HASTA, horasBaratas: HORAS_SIN_PUNTA, relacion: rel, alcanza: null, diasVuelta: null };
+    var cuanto = rel ? 'el kWh cuesta ' + String(rel).replace('.', ',') + ' veces más (según tu última factura)' : 'el kWh es más caro';
+    if (out.horasVuelta) punta.diasVuelta = Math.round(out.horasVuelta / HORAS_SIN_PUNTA * 10) / 10;
+    if (pvP && pvP.capacidadNeta > 0 && pvP.consumoMax7 != null) { punta.capacidadSinPunta = Math.round(pvP.capacidadNeta * HORAS_SIN_PUNTA / 24 * 10) / 10; punta.alcanza = pvP.consumoMax7 <= punta.capacidadSinPunta; }
+    punta.nota = 'Energía: evitar regar de ' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h, que es el horario de punta de la ANDE y ' + cuanto + '. ' +
+      (punta.alcanza === false ? 'Ojo: con el consumo de estos días (' + String(pvP.consumoMax7).replace('.', ',') + ' mm/día) el equipo no alcanza regando solo fuera de punta (' + String(punta.capacidadSinPunta).replace('.', ',') + ' mm/día): en estos días hay que regar también en punta para no entrar en estrés.' :
+        'Parando esas ' + (PUNTA_HASTA - PUNTA_DESDE) + ' horas quedan ' + HORAS_SIN_PUNTA + ' h de riego por día' + (punta.diasVuelta && out.horasVuelta > HORAS_SIN_PUNTA ? ': la vuelta de ' + out.horasVuelta + ' h lleva ' + String(punta.diasVuelta).replace('.', ',') + ' días' : '') + (punta.alcanza ? ', y el equipo alcanza la demanda del cultivo' : '') + '.');
+    punta.notaCorta = punta.alcanza === false ? 'Con este consumo hay que regar también en punta (17 a 22 h).' : 'Evitar regar de ' + PUNTA_DESDE + ' a ' + PUNTA_HASTA + ' h (energía más cara).';
+    out.punta = punta;
+    out.notaCorta = 'De día no menos de ' + LAMINA_MIN_DIA + ' mm por vuelta' + (calor ? ', con calor' + t + ' entre 10 y 14 mm' : '') + '; de noche puede ser menor. ' + punta.notaCorta;
     out.nota = 'De día (9 a 18 h) no regar menos de ' + LAMINA_MIN_DIA + ' mm por vuelta: las láminas chicas se evaporan antes de entrar al suelo y queman hojas' + (joven ? ', y el cultivo todavía es chico' : '') + '. ' +
       (calor ? 'Hoy hace calor (' + Math.round(tMax) + ' °C): de día regar entre 10 y 14 mm. ' : 'Con más de ' + T_CALOR + ' °C, de día entre 10 y 14 mm. ') +
-      'De noche (18 a 9 h) la lámina puede ser menor. Regar las 24 h está bien: lo que cambia es la lámina de las pasadas de día.';
+      'De noche (18 a 9 h) la lámina puede ser menor. Se puede regar de día y de noche: lo que cambia es la lámina de las pasadas de día. ' + punta.nota;
     return out;
   }
   // mm que el cultivo gasta, neto de la lluvia prevista, durante 'dias' desde la posición i de las listas
@@ -724,7 +747,7 @@
     hoyLocal: hoyLocal, fechaLocal: fechaLocal, claveDia: claveDia, sumarDias: sumarDias, diasEntre: diasEntre,
     indexarEventos: indexarEventos, resolverLluviaDia: resolverLluviaDia, estacionDelCampo: estacionDelCampo,
     simular: simular,
-    capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, consejoLamina: consejoLamina, LAMINA_MIN_DIA: LAMINA_MIN_DIA, LAMINA_MAX_CALOR: LAMINA_MAX_CALOR, T_CALOR: T_CALOR, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
+    capacidadBruta: capacidadBruta, laminaVuelta: laminaVuelta, consejoLamina: consejoLamina, PUNTA_DESDE: PUNTA_DESDE, PUNTA_HASTA: PUNTA_HASTA, relacionPunta: relacionPunta, LAMINA_MIN_DIA: LAMINA_MIN_DIA, LAMINA_MAX_CALOR: LAMINA_MAX_CALOR, T_CALOR: T_CALOR, gastoEnVuelta: gastoEnVuelta, arranquePivot: arranquePivot, VUELTA_SUPUESTA_DIAS: VUELTA_SUPUESTA_DIAS,
     umbralManejo: umbralManejo, P_MAX_MANEJO: P_MAX_MANEJO, BANDA_MIN_ARRANQUE: BANDA_MIN_ARRANQUE, ARRANQUE_MIN_PCT: ARRANQUE_MIN_PCT,
     ndviGuardado: ndviGuardado, factoresSatelite: factoresSatelite, kcbSatelite: kcbSatelite, extremosNdvi: extremosNdvi, prepararSatelite: prepararSatelite, ALTURA_CULTIVO: ALTURA_CULTIVO,
     version: '2.3.0'
