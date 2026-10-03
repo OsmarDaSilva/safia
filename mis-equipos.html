@@ -577,6 +577,15 @@
                       <div class="campo"><label>Sentido de la numeración</label><select id="pivote-piqSentido"><option value="">Horario</option><option value="antihorario">Antihorario</option></select></div>
                       <div class="campo" id="piqCampoNum"><label>Se numera</label><select id="pivote-piqNumeracion"><option value="">De adentro hacia afuera</option><option value="afuera">De afuera hacia adentro</option></select></div>
                     </div>
+                    <div class="fila" id="piqFilaInfra">
+                      <div class="campo"><label>Bebederos</label><select id="pivote-piqBebederos"><option value="">En los vértices del alambrado interno (cada 4 potreros)</option><option value="ninguno">Sin bebederos en el alambrado</option></select></div>
+                      <div class="campo"><label>Portones diarios</label><select id="pivote-piqPortones"><option value="">En el medio de cada lado del alambrado interno</option><option value="ninguno">Sin portones en el alambrado</option></select></div>
+                    </div>
+                    <div class="fila">
+                      <div class="campo"><label>Portón de entrada (°)</label><input type="text" id="pivote-piqPortonEntrada" placeholder="Igual al piquete 1"><div class="ayuda">Grados desde el norte. "ninguno" si no se dibuja.</div></div>
+                      <div class="campo"><label>Plazas en el perímetro (°)</label><input type="text" id="pivote-piqPlazas" placeholder="Ej: 90, 210, 330"><div class="ayuda">Áreas de descanso afuera del pivot, si las hay.</div></div>
+                      <div class="campo"><label>Área central</label><select id="pivote-piqCentro"><option value="">Con bebederos, bateas y comederos</option><option value="no">Sin área central</option></select></div>
+                    </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
                       <button type="button" class="btn" onclick="piqPreset('irrigar32')">Modelo Irrigar 32 potreros</button>
                       <button type="button" class="btn" onclick="piqPreset('pizza')">Volver a pizza</button>
@@ -1163,7 +1172,7 @@
 
     // ===== LÓGICA EXISTENTE =====
     const camposPorTipo = {
-      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','piqBebederos','piqPortones','piqPortonEntrada','piqPlazas','piqCentro','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
       goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],
@@ -1265,7 +1274,8 @@
       const eq = editandoId ? JSON.parse(localStorage.getItem('equipos') || '[]').find(e => e.id === editandoId) : null;
       const campana = eq ? JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(eq.id) && c.estado === 'Activa') : null;
       const cultivo = campana && campana.cultivos ? campana.cultivos[0] : null;
-      const dt = { piqModelo: v('piqModelo'), piqSectores: v('piqSectores'), piqRadios: v('piqRadios'), piqBorde: v('piqBorde'), piqSentido: v('piqSentido'), piqNumeracion: v('piqNumeracion'), piquete1Angulo: v('piquete1Angulo'), angulo: v('angulo') };
+      const dt = { piqModelo: v('piqModelo'), piqSectores: v('piqSectores'), piqRadios: v('piqRadios'), piqBorde: v('piqBorde'), piqSentido: v('piqSentido'), piqNumeracion: v('piqNumeracion'), piquete1Angulo: v('piquete1Angulo'), angulo: v('angulo'), piqBebederos: v('piqBebederos'), piqPortones: v('piqPortones'), piqPortonEntrada: v('piqPortonEntrada'), piqPlazas: v('piqPlazas'), piqCentro: v('piqCentro') };
+      document.getElementById('piqFilaInfra').style.display = esAnillos ? '' : 'none';
       const pol = poligonoAlGuardar(eq ? eq.poligono : null), largo = parseFloat(v('largo'));
       const falso = { id: eq ? eq.id : 'nuevo', datosTecnicos: dt, poligono: pol };
       const centro = SafiaPiquetes.centroRadio(falso) || { lat: 0, lon: 0, kLon: 111320, radio: largo > 0 ? largo : 0 };
@@ -1274,16 +1284,17 @@
       const tonos = ['#7BAE5A', '#5E9A47', '#93BF6E', '#4C8A3C'];
       cont.innerHTML = SafiaPiquetes.svgPivot(g, s => tonos[(s.anillo * 2 + s.i) % tonos.length], null, null);
       const desc = SafiaPiquetes.describir(g);
-      txt.textContent = (centro.radio ? desc : desc.replace(/ \([^)]*ha c\/u\)/g, '')) + (centro.radio ? '' : ' · con el polígono o el largo del pivot se calculan las hectáreas') + (cultivo && parseInt(cultivo.piquetes, 10) && parseInt(cultivo.piquetes, 10) !== g.param.n ? ' · la campaña dice ' + parseInt(cultivo.piquetes, 10) + ' piquetes: SAFIA usa los ' + g.param.n + ' de este modelo' : '');
+      const leyenda = SafiaPiquetes.leyendaInfra(g); txt.innerHTML = ''; txt.textContent = (centro.radio ? desc : desc.replace(/ \([^)]*ha c\/u\)/g, '')) + (centro.radio ? '' : ' · con el polígono o el largo del pivot se calculan las hectáreas') + (cultivo && parseInt(cultivo.piquetes, 10) && parseInt(cultivo.piquetes, 10) !== g.param.n ? ' · la campaña dice ' + parseInt(cultivo.piquetes, 10) + ' piquetes: SAFIA usa los ' + g.param.n + ' de este modelo' : '');
+      if (leyenda) txt.innerHTML += '<br>' + leyenda;
       if (sub) sub.textContent = desc;
     }
     function piqPreset(cual) {
       const set = (id, val) => { const el = document.getElementById('pivote-' + id); if (el) el.value = val; };
-      if (cual === 'irrigar32') { set('piqModelo', 'anillos'); set('piqSectores', '16, 16'); set('piqRadios', '67'); set('piqBorde', 'recto2'); set('piquete1Angulo', '270'); set('piqSentido', ''); set('piqNumeracion', ''); }
+      if (cual === 'irrigar32') { set('piqModelo', 'anillos'); set('piqSectores', '16, 16'); set('piqRadios', '67'); set('piqBorde', 'recto2'); set('piquete1Angulo', '270'); set('piqSentido', ''); set('piqNumeracion', ''); set('piqBebederos', ''); set('piqPortones', ''); set('piqPortonEntrada', '270'); set('piqPlazas', ''); set('piqCentro', ''); }
       else { set('piqModelo', ''); set('piqSectores', ''); set('piqRadios', ''); set('piqBorde', 'recto2'); set('piqSentido', ''); set('piqNumeracion', ''); }
       piqVista();
     }
-    ['piqModelo', 'piqSectores', 'piqRadios', 'piqBorde', 'piqSentido', 'piqNumeracion', 'piquete1Angulo', 'angulo', 'largo'].forEach(id => { const el = document.getElementById('pivote-' + id); if (el) { el.addEventListener('input', piqVista); el.addEventListener('change', piqVista); } });
+    ['piqModelo', 'piqSectores', 'piqRadios', 'piqBorde', 'piqSentido', 'piqNumeracion', 'piquete1Angulo', 'angulo', 'largo', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro'].forEach(id => { const el = document.getElementById('pivote-' + id); if (el) { el.addEventListener('input', piqVista); el.addEventListener('change', piqVista); } });
     document.getElementById('plieguePiquetes').addEventListener('toggle', piqVista);
     function revisarGps(avisar) {
       const inp = document.getElementById('gps'), ay = document.getElementById('gpsAyuda'), txt = inp.value.trim();
@@ -1411,7 +1422,7 @@
         });
       }
       const dt = equipo.datosTecnicos || {}, esen = (ESENCIALES_TIPO[equipo.tipo === 'microaspersion' ? 'goteo' : equipo.tipo] || []);
-      ['piqModelo', 'piqSectores', 'piqRadios', 'piqSentido', 'piqNumeracion'].forEach(k => { const el = document.getElementById('pivote-' + k); if (el && dt[k] === undefined) el.value = ''; });
+      ['piqModelo', 'piqSectores', 'piqRadios', 'piqSentido', 'piqNumeracion', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro'].forEach(k => { const el = document.getElementById('pivote-' + k); if (el && dt[k] === undefined) el.value = ''; });
       if (dt.piqBorde === undefined) document.getElementById('pivote-piqBorde').value = 'recto2';
       document.getElementById('plieguePiquetes').open = !!(dt.piqModelo || dt.piqSectores); setTimeout(piqVista, 0);
       document.getElementById('pliegueMarca').open = !!(equipo.marca || equipo.modelo || equipo.numeroSerie || equipo.anio);

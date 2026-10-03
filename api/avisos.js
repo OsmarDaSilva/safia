@@ -86,7 +86,7 @@ const CONDUCTOR = `
         var bajo = ocup && ocup.altura && st.ref && ocup.altura <= st.ref.salida;
         if (ocup && ((diasOcup && adentro != null && adentro >= diasOcup) || bajo)) {
           out.avisos.push({ tipo: 'rotar', titulo: out.nombre + ': hoy toca rotar los animales',
-            cuerpo: 'Están en el piquete ' + ocup.piquete + ' hace ' + adentro + (adentro === 1 ? ' día' : ' días') + (diasOcup ? ' (ocupación ' + diasOcup + ')' : '') + '.' + (bajo ? ' El pasto ya está en la altura de salida (' + ocup.altura + ' cm).' : '') + (proximo ? ' Piquete a punto: ' + proximo + '.' : ' Medí la altura del piquete que sigue antes de entrar.') });
+            cuerpo: 'Están en el piquete ' + ocup.piquete + ' hace ' + adentro + (adentro === 1 ? ' día' : ' días') + (diasOcup ? ' (ocupación ' + diasOcup + ')' : '') + '.' + (bajo ? ' El pasto ya está en la altura de salida (' + ocup.altura + ' cm).' : '') + (proximo ? ' Piquete a punto: ' + proximo + (window.SafiaPiquetes && SafiaPiquetes.accesosDe ? (function () { var gA = SafiaPiquetes.sectores(equipo, cultivo), ac = gA ? SafiaPiquetes.accesosDe(gA, proximo) : null; return ac && ac.texto ? ' (' + ac.texto + ')' : ''; })() : '') + '.' : ' Medí la altura del piquete que sigue antes de entrar.') });
         }
         var sr = window.SafiaPiquetes ? SafiaPiquetes.sectoresSinRiego(equipo, cultivo, 3) : null;
         if (sr && sr.ocupado && sr.piquetes.length) sinRiegoTxt = ' No regar ' + (sr.texto || ('del ' + sr.grados[0] + '° al ' + sr.grados[1] + '°')) + ' (piquetes ' + sr.piquetes.join(', ') + ').';

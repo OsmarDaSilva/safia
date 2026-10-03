@@ -54,7 +54,26 @@
       c.push({ k: 'corner_engrase', componente: 'Corner', tarea: 'Engrasar la articulación y el eje del corner', cada: {}, detalle: 'Completar el intervalo con el manual del corner de la marca.', fuente: FUENTE_F });
       c.push({ k: 'corner_reductora', componente: 'Corner', tarea: 'Aceite de la reductora de la torre de dirección del corner', cada: {}, detalle: 'Completar con el manual del corner.', fuente: FUENTE_F });
     }
-    return c.concat(catalogoBomba(dt));
+    return c.concat(catalogoBomba(dt)).concat(catalogoPastura(eq));
+  }
+  // Pastura bajo el pivot (modelo de piquetes cargado o campaña de pastura activa): bebederos, alambrado eléctrico,
+  // portillos flexibles, reservorio, bateas y huellas. Las frecuencias son SUGERIDAS por Irrigar (el manual no fija
+  // intervalos): se ajustan en Equipos y lotes.
+  var FUENTE_PAST = 'Manual de pastura irrigada, Irrigar 2025';
+  function catalogoPastura(eq) {
+    var dt = (eq && eq.datosTecnicos) || {};
+    var conModelo = !!(dt.piqModelo || dt.piqSectores);
+    var conPastura = eq && leer('campanas').some(function (c) { return String(c.equipoId) === String(eq.id) && c.estado === 'Activa' && c.cultivos && c.cultivos[0] && window.SafiaPasturas && SafiaPasturas.esPastura(c.cultivos[0].cultivo); });
+    if (!conModelo && !conPastura) return [];
+    var S = 'Frecuencia sugerida por Irrigar: ajustala.';
+    return [
+      { k: 'past_bebederos', componente: 'Pastura · bebederos', tarea: 'Limpiar los bebederos y revisar flotantes y cañerías', cada: { dias: 7 }, detalle: S, fuente: FUENTE_PAST + ' (6.1 infraestructura hídrica)' },
+      { k: 'past_reservorio', componente: 'Pastura · agua', tarea: 'Controlar el nivel del reservorio y el bombeo a los bebederos (reserva de 4 a 5 días)', cada: { dias: 7 }, detalle: S, fuente: FUENTE_PAST + ' (6.1)' },
+      { k: 'past_alambrado', componente: 'Pastura · alambrado eléctrico', tarea: 'Revisar tensión del alambrado eléctrico, aisladores y electrificador', cada: { dias: 15 }, detalle: S, fuente: FUENTE_PAST + ' (5.3 alambrado interno)' },
+      { k: 'past_portillos', componente: 'Pastura · portones', tarea: 'Revisar los portillos flexibles al paso de las ruedas del pivot y los portones diarios', cada: { dias: 30 }, detalle: S, fuente: FUENTE_PAST + ' (5.3)' },
+      { k: 'past_bateas', componente: 'Pastura · suplementación', tarea: 'Reponer sal mineral y revisar bateas y comederos del área central', cada: { dias: 7 }, detalle: S + ' Una batea cada 500 animales.', fuente: FUENTE_PAST + ' (6.2 suplementación)' },
+      { k: 'past_huellas', componente: 'Pastura · huellas', tarea: 'Rellenar y compactar las huellas de las ruedas del pivot', cada: { dias: 60 }, detalle: S, fuente: FUENTE_PAST + ' (9.3 mantenimiento preventivo)' }
+    ];
   }
   // Pivots Lindsay/Zimmatic (y cualquier otra marca: los distribuidores Zimmatic atienden cualquier pivot)
   function catalogoLindsay() {
