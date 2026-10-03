@@ -71,8 +71,9 @@ de Anderson) ya informa en cmolc y %.
   productivos) × 9,9, y para cada meta los **mm que exige**. Si el lote tiene
   riego, la diferencia se completa y se costea al precio del riego (1,2
   US$/mm por defecto, editable en Meta de rinde → Precios).
-- **Techo climático de referencia** (agua sin límite): soja 7.600 kg/ha
-  (CESB irrigado nacional 2024/25; récord secano 8.130; GYGA Brasil Yp
+- **Techo climático de referencia** (agua sin límite): soja 8.338 kg/ha
+  (CESB campeón irrigado nacional 2025/26, 138,97 sc/ha; récord nacional en secano 9.368 kg/ha, 156,13 sc/ha;
+  en 2024/25 eran 7.600 y 8.130; GYGA Brasil Yp
   4,4–7,1; UNL 6–7 t/ha en ensayos óptimos), maíz 14.000. El motor nunca proyecta por
   encima de ese techo.
 
@@ -188,7 +189,8 @@ como "estimado" u "orientativo".
 
 - CESB. *Circular Técnica 2 – Fatores decisivos para se obter produtividade
   de soja acima de 4.200 kg/ha.* (47 lotes, análisis hasta 1 m.)
-- CESB. Resultados del Desafío Nacional de Máxima Productividad 2024/25.
+- CESB. Resultados del Desafío Nacional de Máxima Productividad 2024/25 y 2025/26
+  (Revista Cultivar, 8-jul-2026: https://revistacultivar.com.br/noticias/desafio-cesb-registra-recorde-de-produtividade-em-2026).
 - Embrapa Cerrados. Sousa & Lobato. *Adubação da soja em áreas de Cerrado:
   micronutrientes* (rangos B, Cu, Mn, Zn; dosis correctivas).
 - Embrapa Cerrados. Circular Técnica 33, Sousa, Lobato & Rein (P crítico

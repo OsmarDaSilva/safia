@@ -43,6 +43,10 @@
         sin compactación, Ca y Mg en profundidad, K + B + Cu, sanidad y
         distribución de plantas. CESB 2024/25: promedio auditado 5.740
         kg/ha, irrigado 7.600, récord 8.130; 8 aplicaciones (R1, R3, R5).
+        CESB 2025/26 (Revista Cultivar, 8-jul-2026; 922 áreas auditadas):
+        campeón irrigado 138,97 sc/ha = 8.338 kg/ha (Mundo Novo, GO);
+        récord nacional, en secano, 156,13 sc/ha = 9.368 kg/ha (Major
+        Vieira, SC).
    [15] Grassini et al. (UNL): productividad del agua límite 9,9 kg/ha
         por mm de ET para soja y 19,3 para maíz (100 mm no productivos);
         techo de rinde con riego 6.000–7.000 (Nebraska), GYGA Brasil Yp
@@ -65,7 +69,7 @@
   'use strict';
 
   // Techo de rinde de referencia con agua sin límite (kg/ha) y productividad del agua límite (Grassini, UNL) [15]
-  var TECHO_REF = { soja: 7600, maiz: 14000, trigo: 6000, girasol: 4000, sorgo: 9000, otro: 6000 };   // soja: CESB irrigado nacional 7.600 (récord secano 8.130); el resto orientativo
+  var TECHO_REF = { soja: 8338, maiz: 14000, trigo: 6000, girasol: 4000, sorgo: 9000, otro: 6000 };   // soja: CESB campeón irrigado nacional 2025/26, 138,97 sc/ha = 8.338 (récord secano 9.368; en 2024/25 eran 7.600 y 8.130); el resto orientativo
   var WP_LIMITE = { soja: { kgMm: 9.9, noProductiva: 70 }, maiz: { kgMm: 19.3, noProductiva: 100 }, otro: { kgMm: 12, noProductiva: 80 } };   // soja/maíz: Grassini (UNL); intercepto de soja y "otro" son estimaciones a calibrar
   var PRECIOS_DEFAULT = {
     granoUSDt: { soja: 400, maiz: 170, trigo: 230, girasol: 400, sorgo: 150, otro: 250 },
@@ -465,7 +469,7 @@
       '<div class="stat"><div class="sl">Meta</div><div class="sv green">' + fmt(pl.meta, 0) + '</div></div>' +
       '<div class="stat"><div class="sl">Potencial con el plan</div><div class="sv">' + fmt(pl.potencial.min, 0) + ' – ' + fmt(pl.potencial.max, 0) + '</div></div>' +
       (pl.potencial.techoZona ? '<div class="stat"><div class="sl">Mejor caso de referencia</div><div class="sv">' + fmt(pl.potencial.techoZona, 0) + '</div></div>' : '') +
-      '<div class="stat"><div class="sl">Techo climático (agua sin límite)</div><div class="sv">' + fmt(pl.potencial.techoReferencia, 0) + '</div><div class="ss">CESB irrigado 7.600 (2024/25) · GYGA · UNL [15]</div></div>' +
+      '<div class="stat"><div class="sl">Techo climático (agua sin límite)</div><div class="sv">' + fmt(pl.potencial.techoReferencia, 0) + '</div><div class="ss">CESB irrigado 8.338, récord secano 9.368 (2025/26) · GYGA · UNL [15]</div></div>' +
       (pl.potencial.techoAgua != null ? '<div class="stat"><div class="sl">Techo por el agua que tuvo</div><div class="sv">' + fmt(pl.potencial.techoAgua, 0) + '</div><div class="ss">Grassini: ' + (pl.cu === 'maiz' ? '19,3' : '9,9') + ' kg/ha por mm</div></div>' : '') +
       '<div class="stat"><div class="sl">Inversión (una vez)</div><div class="sv">US$ ' + fmt(e.inversionTotal, 0) + '/ha</div></div>' +
       '<div class="stat"><div class="sl">Gasto adicional por campaña</div><div class="sv">US$ ' + fmt(e.recurrenteCultivo + e.recurrenteLote, 0) + '/ha</div></div>' +
