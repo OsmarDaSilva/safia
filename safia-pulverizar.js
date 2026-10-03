@@ -12,12 +12,20 @@
    FAO-56, ecuación 47: u2 = u10 × 4,87 ÷ ln(67,8 × 10 − 5,42) = u10 × 0,748.
    Lluvia: una hora con lluvia prevista no sirve; si llueve en las 2 horas siguientes se avisa (cuánto hay que
    esperar entre la aplicación y la lluvia depende del producto: lo dice la etiqueta).
+   Comparación hecha el 3-oct-2026 (pedido de Osmar: en pantalla se cita solo Embrapa):
+   - INTA EEA Oliveros (Carrancio y Massaro, "Delta T: indicador meteorológico para pulverizaciones"): 15 km/h es el viento
+     máximo aceptado dentro de la buena práctica; en lugar de límites fijos de temperatura y humedad usa Delta T: ideal entre
+     2 y 8, nunca más de 10. El límite de Embrapa (30 °C y 55 %) equivale a un Delta T de 6,8: coinciden.
+   - EE.UU. (Pesticide Environmental Stewardship, Center for IPM, NC State): viento de al menos 3 y no más de 8 mph (4,8 a
+     12,9 km/h); con menos de 3 mph, riesgo de inversión térmica; temperatura y humedad las fija la etiqueta. USDA-ARS (Huang y
+     Fisher 2019) trabaja la inversión térmica, sin umbrales numéricos de viento.
+   Embrapa da el rango ÓPTIMO (el más exigente); INTA y EE.UU. dan el MÁXIMO aceptable.
    Es un pronóstico (Open-Meteo), no una medición: antes de salir, medir en el lote con termohigrómetro y anemómetro. */
 (function () {
   'use strict';
   var LIM = { tempMax: 30, hrMin: 55, vientoMin: 3.2, vientoIdeal: 6.5, vientoMax: 10, lluviaHora: 0.2, lluviaCerca: 0.5, horasLluvia: 2 };
   var U2 = 4.87 / Math.log(67.8 * 10 - 5.42);
-  var FUENTE = 'Embrapa Soja y Unicentro, "Tecnologia de Aplicação de Pesticidas": viento de 3,2 a 6,5 km/h, humedad mínima de 55 % y temperatura menor a 30 °C';
+  var FUENTE = 'Embrapa Soja, "Tecnologia de Aplicação de Pesticidas": viento de 3,2 a 6,5 km/h, humedad mínima de 55 % y temperatura menor a 30 °C';
   var COL = { verde: '#22A93A', amarillo: '#F2B01E', rojo: '#D5432F', pasado: '#E1E4E7' };
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function n(v, d) { return v == null || isNaN(v) ? '—' : Number(v).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
