@@ -183,6 +183,20 @@
     var bloques = pivots.map(function (l) { var c = SafiaEnergia.campanaParaInforme(l.id); return c ? '<div class="seccion" id="ene_' + esc(l.id) + '" data-camp="' + esc(c.id) + '"><div class="muted">' + esc(l.nombre) + ': calculando el informe de agua…</div></div>' : ''; }).join('');
     return '<h2>Energía y riego</h2>' + SafiaEnergia.htmlPdf(campoActual) + bloques;
   }
+  // Pasturas bajo riego: pasto en kilos, crecimiento, carga y carne producida de cada pivot con pastura en curso
+  function pasturasDelInforme() {
+    if (!window.SafiaPasturas || !window.SafiaForraje) return [];
+    var ids = {}; lotesDelCampo().forEach(function (l) { ids[String(l.id)] = 1; });
+    return SafiaPasturas.campanasPastura(campoActual).filter(function (x) { return ids[String(x.equipo.id)] && x.campana.estado === 'Activa'; });
+  }
+  function htmlPasturaInforme(x, filas) {
+    return '<h3>' + esc(x.equipo.nombre) + ' · ' + esc(x.cultivo.variedad || x.cultivo.cultivo) + '</h3>' + SafiaForraje.htmlPanel(x.equipo, x.cultivo, { campo: campoActual, filasRef: filas, abierto: true });
+  }
+  function secPasturas() {
+    var lista = pasturasDelInforme(); if (!lista.length) return '';
+    return '<h2>Pasturas bajo riego: pasto, carga y carne</h2>' + lista.map(function (x) { return '<div class="seccion" id="pas_' + esc(x.equipo.id) + '">' + htmlPasturaInforme(x, null) + '</div>'; }).join('') +
+      '<div class="sub" style="margin-top:6px;">Los kilos de pasto salen de la altura medida con la regla; el factor de tabla es orientativo y la calibración con corte de muestra del campo manda. Carga: 1 UA = 450 kg, consumo 2,2 % del peso vivo y 55 % de aprovechamiento (Embrapa Cerrados, Comunicado Técnico 101). Carne: pesadas del lote cargadas en SAFIA.</div>';
+  }
   function secSuelo(cx) {
     var lotes = lotesDelCampo(), html = '<h2>Suelo</h2>', alguno = false;
     var cultivo = cx.mios.length ? cx.mios[cx.mios.length - 1].cultivo : 'Soja';
@@ -349,6 +363,7 @@
     if (s.campanas) html += secCampanas(cx);
     if (s.agua) html += secAgua(cx);
     if (s.energia) html += secEnergia();
+    if (s.pasturas) html += secPasturas();
     if (s.suelo) html += secSuelo(cx);
     if (s.calidadAgua) html += secCalidadAgua();
     if (s.foliar) html += secFoliar();
@@ -364,6 +379,8 @@
     // balance hídrico por etapa de cada lote (se calcula en segundo plano)
     if (s.agua && window.SafiaAgua) lotesDelCampo().forEach(function (l) { var d = $('bal_' + l.id); if (!d) return; var c = SafiaAgua.campanasDelLote(l.id).find(function (x) { return x.id === d.dataset.camp; }); if (!c) return; SafiaAgua.calcular(campoActual, l, c).then(function (res) { var dd = $('bal_' + l.id); if (dd) dd.innerHTML = '<h3>' + esc(l.nombre) + ' · balance hídrico por etapa · ' + esc(c.cultivo) + ' ' + esc(c.nombre) + '</h3>' + SafiaAgua.htmlResultado(res); }).catch(function (e) { var dd = $('bal_' + l.id); if (dd) dd.innerHTML = ''; }); });
     if (s.energia && window.SafiaEnergia) lotesDelCampo().forEach(function (l) { var d = $('ene_' + l.id); if (!d) return; var c = SafiaEnergia.campanaParaInforme(l.id, d.dataset.camp); if (!c) return; SafiaEnergia.informeCampana(campoActual, l, c).then(function (inf) { var dd = $('ene_' + l.id); if (dd) dd.innerHTML = SafiaEnergia.htmlInforme(inf); }).catch(function () { var dd = $('ene_' + l.id); if (dd) dd.innerHTML = ''; }); });
+    // pasturas: con la referencia de forraje de Irrigar (regada y secano) se completa la carga de cada mes
+    if (s.pasturas && window.SafiaPasturas && pasturasDelInforme().length) SafiaPasturas.cargarReferencia().then(function (filas) { if (!filas || !filas.length) return; pasturasDelInforme().forEach(function (x) { var d = $('pas_' + x.equipo.id); if (d) d.innerHTML = htmlPasturaInforme(x, filas); }); }).catch(function () {});
     // tiempo térmico para comparar campañas por estadio (se trae en segundo plano y se redibuja la sección NDVI)
     if (s.ndvi && window.SafiaNDVI && SafiaNDVI.prepararGdd) lotesDelCampo().forEach(function (l) { var serie = SafiaNDVI.serieDe(l.id) || []; if (!serie.length) return; SafiaNDVI.prepararGdd(l).then(function (cambio) { var d = $('ndviCamp_' + l.id); if (cambio && d) d.innerHTML = SafiaNDVI.htmlCampanas(l, serie); }).catch(function () {}); });
     if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar($('hoja')); } catch (e) {}

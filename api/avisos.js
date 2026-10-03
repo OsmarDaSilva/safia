@@ -28,7 +28,7 @@ export const config = { maxDuration: 60 };
 process.env.TZ = 'America/Asuncion';   // "hoy" es el día de Paraguay, no el del servidor
 
 // Los mismos scripts que carga operador.html, en el mismo orden
-const ARCHIVOS = ['safia-cultivos-fao.js', 'safia-balance.js', 'safia-sensores.js', 'safia-pasturas.js', 'safia-piquetes.js', 'safia-lluvia.js', 'safia-clima.js', 'safia-mantenimiento.js'];
+const ARCHIVOS = ['safia-cultivos-fao.js', 'safia-balance.js', 'safia-sensores.js', 'safia-pasturas.js', 'safia-piquetes.js', 'safia-forraje.js', 'safia-lluvia.js', 'safia-clima.js', 'safia-mantenimiento.js'];
 let fuentes = null;
 
 async function cargarFuentes(origen) {
@@ -76,7 +76,7 @@ const CONDUCTOR = `
     out.estado.cultivo = cultivo.cultivo;
 
     // --- pastura: rotación de piquetes ---
-    var esPast = !!(window.SafiaPasturas && SafiaPasturas.esPastura(cultivo.cultivo)), sinRiegoTxt = '';
+    var esPast = !!(window.SafiaPasturas && SafiaPasturas.esPastura(cultivo.cultivo)), sinRiegoTxt = '', pastoTxt = '';
     if (esPast) {
       try {
         var st = SafiaPasturas.estadoPiquetes(equipo.id, cultivo), ocup = st.piquetes.find(function (p) { return p.estado === 'ocupado'; });
@@ -92,6 +92,20 @@ const CONDUCTOR = `
         if (sr && sr.ocupado && sr.piquetes.length) sinRiegoTxt = ' No regar ' + (sr.texto || ('del ' + sr.grados[0] + '° al ' + sr.grados[1] + '°')) + ' (piquetes ' + sr.piquetes.join(', ') + ').';
         out.estado.piquete = st.ocupado || null;
       } catch (e) { out.estado.errorPastura = String(e && e.message || e); }
+      // pasto en kilos, crecimiento medido y carga (solo con lo medido en el campo: lecturas de regla y pesadas)
+      try {
+        if (window.SafiaForraje) {
+          var RF = SafiaForraje.resumen(equipo, cultivo, campo), nF = function (v, d) { return Number(v).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
+          var medido = RF.tasa && RF.tasa.origen === 'medido', partesP = [];
+          if (RF.pasto.kgHaPromedio != null) partesP.push(nF(RF.pasto.kgHaPromedio) + ' kg MS/ha');
+          if (medido) partesP.push('crece ' + nF(RF.tasa.kgDia) + ' kg/día');
+          if (RF.uaReal != null && medido && RF.uaCapacidad > 0) { var relP = RF.uaReal / RF.uaCapacidad; partesP.push('carga ' + nF(RF.uaReal, 1) + ' de ' + nF(RF.uaCapacidad, 1) + ' UA/ha' + (relP > 1.1 ? ': hay más animales que pasto' : relP < 0.7 ? ': sobra pasto' : '')); }
+          else if (RF.uaReal != null) partesP.push('carga ' + nF(RF.uaReal, 1) + ' UA/ha');
+          if (RF.diasPasto != null) partesP.push('comida para ' + RF.diasPasto + ' días');
+          if (partesP.length) pastoTxt = ' Pasto: ' + partesP.join(', ') + '.';
+          out.estado.pasto = { kgMsHa: RF.pasto.kgHaPromedio, crecimientoKgDia: medido ? RF.tasa.kgDia : null, uaReal: RF.uaReal != null ? Math.round(RF.uaReal * 10) / 10 : null, uaCapacidad: medido && RF.uaCapacidad != null ? Math.round(RF.uaCapacidad * 10) / 10 : null, diasPasto: RF.diasPasto };
+        }
+      } catch (e) { out.estado.errorPasto = String(e && e.message || e); }
     }
 
     // --- riego: el mismo camino que la tarjeta del Operador ---
@@ -147,7 +161,7 @@ const CONDUCTOR = `
     }
     var fl = r.lluviaFuentes; if (fl && fl.modelo && fl.mmModelo >= 5 && !fl.manual && !fl.estacion) cuerpo += ' Lluvia reciente estimada por el modelo (' + fl.mmModelo + ' mm en ' + fl.modelo + ' días): cargá el pluviómetro.';
     out.estado.lluviaFuentes = fl || null;
-    out.avisos.push({ tipo: 'riego', nivel: nivel, titulo: titulo, cuerpo: cuerpo });
+    out.avisos.push({ tipo: 'riego', nivel: nivel, titulo: titulo, cuerpo: cuerpo + pastoTxt });
     return out;
   };
 })();
