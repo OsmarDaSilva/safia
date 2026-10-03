@@ -76,7 +76,11 @@
     var donde = dt.piqPlazaDonde || (listaNum(dt.piqPlazas).length ? 'afuera' : (dt.piqCentro === 'no' ? 'ninguna' : 'centro'));
     p.infra = { bebederos: dt.piqBebederos || (modelo === 'anillos' && donde !== 'portones' ? 'vertices' : 'ninguno'), portones: dt.piqPortones || (modelo === 'anillos' ? 'lados' : 'ninguno'),
       entrada: num(dt.piqPortonEntrada), plazas: listaNum(dt.piqPlazas).map(function (x) { return mod(x, 360); }), centro: donde === 'centro',
-      plazaDonde: donde, carga: num(dt.piqCarga) || 10, m2Animal: num(dt.piqPlazaM2Animal) || 4, plazaLado: num(dt.piqPlazaLado) };
+      plazaDonde: donde, carga: num(dt.piqCarga) || 10, m2Animal: num(dt.piqPlazaM2Animal) || 4, plazaLado: num(dt.piqPlazaLado),
+      // corralón central (radio en m), callejón de acceso (ancho en m) y materiales (cuadro de instalación de Irrigar: 4 hilos normales afuera,
+      // postes cada 10 m; hilo eléctrico adentro, postes cada ~14 m; goma conductora de 3 m en cada cruce de rueda)
+      plazaExplicita: !!dt.piqPlazaDonde, plazaRadio: num(dt.piqPlazaRadio), callejon: num(dt.piqCallejon) || 0, hilosNormal: num(dt.piqHilosNormal) || 4, postePerimetro: num(dt.piqPostePerimetro) || 10,
+      hilosElectrico: num(dt.piqHilosElectrico) || 1, posteElectrico: num(dt.piqPosteElectrico) || 14, gomaM: num(dt.piqGomaM) || 3, torres: num(dt.torres) || 0 };
     if (p.infra.entrada == null && dt.piqPortonEntrada !== 'ninguno') p.infra.entrada = a0;
     p.firma = [p.modelo, sect.join('+'), f.map(function (x) { return Math.round(x * 1000); }).join('+'), p.borde, p.numeracion, p.sentido, a0, span].join('|');
     return p;
@@ -127,6 +131,15 @@
     lista.forEach(function (s) { s.piquete = String(s.orden + 1); });
     var g = { centro: c, param: p, lista: lista };
     // la plaza de cada portón ocupa pasto: se descuenta en partes iguales de los piquetes que se juntan ahí
+    if (p.infra && p.infra.plazaDonde === 'centro' && c.radio) {
+      var infC = infraestructura(g), rc = infC.plaza && infC.plaza.radio;
+      if (rc) { var adentro = lista.filter(function (s) { return s.anillo === 0; }); adentro.forEach(function (s) { s.m2Plaza = Math.round(Math.PI * rc * rc / adentro.length); s.ha = Math.max(0, Math.round((s.ha - s.m2Plaza / 10000) * 100) / 100); }); }
+    }
+    if (p.infra && p.infra.callejon > 0 && c.radio) {
+      // el callejón va entre el último piquete y el 1: la mitad del ancho se descuenta a cada uno, en todos los anillos
+      var rc2 = p.infra.plazaDonde === 'centro' && infraestructura(g).plaza.radio || 0;
+      p.anillos.forEach(function (an, j) { var r0 = j === 0 ? rc2 : c.radio * an.f0, r1 = c.radio * an.f1, m2 = p.infra.callejon * Math.max(0, r1 - r0) / 2; [ordenDe(p, j, 0), ordenDe(p, j, an.n - 1)].forEach(function (o) { var s = lista.find(function (x) { return x.orden === o; }); if (s) { s.m2Callejon = Math.round(m2); s.ha = Math.max(0, Math.round((s.ha - m2 / 10000) * 100) / 100); } }); });
+    }
     if (p.infra && p.infra.plazaDonde === 'portones' && c.radio) {
       var inf = infraestructura(g);
       if (inf.plaza && inf.plaza.m2) inf.plazas.forEach(function (o) { var vecinos = piquetesEn(g, o.fi); vecinos.forEach(function (s) { s.m2Plaza = Math.round((s.m2Plaza || 0) + inf.plaza.m2 / vecinos.length); s.ha = Math.max(0, Math.round((s.ha - inf.plaza.m2 / vecinos.length / 10000) * 100) / 100); }); });
@@ -136,7 +149,8 @@
   // En qué piquete cae un punto: índice en la lista ordenada por número, o -1
   function indicePiquete(c, p, lat, lon) {
     var dy = (lat - c.lat) * M_LAT, dx = (lon - c.lon) * c.kLon, d = Math.sqrt(dx * dx + dy * dy) / c.radio;
-    if (d > 1.02 || d < 0.04) return -1;   // fuera del círculo o en el centro (torre, bebederos)
+    var fc = p.infra && p.infra.plazaDonde === 'centro' && p.infra.plazaRadio && c.radio ? Math.max(0.04, p.infra.plazaRadio / c.radio) : 0.04;
+    if (d > 1.02 || d < fc) return -1;   // fuera del círculo o en el centro (torre, corralón)
     var ang = Math.atan2(dx, dy) / RAD, fi = mod(p.sentido * (ang - p.anguloInicio), 360);
     if (fi >= p.span) return -1;
     for (var j = 0; j < p.anillos.length; j++) {
@@ -277,7 +291,10 @@
     var I = g.param.infra || {}, haPivot = g.centro && g.centro.radio ? Math.PI * g.centro.radio * g.centro.radio / 10000 * (g.param.span / 360) : null;
     var animales = haPivot ? Math.round(haPivot * I.carga) : null, m2Base = animales ? animales * I.m2Animal : null;
     var lado = I.plazaLado || (m2Base ? Math.ceil(Math.sqrt(m2Base)) : null);
-    return { animales: animales, m2Base: m2Base, lado: lado, m2: lado ? lado * lado : null, fijado: !!I.plazaLado, carga: I.carga, m2Animal: I.m2Animal, haPivot: haPivot };
+    var out = { animales: animales, m2Base: m2Base, lado: lado, m2: lado ? lado * lado : null, fijado: !!I.plazaLado, carga: I.carga, m2Animal: I.m2Animal, haPivot: haPivot };
+    // el corralón central solo se dimensiona (y descuenta) cuando se eligió a propósito o se cargó su radio
+    if (I.plazaDonde === 'centro') { out.radio = I.plazaRadio || (m2Base && I.plazaExplicita ? Math.ceil(Math.sqrt(m2Base / Math.PI)) : null); out.m2 = out.radio ? Math.round(Math.PI * out.radio * out.radio) : null; out.fijado = !!I.plazaRadio; out.lado = null; }
+    return out;
   }
   function infraestructura(g) {
     var p = g.param, I = p.infra || {}, out = { bebederos: [], portones: [], entrada: null, plazas: [], centro: !!I.centro, plazaDonde: I.plazaDonde || 'ninguna', plaza: plazaTamano(g) };
@@ -327,7 +344,8 @@
   }
   function svgInfra(g, cx, cy, R) {
     var inf = infraestructura(g), p = g.param, h = '';
-    if (inf.centro) h += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R * 0.085) + '" fill="#fff" stroke="#2E86DE" stroke-width="1.5"><title>Área central: bebederos, bateas y comederos</title></circle>';
+    if (inf.centro) { var rcPx = inf.plaza && inf.plaza.radio && g.centro && g.centro.radio ? Math.max(5, Math.min(R * 0.5, R * inf.plaza.radio / g.centro.radio)) : R * 0.085; h += '<circle cx="' + cx + '" cy="' + cy + '" r="' + rcPx + '" fill="#fff" stroke="#2E86DE" stroke-width="1.5"><title>Corralón central: bebederos, bateas y comederos' + (inf.plaza && inf.plaza.radio ? ' · radio ' + inf.plaza.radio + ' m (' + Math.round(inf.plaza.m2).toLocaleString('es-PY') + ' m²)' : '') + '</title></circle>'; }
+    if (p.infra && p.infra.callejon > 0) { var cc = pt(cx, cy, R * 0.55, p.anguloInicio).split(' '), wPx = Math.max(2, g.centro && g.centro.radio ? R * p.infra.callejon / g.centro.radio : 3); h += '<line x1="' + cx + '" y1="' + cy + '" x2="' + pt(cx, cy, R, p.anguloInicio).split(' ').join('" y2="') + '" stroke="#fff" stroke-width="' + wPx + '"><title>Callejón de ' + p.infra.callejon + ' m</title></line>'; }
     inf.portones.forEach(function (o) { var c = pt(cx, cy, R * o.f, o.brujula).split(' '); h += '<rect x="' + (c[0] - 4) + '" y="' + (c[1] - 1.8) + '" width="8" height="3.6" rx="0.6" fill="#fff" stroke="#C0392B" stroke-width="1.3" transform="rotate(' + (o.brujula) + ' ' + c[0] + ' ' + c[1] + ')"><title>Portón diario · ' + esc(gradosTxt(o.brujula)) + '</title></rect>'; });
     inf.bebederos.forEach(function (o) { var c = pt(cx, cy, R * o.f, o.brujula).split(' '); h += '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="3.4" fill="#2E86DE" stroke="#fff" stroke-width="1.2"><title>Bebedero · ' + esc(gradosTxt(o.brujula)) + '</title></circle>'; });
     // plazas a escala (el lado en metros sobre el radio del pivot); sin radio, un cuadrado chico
@@ -378,7 +396,7 @@
     var nombres = p.anillos.length === 2 ? ['adentro', 'afuera'] : p.anillos.length === 3 ? ['adentro', 'en el medio', 'afuera'] : p.anillos.map(function (_, i) { return 'anillo ' + (i + 1); });
     f.push(['Piquetes', p.modelo === 'pizza' ? p.n + ' en porciones desde el centro' : p.n + ' · ' + p.anillos.map(function (an, j) { return an.n + ' ' + nombres[j]; }).join(' + ')]);
     var conHa = g.lista.some(function (s) { return s.ha; }), conPlaza = g.lista.some(function (s) { return s.m2Plaza; });
-    if (conHa) f.push(['Pasto por piquete', p.anillos.map(function (an, j) { var s = g.lista.find(function (x) { return x.anillo === j; }); return (p.anillos.length > 1 ? nombres[j] + ' ' : '') + ha(s.ha) + ' ha'; }).join(' · ') + (conPlaza ? ' (descontada la plaza)' : '')]);
+    if (conHa) f.push(['Pasto por piquete', p.anillos.map(function (an, j) { var s = g.lista.find(function (x) { return x.anillo === j && !x.m2Callejon; }) || g.lista.find(function (x) { return x.anillo === j; }); return (p.anillos.length > 1 ? nombres[j] + ' ' : '') + ha(s.ha) + ' ha'; }).join(' · ') + (conPlaza ? ' (descontada la plaza)' : '')]);
     if (p.modelo === 'anillos') f.push(['Alambrado interno', (p.borde === 'circulo' ? 'circular' : p.borde === 'recto2' ? 'recto cada dos potreros' : 'recto entre divisorias') + ', al ' + Math.round(p.anillos[0].f1 * 100) + ' % del radio']);
     f.push(['Piquete 1', 'desde ' + p.anguloInicio + '° del norte, ' + (p.sentido > 0 ? 'horario' : 'antihorario') + (p.numeracion === 'afuera' ? ', de afuera hacia adentro' : (p.anillos.length > 1 ? ', de adentro hacia afuera' : ''))]);
     var acc = [];
@@ -391,9 +409,49 @@
       f.push(['Plaza del lote', (inf.plazaDonde === 'portones' ? 'una en cada portón' : inf.plazas.length + ' afuera, en el perímetro') + (pl.lado ? ' · ' + pl.lado + ' × ' + pl.lado + ' m (' + m(pl.m2) + ' m²)' : '')]);
       if (pl.animales) f.push(['Dimensionada para', m(pl.animales) + ' animales (' + pl.haPivot.toFixed(0) + ' ha × ' + pl.carga + '/ha) a ' + pl.m2Animal + ' m² por animal' + (pl.fijado ? ', lado fijado a mano' : ', sin contar comederos')]);
       if (conPlaza && pl.m2) { var tot = inf.plazas.length * pl.m2 / 10000, haP = g.centro && g.centro.radio ? Math.PI * g.centro.radio * g.centro.radio / 10000 * p.span / 360 : 0; f.push(['Pasto en plazas', ha(tot) + ' ha' + (haP ? ' (' + Math.round(tot / haP * 100) + ' % del pivot)' : '')]); }
-    } else if (inf.centro) f.push(['Plaza del lote', 'área central con bebederos, bateas y comederos']);
+    } else if (inf.centro) {
+      var pc = inf.plaza, mm = function (v) { return Math.round(v).toLocaleString('es-PY'); };
+      f.push(['Corralón central', pc.radio ? 'radio ' + pc.radio + ' m (' + mm(pc.m2) + ' m²)' + (pc.animales ? ' · ' + (pc.m2 / pc.animales).toFixed(1) + ' m² por animal para ' + mm(pc.animales) + ' (' + pc.haPivot.toFixed(0) + ' ha × ' + pc.carga + '/ha)' : '') + (pc.fijado ? '' : ' · propuesto a ' + pc.m2Animal + ' m²/animal') : 'con bebederos, bateas y comederos']);
+    }
+    if (p.infra && p.infra.callejon > 0) f.push(['Callejón', p.infra.callejon + ' m de ancho, del centro al perímetro, entre el piquete ' + p.n + ' y el 1']);
     (extra || []).forEach(function (x) { f.push(x); });
     return f;
+  }
+  /* ---------- cuadro de instalación: alambre, postes, portones y gomas que lleva el modelo ----------
+     Criterios del cuadro de Irrigar ("Cuadro de instalación pastura intensiva irrigada"): alambrado perimetral de 4 hilos
+     normales con postes cada 10 m y un portón de entrada; corralón central con 2 postes por potrero (portón de medio frente);
+     divisorias eléctricas del corralón al perímetro con postes intermedios cada ~14 m; goma conductora de 3 m en cada cruce
+     de rueda del pivot (una por torre, más el extremo). Todo ajustable en Equipos. */
+  function materiales(g) {
+    var p = g.param, I = p.infra, R = g.centro && g.centro.radio; if (!R || !I) return null;
+    var inf = infraestructura(g), rc = I.plazaDonde === 'centro' && inf.plaza.radio || 0, r = function (v) { return Math.round(v); };
+    var filas = [], perim = 2 * Math.PI * R * p.span / 360 + (p.span < 360 ? 2 * (R - rc) : 0);
+    filas.push({ que: 'Alambrado perimetral, afuera del pivot', metros: perim, mtsPoste: I.postePerimetro, postes: Math.ceil(perim / I.postePerimetro), portones: 1, tipo: 'normal', hilos: I.hilosNormal, alambre: perim * I.hilosNormal, nota: I.hilosNormal + ' hilos' });
+    var n0 = p.anillos[0].n;
+    if (rc) { var perC = 2 * Math.PI * rc * p.span / 360; filas.push({ que: 'Corralón central (radio ' + rc + ' m)', metros: perC, mtsPoste: perC / (2 * n0), postes: 2 * n0, portones: n0, tipo: 'normal', hilos: I.hilosNormal, alambre: perC * I.hilosNormal, nota: 'un portón de ' + (perC / (2 * n0)).toFixed(1) + ' m por potrero' }); }
+    var cruces = I.torres ? I.torres + 1 : 0, gomas = 0, lineas = 0, mElec = 0;
+    p.anillos.forEach(function (an, j) {
+      var cuantas = p.span < 360 ? an.n + 1 : an.n, largo = 0;
+      for (var i = 0; i < cuantas; i++) { var fi = i * an.paso, ro = radioBorde(p, j, fi) * R, ri = j === 0 ? rc : radioInterior(p, j, fi) * R; largo += Math.max(0, ro - ri); }
+      lineas += cuantas; mElec += largo;
+      filas.push({ que: 'Divisorias eléctricas' + (p.anillos.length > 1 ? ' del anillo ' + (j + 1) : '') + ' (' + cuantas + ' líneas de ' + r(largo / cuantas) + ' m)', metros: largo, mtsPoste: I.posteElectrico, postes: cuantas * Math.ceil(largo / cuantas / I.posteElectrico + 1), portones: 0, tipo: 'electrico', hilos: I.hilosElectrico, alambre: largo * I.hilosElectrico, nota: cruces ? cuantas * cruces + ' cruces de rueda' : '' });
+      if (cruces) gomas += cuantas * cruces * I.gomaM;
+      if (j < p.anillos.length - 1) { var per = 0, pasos = 72; for (var k = 0; k < pasos; k++) { var f1 = k / pasos * p.span, f2 = (k + 1) / pasos * p.span, a = punto({ lat: 0, lon: 0, kLon: M_LAT }, brujula(p, f1), radioBorde(p, j, f1) * R), b = punto({ lat: 0, lon: 0, kLon: M_LAT }, brujula(p, f2), radioBorde(p, j, f2) * R); per += Math.sqrt(Math.pow((a[0] - b[0]) * M_LAT, 2) + Math.pow((a[1] - b[1]) * M_LAT, 2)); }
+        filas.push({ que: 'Alambrado interno eléctrico (' + (p.borde === 'circulo' ? 'circular' : 'recto') + ', anillo ' + (j + 1) + ')', metros: per, mtsPoste: I.posteElectrico, postes: Math.ceil(per / I.posteElectrico), portones: inf.portones.length, tipo: 'electrico', hilos: I.hilosElectrico, alambre: per * I.hilosElectrico, nota: inf.portones.length ? inf.portones.length + ' portones diarios' : '' }); mElec += per; }
+    });
+    if (I.callejon > 0) { var lc = 2 * (R - rc); filas.push({ que: 'Callejón de ' + I.callejon + ' m (los dos lados)', metros: lc, mtsPoste: I.posteElectrico, postes: 2 * Math.ceil((R - rc) / I.posteElectrico + 1), portones: 1, tipo: 'electrico', hilos: I.hilosElectrico, alambre: lc * I.hilosElectrico, nota: 'un portón al perímetro' }); if (cruces) gomas += 2 * cruces * I.gomaM; }
+    var tot = { postesNormales: 0, postesElectricos: 0, alambreNormal: 0, hiloElectrico: 0, portones: 0, gomasM: gomas, gomas: cruces ? Math.round(gomas / I.gomaM) : 0, metros: 0 };
+    filas.forEach(function (f) { tot.metros += f.metros; tot.portones += f.portones; if (f.tipo === 'normal') { tot.postesNormales += f.postes; tot.alambreNormal += f.alambre; } else { tot.postesElectricos += f.postes; tot.hiloElectrico += f.alambre; } });
+    return { filas: filas, total: tot, supuestos: { hilosNormal: I.hilosNormal, postePerimetro: I.postePerimetro, hilosElectrico: I.hilosElectrico, posteElectrico: I.posteElectrico, gomaM: I.gomaM, torres: I.torres } };
+  }
+  function materialesHTML(g) {
+    var m = materiales(g); if (!m) return '<div style="font-size:12px;color:#8C9196;">Con el polígono o el largo del pivot se calcula el cuadro de instalación.</div>';
+    var n = function (v, d) { return Number(v).toLocaleString('es-PY', { maximumFractionDigits: d == null ? 0 : d }); }, td = 'padding:4px 6px;border-top:1px solid #EEF0F2;', th = 'padding:4px 6px;color:#8C9196;text-align:left;font-weight:600;';
+    var h = '<table style="width:100%;border-collapse:collapse;font-size:12px;"><tr><th style="' + th + '">Detalle</th><th style="' + th + 'text-align:right;">Metros</th><th style="' + th + 'text-align:right;">m/poste</th><th style="' + th + 'text-align:right;">Postes</th><th style="' + th + 'text-align:right;">Portones</th><th style="' + th + 'text-align:right;">Alambre</th><th style="' + th + '">Obs.</th></tr>';
+    m.filas.forEach(function (f) { h += '<tr><td style="' + td + '">' + esc(f.que) + '</td><td style="' + td + 'text-align:right;">' + n(f.metros) + '</td><td style="' + td + 'text-align:right;">' + n(f.mtsPoste, 1) + '</td><td style="' + td + 'text-align:right;">' + n(f.postes) + '</td><td style="' + td + 'text-align:right;">' + (f.portones || '—') + '</td><td style="' + td + 'text-align:right;">' + n(f.alambre) + ' m ' + (f.tipo === 'normal' ? 'normal' : 'eléctrico') + '</td><td style="' + td + 'color:#8C9196;">' + esc(f.nota || '') + '</td></tr>'; });
+    var t = m.total;
+    h += '</table><div style="font-size:12px;margin-top:8px;line-height:1.6;"><b>Resumen:</b> ' + n(t.postesNormales) + ' postes normales (2,5 m) · ' + n(t.postesElectricos) + ' postes intermedios / eléctricos (1,8 m) · ' + n(t.alambreNormal) + ' m de alambre normal (' + m.supuestos.hilosNormal + ' hilos) · ' + n(t.hiloElectrico) + ' m de hilo eléctrico (' + m.supuestos.hilosElectrico + ' hilo' + (m.supuestos.hilosElectrico > 1 ? 's' : '') + ') · ' + n(t.portones) + ' portones' + (t.gomas ? ' · ' + n(t.gomas) + ' gomas conductoras de ' + m.supuestos.gomaM + ' m (' + n(t.gomasM) + ' m) en los cruces de rueda (' + m.supuestos.torres + ' torres + extremo)' : ' · gomas: cargá las torres del pivot para contar los cruces de rueda') + '.</div>';
+    return h;
   }
   function fichaHTML(g, extra, estilo) {
     return '<div style="font-size:11.5px;color:#3A3E41;line-height:1.45;text-align:left;' + (estilo || '') + '">' + fichaModelo(g, extra).map(function (f) { return '<div><span style="color:#8C9196;">' + esc(f[0]) + ':</span> ' + esc(f[1]) + '</div>'; }).join('') + '</div>';
@@ -439,5 +497,5 @@
     return h;
   }
 
-  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, fichaModelo: fichaModelo, fichaHTML: fichaHTML, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
+  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, fichaModelo: fichaModelo, fichaHTML: fichaHTML, materiales: materiales, materialesHTML: materialesHTML, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
 })();

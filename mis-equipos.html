@@ -592,8 +592,26 @@
                       <div class="campo"><label>Lado de la plaza (m)</label><input type="number" id="pivote-piqPlazaLado" placeholder="SAFIA lo propone" step="1" min="0"><div class="ayuda">Si lo fijás (por ejemplo 75), manda sobre el cálculo. Se descuenta del pasto de los potreros vecinos.</div></div>
                     </div>
                     <input type="hidden" id="pivote-piqCentro">
+                    <div class="fila" id="piqFilaCentro">
+                      <div class="campo"><label>Radio del corralón central (m)</label><input type="number" id="pivote-piqPlazaRadio" placeholder="SAFIA lo propone" step="1" min="0"><div class="ayuda">Del centro del pivot al alambrado del corralón (Irrigar: 54,6 m en un pivot de 505 m). Se descuenta del pasto.</div></div>
+                      <div class="campo"><label>Callejón de acceso (m de ancho)</label><input type="number" id="pivote-piqCallejon" placeholder="0 = sin callejón" step="0.5" min="0"><div class="ayuda">Pasillo del centro al perímetro entre el último piquete y el 1.</div></div>
+                    </div>
+                    <details class="pliegue" id="pliegueInstalacion" style="margin-top:6px;">
+                      <summary>Cuadro de instalación <span class="pliegue-sub">alambre, postes, portones y gomas que lleva este modelo</span></summary>
+                      <div class="pliegue-cuerpo">
+                        <div class="fila">
+                          <div class="campo"><label>Hilos del alambrado perimetral</label><input type="number" id="pivote-piqHilosNormal" placeholder="4" step="1" min="1"></div>
+                          <div class="campo"><label>Postes perimetrales cada (m)</label><input type="number" id="pivote-piqPostePerimetro" placeholder="10" step="0.5" min="1"></div>
+                          <div class="campo"><label>Hilos eléctricos en las divisorias</label><input type="number" id="pivote-piqHilosElectrico" placeholder="1" step="1" min="1"></div>
+                          <div class="campo"><label>Postes eléctricos cada (m)</label><input type="number" id="pivote-piqPosteElectrico" placeholder="14" step="0.5" min="1"></div>
+                          <div class="campo"><label>Goma conductora por cruce (m)</label><input type="number" id="pivote-piqGomaM" placeholder="3" step="0.5" min="0"><div class="ayuda">Un cruce por torre del pivot, más el extremo. Las torres se cargan arriba.</div></div>
+                        </div>
+                        <div id="piqMateriales" style="margin-top:8px;overflow-x:auto;"></div>
+                      </div>
+                    </details>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
                       <button type="button" class="btn" onclick="piqPreset('irrigar32')">Modelo Irrigar 32 potreros</button>
+                      <button type="button" class="btn" onclick="piqPreset('irrigarPizza')">Modelo Irrigar 30 potreros (pizza con corralón)</button>
                       <button type="button" class="btn" onclick="piqPreset('pizza')">Volver a pizza</button>
                     </div>
                   </div>
@@ -1178,7 +1196,7 @@
 
     // ===== LÓGICA EXISTENTE =====
     const camposPorTipo = {
-      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','piqBebederos','piqPortones','piqPortonEntrada','piqPlazas','piqCentro','piqPlazaDonde','piqCarga','piqPlazaM2Animal','piqPlazaLado','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','piqBebederos','piqPortones','piqPortonEntrada','piqPlazas','piqCentro','piqPlazaDonde','piqCarga','piqPlazaM2Animal','piqPlazaLado','piqPlazaRadio','piqCallejon','piqHilosNormal','piqPostePerimetro','piqHilosElectrico','piqPosteElectrico','piqGomaM','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
       goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],
@@ -1280,7 +1298,8 @@
       const eq = editandoId ? JSON.parse(localStorage.getItem('equipos') || '[]').find(e => e.id === editandoId) : null;
       const campana = eq ? JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(eq.id) && c.estado === 'Activa') : null;
       const cultivo = campana && campana.cultivos ? campana.cultivos[0] : null;
-      const dt = { piqModelo: v('piqModelo'), piqSectores: v('piqSectores'), piqRadios: v('piqRadios'), piqBorde: v('piqBorde'), piqSentido: v('piqSentido'), piqNumeracion: v('piqNumeracion'), piquete1Angulo: v('piquete1Angulo'), angulo: v('angulo'), piqBebederos: v('piqBebederos'), piqPortones: v('piqPortones'), piqPortonEntrada: v('piqPortonEntrada'), piqPlazas: v('piqPlazas'), piqCentro: v('piqCentro'), piqPlazaDonde: v('piqPlazaDonde'), piqCarga: v('piqCarga'), piqPlazaM2Animal: v('piqPlazaM2Animal'), piqPlazaLado: v('piqPlazaLado') };
+      const dt = { piqModelo: v('piqModelo'), piqSectores: v('piqSectores'), piqRadios: v('piqRadios'), piqBorde: v('piqBorde'), piqSentido: v('piqSentido'), piqNumeracion: v('piqNumeracion'), piquete1Angulo: v('piquete1Angulo'), angulo: v('angulo'), piqBebederos: v('piqBebederos'), piqPortones: v('piqPortones'), piqPortonEntrada: v('piqPortonEntrada'), piqPlazas: v('piqPlazas'), piqCentro: v('piqCentro'), piqPlazaDonde: v('piqPlazaDonde'), piqCarga: v('piqCarga'), piqPlazaM2Animal: v('piqPlazaM2Animal'), piqPlazaLado: v('piqPlazaLado'), piqPlazaRadio: v('piqPlazaRadio'), piqCallejon: v('piqCallejon'), piqHilosNormal: v('piqHilosNormal'), piqPostePerimetro: v('piqPostePerimetro'), piqHilosElectrico: v('piqHilosElectrico'), piqPosteElectrico: v('piqPosteElectrico'), piqGomaM: v('piqGomaM'), torres: v('torres') };
+      document.getElementById('piqFilaCentro').style.display = v('piqPlazaDonde') === 'centro' || v('piqPlazaDonde') === '' ? '' : 'none';
       document.getElementById('piqFilaInfra').style.display = esAnillos ? '' : 'none';
       const donde = v('piqPlazaDonde'); document.getElementById('piqCampoPlazas').style.display = donde === 'afuera' ? '' : 'none'; document.getElementById('piqFilaPlaza').style.display = donde === 'portones' || donde === 'afuera' ? '' : 'none';
       const pol = poligonoAlGuardar(eq ? eq.poligono : null), largo = parseFloat(v('largo'));
@@ -1295,15 +1314,17 @@
       if (!centro.radio) extra.push(['Hectáreas', 'se calculan con el polígono o el largo del pivot']);
       if (cultivo && parseInt(cultivo.piquetes, 10) && parseInt(cultivo.piquetes, 10) !== g.param.n) extra.push(['Campaña', 'dice ' + parseInt(cultivo.piquetes, 10) + ' piquetes: SAFIA usa los ' + g.param.n + ' de este modelo']);
       txt.innerHTML = SafiaPiquetes.fichaHTML(g, extra); txt.style.textAlign = 'left';
+      const mat = document.getElementById('piqMateriales'); if (mat) mat.innerHTML = SafiaPiquetes.materialesHTML(g);
       if (sub) sub.textContent = desc;
     }
     function piqPreset(cual) {
       const set = (id, val) => { const el = document.getElementById('pivote-' + id); if (el) el.value = val; };
       if (cual === 'irrigar32') { set('piqModelo', 'anillos'); set('piqSectores', '16, 16'); set('piqRadios', '67'); set('piqBorde', 'recto2'); set('piquete1Angulo', '270'); set('piqSentido', ''); set('piqNumeracion', ''); set('piqBebederos', ''); set('piqPortones', ''); set('piqPortonEntrada', '270'); set('piqPlazas', ''); set('piqCentro', ''); set('piqPlazaDonde', 'portones'); }
+      else if (cual === 'irrigarPizza') { set('piqModelo', 'pizza'); set('piqSectores', '30'); set('piqRadios', ''); set('piqBorde', 'recto2'); set('piqSentido', 'antihorario'); set('piqNumeracion', ''); set('piqPlazaDonde', 'centro'); set('piqPlazaRadio', ''); set('piqCallejon', '8'); set('piqBebederos', 'ninguno'); set('piqPortones', 'ninguno'); if (!document.getElementById('pivote-piquete1Angulo').value) set('piquete1Angulo', '180'); }
       else { set('piqModelo', ''); set('piqSectores', ''); set('piqRadios', ''); set('piqBorde', 'recto2'); set('piqSentido', ''); set('piqNumeracion', ''); }
       piqVista();
     }
-    ['piqModelo', 'piqSectores', 'piqRadios', 'piqBorde', 'piqSentido', 'piqNumeracion', 'piquete1Angulo', 'angulo', 'largo', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro', 'piqPlazaDonde', 'piqCarga', 'piqPlazaM2Animal', 'piqPlazaLado'].forEach(id => { const el = document.getElementById('pivote-' + id); if (el) { el.addEventListener('input', piqVista); el.addEventListener('change', piqVista); } });
+    ['piqModelo', 'piqSectores', 'piqRadios', 'piqBorde', 'piqSentido', 'piqNumeracion', 'piquete1Angulo', 'angulo', 'largo', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro', 'piqPlazaDonde', 'piqCarga', 'piqPlazaM2Animal', 'piqPlazaLado', 'piqPlazaRadio', 'piqCallejon', 'piqHilosNormal', 'piqPostePerimetro', 'piqHilosElectrico', 'piqPosteElectrico', 'piqGomaM', 'torres'].forEach(id => { const el = document.getElementById('pivote-' + id); if (el) { el.addEventListener('input', piqVista); el.addEventListener('change', piqVista); } });
     document.getElementById('plieguePiquetes').addEventListener('toggle', piqVista);
     function revisarGps(avisar) {
       const inp = document.getElementById('gps'), ay = document.getElementById('gpsAyuda'), txt = inp.value.trim();
@@ -1431,7 +1452,7 @@
         });
       }
       const dt = equipo.datosTecnicos || {}, esen = (ESENCIALES_TIPO[equipo.tipo === 'microaspersion' ? 'goteo' : equipo.tipo] || []);
-      ['piqModelo', 'piqSectores', 'piqRadios', 'piqSentido', 'piqNumeracion', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro', 'piqCarga', 'piqPlazaM2Animal', 'piqPlazaLado'].forEach(k => { const el = document.getElementById('pivote-' + k); if (el && dt[k] === undefined) el.value = ''; });
+      ['piqModelo', 'piqSectores', 'piqRadios', 'piqSentido', 'piqNumeracion', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro', 'piqCarga', 'piqPlazaM2Animal', 'piqPlazaLado', 'piqPlazaRadio', 'piqCallejon', 'piqHilosNormal', 'piqPostePerimetro', 'piqHilosElectrico', 'piqPosteElectrico', 'piqGomaM'].forEach(k => { const el = document.getElementById('pivote-' + k); if (el && dt[k] === undefined) el.value = ''; });
       document.getElementById('pivote-piqPlazaDonde').value = dt.piqPlazaDonde || (dt.piqPlazas ? 'afuera' : (dt.piqCentro === 'no' ? 'ninguna' : 'centro'));
       if (dt.piqBorde === undefined) document.getElementById('pivote-piqBorde').value = 'recto2';
       document.getElementById('plieguePiquetes').open = !!(dt.piqModelo || dt.piqSectores); setTimeout(piqVista, 0);
