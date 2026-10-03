@@ -877,7 +877,7 @@
           </div>
           <div class="reco-detalle" id="recoDetalle">—</div>
         </div>
-        <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div></div>
+        <div class="card" id="fichaAguaCard" style="display:none;margin-top:12px;"><div id="fichaAgua"></div><div id="pulvPanel"></div></div>
 
         <div class="botones-carga" id="botonesCarga" style="display:none;">
           <button class="boton-carga boton-riego" onclick="abrirModal('riego')">
@@ -1028,6 +1028,7 @@
       </div>
 
       <div id="camposAplicacion" style="display:none;">
+        <div class="ayuda" id="pulvAhora" style="margin-bottom:10px;font-size:13px;line-height:1.4;"></div>
         <div class="campo">
           <label>🧪 Producto del catálogo <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional — para calcular N/P/K)</span></label>
           <select id="modalCatalogo" onchange="seleccionarProductoCatalogo()">
@@ -1117,6 +1118,7 @@
   <script src="safia-pasturas.js"></script>
 <script src="safia-piquetes.js"></script>
 <script src="safia-forraje.js"></script>
+<script src="safia-pulverizar.js"></script>
   <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
@@ -1333,6 +1335,9 @@
 
       const lat = coords.lat;
       const lon = coords.lon;
+      // Ventana para pulverizar (pronóstico por hora del lote), plegada al pie de la tarjeta del agua
+      window._pulvCoords = { lat, lon };
+      if (window.SafiaPulverizar) SafiaPulverizar.pintar('pulvPanel', lat, lon).catch(() => {});
 
       icono.textContent = '⏳';
       titulo.textContent = 'Consultando clima...';
@@ -1565,6 +1570,7 @@
         camposAplicacion.style.display = 'none';
       } else if (tipo === 'aplicacion') {
         titulo.innerHTML = '🧪 Cargar aplicación';
+        { const pa = document.getElementById('pulvAhora'); pa.innerHTML = ''; if (window.SafiaPulverizar && window._pulvCoords) SafiaPulverizar.ventanas(window._pulvCoords.lat, window._pulvCoords.lon).then(R => { pa.innerHTML = SafiaPulverizar.lineaAhora(R); }).catch(() => {}); }
         camposRiegoLluvia.style.display = 'none';
         camposAplicacion.style.display = 'block';
       } else if (tipo === 'pastoreo') {

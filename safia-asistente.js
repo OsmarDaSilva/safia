@@ -323,7 +323,11 @@
         base.ultimo_riego_cargado = ur ? { fecha: B.claveDia(ur.fecha), mm: num(ur.cantidad) } : null;
         base.ultima_lluvia_cargada = ul ? { fecha: B.claveDia(ul.fecha), mm: num(ul.cantidad) } : null;
         if (!c || num(c.latitud) == null || num(c.longitud) == null) return Object.assign(base, { error: 'El campo no tiene coordenada: no se puede traer el clima.' });
-        return clima(c).then(function (rc) {
+        // ventana para pulverizar (pronóstico por hora, límites de Embrapa Soja): hoy y los dos días siguientes
+        var pPulv = window.SafiaPulverizar ? SafiaPulverizar.ventanas(num(c.latitud), num(c.longitud)).then(function (R) { if (!R) return; var tr = function (l) { return l.map(function (x) { return x[0] + ' a ' + x[1] + ' h'; }); };
+          base.ventana_para_pulverizar = { ahora: R.ahora ? { estado: R.ahora.estado === 'verde' ? 'se puede' : R.ahora.estado === 'amarillo' ? 'con cuidado' : 'no pulverizar', motivos: R.ahora.motivos, temperatura: R.ahora.temp, humedad_pct: R.ahora.hr, viento_km_h_a_2m: R.ahora.viento } : null,
+            dias: R.dias.slice(0, 3).map(function (d) { return { fecha: d.fecha, horas_ideales: tr(d.ideal), horas_con_cuidado: tr(d.cuidado) }; }), limites: SafiaPulverizar.FUENTE + '; hasta 10 km/h con cuidado; es pronóstico: medir en el lote antes de salir; la espera entre aplicación y lluvia la dice la etiqueta del producto' }; }).catch(function () {}) : Promise.resolve();
+        return pPulv.then(function () { return clima(c); }).then(function (rc) {
           if (!rc || !rc.datos) return Object.assign(base, { error: 'No se pudo traer el clima (' + ((rc && rc.error && rc.error.tipo) || 'sin datos') + ').' });
           var d = rc.datos.daily, ks = d.time.map(B.claveDia), ih = ks.indexOf(hoyK); if (ih < 0) ih = 0;
           var pron = [];
