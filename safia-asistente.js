@@ -87,6 +87,8 @@
       .then(function (r) { refProd = r.data || []; return refProd; }, function () { return []; });
   }
   // El usuario nombra el campo por su nombre O por el del cliente ("Ganadera Angelita" es el cliente; su campo es "Estancia Primavera")
+  var DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  function diaSemana(f) { var d = new Date(String(f).slice(0, 10) + 'T12:00:00'); return isNaN(d) ? null : DIAS_SEM[d.getDay()]; }
   function nombreClienteDe(c) { var cl = propios('clientes').find(function (x) { return String(x.id) === String(c.clienteId); }); return cl ? (cl.nombre || cl.razonSocial || '') : ''; }
   function camposPorNombre(nombre) {
     var cs = propios('campos'); if (!nombre) return [];
@@ -326,12 +328,12 @@
         // ventana para pulverizar (pronóstico por hora, límites de Embrapa Soja): hoy y los dos días siguientes
         var pPulv = window.SafiaPulverizar ? SafiaPulverizar.ventanas(num(c.latitud), num(c.longitud)).then(function (R) { if (!R) return; var tr = function (l) { return l.map(function (x) { return x[0] + ' a ' + x[1] + ' h'; }); };
           base.ventana_para_pulverizar = { ahora: R.ahora ? { estado: R.ahora.estado === 'verde' ? 'se puede' : R.ahora.estado === 'amarillo' ? 'con cuidado' : 'no pulverizar', motivos: R.ahora.motivos, temperatura: R.ahora.temp, humedad_pct: R.ahora.hr, delta_t: R.ahora.deltaT, viento_km_h_a_2m: R.ahora.viento, rafagas_km_h_a_2m: R.ahora.rafaga } : null,
-            dias: R.dias.slice(0, 3).map(function (d) { return { fecha: d.fecha, horas_ideales: tr(d.ideal), horas_con_cuidado: tr(d.cuidado) }; }), limites: SafiaPulverizar.FUENTE + '; entre 6,5 y 13 km/h o con ráfagas de más de 13, con cuidado (13 = máximo de la guía de EE.UU.; INTA acepta hasta 15); Delta T ideal 2 a 8, nunca más de 10 (INTA Oliveros); es pronóstico: medir en el lote antes de salir; la espera entre aplicación y lluvia la dice la etiqueta del producto' }; }).catch(function () {}) : Promise.resolve();
+            dias: R.dias.slice(0, 3).map(function (d) { return { fecha: d.fecha, dia_de_la_semana: diaSemana(d.fecha), horas_ideales: tr(d.ideal), horas_con_cuidado: tr(d.cuidado) }; }), limites: SafiaPulverizar.FUENTE + '; entre 6,5 y 13 km/h o con ráfagas de más de 13, con cuidado (13 = máximo de la guía de EE.UU.; INTA acepta hasta 15); Delta T ideal 2 a 8, nunca más de 10 (INTA Oliveros); es pronóstico: medir en el lote antes de salir; la espera entre aplicación y lluvia la dice la etiqueta del producto' }; }).catch(function () {}) : Promise.resolve();
         return pPulv.then(function () { return clima(c); }).then(function (rc) {
           if (!rc || !rc.datos) return Object.assign(base, { error: 'No se pudo traer el clima (' + ((rc && rc.error && rc.error.tipo) || 'sin datos') + ').' });
           var d = rc.datos.daily, ks = d.time.map(B.claveDia), ih = ks.indexOf(hoyK); if (ih < 0) ih = 0;
           var pron = [];
-          for (var j = ih; j < ks.length && j < ih + 7; j++) pron.push({ fecha: ks[j], lluvia_mm: r1(d.precipitation_sum[j] || 0), prob_lluvia_pct: d.precipitation_probability_max ? d.precipitation_probability_max[j] : null, t_max: r0(d.temperature_2m_max && d.temperature_2m_max[j]), t_min: r0(d.temperature_2m_min && d.temperature_2m_min[j]), eto_mm: r1(d.et0_fao_evapotranspiration && d.et0_fao_evapotranspiration[j]) });
+          for (var j = ih; j < ks.length && j < ih + 7; j++) pron.push({ fecha: ks[j], dia_de_la_semana: diaSemana(ks[j]), lluvia_mm: r1(d.precipitation_sum[j] || 0), prob_lluvia_pct: d.precipitation_probability_max ? d.precipitation_probability_max[j] : null, t_max: r0(d.temperature_2m_max && d.temperature_2m_max[j]), t_min: r0(d.temperature_2m_min && d.temperature_2m_min[j]), eto_mm: r1(d.et0_fao_evapotranspiration && d.et0_fao_evapotranspiration[j]) });
           base.pronostico_7_dias = pron;
           base.lluvia_ultimos_7_dias_mm = r0(ks.reduce(function (s, k, j) { return s + (j < ih && j >= ih - 7 ? (d.precipitation_sum[j] || 0) : 0); }, 0));
           if (rc.desactualizado) base.aviso = 'Sin conexión al clima: datos guardados del ' + (rc.fechaCache || 'último día disponible') + '.';
@@ -688,7 +690,7 @@
   function contexto() {
     var u = (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) || {};
     var hoy = new Date();
-    return '[Contexto de SAFIA · fecha ' + (window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : (function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); })()) + ' · usuario ' + (u.nombre || '—') + ' (rol ' + (u.rol || '—') + ') · ' + propios('campos').length + ' campo(s) propio(s) · ' + casos().length + ' caso(s) en el banco visibles para este usuario' + (pivotsVencidos().length ? ' · lotes con la suscripción VENCIDA (no se analizan; si pregunta por ellos, decile que renueve con Irrigar): ' + pivotsVencidos().join(', ') : '') + ']';
+    return '[Contexto de SAFIA · fecha ' + (window.SafiaBalance && SafiaBalance.hoyLocal ? SafiaBalance.hoyLocal() : (function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); })()) + ' (hoy es ' + DIAS_SEM[new Date().getDay()] + ') · usuario ' + (u.nombre || '—') + ' (rol ' + (u.rol || '—') + ') · ' + propios('campos').length + ' campo(s) propio(s) · ' + casos().length + ' caso(s) en el banco visibles para este usuario' + (pivotsVencidos().length ? ' · lotes con la suscripción VENCIDA (no se analizan; si pregunta por ellos, decile que renueve con Irrigar): ' + pivotsVencidos().join(', ') : '') + ']';
   }
   function llamar() {
     if (!window.safiaSupabase) return Promise.reject(new Error('Sin conexión a SAFIA: iniciá sesión'));
