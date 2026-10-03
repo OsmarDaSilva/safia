@@ -84,6 +84,7 @@
     precios:         'safia_precios',
     evaluaciones:    'safia_evaluaciones',
     analisis_agua:   'safia_analisis_agua',
+    facturas_energia: 'safia_facturas_energia',
     suscripciones:   'safia_suscripciones'
   };
 
