@@ -648,8 +648,8 @@
     }
     var sueloOut = Object.assign({}, suelo, { CC: Math.round(suelo.cc / 100 * prmHoy.zr * 1000), PMP: Math.round(pmpHoy), AAU: Math.round(tawHoy), zr: prmHoy.zr, coefLluvia: 1 });
     // de dónde salió la lluvia de los últimos 30 días (para decirlo en la ficha y en el aviso)
-    var fl = { chirps: 0, modelo: 0, manual: 0, estacion: 0, mmModelo: 0, ultimoChirps: null }, ult30 = pasado.slice(-30);
-    ult30.forEach(function (d) { var f = d.fuenteLluvia === 'meteo' ? 'modelo' : d.fuenteLluvia; if (fl[f] != null) fl[f]++; if (f === 'modelo') fl.mmModelo += d.lluviaBruta || 0; if (f === 'chirps') fl.ultimoChirps = d.fecha; });
+    var fl = { chirps: 0, power: 0, modelo: 0, manual: 0, estacion: 0, mmModelo: 0, ultimoChirps: null, ultimoSatelite: null }, ult30 = pasado.slice(-30);
+    ult30.forEach(function (d) { var f = d.fuenteLluvia === 'meteo' ? 'modelo' : d.fuenteLluvia; if (fl[f] != null) fl[f]++; if (f === 'modelo') fl.mmModelo += d.lluviaBruta || 0; if (f === 'chirps') fl.ultimoChirps = d.fecha; if (f === 'chirps' || f === 'power') fl.ultimoSatelite = d.fecha; });
     fl.mmModelo = Math.round(fl.mmModelo); fl.dias = ult30.length;
     return {
       lluviaFuentes: fl,

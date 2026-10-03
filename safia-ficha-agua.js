@@ -140,7 +140,7 @@
     var bw = Math.max(2, gw / n * 0.6);
     pts.forEach(function (p, i) {
       var cx = x(i), base = H - mb + hb;
-      if (p.lluvia > 0) s += '<rect x="' + (cx - bw / 2) + '" y="' + (base - p.lluvia / maxMM * hb) + '" width="' + bw + '" height="' + (p.lluvia / maxMM * hb) + '" fill="' + COL.lleno + '" opacity="' + (p.futuro ? 0.45 : 0.85) + '"><title>' + fmtF(p.fecha) + ': lluvia ' + fmt(p.lluvia, 1) + ' mm' + (p.futuro || p.hoy ? ' (prevista por el modelo, no medida)' : p.fuente === 'manual' ? ' (pluviómetro)' : p.fuente === 'estacion' ? ' (estación)' : p.fuente === 'chirps' ? ' (satélite)' : ' (estimada por el modelo)') + '</title></rect>';
+      if (p.lluvia > 0) s += '<rect x="' + (cx - bw / 2) + '" y="' + (base - p.lluvia / maxMM * hb) + '" width="' + bw + '" height="' + (p.lluvia / maxMM * hb) + '" fill="' + COL.lleno + '" opacity="' + (p.futuro ? 0.45 : 0.85) + '"><title>' + fmtF(p.fecha) + ': lluvia ' + fmt(p.lluvia, 1) + ' mm' + (p.futuro || p.hoy ? ' (prevista por el modelo, no medida)' : p.fuente === 'manual' ? ' (pluviómetro)' : p.fuente === 'estacion' ? ' (estación)' : p.fuente === 'chirps' ? ' (satélite CHIRPS)' : p.fuente === 'power' ? ' (satélite IMERG, NASA)' : ' (estimada por el modelo)') + '</title></rect>';
       if (p.riego > 0) s += '<rect x="' + (cx - bw / 2) + '" y="' + (base - p.riego / maxMM * hb) + '" width="' + bw + '" height="' + (p.riego / maxMM * hb) + '" fill="' + COL.optimo + '" opacity="0.9"><title>' + fmtF(p.fecha) + ': riego ' + fmt(p.riego, 1) + ' mm</title></rect>';
     });
     s += '<text x="' + (ml - 4) + '" y="' + (H - mb + hb - 1) + '" font-size="9" text-anchor="end" fill="#8C9196">mm</text>';
@@ -168,7 +168,7 @@
     var hoy = (r.dias || []).find(function (d) { return d.esHoy; }), hoyMM = hoy ? Math.round(hoy.lluviaBruta || 0) : 0, hoyFuente = hoy ? hoy.fuenteLluvia : null;
     var partes = [];
     if (hoyMM > 0 && hoyFuente !== 'manual' && hoyFuente !== 'estacion') partes.push('<b>Hoy: ' + hoyMM + ' mm previstos por el modelo, no medidos.</b> Si en el campo no llovió, cargalo en Lluvia con 0 mm.');
-    if (fl.modelo) partes.push((fl.modelo === fl.dias ? 'Los últimos ' + fl.dias + ' días tienen' : 'De los últimos ' + fl.dias + ' días, ' + fl.modelo + ' tienen') + ' la lluvia estimada por el modelo (' + fl.mmModelo + ' mm)' + (fl.ultimoChirps ? ', el satélite llega hasta el ' + fmtF(fl.ultimoChirps) : '') + (fl.manual || fl.estacion ? '; ' + (fl.manual + fl.estacion) + ' con lluvia medida' : '; ninguno con pluviómetro') + '. Lo que cargue el operador manda sobre el modelo.');
+    if (fl.modelo) partes.push((fl.modelo === fl.dias ? 'Los últimos ' + fl.dias + ' días tienen' : 'De los últimos ' + fl.dias + ' días, ' + fl.modelo + ' tienen') + ' la lluvia estimada por el modelo (' + fl.mmModelo + ' mm)' + (fl.ultimoSatelite ? ', el satélite llega hasta el ' + fmtF(fl.ultimoSatelite) : '') + (fl.manual || fl.estacion ? '; ' + (fl.manual + fl.estacion) + ' con lluvia medida' : '; ninguno con pluviómetro') + '. Lo que cargue el operador manda sobre el modelo.');
     return partes.length ? '<div class="fa-resumen" style="color:#8a5713;">' + partes.join(' ') + '</div>' : '';
   }
 

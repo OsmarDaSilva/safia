@@ -85,16 +85,58 @@
     return c && c.d && c.d[fecha] != null ? c.d[fecha] : null;
   }
 
+  /* ---------- NASA POWER (satélite IMERG de la NASA, PRECTOTCORR): rellena el hueco hasta que CHIRPS publique ----------
+     Diario, sin clave, con 2 o 3 días de atraso, celda de 0,5° (unos 50 km: no distingue un campo del vecino). Precedencia por
+     día: estación o pluviómetro → CHIRPS → POWER → modelo de Open-Meteo. Caché por celda y mes; el mes en curso se vuelve a
+     pedir una vez por día (POWER va agregando días). Al publicarse CHIRPS, ese mes pasa a CHIRPS solo. */
+  var POWER = 'https://power.larc.nasa.gov/api/temporal/daily/point', PREF_P = 'safia_power1:';
+  function celdaP(v) { return (Math.round(v * 2) / 2).toFixed(1); }
+  function claveP(lat, lon, mes) { return PREF_P + celdaP(lat) + ',' + celdaP(lon) + ':' + mes; }
+  function mesPower(lat, lon, mes) { var c = leer(claveP(lat, lon, mes)); if (!c) return null; if (c.completo || (Date.now() - (c.ts || 0)) < DIA) return c; return null; }
+  function dePower(lat, lon, fecha) { var c = mesPower(lat, lon, fecha.slice(0, 7)); return c && c.d && c.d[fecha] != null ? c.d[fecha] : null; }
+  var enVueloP = {};
+  function completarPower(lat, lon, desde, hasta) {
+    var tope = iso(new Date(Date.now() - 2 * DIA)); if (hasta > tope) hasta = tope;
+    if (desde > hasta) return Promise.resolve(0);
+    var faltan = meses(desde, hasta).filter(function (m) { return !mesPower(lat, lon, m); });
+    if (!faltan.length) return Promise.resolve(0);
+    var d0 = faltan[0] + '-01', d1 = faltan[faltan.length - 1] + '-' + String(diasDelMes(faltan[faltan.length - 1])).padStart(2, '0'); if (d1 > tope) d1 = tope;
+    var k = celdaP(lat) + ',' + celdaP(lon) + '|' + d0 + '|' + d1;
+    if (enVueloP[k]) return enVueloP[k];
+    var q = '?parameters=PRECTOTCORR&community=AG&longitude=' + lon + '&latitude=' + lat + '&start=' + d0.replace(/-/g, '') + '&end=' + d1.replace(/-/g, '') + '&format=JSON';
+    enVueloP[k] = fetch(POWER + q).then(function (r) { if (!r.ok) throw new Error('POWER ' + r.status); return r.json(); }).then(function (j) {
+      var p = (j && j.properties && j.properties.parameter && j.properties.parameter.PRECTOTCORR) || {};
+      faltan.forEach(function (m) {
+        var d = {}, n = 0;
+        Object.keys(p).forEach(function (ymd) { var f = ymd.slice(0, 4) + '-' + ymd.slice(4, 6) + '-' + ymd.slice(6, 8); if (f.slice(0, 7) === m && p[ymd] != null && p[ymd] >= 0) { d[f] = Math.round(p[ymd] * 10) / 10; n++; } });
+        guardar(claveP(lat, lon, m), { d: d, completo: n >= diasDelMes(m), ts: Date.now() });
+      });
+      return faltan.length;
+    });
+    enVueloP[k].then(function () { delete enVueloP[k]; }, function () { delete enVueloP[k]; });
+    return enVueloP[k];
+  }
+
   // Reemplaza la lluvia de Open-Meteo por la de CHIRPS en los días que ya están guardados. No espera: lo que falta se pide
   // en segundo plano y queda para la próxima vez (así las pantallas de todos los días no se hacen lentas).
   function corregirSerie(lat, lon, fechas, lluvias) {
     lat = num(lat); lon = num(lon);
     var out = (lluvias || []).slice(), n = 0, fuentes = (fechas || []).map(function () { return null; });
     if (lat == null || lon == null || !fechas || !fechas.length || typeof localStorage === 'undefined') return { lluvia: out, nChirps: 0, fuentes: fuentes };
-    fechas.forEach(function (f, i) { var v = deCache(lat, lon, f); if (v != null) { out[i] = v; n++; fuentes[i] = 'chirps'; } });
+    var nP = 0;
+    fechas.forEach(function (f, i) {
+      var v = deCache(lat, lon, f); if (v != null) { out[i] = v; n++; fuentes[i] = 'chirps'; return; }   // CHIRPS manda cuando publicó el mes
+      var w = dePower(lat, lon, f); if (w != null) { out[i] = w; nP++; fuentes[i] = 'power'; }           // si no, el satélite IMERG (NASA POWER)
+    });
     var hoy = hoyISO(), pasadas = fechas.filter(function (f) { return f < hoy; });
-    if (pasadas.length) completar(lat, lon, pasadas[0], pasadas[pasadas.length - 1]).catch(function () {});
-    return { lluvia: out, nChirps: n, fuentes: fuentes };
+    if (pasadas.length) {
+      completar(lat, lon, pasadas[0], pasadas[pasadas.length - 1]).catch(function () {});
+      // POWER solo para los días que CHIRPS no tiene: desde el día siguiente al último CHIRPS guardado
+      var ultC = null; pasadas.forEach(function (f) { if (deCache(lat, lon, f) != null) ultC = f; });
+      var d0 = ultC ? iso(new Date(new Date(ultC + 'T12:00:00Z').getTime() + DIA)) : pasadas[0];
+      if (d0 <= pasadas[pasadas.length - 1]) completarPower(lat, lon, d0, pasadas[pasadas.length - 1]).catch(function () {});
+    }
+    return { lluvia: out, nChirps: n + nP, nPower: nP, fuentes: fuentes };
   }
 
   // Serie diaria completa esperando a CHIRPS (para totales de campañas, clima del ciclo, cargar lluvias al historial)
@@ -125,11 +167,11 @@
     });
   }
   function fuenteTexto(nC, nO) {
-    if (nC && !nO) return 'CHIRPS (satélite + estaciones)';
-    if (nC) return 'CHIRPS (satélite + estaciones) y Open-Meteo en los ' + nO + ' días más recientes';
+    if (nC && !nO) return 'satélite (CHIRPS, y NASA POWER en los días que CHIRPS no publicó)';
+    if (nC) return 'satélite (CHIRPS y NASA POWER) y Open-Meteo en los ' + nO + ' días más recientes';
     return 'Open-Meteo';
   }
   var NOTA = 'Lluvia: CHIRPS (satélite + estaciones), la fuente que mejor coincide con lo medido por la Dirección de Meteorología en el Chaco y en la Oriental; sale con unas 4 semanas de atraso, así que los días recientes y el pronóstico vienen de Open-Meteo. La estación del campo o la lluvia cargada a mano siempre mandan.';
 
-  window.SafiaLluvia = { corregirSerie: corregirSerie, diaria: diaria, total: total, completar: completar, fuenteTexto: fuenteTexto, NOTA: NOTA };
+  window.SafiaLluvia = { completarPower: completarPower, corregirSerie: corregirSerie, diaria: diaria, total: total, completar: completar, fuenteTexto: fuenteTexto, NOTA: NOTA };
 })();
