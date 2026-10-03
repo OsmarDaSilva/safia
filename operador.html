@@ -900,6 +900,10 @@
             <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18"/><path d="M6 6h3M6 10h4M6 14h3M6 18h4"/><path d="M13 21c2-4 3-8 3-12M17 21c2-5 2-9 2-13"/></svg></div>
             <div class="boton-carga-label">Altura del pasto</div>
           </button>
+          <button class="boton-carga boton-aplicacion" id="btnPesada" style="display:none;" onclick="abrirModal('pesada')">
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 14V9a5 5 0 0 1 10 0v5"/><path d="M12 9v3"/></svg></div>
+            <div class="boton-carga-label">Pesada</div>
+          </button>
         </div>
         <div id="pasturaPanel" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:12px 14px;"></div>
 
@@ -975,6 +979,51 @@
           <div id="lecMedidas" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;"></div>
           <button type="button" class="btn" style="margin-top:6px;padding:6px 10px;font-size:12px;" onclick="agregarMedidas(5)">+ 5 medidas más</button>
           <div class="ayuda" id="lecResumen" style="margin-top:6px;font-size:13px;"></div>
+        </div>
+      </div>
+
+      <div id="camposPesada" style="display:none;">
+        <div class="campo">
+          <label>Qué es</label>
+          <select id="pesMotivo">
+            <option value="control">Pesada de control (el mismo lote)</option>
+            <option value="ingreso">Ingreso de un lote nuevo al pivot</option>
+            <option value="salida">Salida del lote (venta o retiro)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label>Cabezas</label>
+          <input type="number" id="pesCabezas" placeholder="Ej: 450" min="0">
+        </div>
+        <div class="campo">
+          <label>Peso promedio (kg por animal)</label>
+          <input type="number" id="pesPeso" placeholder="Ej: 320" min="0" step="0.1">
+          <div class="ayuda" id="pesAyuda" style="margin-top:4px;"></div>
+        </div>
+      </div>
+
+      <div id="camposCalibracion" style="display:none;">
+        <div class="ayuda" style="margin-bottom:8px;line-height:1.4;">Método del cuadrado (Embrapa): tirar el marco al azar en 10 lugares del piquete, medir la altura adentro de cada marco, cortar todo el pasto del marco al ras, juntarlo y pesarlo. De esa muestra, secar 100 g en el microondas para sacar el % de materia seca.</div>
+        <div class="campo">
+          <label>Piquete donde se cortó</label>
+          <input type="text" id="calPiquete" placeholder="Ej: 7">
+        </div>
+        <div class="campo">
+          <label>Altura promedio adentro de los marcos (cm)</label>
+          <input type="number" id="calAltura" placeholder="Ej: 78" min="0" step="0.1" oninput="resumenCalibracion()">
+        </div>
+        <div class="campo" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><label>Cantidad de marcos</label><input type="number" id="calMarcos" value="10" min="1" step="1" oninput="resumenCalibracion()"></div>
+          <div><label>Lado del marco (m)</label><input type="number" id="calLado" value="0.5" min="0.1" step="0.05" oninput="resumenCalibracion()"></div>
+        </div>
+        <div class="campo">
+          <label>Peso verde de todo lo cortado (gramos)</label>
+          <input type="number" id="calVerde" placeholder="Ej: 4200" min="0" step="1" oninput="resumenCalibracion()">
+        </div>
+        <div class="campo">
+          <label>Materia seca (%) <span style="color:#aaa;font-weight:400;font-size:11px;">(100 g al microondas: lo que queda en gramos es el %)</span></label>
+          <input type="number" id="calMs" placeholder="Ej: 22" min="1" max="100" step="0.1" oninput="resumenCalibracion()">
+          <div class="ayuda" id="calResumen" style="margin-top:6px;font-size:13px;"></div>
         </div>
       </div>
 
@@ -1067,6 +1116,7 @@
   <script src="safia-sensores.js"></script>
   <script src="safia-pasturas.js"></script>
 <script src="safia-piquetes.js"></script>
+<script src="safia-forraje.js"></script>
   <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
@@ -1203,6 +1253,7 @@
       const esPastura = window.SafiaPasturas && SafiaPasturas.esPastura(primerCultivo.cultivo);
       const bp = document.getElementById('btnPastoreo'); if (bp) bp.style.display = esPastura ? '' : 'none';
       const bl = document.getElementById('btnLectura'); if (bl) bl.style.display = esPastura ? '' : 'none';
+      const bpe = document.getElementById('btnPesada'); if (bpe) bpe.style.display = esPastura ? '' : 'none';
       setTimeout(pintarPanelPastura, 0);
       if (esPastura) { metaTexto = metaTexto.replace('días desde siembra', 'días desde la implantación') + SafiaPasturas.htmlOperador(equipoSeleccionadoId, primerCultivo); }
 
@@ -1495,6 +1546,8 @@
       document.getElementById('modalObservaciones').value = '';
       document.getElementById('camposPastoreo').style.display = 'none';
       document.getElementById('camposLectura').style.display = 'none';
+      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none';
+      ['pesCabezas', 'pesPeso', 'calPiquete', 'calAltura', 'calVerde', 'calMs'].forEach(id => { document.getElementById(id).value = ''; }); document.getElementById('pesMotivo').value = 'control';
       document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
 
@@ -1524,6 +1577,21 @@
         if (ult && ult.accion === 'entrada') { document.getElementById('modalAccion').value = 'salida'; document.getElementById('modalPiquete').value = ult.piquete || ''; }
         else if (ult && /^\d+$/.test(String(ult.piquete || ''))) { document.getElementById('modalAccion').value = 'entrada'; document.getElementById('modalPiquete').value = String(parseInt(ult.piquete, 10) + 1); }
         avisoAlturaPasto();
+      } else if (tipo === 'pesada') {
+        titulo.innerHTML = 'Pesada del lote';
+        camposRiegoLluvia.style.display = 'none';
+        camposAplicacion.style.display = 'none';
+        document.getElementById('camposPesada').style.display = 'block';
+        const lt = SafiaForraje.loteActual(equipoSeleccionadoId), nP = SafiaForraje.pesadas(equipoSeleccionadoId).length;
+        if (lt.cabezas) document.getElementById('pesCabezas').value = lt.cabezas;
+        if (!nP || lt.salio) document.getElementById('pesMotivo').value = 'ingreso';
+        document.getElementById('pesAyuda').textContent = lt.pesoKg ? 'Última pesada: ' + lt.pesoKg + ' kg el ' + String(lt.fecha).slice(8, 10) + '/' + String(lt.fecha).slice(5, 7) + '. Con esta SAFIA calcula la ganancia diaria y los kg de carne por hectárea.' : 'Primera pesada del lote: es el punto de partida. Con la siguiente SAFIA calcula la ganancia diaria y los kg de carne por hectárea.';
+      } else if (tipo === 'calibracion') {
+        titulo.innerHTML = 'Calibrar el pasto: corte de muestra';
+        camposRiegoLluvia.style.display = 'none';
+        camposAplicacion.style.display = 'none';
+        document.getElementById('camposCalibracion').style.display = 'block';
+        resumenCalibracion();
       } else if (tipo === 'lectura') {
         titulo.innerHTML = 'Lectura de altura del pasto';
         camposRiegoLluvia.style.display = 'none';
@@ -1568,6 +1636,22 @@
       return '<span style="font-weight:500;text-transform:none;letter-spacing:0;color:#8C9196;">' + desc.replace(/</g, '&lt;') + '</span>' +
         (esIrrigar ? '<a href="mis-equipos.html?editar=' + encodeURIComponent(eq.id) + '&piquetes=1" style="font-weight:700;text-transform:none;letter-spacing:0;color:#1565C0;text-decoration:none;">Cambiar el modelo de piquetes</a>' : '');
     }
+    function calibracionLeida() {
+      const v = id => parseFloat(document.getElementById(id).value), altura = v('calAltura'), marcos = v('calMarcos'), lado = v('calLado'), verde = v('calVerde'), ms = v('calMs');
+      const kg = SafiaForraje.kgMsDeCorte(verde, marcos, lado, ms);
+      return { altura, marcos, lado, verde, ms, kg, kgCm: kg && altura > 0 ? kg / altura : null };
+    }
+    function resumenCalibracion() {
+      const c = calibracionLeida(), el = document.getElementById('calResumen'); if (!el) return;
+      el.innerHTML = c.kg ? '<b>' + c.kg.toLocaleString('es-PY') + ' kg MS/ha</b>' + (c.kgCm ? ' = <b>' + Math.round(c.kgCm) + ' kg MS/ha por cada cm</b> de altura. Desde ahora SAFIA usa este número para este pivot.' : '') : 'kg MS/ha = kg verde por m² × % de materia seca × 10.000 (Embrapa, método del cuadrado).';
+    }
+    function pintarForraje(camp, eq) {
+      const el = document.getElementById('forrajePanel'); if (!el || !window.SafiaForraje || !eq) return;
+      const campo = JSON.parse(localStorage.getItem('campos') || '[]').find(c => String(c.id) === String(eq.campoId)) || null;
+      const pintar = filas => { el.innerHTML = SafiaForraje.htmlPanel(eq, camp, { campo, filasRef: filas, onCalibrar: "abrirModal('calibracion')" }); };
+      pintar(null);
+      SafiaPasturas.cargarReferencia().then(pintar).catch(() => {});
+    }
     function pintarPanelPastura() {
       const panel = document.getElementById('pasturaPanel'); if (!panel) return;
       const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null;
@@ -1587,9 +1671,10 @@
         tarjeta('Animales hoy', ocup ? 'Piquete ' + ocup.piquete : 'Sin entrada cargada', ocup ? (diasAdentro != null ? 'día ' + (diasAdentro + 1) + (diasOcup ? ' de ' + diasOcup : '') + (diasOcup && diasAdentro + 1 >= diasOcup ? ' · <b style=\'color:#8a5713;\'>hoy toca rotar</b>' : '') : '') + (ocup.altura && stHoy.ref && ocup.altura <= stHoy.ref.salida ? ' · <b style=\'color:#B5371C;\'>en altura de salida: sacarlos</b>' : '') + acceso(ocup.piquete) : 'Cargá la entrada con el botón Pastoreo', ocup ? '#2E72C8' : '#8C9196') +
         tarjeta('Próximo piquete', proximo ? 'Piquete ' + proximo : (casi ? 'Piquete ' + casi.piquete : '—'), proximo ? 'a punto por altura' + (stHoy.ref ? ' (meta ' + stHoy.ref.entrada + ' cm)' : '') + acceso(proximo) : (casi ? casi.texto + acceso(casi.piquete) : 'medí la altura de los piquetes que descansaron más'), proximo ? '#178029' : '#B8731A') +
         tarjeta('Riego hoy', sinR && sinR.ocupado ? 'Saltar ' + (sinR.texto || (sinR.grados[0] + '° a ' + sinR.grados[1] + '°')) : 'Todo el pivot', sinR && sinR.ocupado ? 'no regar piquetes ' + sinR.piquetes.join(', ') + ' (ocupado y 3 siguientes); el resto según el agua en el suelo' : 'sin animales adentro cargados: regar según el agua en el suelo', '#2E72C8') + '</div>';
-      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pastura hoy</div>' + hoyHtml + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">Piquetes' + enlaceModeloPiquetes(eqHoy, camp) + '</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
+      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pastura hoy</div>' + hoyHtml + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pasto en kilos y carne</div><div id="forrajePanel" style="margin-bottom:12px;"></div><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">Piquetes' + enlaceModeloPiquetes(eqHoy, camp) + '</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
         '<div id="piquetesSat" style="margin-top:10px;border-top:1px solid #EEF0F2;padding-top:8px;"></div>' + SafiaPasturas.htmlGuia(ref);
       pintarPiquetesSatelite(camp);
+      pintarForraje(camp, eqHoy);
     }
     // Vigor satelital por piquete: primero lo guardado (rápido), después pide las pasadas nuevas
     function pintarPiquetesSatelite(camp) {
@@ -1645,6 +1730,21 @@
         if (!piquete) { mostrarToast('Cargá el piquete que mediste.'); return; }
         if (!m.length) { mostrarToast('Cargá al menos una medida en cm.'); return; }
         evento.piquete = piquete; evento.medidas = m; evento.alturaCm = SafiaPasturas.promedio(m);
+
+      } else if (tipoEventoActual === 'pesada') {
+        const cab = parseFloat(document.getElementById('pesCabezas').value), peso = parseFloat(document.getElementById('pesPeso').value);
+        if (!(cab > 0)) { mostrarToast('Cargá cuántas cabezas se pesaron.'); return; }
+        if (!(peso > 0)) { mostrarToast('Cargá el peso promedio en kg.'); return; }
+        if (peso < 30 || peso > 1200) { mostrarToast('Revisá el peso promedio: ' + peso + ' kg por animal no parece correcto.'); return; }
+        evento.motivo = document.getElementById('pesMotivo').value; evento.cabezas = cab; evento.pesoKg = peso;
+
+      } else if (tipoEventoActual === 'calibracion') {
+        const c = calibracionLeida();
+        if (!(c.altura > 0)) { mostrarToast('Cargá la altura promedio adentro de los marcos.'); return; }
+        if (!c.kg) { mostrarToast('Cargá los marcos, el peso verde y el % de materia seca.'); return; }
+        if (c.kgCm < 15 || c.kgCm > 300) { mostrarToast('Revisá los datos: ' + Math.round(c.kgCm) + ' kg MS/ha por cm no parece correcto.'); return; }
+        evento.piquete = document.getElementById('calPiquete').value.trim() || null; evento.alturaCm = c.altura; evento.kgMsHa = c.kg;
+        evento.marcos = c.marcos; evento.ladoM = c.lado; evento.pesoVerdeG = c.verde; evento.msPct = c.ms;
 
       } else if (tipoEventoActual === 'pastoreo') {
         const piquete = document.getElementById('modalPiquete').value.trim();
@@ -1763,6 +1863,14 @@
           icono = '📏';
           titulo = 'Altura piquete ' + (ev.piquete || '?') + ': ' + ev.alturaCm + ' cm';
           detalle = `${diaSemana} ${fechaStr} · ${(ev.medidas || []).length} medida${(ev.medidas || []).length === 1 ? '' : 's'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'pesada') {
+          icono = '🐄';
+          titulo = (ev.motivo === 'ingreso' ? 'Ingreso del lote' : ev.motivo === 'salida' ? 'Salida del lote' : 'Pesada') + ': ' + ev.cabezas + ' cab. de ' + ev.pesoKg + ' kg';
+          detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+        } else if (ev.tipo === 'calibracion') {
+          icono = '📏';
+          titulo = 'Corte de muestra: ' + ev.kgMsHa + ' kg MS/ha a ' + ev.alturaCm + ' cm';
+          detalle = `${diaSemana} ${fechaStr} · ${Math.round(ev.kgMsHa / ev.alturaCm)} kg MS/ha por cm${ev.piquete ? ' · piquete ' + ev.piquete : ''}`;
         } else if (ev.tipo === 'pastoreo') {
           icono = '🐄';
           titulo = (ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte') + ' · piquete ' + (ev.piquete || '?') + (ev.cabezas ? ' · ' + ev.cabezas + ' cab.' : '') + (ev.kgMsHa ? ' · ' + ev.kgMsHa + ' kg MS/ha' : '');

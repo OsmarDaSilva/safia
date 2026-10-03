@@ -40,3 +40,16 @@ Cada entrada de animales o corte puede llevar el **forraje ofrecido en kg MS/ha*
 - Kc por rebrote de cada piquete (FAO-56 permite calcular el efecto de cada corte individualmente): SAFIA usa el promedio del mosaico, que es lo correcto para el pivote entero.
 - Fertilización nitrogenada por pastoreo y meta de rinde de forraje con recetario (como el Motor 8 de granos).
 - Carga animal y balance forrajero (oferta vs demanda del rodeo).
+
+## Pasto en kilos y carne producida (3-oct-2026, safia-forraje.js)
+
+Fuentes leídas en el documento original:
+
+- **Altura → kg MS/ha (Panicum):** Jank et al. 2017, Embrapa Gado de Corte, Comunicado Técnico 138 (BRS Quênia), Tabela 10, p. 14. Quênia 3.342 kg MS/ha a 61,8 cm y 3.267 a 52,9 cm; Tanzânia 4.352 a 74,6 cm y 3.581 a 58,7 cm → 54 a 62 kg MS/ha por cm (cálculo masa ÷ altura; no es una ecuación publicada). SAFIA usa 58 como valor orientativo.
+- **Altura → kg MS/ha (Brachiaria):** Barioni & Ferreira 2007, Embrapa Cerrados, Boletim de Pesquisa e Desenvolvimento 191, Tabela 2, p. 18: altura = 0,009 × masa − 1,59 (R² 0,71); pendiente 0,008 a 0,014 según el mes → ≈ 111 kg MS/ha por cm (71 a 125).
+- **Lado animal:** Martha Jr. et al. 2003, Embrapa Cerrados, Comunicado Técnico 101: UA = 450 kg; consumo 2,2 % del peso vivo; eficiencia de pastoreo 45/50/55/55 % según intensificación (SAFIA usa 55 %); acumulación = (masa pre − masa post anterior) ÷ días.
+- **Arroba:** 30 kg de peso vivo (CT 138, p. 14: 860 kg PV/ha = 28,7 @).
+- **Referencia de carne en secano:** CT 138, Tabela 8: Mombaça 834 y BRS Quênia 975 kg de peso vivo/ha/año (rotativo, Campo Grande).
+- **Calibración en el campo:** Salman 2006, Embrapa Rondônia, "Método do quadrado" (marco 0,5 × 0,5 m; kg MS/ha = kg verde/m² × % MS × 10.000); materia seca en microondas: Oliveira et al. 2015, Embrapa Gado de Leite, Comunicado Técnico 77.
+
+No verificado / no existe: ecuación altura–masa propia de BRS Zuri, Tamani, Massai o Tifton 85 (por eso el factor de tabla es orientativo y la calibración del campo manda); ensayo publicado de kg de carne/ha bajo pivot con pasto tropical; datos de lanzamiento de BRS Zuri (Com. Téc. 163, no se pudo abrir). El crecimiento mensual de referencia (regada y secano) es la base de forraje de Irrigar (tabla safia_ref_forraje_mensual).
