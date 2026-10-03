@@ -141,6 +141,8 @@ const CONDUCTOR = `
       titulo = P + (pv && pv.arrancarEl ? ' · arrancar el pivot el ' + corta(pv.arrancarEl) : ' · hoy no regar');
       cuerpo = 'Cerca del punto de arranque (' + U.CRITICO + ' %).' + vence + vuelta + lluviaTxt;
     }
+    var fl = r.lluviaFuentes; if (fl && fl.modelo && fl.mmModelo >= 5 && !fl.manual && !fl.estacion) cuerpo += ' Lluvia reciente estimada por el modelo (' + fl.mmModelo + ' mm en ' + fl.modelo + ' días): cargá el pluviómetro.';
+    out.estado.lluviaFuentes = fl || null;
     out.avisos.push({ tipo: 'riego', nivel: nivel, titulo: titulo, cuerpo: cuerpo });
     return out;
   };

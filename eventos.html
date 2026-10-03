@@ -308,7 +308,7 @@
           SafiaClima.obtenerClima({ lat: lat, lon: lon, daily: 'precipitation_sum', pastDays: Math.max(1, dias), forecastDays: 1, cacheKey: 'lluvia-eventos:' + c.id }).then(r => {
             const d = r && r.datos && r.datos.daily;
             if (!d || !d.time) { reg.estado = 'error'; aplicarFiltros(); return; }
-            reg.dias = d.time.map((f, i) => ({ fecha: String(f).slice(0, 10), mm: d.precipitation_sum[i] })).filter(x => x.mm != null && x.mm >= 1);
+            reg.dias = d.time.map((f, i) => ({ fecha: String(f).slice(0, 10), mm: d.precipitation_sum[i], fuente: d.lluvia_fuente ? d.lluvia_fuente[i] : null })).filter(x => x.mm != null && x.mm >= 1);
             reg.estado = 'ok'; aplicarFiltros();
           }, () => { reg.estado = 'error'; aplicarFiltros(); });
         }
@@ -317,7 +317,7 @@
         // días que ya tienen lluvia cargada en algún lote del campo (o en el lote filtrado): ahí manda lo cargado
         const lotes = equipos.filter(e => String(e.campoId) === String(c.id) && (!eqFiltro || e.id === eqFiltro.id)).map(e => String(e.id)), yaTiene = {};
         eventos.forEach(e => { if (e.tipo === 'lluvia' && lotes.indexOf(String(e.equipoId)) >= 0) yaTiene[String(e.fecha).slice(0, 10)] = 1; });
-        reg.dias.forEach(x => { if (x.fecha >= desde && x.fecha <= hoy && !yaTiene[x.fecha]) out.filas.push({ id: 'auto-' + c.id + '-' + x.fecha, virtual: true, tipo: 'lluvia', fecha: x.fecha, campoId: c.id, equipoId: eqFiltro ? eqFiltro.id : null, cantidad: Math.round(x.mm * 10) / 10 }); });
+        reg.dias.forEach(x => { if (x.fecha >= desde && x.fecha <= hoy && !yaTiene[x.fecha]) out.filas.push({ id: 'auto-' + c.id + '-' + x.fecha, virtual: true, tipo: 'lluvia', fecha: x.fecha, campoId: c.id, equipoId: eqFiltro ? eqFiltro.id : null, cantidad: Math.round(x.mm * 10) / 10, fuenteLluvia: x.fuente || (x.fecha < hoy ? 'modelo' : 'pronostico') }); });
       });
       return out;
     }
@@ -412,7 +412,7 @@
 
         let badgeClase, tipoLabel, cantidad, prodSub = '';
         if (ev.tipo === 'riego') { badgeClase = 'green'; tipoLabel = 'Riego'; cantidad = `${ev.cantidad} mm`; }
-        else if (ev.tipo === 'lluvia') { badgeClase = 'blue'; tipoLabel = 'Lluvia'; cantidad = `${ev.cantidad} mm`; }
+        else if (ev.tipo === 'lluvia') { badgeClase = 'blue'; tipoLabel = ev.virtual ? (ev.fuenteLluvia === 'chirps' ? 'Lluvia satélite' : ev.fuenteLluvia === 'pronostico' ? 'Lluvia prevista' : 'Lluvia estimada') : (parseFloat(ev.cantidad) === 0 ? 'No llovió' : 'Lluvia'); cantidad = `${ev.cantidad} mm`; if (ev.virtual && ev.fuenteLluvia !== 'chirps') badgeClase = 'amber'; }
         else if (ev.tipo === 'horimetro') { badgeClase = 'muted'; tipoLabel = 'Horímetro'; cantidad = (ev.cantidad != null && ev.cantidad !== '' ? Number(ev.cantidad).toLocaleString('es-PY') : '—') + ' h'; prodSub = '<div class="sub">' + ({ pivote: 'Pivot', bomba: 'Bomba', canon: 'Cañón final' }[ev.contador] || 'Pivot') + '</div>'; }
         else if (ev.tipo === 'mantenimiento') { badgeClase = 'muted'; tipoLabel = 'Mantenimiento'; cantidad = ev.horasEquipo != null && ev.horasEquipo !== '' ? Number(ev.horasEquipo).toLocaleString('es-PY') + ' h' : '—'; prodSub = ev.tarea ? '<div class="sub">' + textoSeguro(ev.tarea) + '</div>' : ''; }
         else if (ev.tipo === 'lectura') { badgeClase = 'green'; tipoLabel = 'Altura del pasto'; cantidad = (ev.alturaCm || '—') + ' cm'; prodSub = '<div class="sub">piquete ' + (ev.piquete || '?') + ' · ' + ((ev.medidas || []).length) + ' medidas</div>'; }
@@ -420,7 +420,7 @@
         else { badgeClase = 'amber'; tipoLabel = 'Aplicación'; cantidad = `${ev.dosis || ''} ${ev.unidad || ''}`.trim() || '—'; prodSub = ev.producto ? `<div class="sub">${ev.producto}</div>` : ''; }
 
         const origenBadge = ev.virtual
-          ? '<span class="badge info" title="Lluvia del servicio de clima: satélite CHIRPS en los días ya publicados y el modelo del clima en los últimos. Es la que usa el balance de agua. No está guardada: si cargás la del pluviómetro para ese día, manda la tuya.">Clima · automática</span>'
+          ? (ev.fuenteLluvia === 'chirps' ? '<span class="badge info" title="Lluvia del satélite CHIRPS (con estaciones). Es la que usa el balance. Si cargás la del pluviómetro para ese día, manda la tuya.">Satélite CHIRPS</span>' : ev.fuenteLluvia === 'pronostico' ? '<span class="badge amber" title="Lluvia que el modelo del clima prevé para el día: NO está medida. Si no llovió, cargá 0 mm en el Operador.">Prevista · modelo</span>' : '<span class="badge amber" title="El satélite todavía no publicó este día (sale con un mes de atraso): la lluvia es la que estima el modelo del clima, NO medida. Si tenés pluviómetro, cargá la real y manda la tuya.">Estimada · modelo</span>')
           : ev.cargadoPor && ['voz', 'meteo', 'estacion', 'manual'].indexOf(ev.cargadoPor) < 0
           ? '<span class="badge muted" title="' + textoSeguro(ev.cargadoPor) + '">' + textoSeguro(String(ev.cargadoPor).split('(')[0].trim().slice(0, 22)) + '</span>'
           : ev.cargadoPor === 'voz'

@@ -89,12 +89,12 @@
   // en segundo plano y queda para la próxima vez (así las pantallas de todos los días no se hacen lentas).
   function corregirSerie(lat, lon, fechas, lluvias) {
     lat = num(lat); lon = num(lon);
-    var out = (lluvias || []).slice(), n = 0;
-    if (lat == null || lon == null || !fechas || !fechas.length || typeof localStorage === 'undefined') return { lluvia: out, nChirps: 0 };
-    fechas.forEach(function (f, i) { var v = deCache(lat, lon, f); if (v != null) { out[i] = v; n++; } });
+    var out = (lluvias || []).slice(), n = 0, fuentes = (fechas || []).map(function () { return null; });
+    if (lat == null || lon == null || !fechas || !fechas.length || typeof localStorage === 'undefined') return { lluvia: out, nChirps: 0, fuentes: fuentes };
+    fechas.forEach(function (f, i) { var v = deCache(lat, lon, f); if (v != null) { out[i] = v; n++; fuentes[i] = 'chirps'; } });
     var hoy = hoyISO(), pasadas = fechas.filter(function (f) { return f < hoy; });
     if (pasadas.length) completar(lat, lon, pasadas[0], pasadas[pasadas.length - 1]).catch(function () {});
-    return { lluvia: out, nChirps: n };
+    return { lluvia: out, nChirps: n, fuentes: fuentes };
   }
 
   // Serie diaria completa esperando a CHIRPS (para totales de campañas, clima del ciclo, cargar lluvias al historial)

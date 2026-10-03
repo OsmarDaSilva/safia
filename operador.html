@@ -933,6 +933,7 @@
         <div class="campo">
           <label id="labelCantidad">💧 Cantidad (mm)</label>
           <input type="number" id="modalCantidad" placeholder="Ej: 14" step="0.1">
+          <div id="modalSinLluvia" style="display:none;margin-top:6px;"><button type="button" class="btn" style="padding:7px 10px;font-size:12px;" onclick="document.getElementById('modalCantidad').value='0';guardarEvento();">Hoy no llovió acá (0 mm)</button><div class="ayuda" style="margin-top:4px;">Con 0 mm le decís a SAFIA que el pluviómetro manda sobre la lluvia que estima el modelo para ese día.</div></div>
         </div>
       </div>
 
@@ -1494,6 +1495,7 @@
       document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
 
+      document.getElementById('modalSinLluvia').style.display = 'none';
       if (tipo === 'riego') {
         titulo.innerHTML = '💧 Cargar riego';
         labelCantidad.textContent = '💧 Cantidad regada (mm)';
@@ -1502,6 +1504,7 @@
       } else if (tipo === 'lluvia') {
         titulo.innerHTML = '🌧️ Cargar lluvia';
         labelCantidad.textContent = '🌧️ Cantidad caída (mm)';
+        document.getElementById('modalSinLluvia').style.display = 'block';
         camposRiegoLluvia.style.display = 'block';
         camposAplicacion.style.display = 'none';
       } else if (tipo === 'aplicacion') {
@@ -1630,7 +1633,7 @@
 
       if (tipoEventoActual === 'riego' || tipoEventoActual === 'lluvia') {
         const cantidad = parseFloat(document.getElementById('modalCantidad').value);
-        if (!cantidad || cantidad <= 0) { mostrarToast('Cargá la cantidad en mm.'); return; }
+        if (isNaN(cantidad) || cantidad < 0 || (tipoEventoActual === 'riego' && cantidad <= 0)) { mostrarToast('Cargá la cantidad en mm' + (tipoEventoActual === 'lluvia' ? ' (0 si no llovió)' : '') + '.'); return; }
         evento.cantidad = cantidad;
         evento.unidad = 'mm';
 
@@ -1739,7 +1742,7 @@
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'lluvia') {
           icono = '🌧️';
-          titulo = `Lluvia ${ev.cantidad} mm`;
+          titulo = parseFloat(ev.cantidad) === 0 ? 'No llovió (pluviómetro: 0 mm)' : `Lluvia ${ev.cantidad} mm`;
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'aplicacion') {
           icono = '🧪';

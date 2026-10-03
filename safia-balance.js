@@ -425,10 +425,10 @@
   }
 
   // Resuelve la lluvia de UN día eligiendo UNA fuente: 1) estación → 2) manual (pisa, incluso 0) → 3) Open-Meteo.
-  function resolverLluviaDia(clave, meteoMM, idxLluviaManual, lluviaEstacion) {
+  function resolverLluviaDia(clave, meteoMM, idxLluviaManual, lluviaEstacion, fuenteMeteo) {
     if (lluviaEstacion && Object.prototype.hasOwnProperty.call(lluviaEstacion, clave)) return { mm: lluviaEstacion[clave] || 0, fuente: 'estacion' };
     if (idxLluviaManual && Object.prototype.hasOwnProperty.call(idxLluviaManual, clave)) return { mm: idxLluviaManual[clave] || 0, fuente: 'manual' };
-    return { mm: meteoMM || 0, fuente: 'meteo' };
+    return { mm: meteoMM || 0, fuente: fuenteMeteo || 'meteo' };   // 'chirps' (satélite), 'modelo' (días sin satélite) o 'pronostico' (hoy y adelante)
   }
 
   /* ---------- Núcleo compartido: parámetros del día y paso diario ---------- */
@@ -538,7 +538,7 @@
     for (var q = 0; q < claves.length; q++) {
       if (q < indiceHoy) { etcF.push(0); llF.push(0); prmF.push(null); continue; }
       var pq = prmDe(q); prmF.push(pq); etcF.push(pq.etc);
-      llF.push(resolverLluviaDia(claves[q], daily.precipitation_sum && daily.precipitation_sum[q], idx.lluvia, estacion).mm);
+      llF.push(resolverLluviaDia(claves[q], daily.precipitation_sum && daily.precipitation_sum[q], idx.lluvia, estacion, daily.lluvia_fuente && daily.lluvia_fuente[q]).mm);
     }
     // El margen es el consumo durante la vuelta, SIN restar la lluvia prevista: la lluvia ya entra en la proyección del suelo
     // (corre la fecha de arranque); restarla también del margen la contaría dos veces y dejaría sin margen si no llueve.
@@ -555,7 +555,7 @@
       if (dr == null) dr = (opts.humedadInicialFrac != null) ? Math.max(0, (1 - opts.humedadInicialFrac) * prm.taw) : 0.5 * prm.raw;
       dr = Math.min(dr, prm.taw);
       var drInicio = dr;
-      var lluvia = resolverLluviaDia(k, daily.precipitation_sum && daily.precipitation_sum[i], idx.lluvia, estacion);
+      var lluvia = resolverLluviaDia(k, daily.precipitation_sum && daily.precipitation_sum[i], idx.lluvia, estacion, daily.lluvia_fuente && daily.lluvia_fuente[i]);
       var riegoBruto = idx.riego[k] || 0, riegoEf = riegoBruto * eficiencia;
       if (esHoy) drHoyInicio = dr;
       var paso = pasoDia(dr, prm, lluvia.mm + riegoEf);
@@ -647,7 +647,12 @@
       pasturaInfo = { tempMedia7: tm.length ? Math.round(tm.reduce(function (s, v) { return s + v; }, 0) / tm.length * 10) / 10 : null, tempBase: tempBase, crecimiento: tm.length ? (tm.reduce(function (s, v) { return s + v; }, 0) / tm.length < tempBase ? 'minimo' : 'normal') : null };
     }
     var sueloOut = Object.assign({}, suelo, { CC: Math.round(suelo.cc / 100 * prmHoy.zr * 1000), PMP: Math.round(pmpHoy), AAU: Math.round(tawHoy), zr: prmHoy.zr, coefLluvia: 1 });
+    // de dónde salió la lluvia de los últimos 30 días (para decirlo en la ficha y en el aviso)
+    var fl = { chirps: 0, modelo: 0, manual: 0, estacion: 0, mmModelo: 0, ultimoChirps: null }, ult30 = pasado.slice(-30);
+    ult30.forEach(function (d) { var f = d.fuenteLluvia === 'meteo' ? 'modelo' : d.fuenteLluvia; if (fl[f] != null) fl[f]++; if (f === 'modelo') fl.mmModelo += d.lluviaBruta || 0; if (f === 'chirps') fl.ultimoChirps = d.fecha; });
+    fl.mmModelo = Math.round(fl.mmModelo); fl.dias = ult30.length;
     return {
+      lluviaFuentes: fl,
       suelo: sueloOut, eficiencia: eficiencia, indiceHoy: indiceHoy, cultivo: cu, desdeSiembra: !!desdeSiembra, diasSimulados: indiceHoy - inicio,
       cicloAjustado: cicloAjustado,   // { dias, tabla } si las etapas FAO se ajustaron al fin de ciclo de la campaña
       umbrales: umbr, umbralCriticoPct: umbr.CRITICO, umbralAtencionPct: umbr.ATENCION,

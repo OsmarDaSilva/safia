@@ -116,7 +116,7 @@
 
   /* ---------- 3. gráfico (SVG a mano, sin librerías) ---------- */
   function serie(r, diasAtras) {
-    var pas = (r.pasado || []).slice(-(diasAtras || 30)).map(function (d) { return { fecha: d.fecha, pct: d.porcentajeAAU != null ? d.porcentajeAAU : (d.taw ? Math.max(0, (d.taw - d.dr) / d.taw * 100) : null), lluvia: d.lluviaBruta || 0, riego: d.riegoBruto || 0, futuro: false, hoy: false, estres: d.ks < 1 }; });
+    var pas = (r.pasado || []).slice(-(diasAtras || 30)).map(function (d) { return { fecha: d.fecha, fuente: d.fuenteLluvia, pct: d.porcentajeAAU != null ? d.porcentajeAAU : (d.taw ? Math.max(0, (d.taw - d.dr) / d.taw * 100) : null), lluvia: d.lluviaBruta || 0, riego: d.riegoBruto || 0, futuro: false, hoy: false, estres: d.ks < 1 }; });
     var fut = (r.dias || []).map(function (d) { return { fecha: d.fecha, pct: d.porcentajeAAU, lluvia: d.lluviaBruta || 0, riego: d.riegoBruto || 0, futuro: !!d.esFuturo, hoy: !!d.esHoy, estres: !!d.estres }; });
     return pas.concat(fut).filter(function (p) { return p.pct != null; });
   }
@@ -140,7 +140,7 @@
     var bw = Math.max(2, gw / n * 0.6);
     pts.forEach(function (p, i) {
       var cx = x(i), base = H - mb + hb;
-      if (p.lluvia > 0) s += '<rect x="' + (cx - bw / 2) + '" y="' + (base - p.lluvia / maxMM * hb) + '" width="' + bw + '" height="' + (p.lluvia / maxMM * hb) + '" fill="' + COL.lleno + '" opacity="' + (p.futuro ? 0.45 : 0.85) + '"><title>' + fmtF(p.fecha) + ': lluvia ' + fmt(p.lluvia, 1) + ' mm' + (p.futuro ? ' (pronóstico)' : '') + '</title></rect>';
+      if (p.lluvia > 0) s += '<rect x="' + (cx - bw / 2) + '" y="' + (base - p.lluvia / maxMM * hb) + '" width="' + bw + '" height="' + (p.lluvia / maxMM * hb) + '" fill="' + COL.lleno + '" opacity="' + (p.futuro ? 0.45 : 0.85) + '"><title>' + fmtF(p.fecha) + ': lluvia ' + fmt(p.lluvia, 1) + ' mm' + (p.futuro || p.hoy ? ' (prevista por el modelo, no medida)' : p.fuente === 'manual' ? ' (pluviómetro)' : p.fuente === 'estacion' ? ' (estación)' : p.fuente === 'chirps' ? ' (satélite)' : ' (estimada por el modelo)') + '</title></rect>';
       if (p.riego > 0) s += '<rect x="' + (cx - bw / 2) + '" y="' + (base - p.riego / maxMM * hb) + '" width="' + bw + '" height="' + (p.riego / maxMM * hb) + '" fill="' + COL.optimo + '" opacity="0.9"><title>' + fmtF(p.fecha) + ': riego ' + fmt(p.riego, 1) + ' mm</title></rect>';
     });
     s += '<text x="' + (ml - 4) + '" y="' + (H - mb + hb - 1) + '" font-size="9" text-anchor="end" fill="#8C9196">mm</text>';
@@ -160,7 +160,16 @@
     var tp = r.totalesPasado || {}, nPas = pts.filter(function (p) { return !p.futuro; }).length;
     var leyenda = '<div class="fa-leyenda"><span><i style="background:' + COL.lleno + '"></i>agua útil (%)</span><span><i style="background:' + COL.lleno + ';opacity:.6"></i>lluvia</span><span><i style="background:' + COL.optimo + '"></i>riego</span><span><i style="background:' + COL.estres + ';border-radius:50%"></i>día con estrés</span><span>punteado = pronóstico</span></div>';
     var resumen = '<div class="fa-resumen">Desde ' + (r.desdeSiembra ? 'la siembra' : 'hace ' + (r.diasSimulados || nPas) + ' días') + ': lluvia <b>' + fmt(tp.lluviaBruta, 0) + ' mm</b> · riego <b>' + fmt(tp.riegoBruto, 0) + ' mm</b> · consumo del cultivo (ETc) <b>' + fmt(tp.etc, 0) + ' mm</b> · días con estrés <b style="color:' + (tp.diasEstres ? COL.estres : COL.optimo) + ';">' + fmt(tp.diasEstres, 0) + '</b>' + (tp.drenaje > 1 ? ' · drenaje ' + fmt(tp.drenaje, 0) + ' mm' : '') + '.</div>';
-    return s + leyenda + resumen;
+    return s + leyenda + resumen + notaLluvia(r);
+  }
+  // De dónde salió la lluvia: el operador tiene que saber qué es medido y qué es estimado
+  function notaLluvia(r) {
+    var fl = r.lluviaFuentes; if (!fl) return '';
+    var hoy = (r.dias || []).find(function (d) { return d.esHoy; }), hoyMM = hoy ? Math.round(hoy.lluviaBruta || 0) : 0, hoyFuente = hoy ? hoy.fuenteLluvia : null;
+    var partes = [];
+    if (hoyMM > 0 && hoyFuente !== 'manual' && hoyFuente !== 'estacion') partes.push('<b>Hoy: ' + hoyMM + ' mm previstos por el modelo, no medidos.</b> Si en el campo no llovió, cargalo en Lluvia con 0 mm.');
+    if (fl.modelo) partes.push((fl.modelo === fl.dias ? 'Los últimos ' + fl.dias + ' días tienen' : 'De los últimos ' + fl.dias + ' días, ' + fl.modelo + ' tienen') + ' la lluvia estimada por el modelo (' + fl.mmModelo + ' mm)' + (fl.ultimoChirps ? ', el satélite llega hasta el ' + fmtF(fl.ultimoChirps) : '') + (fl.manual || fl.estacion ? '; ' + (fl.manual + fl.estacion) + ' con lluvia medida' : '; ninguno con pluviómetro') + '. Lo que cargue el operador manda sobre el modelo.');
+    return partes.length ? '<div class="fa-resumen" style="color:#8a5713;">' + partes.join(' ') + '</div>' : '';
   }
 
   /* ---------- 0. mini: barra con aguja para listas (Dashboard) ---------- */

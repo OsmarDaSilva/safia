@@ -198,8 +198,11 @@
       var d = r && r.datos && r.datos.daily;
       if (!d || !d.time || !d.precipitation_sum || !window.SafiaLluvia) return r;
       var c = window.SafiaLluvia.corregirSerie(parseCoord(opts.lat), parseCoord(opts.lon), d.time, d.precipitation_sum);
-      if (!c.nChirps) return r;
-      var daily = {}; Object.keys(d).forEach(function (k) { daily[k] = d[k]; }); daily.precipitation_sum = c.lluvia;
+      // fuente de la lluvia de cada día: satélite (CHIRPS), modelo (días pasados que CHIRPS todavía no publicó) o pronóstico (hoy y adelante)
+      var hoyK = (function () { var x = new Date(); return x.getFullYear() + '-' + ('0' + (x.getMonth() + 1)).slice(-2) + '-' + ('0' + x.getDate()).slice(-2); })();
+      var fuentes = d.time.map(function (f, i) { return (c.fuentes && c.fuentes[i]) || (String(f).slice(0, 10) < hoyK ? 'modelo' : 'pronostico'); });
+      var daily = {}; Object.keys(d).forEach(function (k) { daily[k] = d[k]; }); daily.precipitation_sum = c.lluvia; daily.lluvia_fuente = fuentes;
+      if (!c.nChirps) { var datos0 = {}; Object.keys(r.datos).forEach(function (k) { datos0[k] = r.datos[k]; }); datos0.daily = daily; var out0 = {}; Object.keys(r).forEach(function (k) { out0[k] = r[k]; }); out0.datos = datos0; return out0; }
       var datos = {}; Object.keys(r.datos).forEach(function (k) { datos[k] = r.datos[k]; }); datos.daily = daily; datos.lluviaChirpsDias = c.nChirps;
       var out = {}; Object.keys(r).forEach(function (k) { out[k] = r[k]; }); out.datos = datos;
       return out;
