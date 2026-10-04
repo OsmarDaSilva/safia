@@ -245,13 +245,13 @@
     return '<span style="display:inline-block;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:' + c[0] + ';color:' + c[1] + ';white-space:nowrap;">' + esc(c[2]) + '</span>';
   }
   function equiposVisibles() { return lista('equipos').filter(function (e) { return !e.zona && !(window.SafiaBalance && SafiaBalance.esSecano && SafiaBalance.esSecano(e)); }); }
-  function opcionesEquipo(sel) {
-    return equiposVisibles().map(function (e) { var c = campo(e.campoId) || {}, cl = cliente(c.clienteId) || {}; return { id: e.id, t: (esIrrigar() && cl.nombre ? cl.nombre + ' · ' : '') + (c.nombre ? c.nombre + ' · ' : '') + e.nombre }; })
+  function opcionesEquipo(sel, clienteId) {
+    return equiposVisibles().filter(function (e) { return !clienteId || String((campo(e.campoId) || {}).clienteId) === String(clienteId); }).map(function (e) { var c = campo(e.campoId) || {}, cl = cliente(c.clienteId) || {}; return { id: e.id, t: (esIrrigar() && cl.nombre && !clienteId ? cl.nombre + ' · ' : '') + (c.nombre ? c.nombre + ' · ' : '') + e.nombre + (abiertoDe(e.id) ? ' (pedido abierto)' : '') }; })
       .sort(function (a, b) { return a.t.localeCompare(b.t); }).map(function (o) { return '<option value="' + esc(o.id) + '"' + (String(o.id) === String(sel) ? ' selected' : '') + '>' + esc(o.t) + '</option>'; }).join('');
   }
   function opcionesMotivo(sel) { return Object.keys(MOTIVOS).map(function (k) { return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(MOTIVOS[k]) + '</option>'; }).join(''); }
   function aviso(t, ok) { return t ? '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;line-height:1.45;background:' + (ok ? '#E7F6EA' : '#FBECEA') + ';color:' + (ok ? '#178029' : '#B5371C') + ';">' + esc(t) + '</div>' : ''; }
-  function ir(modo, id, msg, ok) { vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
+  function ir(modo, id, msg, ok) { if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
 
   function htmlLista() {
     var todos = pedidos(), irr = esIrrigar();
@@ -289,19 +289,28 @@
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="font-size:15px;font-weight:800;color:#2E3236;">' + esc(g.pivot) + '<span style="font-weight:500;color:#6B7075;font-size:13px;"> · ' + esc([g.campo, irr ? g.cliente : ''].filter(Boolean).join(' · ')) + '</span></div>' + chip(p) + '</div>' +
         '<div style="font-size:13.5px;color:#41464B;margin-top:4px;line-height:1.45;"><b>' + esc(MOTIVOS[p.motivo] || p.motivo) + '</b>' + (p.descripcion ? ' · ' + esc(p.descripcion.slice(0, 160)) : '') + '</div>' +
         '<div style="font-size:12px;color:#8C9196;margin-top:4px;">' + (p.origen === 'constancia' ? 'Constancia de ' + firma(p.pedidoPor) + ' · ' + fd(p.fechaProblema) : 'Pedido el ' + fh(p.creado) + ' por ' + firma(p.pedidoPor) + (p.estado !== 'cerrado' ? ' · hace ' + lapso(p.creado) : ' · resuelto en ' + lapso(p.creado, p.cierre && p.cierre.fecha))) +
-          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length ? ' · <b style="color:#B5371C;">' + pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length + ' repuesto(s) pendiente(s)</b>' : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div></div>';
+          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length ? ' · <b style="color:#B5371C;">' + pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length + ' repuesto(s) pendiente(s)</b>' : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div>' + (irr && p.estado !== 'cerrado' ? '<div style="margin-top:8px;font-size:13px;font-weight:700;color:#178029;">Abrir para responder, cargar la visita o registrar la solución</div>' : '') + '</div>';
     }).join('');
   }
 
   function htmlNuevo(esConstancia) {
-    var pre = vista.equipo || (equiposVisibles()[0] || {}).id;
+    var irr = esIrrigar(), abiertos = pedidos().filter(function (p) { return p.estado !== 'cerrado'; });
+    var clientesF = {}; equiposVisibles().forEach(function (e) { var c = campo(e.campoId) || {}, cl = cliente(c.clienteId); if (cl) clientesF[cl.id] = cl.nombre; });
+    var hayClientes = irr && Object.keys(clientesF).length > 1;
+    if (hayClientes && !vista.formCliente) vista.formCliente = vista.cliente || (vista.equipo ? (campo((equipo(vista.equipo) || {}).campoId) || {}).clienteId : '') || (esConstancia && abiertos[0] ? lugar(abiertos[0]).clienteId : '') || Object.keys(clientesF).sort(function (a, b) { return clientesF[a].localeCompare(clientesF[b]); })[0];
+    var delCliente = equiposVisibles().filter(function (e) { return !hayClientes || String((campo(e.campoId) || {}).clienteId) === String(vista.formCliente); });
+    var conPedido = delCliente.filter(function (e) { return abiertoDe(e.id); })[0];
+    var pre = (vista.equipo && delCliente.some(function (e) { return String(e.id) === String(vista.equipo); }) ? vista.equipo : null) || (esConstancia && conPedido ? conPedido.id : null) || (delCliente[0] || {}).id;
     if (!equiposVisibles().length) return '<button data-a="volver" style="' + BG + '">Volver</button>' + aviso('No hay pivots cargados para pedir asistencia.');
     var h = '<button data-a="volver" style="' + BG + 'margin-bottom:12px;">Volver a la lista</button>' +
       '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:16px;">' +
       '<div style="font-size:17px;font-weight:800;color:#2E3236;">' + (esConstancia ? 'Registrar una asistencia ya resuelta' : 'Pedir asistencia técnica a Irrigar') + '</div>' +
       '<div style="font-size:13px;color:#6B7075;line-height:1.45;margin-top:4px;">' + (esConstancia ? 'Para dejar constancia de lo que se resolvió por teléfono, por WhatsApp o en una visita. Queda en el historial del pivot, ya cerrado.' : 'A Irrigar le llega el aviso en el momento. Después podés seguir el pedido acá: quién lo tomó, cuándo vienen, y escribir o mandar fotos.') + '</div>' +
       aviso(vista.msg, vista.msgOk) +
-      '<label style="' + LB + '">Pivot</label><select id="asEquipo" style="' + IN + '">' + opcionesEquipo(pre) + '</select>' +
+      (esConstancia && abiertos.length ? '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:#F4F5F6;"><div style="font-size:12px;font-weight:700;color:#6B7075;margin-bottom:6px;">¿Es la solución de un pedido que está abierto? Tocalo y cerralo ahí: ya trae el cliente y el pivot.</div>' + abiertos.slice(0, 8).map(function (p) { var g = lugar(p); return '<button data-p="' + esc(p.id) + '" style="' + BG + 'display:block;width:100%;text-align:left;margin-top:6px;font-weight:600;"><b>' + esc(g.pivot) + '</b> · ' + esc([g.campo, g.cliente].filter(Boolean).join(' · ')) + '<br><span style="font-size:12px;color:#6B7075;">' + esc(MOTIVOS[p.motivo] || '') + ' · pedido el ' + fh(p.creado) + '</span></button>'; }).join('') + '</div>' : '') +
+      (hayClientes ? '<label style="' + LB + '">Cliente</label><select id="asCliente" style="' + IN + '">' + Object.keys(clientesF).sort(function (a, b) { return clientesF[a].localeCompare(clientesF[b]); }).map(function (k) { return '<option value="' + esc(k) + '"' + (String(k) === String(vista.formCliente) ? ' selected' : '') + '>' + esc(clientesF[k]) + '</option>'; }).join('') + '</select>' : '') +
+      '<label style="' + LB + '">Pivot</label><select id="asEquipo" style="' + IN + '">' + opcionesEquipo(pre, hayClientes ? vista.formCliente : null) + '</select>' +
+      (esConstancia ? '<div id="asAvisoAbierto" style="display:' + (abiertoDe(pre) ? 'block' : 'none') + ';margin-top:6px;padding:9px 12px;border-radius:8px;background:#E8F1FB;color:#1F5FA8;font-size:13px;font-weight:600;line-height:1.4;">Este pivot tiene un pedido de asistencia abierto: al guardar, ese pedido queda cerrado con esta solución.</div>' : '') +
       '<label style="' + LB + '">' + (esConstancia ? 'Qué problema era' : 'Qué pasa') + '</label><select id="asMotivo" style="' + IN + '">' + opcionesMotivo('electrica') + '</select>';
     if (esConstancia) h +=
       '<label style="' + LB + '">Fecha</label><input id="asFecha" type="date" value="' + hoy() + '" max="' + hoy() + '" style="' + IN + '">' +
@@ -484,6 +493,13 @@
     if (a === 'guardarConstancia') {
       if (!val('asProblema') || !val('asSolucion')) { vista.msg = 'Completá el problema y cómo se solucionó.'; return pintar(); }
       var nroK = val('asOrdenNro'), fotoK = elegido('asOrdenFoto'), pendK = val('asPend'), destK = val('asPendDestino');
+      var yaAb = abiertoDe(val('asEquipo'));
+      if (yaAb) {
+        if (!yaAb.tomadoPor) cambiar(yaAb.id, function (x) { x.tomadoPor = yo(); x.tomadoEn = ahora(); });
+        cerrar(yaAb.id, val('asSolucion'), { canal: val('asCanal'), causa: val('asProblema'), solucion: val('asSolucion'), repuestos: val('asRepuestos'), por: yo(), fecha: ahora() });
+        agregarPendientes(yaAb.id, pendK, destK); vista.filtro = 'cerrados';
+        return conOrden(yaAb.id, nroK, fotoK, b, 'Este pivot tenía un pedido abierto: quedó cerrado con esta solución.');
+      }
       var c = constancia({ equipoId: val('asEquipo'), motivo: val('asMotivo'), fecha: val('asFecha'), canal: val('asCanal'), problema: val('asProblema'), solucion: val('asSolucion'), repuestos: val('asRepuestos') });
       vista.filtro = 'cerrados'; agregarPendientes(c.id, pendK, destK);
       return conOrden(c.id, nroK, fotoK, b, 'Constancia guardada en el historial del pivot.');
@@ -518,6 +534,8 @@
   }
   function alCambio(ev) {
     if (ev.target.id === 'asFEquipo') { vista.equipo = ev.target.value; pintar(); }
+    if (ev.target.id === 'asCliente') { vista.formCliente = ev.target.value; vista.equipo = ''; pintar(); }
+    if (ev.target.id === 'asEquipo') { var avA = document.getElementById('asAvisoAbierto'); if (avA) avA.style.display = abiertoDe(ev.target.value) ? 'block' : 'none'; }
     if (ev.target.id === 'asFCliente') { vista.cliente = ev.target.value; pintar(); }
   }
   function montar(c) {

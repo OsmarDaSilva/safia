@@ -1003,7 +1003,7 @@
         <div id="parNueva">
           <div class="campo">
             <label>Por qué se paró</label>
-            <select id="parMotivo" onchange="document.getElementById('parAsistencia').checked = SafiaAsistencia.pedirDeEntrada(this.value)">
+            <select id="parMotivo" onchange="document.getElementById('parAsistencia').checked = SafiaAsistencia.pedirDeEntrada(this.value); ajustarParada()">
               <option value="electrica">Falla eléctrica</option>
               <option value="mecanica">Falla mecánica (rueda, motorreductor, estructura)</option>
               <option value="bomba">Falla de la bomba</option>
@@ -1014,14 +1014,14 @@
             </select>
           </div>
           <label style="display:flex;gap:10px;align-items:flex-start;margin:2px 0 14px;padding:11px 12px;border:1.5px solid #E1E4E7;border-radius:10px;cursor:pointer;font-size:14px;line-height:1.35;color:#2E3236;">
-            <input type="checkbox" id="parAsistencia" checked style="width:20px;height:20px;margin-top:1px;flex:none;">
+            <input type="checkbox" id="parAsistencia" checked onchange="ajustarParada()" style="width:20px;height:20px;margin-top:1px;flex:none;">
             <span><b>Pedir asistencia técnica a Irrigar</b><br><span style="font-size:12px;color:#6B7075;">Al guardar, les llega el aviso a los técnicos de Irrigar con el pivot, la estancia y el motivo.</span></span>
           </label>
-          <div class="campo">
+          <div class="campo" id="parAdjuntoCampo">
             <label>Foto o video corto del problema <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional, le llega a Irrigar con el pedido)</span></label>
             <div id="parAdjuntoCaja" style="display:flex;"></div>
           </div>
-          <div class="campo">
+          <div class="campo" id="parHastaCampo">
             <label>Volvió a andar el <span style="color:#aaa;font-weight:400;font-size:11px;">(dejalo vacío si sigue parado)</span></label>
             <input type="date" id="parHasta">
           </div>
@@ -1609,7 +1609,7 @@
       document.getElementById('modalObservaciones').value = '';
       document.getElementById('camposPastoreo').style.display = 'none';
       document.getElementById('camposLectura').style.display = 'none';
-      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica'; document.getElementById('parAsistencia').checked = true; document.getElementById('parAdjuntoCaja').innerHTML = window.SafiaAsistencias ? SafiaAsistencias.selector('parAdjunto') : '';
+      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica'; document.getElementById('parAsistencia').checked = true; document.getElementById('parAdjuntoCaja').innerHTML = window.SafiaAsistencias ? SafiaAsistencias.selector('parAdjunto') : ''; ajustarParada();
       ['pesCabezas', 'pesPeso', 'calPiquete', 'calAltura', 'calVerde', 'calMs'].forEach(id => { document.getElementById(id).value = ''; }); document.getElementById('pesMotivo').value = 'control';
       document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
@@ -1718,6 +1718,12 @@
       document.getElementById('btnParadaLabel').textContent = abierta ? 'Volvió a andar' : 'Pivot parado · Asistencia';
       b.style.borderColor = abierta ? '#B5371C' : '';
       pintarAsistencia();
+    }
+    // Con el pedido de asistencia marcado, el pivot está parado: no se pregunta cuándo volvió a andar. La foto solo va con el pedido.
+    function ajustarParada() {
+      const pide = document.getElementById('parAsistencia').checked, h = document.getElementById('parHastaCampo'), a = document.getElementById('parAdjuntoCampo');
+      if (h) { h.style.display = pide ? 'none' : ''; if (pide) document.getElementById('parHasta').value = ''; }
+      if (a) a.style.display = pide ? '' : 'none';
     }
     function pintarAsistencia() {
       const c = document.getElementById('asisCard'); if (!c) return;
@@ -1830,7 +1836,7 @@
         const hasta = document.getElementById('parHasta').value;
         if (hasta && hasta < fecha) { mostrarToast('La fecha en que volvió a andar no puede ser anterior a la parada.'); return; }
         evento.motivo = document.getElementById('parMotivo').value; evento.hasta = hasta || null;
-        if (!hasta && document.getElementById('parAsistencia').checked) evento.asistencia = true;   // pidió asistencia a Irrigar
+        if (document.getElementById('parAsistencia').checked) { evento.asistencia = true; evento.hasta = null; }   // pidió asistencia a Irrigar: el pivot sigue parado
         if (evento.motivo === 'otro' && !observaciones) { mostrarToast('Escribí el motivo en las observaciones.'); return; }
 
       } else if (tipoEventoActual === 'pesada') {
