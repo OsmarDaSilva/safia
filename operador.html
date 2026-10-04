@@ -1310,6 +1310,7 @@
       if (primerCultivo.superficie) {
         metaTexto += `<div>📐 ${primerCultivo.superficie} ha</div>`;
       }
+      { const eqL = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId)); if (eqL && eqL.datosTecnicos && eqL.datosTecnicos.luz === 'Sí') metaTexto += '<div title="' + (eqL.datosTecnicos.luzMarca || 'Suplementación de luz') + '" style="color:#8A5A00;font-weight:700;">Pivot con luz</div>'; }
       const esPastura = window.SafiaPasturas && SafiaPasturas.esPastura(primerCultivo.cultivo);
       const bp = document.getElementById('btnPastoreo'); if (bp) bp.style.display = esPastura ? '' : 'none';
       const bl = document.getElementById('btnLectura'); if (bl) bl.style.display = esPastura ? '' : 'none';

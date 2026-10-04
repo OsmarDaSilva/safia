@@ -166,6 +166,7 @@
       if (!e.poligono || !e.poligono.partes) D.falta.push('el polígono del lote (sin él no hay satélite ni clima del lote)');
       if (!secano && D.dds > 20 && ((D.agua && D.agua.riego === 0) || (D.pastura && D.r && D.r.totalesPasado && !(D.r.totalesPasado.riegoBruto > 0)))) D.falta.push('los riegos hechos (si se regó y no se cargó, el suelo figura más seco de lo real)');
       if (!secano && !(num((e.datosTecnicos || {}).lamina100) > 0)) D.falta.push('la lámina y las horas por vuelta del pivot (ficha técnica, la carga Irrigar)');
+      D.conLuz = !!(e.datosTecnicos && e.datosTecnicos.luz === 'Sí');
       D.luces = luces(D);
       if (window.SafiaAcierto) SafiaAcierto.anotar(D);   // bitácora: lo que SAFIA dice hoy, para compararlo con la cosecha
       return D;

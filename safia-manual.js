@@ -146,6 +146,7 @@
       { t: 'Cargar el manejo y los insumos', p: [
         'En la campaña tocá <b>Manejo e insumos</b>.',
         'Cargá fertilizantes, semillas, encalado y aplicaciones con su dosis.',
+        'Si el pivot tiene <b>Suplementación de luz</b>, en Manejo e insumos aparece la sección 4: cargá cada tanda en que se prendieron las luces (desde, hasta, horas por noche). Así SAFIA compara el rinde con y sin luz y separa la energía de las luces en la factura.',
         'El <b>fertirriego</b> lo carga el operador desde su botón (kilos de producto → kilos de nutriente). En maíz, la tarjeta Fertirriego del Operador muestra el plan de nitrógeno por etapa y lo que falta.',
         'Con eso SAFIA calcula el balance de nutrientes y compara con lo que pide la meta.' ] },
       { t: 'Cerrar la cosecha', p: [

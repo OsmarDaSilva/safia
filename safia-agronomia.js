@@ -426,6 +426,7 @@
             if (b && !a) {
               var txt = 'El otro lote hizo «' + p.n + '»' + (ref.manejo[p.k] > 1 ? ' (' + ref.manejo[p.k] + ' aplicaciones)' : '') + ' y este no lo registró.';
               if (p.k === 'inoculacionSurco' && SafiaInsumos.tiene(mio.manejo, 'inoculacion')) txt = 'El otro lote inoculó con líquido en el surco de siembra (sembradora con tanque); este mezcló el inoculante con la semilla. En el surco el rizobio llega más protegido del sol y de los fungicidas de la semilla.';
+              if (p.k === 'luz') txt = 'El otro lote usó suplementación de luz desde el pivot y este no. Su efecto en el rinde no tiene ensayos independientes publicados: SAFIA lo está midiendo con las cosechas, no lo tomes como la causa de la diferencia.';
               factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso, texto: txt });
             }
             else if (a && b && ref.manejo[p.k] > mio.manejo[p.k] + 1) factores.push({ tipo: 'manejo', k: 'ins_' + p.k, nombre: p.n, peso: p.peso * 0.5, texto: p.n + ': ' + ref.manejo[p.k] + ' aplicaciones en el otro lote contra ' + mio.manejo[p.k] + ' acá.' });

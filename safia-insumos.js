@@ -43,7 +43,9 @@
     { k: 'fungicida',      seccion: 'ciclo', n: 'Fungicida',                          practica: 'fungicidas' },
     { k: 'insecticida',    seccion: 'ciclo', n: 'Insecticida',                        practica: 'insecticidas' },
     { k: 'herbicida',      seccion: 'ciclo', n: 'Herbicida',                          practica: 'herbicidas' },
-    { k: 'otro',           seccion: 'ciclo', n: 'Otro',                               practica: null }
+    { k: 'otro',           seccion: 'ciclo', n: 'Otro',                               practica: null },
+    // 4. Suplementación de luz desde el pivot: cuándo se prendieron las luces (dosis = horas por noche, fecha = desde, fechaHasta = hasta)
+    { k: 'luz',            seccion: 'luz',   n: 'Suplementación de luz',              practica: 'luz' }
   ];
   var METODOS = [
     { k: 'sembradora',       n: 'Sembradora (en la línea)' },
@@ -81,7 +83,8 @@
     { k: 'fungicidas',         n: 'Fungicidas',                  peso: 0.25 },
     { k: 'insecticidas',       n: 'Insecticidas',                peso: 0.2 },
     { k: 'herbicidas',         n: 'Herbicidas',                  peso: 0.1 },
-    { k: 'encalado',           n: 'Encalado',                    peso: 0.3 }
+    { k: 'encalado',           n: 'Encalado',                    peso: 0.3 },
+    { k: 'luz',                n: 'Suplementación de luz',       peso: 0.1 }   // peso bajo: su efecto no tiene ensayos independientes publicados
   ];
   // Fertilizantes comunes: % de N, P2O5, K2O (y S). Fuente: fichas técnicas habituales.
   var FERTILIZANTES = [

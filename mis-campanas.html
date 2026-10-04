@@ -1070,6 +1070,20 @@
         </div>
       </div>
 
+      <!-- 4. Suplementación de luz -->
+      <div class="ins-seccion" id="insSeccionLuz">
+        <div class="ins-titulo"><span class="ins-num">4</span> Suplementación de luz <span class="ins-sub" id="insLuzSub">cuándo se prendieron las luces del pivot</span></div>
+        <table class="tbl ins-tabla"><thead><tr><th>Desde</th><th>Hasta</th><th class="r">Horas por noche</th><th>Etapa</th><th></th></tr></thead><tbody id="insCuerpo_luz"></tbody></table>
+        <div class="ins-form ins-form-ciclo">
+          <input type="date" id="insLuzDesde" title="Desde">
+          <input type="date" id="insLuzHasta" title="Hasta">
+          <input type="number" id="insLuzHoras" step="0.5" min="0" max="24" placeholder="Horas por noche">
+          <select id="insLuzEtapa"></select>
+          <button type="button" class="cierre-boton" onclick="agregarLuz()">+ Agregar</button>
+        </div>
+        <div class="ayuda" style="font-size:11px;">Cargá cada tanda en que se usaron las luces. Con eso SAFIA compara el rinde con y sin luz, y separa la energía de las luces en la factura de la ANDE.</div>
+      </div>
+
       <datalist id="listaProd_semilla"></datalist>
       <datalist id="listaProd_fertilizacion"></datalist>
       <datalist id="listaProd_ciclo"></datalist>
@@ -1693,6 +1707,8 @@
       document.getElementById('insEtapa_fertilizacion').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
       document.getElementById('insEtapa_ciclo').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
       document.getElementById('insEtapa_ciclo').value = 'V5–V8';
+      document.getElementById('insLuzEtapa').innerHTML = SafiaInsumos.ETAPAS.map(e => '<option>' + e + '</option>').join('');
+      document.getElementById('insLuzEtapa').value = 'Floración (R1–R2)';
       // el momento de la fertilización sugiere el método y la etapa
       document.getElementById('insCat_fertilizacion').addEventListener('change', function () {
         const m = document.getElementById('insMetodo_fertilizacion'), e = document.getElementById('insEtapa_fertilizacion');
@@ -1754,6 +1770,11 @@
       const t = SafiaInsumos.totalesNPK(por('fertilizacion'));
       document.getElementById('insNPK').innerHTML = t.items ? '<span>Total aplicado:</span><span>N <b>' + Math.round(t.n) + '</b> kg/ha</span><span>P₂O₅ <b>' + Math.round(t.p2o5) + '</b> kg/ha</span><span>K₂O <b>' + Math.round(t.k2o) + '</b> kg/ha</span>' + (t.s ? '<span>S <b>' + Math.round(t.s) + '</b> kg/ha</span>' : '') : '';
       document.getElementById('insNPK').style.display = t.items ? '' : 'none';
+      { const fd = f => f ? String(f).slice(8, 10) + '/' + String(f).slice(5, 7) + '/' + String(f).slice(2, 4) : '—';
+        document.getElementById('insCuerpo_luz').innerHTML = por('luz').map(i => '<tr><td>' + fd(i.fecha) + cultivoDe(i) + '</td><td>' + (i.fechaHasta ? fd(i.fechaHasta) : 'sigue') + '</td><td class="r">' + (i.dosis != null ? i.dosis + ' h' : '—') + '</td><td>' + (i.etapa || '—') + '</td>' + quitar(i) + '</tr>').join('');
+        const eqL = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => campana && String(e.id) === String(campana.equipoId)), conLuz = !!(eqL && eqL.datosTecnicos && eqL.datosTecnicos.luz === 'Sí');
+        document.getElementById('insSeccionLuz').style.display = conLuz || por('luz').length ? '' : 'none';
+        document.getElementById('insLuzSub').textContent = conLuz ? 'cuándo se prendieron las luces del pivot' + (eqL.datosTecnicos.luzMarca ? ' (' + eqL.datosTecnicos.luzMarca + ')' : '') : 'este pivot ya no figura con luz en Equipos y lotes'; }
       document.getElementById('insCuerpo_ciclo').innerHTML = por('ciclo').map(i =>
         '<tr><td><span class="badge green">' + SafiaInsumos.nombreCategoria(i.categoria) + '</span>' + cultivoDe(i) + '</td><td>' + (i.producto || '—') + (i.obs ? '<div class="sub">' + i.obs + '</div>' : '') + '</td><td class="r">' + fmtDosis(i) + '</td><td>' + (i.etapa || '—') + (i.fecha ? '<div class="sub">' + fmtFechaCorta(i.fecha) + '</div>' : '') + '</td>' + quitar(i) + '</tr>').join('');
     }
@@ -1788,6 +1809,22 @@
       g('insProd').value = ''; g('insDosis').value = ''; if (seccion !== 'semilla') g('insFecha').value = '';
       if (seccion === 'fertilizacion' && SafiaInsumos.gradoDe(producto)) mostrarToast('Agregado');
       if (seccion !== 'fertilizacion') mostrarToast('Agregado');
+    }
+    // Suplementación de luz: una tanda = desde, hasta, horas por noche y etapa. Se guarda como insumo de categoría 'luz'.
+    function agregarLuz() {
+      const { campanas, idx, campana } = campanaDeInsumos();
+      if (!campana) return;
+      const desde = document.getElementById('insLuzDesde').value, hasta = document.getElementById('insLuzHasta').value, horas = parseFloat(document.getElementById('insLuzHoras').value);
+      if (!desde) { mostrarToast('Poné desde qué fecha se usaron las luces'); return; }
+      if (hasta && hasta < desde) { mostrarToast('La fecha "hasta" no puede ser anterior a "desde"'); return; }
+      if (!(horas > 0)) { mostrarToast('Poné cuántas horas por noche se prendieron'); return; }
+      const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(campana.equipoId)) || {};
+      const item = { id: Date.now(), seccion: 'luz', categoria: 'luz', producto: (eq.datosTecnicos && eq.datosTecnicos.luzMarca) || 'Suplementación de luz', dosis: horas, unidad: 'h/noche', fecha: desde, fechaHasta: hasta || null,
+        etapa: document.getElementById('insLuzEtapa').value, cultivoIdx: (campana.cultivos || []).length > 1 ? parseInt(document.getElementById('insCultivoIdx').value || '0', 10) : null };
+      campanas[idx].insumos = (campanas[idx].insumos || []).concat([item]);
+      guardarCampanaInsumos(campanas, idx);
+      ['insLuzDesde', 'insLuzHasta', 'insLuzHoras'].forEach(i => { document.getElementById(i).value = ''; });
+      mostrarToast('Agregado');
     }
     function quitarInsumo(id) {
       const { campanas, idx, campana } = campanaDeInsumos();

@@ -634,6 +634,14 @@
               <div class="campo"><label>Fertirrigación</label><select id="pivote-fertirrigacion"><option>No</option><option>Sí</option></select></div>
               <div class="campo"><label>Telemetría / GPS</label><select id="pivote-telemetria"><option>No</option><option>Sí</option></select></div>
             </div>
+            <div class="fila-3">
+              <div class="campo"><label>Suplementación de luz</label><select id="pivote-luz" onchange="document.getElementById('filaLuz').style.display = this.value === 'Sí' ? '' : 'none'"><option>No</option><option>Sí</option></select></div>
+            </div>
+            <div class="fila-3" id="filaLuz" style="display:none;">
+              <div class="campo"><label>Sistema de luz (marca)</label><input type="text" id="pivote-luzMarca" placeholder="Ej: Irriluce (Grupo Fienile)"></div>
+              <div class="campo"><label>Instalada desde</label><input type="date" id="pivote-luzDesde"></div>
+              <div class="campo"><label>Potencia de las luces (kW)</label><input type="number" id="pivote-luzKw" step="0.1" min="0" placeholder="Para separarla en la factura"></div>
+            </div>
 
           </div>
 
@@ -1198,7 +1206,7 @@
 
     // ===== LÓGICA EXISTENTE =====
     const camposPorTipo = {
-      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','piqBebederos','piqPortones','piqPortonEntrada','piqPlazas','piqCentro','piqPlazaDonde','piqCarga','piqPlazaM2Animal','piqPlazaLado','piqPlazaRadio','piqCallejon','piqHilosNormal','piqPostePerimetro','piqHilosElectrico','piqPosteElectrico','piqGomaM','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
+      pivote: ['caudal','presion','lamina100','vuelta100','capacidad','largo','torres','angulo','piquete1Angulo','piqModelo','piqSectores','piqRadios','piqBorde','piqSentido','piqNumeracion','piqBebederos','piqPortones','piqPortonEntrada','piqPlazas','piqCentro','piqPlazaDonde','piqCarga','piqPlazaM2Animal','piqPlazaLado','piqPlazaRadio','piqCallejon','piqHilosNormal','piqPostePerimetro','piqHilosElectrico','piqPosteElectrico','piqGomaM','corner','aspersores','altura','controlador','vri','fertirrigacion','telemetria','luz','luzMarca','luzDesde','luzKw','bomba-marca','bomba-modelo','bomba-potencia','bomba-tipo'],
       goteo: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       microaspersion: ['caudalGotero','espGoteros','espLineas','presion','caudalTotal','cantLineas','largoLinea','profundidad','tipoFiltro','micrones','fertirrigacion','tipoFertirrigacion'],
       canon: ['caudal','presion','alcance','lamina','manguera','ancho','velocidad','tiempo'],
@@ -1453,6 +1461,7 @@
           if (el && equipo.datosTecnicos[k] !== undefined) el.value = equipo.datosTecnicos[k];
         });
       }
+      { const fl = document.getElementById('filaLuz'); if (fl) fl.style.display = (equipo.datosTecnicos && equipo.datosTecnicos.luz === 'Sí') ? '' : 'none'; }
       const dt = equipo.datosTecnicos || {}, esen = (ESENCIALES_TIPO[equipo.tipo === 'microaspersion' ? 'goteo' : equipo.tipo] || []);
       ['piqModelo', 'piqSectores', 'piqRadios', 'piqSentido', 'piqNumeracion', 'piqBebederos', 'piqPortones', 'piqPortonEntrada', 'piqPlazas', 'piqCentro', 'piqCarga', 'piqPlazaM2Animal', 'piqPlazaLado', 'piqPlazaRadio', 'piqCallejon', 'piqHilosNormal', 'piqPostePerimetro', 'piqHilosElectrico', 'piqPosteElectrico', 'piqGomaM'].forEach(k => { const el = document.getElementById('pivote-' + k); if (el && dt[k] === undefined) el.value = ''; });
       document.getElementById('pivote-piqPlazaDonde').value = dt.piqPlazaDonde || (dt.piqPlazas ? 'afuera' : (dt.piqCentro === 'no' ? 'ninguna' : 'centro'));

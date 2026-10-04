@@ -56,11 +56,28 @@
   function kwhDe(f) { var a = (num(f.kwhPunta) || 0) + (num(f.kwhFueraPunta) || 0); return a > 0 ? a : (num(f.kwhTotal) || 0); }
 
   /* ---------- 2. reparto de una factura entre los pivots ---------- */
+  // kWh de las luces de un pivot en un período: potencia (kW) × horas por noche × noches, según las tandas cargadas en la campaña
+  function kwhLuz(eq, desde, hasta) {
+    var dt = (eq && eq.datosTecnicos) || {}, kw = num(dt.luzKw); if (dt.luz !== 'Sí' || !(kw > 0)) return { kwh: 0, noches: 0, sinPotencia: dt.luz === 'Sí' && !(kw > 0) };
+    var k = 0, n = 0;
+    leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(eq.id)) return; (c.insumos || []).forEach(function (i) {
+      if (i.categoria !== 'luz' || !i.fecha) return;
+      var a = dia(i.fecha) > desde ? dia(i.fecha) : desde, b = i.fechaHasta && dia(i.fechaHasta) < hasta ? dia(i.fechaHasta) : hasta; if (a > b) return;
+      var noches = Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000) + 1, h = num(i.dosis) || 0;
+      k += kw * h * noches; n += noches;
+    }); });
+    return { kwh: k, noches: n };
+  }
   function repartir(f) {
-    var eqs = equiposDeFactura(f), kwh = kwhDe(f), total = num(f.total) || 0, vol = 0;
-    var filas = eqs.map(function (e) { var mm = riegoMM(e.id, dia(f.desde), dia(f.hasta)), ha = haDe(e); vol += mm * ha; return { equipo: e, mm: mm, ha: ha, vol: mm * ha }; });
-    filas.forEach(function (x) { x.pct = vol > 0 ? x.vol / vol : null; x.gs = x.pct != null ? total * x.pct : null; x.kwh = x.pct != null ? kwh * x.pct : null; x.gsHa = x.gs != null && x.ha ? x.gs / x.ha : null; });
-    return { filas: filas, volumen: vol, total: total, kwh: kwh, gsPorMmHa: vol > 0 ? total / vol : null, kwhPorMmHa: vol > 0 ? kwh / vol : null, sinRiego: !(vol > 0), sinHa: filas.some(function (x) { return !x.ha; }) };
+    var eqs = equiposDeFactura(f), kwh = kwhDe(f), total = num(f.total) || 0, vol = 0, gsKwh = kwh > 0 ? total / kwh : 0;
+    var filas = eqs.map(function (e) { var mm = riegoMM(e.id, dia(f.desde), dia(f.hasta)), ha = haDe(e), L = kwhLuz(e, dia(f.desde), dia(f.hasta)); vol += mm * ha; return { equipo: e, mm: mm, ha: ha, vol: mm * ha, luzKwh: L.kwh, luzNoches: L.noches, luzSinPotencia: L.sinPotencia }; });
+    // la energía de las luces se le carga a su pivot y sale del total antes de repartir el riego por mm × ha
+    var kwhL = 0; filas.forEach(function (x) { kwhL += x.luzKwh; });
+    if (kwhL > kwh) { var f0 = kwh / kwhL; filas.forEach(function (x) { x.luzKwh *= f0; }); kwhL = kwh; }
+    var kwhR = kwh - kwhL, totalR = total - kwhL * gsKwh;
+    filas.forEach(function (x) { x.luzGs = x.luzKwh * gsKwh; x.pct = vol > 0 ? x.vol / vol : null; x.gsRiego = x.pct != null ? totalR * x.pct : 0; x.kwhRiego = x.pct != null ? kwhR * x.pct : 0;
+      x.gs = x.pct != null || x.luzGs ? x.gsRiego + x.luzGs : null; x.kwh = x.pct != null || x.luzKwh ? x.kwhRiego + x.luzKwh : null; x.gsHa = x.gs != null && x.ha ? x.gs / x.ha : null; });
+    return { filas: filas, volumen: vol, total: total, kwh: kwh, luzKwh: kwhL, luzGs: kwhL * gsKwh, gsPorMmHa: vol > 0 ? totalR / vol : null, kwhPorMmHa: vol > 0 ? kwhR / vol : null, sinRiego: !(vol > 0) && !(kwhL > 0), sinHa: filas.some(function (x) { return !x.ha; }) };
   }
 
   /* ---------- 3. qué dice la factura ---------- */
@@ -90,7 +107,7 @@
     facturasDe(campo.id).forEach(function (f) {
       if (equiposDeFactura(f).every(function (e) { return String(e.id) !== String(lote.id); })) return;
       var d0 = dia(f.desde) > desde ? dia(f.desde) : desde, d1 = dia(f.hasta) < hasta ? dia(f.hasta) : hasta; if (d0 > d1) return;
-      var r = repartir(f); if (r.gsPorMmHa == null) return;
+      var r = repartir(f); if (r.gsPorMmHa == null) return;   // la luz ya salió del costo del mm (ver repartir)
       var mm = riegoMM(lote.id, d0, d1); if (!(mm > 0)) return;
       partes.push({ f: f, v: mm * ha * r.gsPorMmHa }); kwhT += mm * ha * r.kwhPorMmHa; mmCub += mm; usadas++;
     });
@@ -179,8 +196,8 @@
     L.avisos.forEach(function (a) { h += '<div style="border-left:4px solid ' + col[a.nivel] + ';background:#FAFBFC;border-radius:6px;padding:7px 10px;margin-bottom:6px;font-size:13px;"><b style="color:' + col[a.nivel] + ';">' + a.titulo + '</b><div style="color:#3A3E41;line-height:1.4;margin-top:2px;">' + a.texto + '</div></div>'; });
     if (r.sinRiego) h += '<div class="muted" style="font-size:13px;margin:6px 0;">No hay riegos cargados entre el ' + fmtF(f.desde) + ' y el ' + fmtF(f.hasta) + ' en los pivots de este medidor: no hay con qué repartir. Si se regó, cargá los riegos (Operador) y el reparto aparece solo.</div>';
     else h += '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Pivot</th><th class="r">Regó (mm)</th><th class="r">Hectáreas</th><th class="r">Parte</th><th class="r">Gasto</th><th class="r">kWh</th><th class="r">Por ha</th></tr></thead><tbody>' +
-      r.filas.map(function (x) { return '<tr><td>' + esc(x.equipo.nombre) + '</td><td class="r">' + fmt(x.mm) + '</td><td class="r">' + (x.ha ? fmt(x.ha, 1) : '<span style="color:#B5371C;">falta</span>') + '</td><td class="r">' + (x.pct != null ? fmt(x.pct * 100) + ' %' : '—') + '</td><td class="r"><b>' + gs(x.gs) + '</b></td><td class="r">' + fmt(x.kwh) + '</td><td class="r">' + (x.gsHa != null ? gs(x.gsHa) : '—') + '</td></tr>'; }).join('') +
-      '</tbody></table></div></div><div class="muted" style="font-size:12px;margin-top:6px;">Cada mm regado en una hectárea costó <b>' + gs(r.gsPorMmHa) + '</b> y ' + fmt(r.kwhPorMmHa, 1) + ' kWh en este período.' + (r.sinHa ? ' Falta la superficie de algún pivot (Equipos y lotes): sin hectáreas no entra en el reparto.' : '') + '</div>';
+      r.filas.map(function (x) { return '<tr><td>' + esc(x.equipo.nombre) + '</td><td class="r">' + fmt(x.mm) + '</td><td class="r">' + (x.ha ? fmt(x.ha, 1) : '<span style="color:#B5371C;">falta</span>') + '</td><td class="r">' + (x.pct != null ? fmt(x.pct * 100) + ' %' : '—') + '</td><td class="r"><b>' + gs(x.gs) + '</b>' + (x.luzGs > 0 ? '<div style="font-size:11px;color:#8A5A00;">luz: ' + gs(x.luzGs) + '</div>' : '') + (x.luzSinPotencia ? '<div style="font-size:11px;color:#B5371C;" title="Cargá la potencia de las luces en Equipos y lotes">luz sin potencia</div>' : '') + '</td><td class="r">' + fmt(x.kwh) + '</td><td class="r">' + (x.gsHa != null ? gs(x.gsHa) : '—') + '</td></tr>'; }).join('') +
+      '</tbody></table></div></div><div class="muted" style="font-size:12px;margin-top:6px;">Cada mm regado en una hectárea costó <b>' + gs(r.gsPorMmHa) + '</b> y ' + fmt(r.kwhPorMmHa, 1) + ' kWh en este período.' + (r.luzKwh > 0 ? ' Las luces del pivot gastaron ' + fmt(r.luzKwh) + ' kWh (' + gs(r.luzGs) + '): se les cargan a su pivot y no entran en el costo del mm regado.' : '') + (r.sinHa ? ' Falta la superficie de algún pivot (Equipos y lotes): sin hectáreas no entra en el reparto.' : '') + '</div>';
     h += '<div style="display:flex;gap:8px;margin-top:8px;">' + (f.archivoRuta ? '<button class="btn mini" data-ver="' + esc(f.id) + '">Ver la factura</button>' : '') + '<button class="btn mini" data-editar="' + esc(f.id) + '">Editar</button><button class="btn mini" data-borrar="' + esc(f.id) + '">Borrar</button></div></div>';
     return h;
   }
