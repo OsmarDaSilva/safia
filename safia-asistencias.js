@@ -126,6 +126,8 @@
     var sb = window.safiaSupabase; if (sb && rutas.length) { try { sb.storage.from('safia').remove(rutas).then(function () {}, function () {}); } catch (e) {} }
     return true;
   }
+  function paradaDe(p) { return p && p.paradaId ? lista('eventos').filter(function (v) { return v.tipo === 'parada' && String(v.id) === String(p.paradaId); })[0] || null : null; }
+  function borrarParada(p) { var ev = paradaDe(p); if (!ev) return false; localStorage.setItem('eventos', JSON.stringify(lista('eventos').filter(function (v) { return String(v.id) !== String(ev.id); }))); return true; }
   function diaLocal(iso) { var d = new Date(iso); return isNaN(d) ? String(iso).slice(0, 10) : d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function cerrarPorRiego() {
     var l = leer(), riegos = null, n = 0;
@@ -292,7 +294,7 @@
   }
   function opcionesMotivo(sel) { return Object.keys(MOTIVOS).map(function (k) { return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(MOTIVOS[k]) + '</option>'; }).join(''); }
   function aviso(t, ok) { return t ? '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;line-height:1.45;background:' + (ok ? '#E7F6EA' : '#FBECEA') + ';color:' + (ok ? '#178029' : '#B5371C') + ';">' + esc(t) + '</div>' : ''; }
-  function ir(modo, id, msg, ok) { vista.editando = false; if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
+  function ir(modo, id, msg, ok) { vista.editando = false; vista.borrando = false; if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
 
   function htmlLista() {
     var todos = pedidos(), irr = esIrrigar();
@@ -387,6 +389,11 @@
         (p.orden ? fila('Orden de servicio', (p.orden.nro ? 'N.º <b>' + esc(p.orden.nro) + '</b> · ' : '') + 'la subió ' + firma(p.orden.por) + ' · ' + fh(p.orden.fecha) + (p.orden.foto ? '<a data-foto="' + esc(p.orden.foto) + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:12.5px;color:#178029;font-weight:700;">Cargando foto…</a>' : '')) : (p.estado === 'cerrado' ? fila('Orden de servicio', '<span style="color:#8A5A00;">Sin orden cargada</span>') : '')) +
       '</div>' + (paradaCerrada ? '<div style="margin-top:10px;padding:9px 12px;border-radius:8px;background:#E7F6EA;color:#178029;font-size:13.5px;font-weight:600;">El pivot ya volvió a andar. Si el problema está resuelto, cerrá el pedido.</div>' : '') +
       (p.editado ? '<div style="font-size:12px;color:#8C9196;margin-top:8px;">Corregido por ' + firma(p.editado.por) + ' el ' + fh(p.editado.fecha) + '</div>' : '') +
+      (vista.borrando ? (function () { var ev = paradaDe(p), fin = ev && window.SafiaParte ? SafiaParte.finDe(ev).hasta : (ev && ev.hasta);
+          return '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding:12px;border-radius:10px;background:#FBECEA;">' +
+            '<div style="font-size:14px;font-weight:700;color:#B5371C;">¿Borrar también la parada del pivot?</div>' +
+            '<div style="font-size:13px;color:#41464B;line-height:1.45;margin-top:4px;">Con este pedido se cargó una parada del pivot: desde el ' + fd(ev.fecha) + ' por ' + esc(window.SafiaParte ? SafiaParte.motivoTxt(ev) : (ev.motivo || '')) + (fin ? ', cerrada el ' + fd(fin) : ', <b>todavía abierta</b> (el pivot figura parado)') + '. Si fue una prueba o un error, borrala también; si el pivot estuvo parado de verdad, dejala.</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button data-a="borrarTodo" style="' + BR + '">Borrar el pedido y la parada</button><button data-a="borrarSolo" style="' + BG + '">Borrar solo el pedido</button><button data-a="borrarCancelar" style="' + BG + '">Cancelar</button></div></div>'; })() : '') +
       (vista.editando ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Corregir el pedido</div>' +
           '<label style="' + LB + '">Motivo</label><select id="asEdMotivo" style="' + IN + '">' + opcionesMotivo(p.motivo) + '</select>' +
           '<label style="' + LB + '">Qué pasa</label><textarea id="asEdDesc" rows="3" style="' + IN + '">' + esc(p.descripcion || '') + '</textarea>' +
@@ -563,7 +570,13 @@
       var rr = reabrir(id); if (rr && rr.error) return ir('detalle', id, rr.error);
       vista.filtro = 'abiertos'; return ir('detalle', id, 'Pedido reabierto: se puede volver a escribir y cerrar.', true);
     }
+    if (a === 'borrarCancelar') { vista.borrando = false; return pintar(); }
+    if (a === 'borrarTodo' || a === 'borrarSolo') {
+      var conParada = a === 'borrarTodo' && borrarParada(pedido(id)); borrar(id);
+      return ir('lista', null, conParada ? 'Pedido y parada del pivot borrados.' : 'Pedido borrado.', true);
+    }
     if (a === 'borrar') {
+      if (paradaDe(pedido(id))) { vista.borrando = true; return pintar(); }   // tiene una parada cargada con él: se pregunta qué hacer con ella
       if (b.getAttribute('data-seguro') !== '1') { b.setAttribute('data-seguro', '1'); b.textContent = '¿Borrar con sus notas, fotos y pendientes? Tocá de nuevo'; return; }
       borrar(id); return ir('lista', null, 'Pedido borrado.', true);
     }
@@ -613,7 +626,7 @@
     setInterval(function () {
       var h2 = localStorage.getItem(CLAVE) || ''; if (h2 === huella) return; huella = h2;
       var act = document.activeElement, escribiendo = act && cont.contains(act) && /INPUT|TEXTAREA|SELECT/.test(act.tagName) && (act.type === 'file' ? act.files.length : String(act.value || '').length);
-      if (!escribiendo) escribiendo = !!(elegido('asNotaFoto') || elegido('asOrdenFoto') || elegido('asFoto') || (document.getElementById('asNota') || {}).value) || !!vista.editando;
+      if (!escribiendo) escribiendo = !!(elegido('asNotaFoto') || elegido('asOrdenFoto') || elegido('asFoto') || (document.getElementById('asNota') || {}).value) || !!vista.editando || !!vista.borrando;
       if (!escribiendo) pintar();
     }, 4000);
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
