@@ -1892,6 +1892,8 @@
         if (!ped && window.SafiaAsistencias) ped = SafiaAsistencias.crear({ equipoId: evento.equipoId, motivo: evento.motivo, descripcion: evento.observaciones, fechaProblema: evento.fecha, parado: true, paradaId: evento.id });
         SafiaAsistencia.pedir(evento, ped);
       }
+      if (tipoEventoActual === 'riego' && window.SafiaAsistencias && SafiaAsistencias.cerrarPorRiego()) mostrarToast('✓ Riego guardado · el pedido de asistencia se cerró solo');
+      pintarAsistencia();
       mostrarEventos();
       mostrarCampana();
       mostrarRecomendacionClima();

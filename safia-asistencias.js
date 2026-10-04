@@ -10,7 +10,7 @@
   var CLAVE = 'asistencias';
   var MOTIVOS = { electrica: 'Falla eléctrica', mecanica: 'Falla mecánica (rueda, motorreductor, estructura)', bomba: 'Falla de la bomba', energia: 'Corte de energía (ANDE)', agua: 'Falta de agua en la fuente', mantenimiento: 'Mantenimiento programado', consulta: 'Consulta o ajuste (el pivot anda)', otro: 'Otro motivo' };
   var CANALES = { telefono: 'Por teléfono', whatsapp: 'Por WhatsApp', visita: 'Visita al campo', remoto: 'Remoto (telemetría)' };
-  var ROLES = { cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar' };
+  var ROLES = { sistema: 'automático', cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar' };
 
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function lista(k) { try { var l = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
@@ -82,6 +82,28 @@
     if (p) avisar(id, 'cerrado', texto);
     return p;
   }
+  // Si quedó un pedido abierto de un pivot parado y después se cargó un riego en ese pivot, el pedido se cierra solo: si se regó,
+  // el pivot anda (se arregló por teléfono o vino el técnico y nadie lo cerró). Regla de Osmar, 4-oct-2026, igual que la parada.
+  // Vale el riego de un día posterior al problema, o el cargado después del pedido con fecha de ese día en adelante. Una consulta
+  // con el pivot andando no se cierra así. El técnico puede completar el informe después.
+  function cerrarPorRiego() {
+    var l = leer(), riegos = null, n = 0;
+    l.forEach(function (p) {
+      if (p.tipo !== 'pedido' || p.estado === 'cerrado' || !p.parado) return;
+      if (!riegos) riegos = lista('eventos').filter(function (v) { return v.tipo === 'riego' && v.fecha && parseFloat(v.cantidad) > 0; });
+      var f0 = String(p.fechaProblema || p.creado).slice(0, 10), r = null;
+      riegos.forEach(function (v) {
+        if (String(v.equipoId) !== String(p.equipoId)) return;
+        var fv = String(v.fecha).slice(0, 10), vale = fv > f0 || (fv === f0 && v.fechaCreacion && String(v.fechaCreacion) > String(p.creado));
+        if (vale && (!r || fv < String(r.fecha).slice(0, 10))) r = v;
+      });
+      if (!r) return;
+      p.estado = 'cerrado'; p.cierre = { por: { id: 'safia', nombre: 'SAFIA', rol: 'sistema' }, fecha: ahora(), automatico: true, texto: 'Se cerró solo: el ' + fd(r.fecha) + ' se cargó un riego en este pivot, así que ya está funcionando.' };
+      n++;
+    });
+    if (n) guardar(l);
+    return n;
+  }
   function guardarInforme(id, informe) { return cambiar(id, function (x) { x.informe = Object.assign({}, x.informe || {}, informe, { por: yo(), fecha: ahora() }); }); }
   // Constancia: asistencia ya resuelta (por teléfono, WhatsApp, visita) que deja anotada Irrigar
   function constancia(o) {
@@ -146,7 +168,7 @@
     if (!ps.length) return null;
     return ps.slice(0, 6).map(function (p) { return { pedido_el: String(p.creado).slice(0, 10), motivo: MOTIVOS[p.motivo] || p.motivo, descripcion: p.descripcion || undefined, estado: estadoTxt(p), pedido_por: p.pedidoPor ? p.pedidoPor.nombre : undefined,
       tardo_en_tomarse: p.tomadoEn && p.origen !== 'constancia' ? lapso(p.creado, p.tomadoEn) : undefined, tardo_en_resolverse: p.cierre && p.origen !== 'constancia' ? lapso(p.creado, p.cierre.fecha) : undefined,
-      como_se_resolvio: p.informe ? [p.informe.solucion, p.informe.repuestos ? 'repuestos: ' + p.informe.repuestos : ''].filter(Boolean).join(' · ') || undefined : (p.cierre && p.cierre.texto) || undefined,
+      cerrado_solo_al_cargarse_un_riego: p.cierre && p.cierre.automatico ? true : undefined, como_se_resolvio: p.informe && (p.informe.solucion || p.informe.repuestos) ? [p.informe.solucion, p.informe.repuestos ? 'repuestos: ' + p.informe.repuestos : ''].filter(Boolean).join(' · ') || undefined : (p.cierre && p.cierre.texto) || undefined,
       constancia_de_irrigar: p.origen === 'constancia' ? (CANALES[p.informe && p.informe.canal] || 'sí') : undefined, notas: notasDe(p.id).filter(function (n) { return !n.sistema; }).length }; });
   }
 
@@ -157,7 +179,7 @@
   var IN = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #E1E4E7;border-radius:10px;font-size:14px;font-family:inherit;background:#fff;color:#2E3236;';
   var LB = 'display:block;font-size:12px;font-weight:700;color:#6B7075;margin:10px 0 4px;';
   function chip(p) {
-    var c = p.estado === 'cerrado' ? ['#EEF0F2', '#6B7075', p.origen === 'constancia' ? 'Constancia' : 'Cerrado'] : p.visita ? ['#E7F6EA', '#178029', 'Visita ' + fh(p.visita)] : p.tomadoPor ? ['#E8F1FB', '#1F5FA8', 'Tomado'] : ['#FBECEA', '#B5371C', 'Sin tomar'];
+    var c = p.estado === 'cerrado' ? ['#EEF0F2', '#6B7075', p.origen === 'constancia' ? 'Constancia' : p.cierre && p.cierre.automatico ? 'Cerrado solo (se regó)' : 'Cerrado'] : p.visita ? ['#E7F6EA', '#178029', 'Visita ' + fh(p.visita)] : p.tomadoPor ? ['#E8F1FB', '#1F5FA8', 'Tomado'] : ['#FBECEA', '#B5371C', 'Sin tomar'];
     return '<span style="display:inline-block;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:' + c[0] + ';color:' + c[1] + ';white-space:nowrap;">' + esc(c[2]) + '</span>';
   }
   function equiposVisibles() { return lista('equipos').filter(function (e) { return !e.zona && !(window.SafiaBalance && SafiaBalance.esSecano && SafiaBalance.esSecano(e)); }); }
@@ -264,7 +286,7 @@
       else h += '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
         '<label style="' + LB + '">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +
         '<button data-a="cerrarCampo" style="' + BR + 'margin-top:10px;">Cerrar el pedido</button>' +
-        '<div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Al cerrar, la conversación de este pedido termina. Si aparece otro problema, se pide una asistencia nueva.</div>';
+        '<div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Al cerrar, la conversación de este pedido termina. Si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando se cargue el próximo riego de este pivot.</div>';
       h += '</div>';
     } else if (irr) {
       h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Informe técnico (se puede completar después de cerrar)</div>' +
@@ -304,6 +326,7 @@
   function val(id) { var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
   function pintar() {
     if (!cont) return;
+    cerrarPorRiego();
     cont.innerHTML = vista.modo === 'detalle' ? htmlDetalle() : vista.modo === 'nuevo' ? htmlNuevo(false) : vista.modo === 'constancia' ? htmlNuevo(true) : htmlLista();
     if (vista.modo === 'detalle') cargarFotos();
     vista.msg = '';
@@ -368,6 +391,9 @@
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
+  // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
+  var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };
+  if (window.SafiaSync && SafiaSync.alListo) SafiaSync.alListo(function () { setTimeout(alArrancar, 1500); }); else setTimeout(alArrancar, 1500);
 })();

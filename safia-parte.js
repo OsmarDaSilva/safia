@@ -57,11 +57,11 @@
   /* ---------- paradas del pivot ---------- */
   // Una parada sin fecha de fin se da por terminada el día del primer riego cargado DESPUÉS de la parada: si se regó, el pivot ya
   // anda (Osmar, 4-oct-2026: pocos operadores van a avisar que volvió a andar). No se guarda: se deduce cada vez, así vale para los
-  // riegos cargados desde cualquier pantalla (Operador, voz, Eventos, importación). Un riego del mismo día de la parada no la cierra.
+  // riegos cargados desde cualquier pantalla (Operador, voz, Eventos, importación). Un riego del mismo día solo la cierra si se cargó después de marcar la parada.
   function finDe(p, todos) {
     if (p.hasta) return { hasta: dia(p.hasta), porRiego: false };
     var ini = dia(p.fecha), f = null;
-    (todos || leer('eventos')).forEach(function (v) { if (v.tipo === 'riego' && String(v.equipoId) === String(p.equipoId) && v.fecha && dia(v.fecha) > ini && (num(v.cantidad) || 0) > 0 && (!f || dia(v.fecha) < f)) f = dia(v.fecha); });
+    (todos || leer('eventos')).forEach(function (v) { if (v.tipo === 'riego' && String(v.equipoId) === String(p.equipoId) && v.fecha && (dia(v.fecha) > ini || (dia(v.fecha) === ini && v.fechaCreacion && p.fechaCreacion && String(v.fechaCreacion) > String(p.fechaCreacion))) && (num(v.cantidad) || 0) > 0 && (!f || dia(v.fecha) < f)) f = dia(v.fecha); });
     return { hasta: f, porRiego: !!f };
   }
   function paradasDe(equipoId, desde) {
