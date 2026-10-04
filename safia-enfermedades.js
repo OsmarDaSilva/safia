@@ -100,11 +100,14 @@
      · no hay pasada reciente (nublado, que es justo cuando la roya importa) → se usa el día 30 desde la siembra.
      El 0,60 es un criterio de SAFIA, mirado en la soja 2025/26 del Pivot-1 de Anderson Pereira (NDVI 0,30 el día 29,
      0,60 el día 46, 0,73 el día 49, 0,92 el día 64). No está publicado como umbral de cierre del surco. */
-  var NDVI_CIERRE = 0.6, NDVI_DESDE_DIA = 20, PASADA_VIEJA = 12;
+  // Fin de la ventana: pasados los 100 días de la siembra la soja ya está madurando y una aplicación no cambia el rinde, así
+  // que avisar no sirve (criterio de Osmar, 4-oct-2026: "hasta los 100 días; a partir de ahí no se puede hacer más nada").
+  var NDVI_CIERRE = 0.6, NDVI_DESDE_DIA = 20, PASADA_VIEJA = 12, DIAS_MADURANDO = 100;
   function hoyK() { return ahoraLocal().slice(0, 10); }
   function diasEntre(a, b) { return Math.round((new Date(String(b).slice(0, 10) + 'T12:00:00') - new Date(String(a).slice(0, 10) + 'T12:00:00')) / 86400000); }
   function etapa(op) {
     if (!op || op.dds == null) return { avisar: true, motivo: 'sin_siembra' };
+    if (op.dds > DIAS_MADURANDO) return { avisar: false, motivo: 'madura' };
     var h = hoyK(), siembra = op.siembra ? String(op.siembra).slice(0, 10) : sumarDias(h, -op.dds), serie = [];
     try { if (op.equipoId != null && window.SafiaBalance && SafiaBalance.ndviGuardado) serie = SafiaBalance.ndviGuardado(op.equipoId); } catch (e) { serie = []; }
     var pts = serie.filter(function (p) { var f = String(p.fecha).slice(0, 10); return f <= h && diasEntre(siembra, f) >= NDVI_DESDE_DIA; });
@@ -117,14 +120,17 @@
   function fcorta(f) { return f.slice(8, 10) + '/' + f.slice(5, 7); }
   function chica(op) { return !etapa(op).avisar; }
   function textoChica(op) {
-    var e = etapa(op), exc = 'La excepción: soja sembrada sobre soja, o con un lote vecino más adelantado que ya tenga roya. En ese caso, recorré el lote igual.';
+    var e = etapa(op);
+    if (e.motivo === 'madura') return ['La soja ya tiene ' + op.dds + ' días desde la siembra: está madurando. A esta altura una aplicación contra la roya ya no cambia el rinde, por eso SAFIA deja de avisar.'];
+    var exc = 'La excepción: soja sembrada sobre soja, o con un lote vecino más adelantado que ya tenga roya. En ese caso, recorré el lote igual.';
     if (e.motivo === 'ndvi') return ['El satélite muestra la soja todavía abierta: NDVI ' + fmt(e.ndvi, 2) + ' el ' + fcorta(e.fecha) + ' (día ' + e.dia + ' desde la siembra). La roya aparece sobre todo desde que el cultivo cierra el surco: recién ahí hay humedad y sombra para que el hongo prospere. SAFIA empieza a avisar cuando el satélite muestre el surco casi cerrado (NDVI de ' + fmt(NDVI_CIERRE, 2) + ' o más).', exc];
     return ['La soja todavía es chica (día ' + op.dds + ' desde la siembra). La roya aparece sobre todo desde que el cultivo cierra el surco: recién ahí hay humedad y sombra para que el hongo prospere. SAFIA empieza a avisar cuando el satélite muestre el surco casi cerrado' + (e.sinPasada ? '; como no hay una pasada limpia en los últimos ' + PASADA_VIEJA + ' días, avisa desde el día ' + DIAS_SOJA_CHICA + '.' : ' o, si está nublado y no hay imagen, desde el día ' + DIAS_SOJA_CHICA + '.'), exc];
   }
   function notaEtapa(op) {
     var e = etapa(op);
-    if (e.motivo === 'ndvi' && e.avisar) return 'El satélite mostró el surco casi cerrado el ' + fcorta(e.fecha) + ' (NDVI ' + fmt(e.ndvi, 2) + ', día ' + e.dia + ').';
-    if (e.motivo === 'dias' && e.avisar) return 'No hay una pasada limpia del satélite en los últimos ' + PASADA_VIEJA + ' días: se avisa por los ' + op.dds + ' días desde la siembra.';
+    var hasta = op && op.dds != null ? ' SAFIA avisa hasta el día ' + DIAS_MADURANDO + ' (hoy es el día ' + op.dds + ').' : '';
+    if (e.motivo === 'ndvi' && e.avisar) return 'El satélite mostró el surco casi cerrado el ' + fcorta(e.fecha) + ' (NDVI ' + fmt(e.ndvi, 2) + ', día ' + e.dia + ').' + hasta;
+    if (e.motivo === 'dias' && e.avisar) return 'No hay una pasada limpia del satélite en los últimos ' + PASADA_VIEJA + ' días: se avisa por los ' + op.dds + ' días desde la siembra.' + hasta;
     return '';
   }
   function consejo(R, op) {
@@ -139,7 +145,7 @@
   var COL = { alto: ['#FBECEA', '#B5371C'], medio: ['#FDF3E3', '#8A5A00'], bajo: ['#E7F6EA', '#178029'] };
   function html(R, op) {
     if (!R) return '';
-    if (chica(op)) return '<details><summary style="cursor:pointer;list-style-position:inside;font-size:14px;font-weight:800;color:#2E3236;">Roya de la soja: <span style="padding:2px 9px;border-radius:99px;font-size:12px;background:#EEF0F2;color:#6B7075;">' + (etapa(op).motivo === 'ndvi' ? 'surco todavía abierto, sin riesgo' : 'soja chica, todavía sin riesgo') + '</span></summary><div style="margin-top:8px;">' + textoChica(op).map(function (x) { return '<div style="font-size:13.5px;color:#2E3236;line-height:1.45;margin-bottom:6px;">' + esc(x) + '</div>'; }).join('') + '<div style="font-size:11.5px;color:#8C9196;margin-top:6px;line-height:1.45;">' + FUENTE + ', p. 9 y 12. El cierre del surco se mira con el satélite (NDVI de ' + fmt(NDVI_CIERRE, 2) + ' o más, criterio de SAFIA); sin imagen, el día ' + DIAS_SOJA_CHICA + ' (criterio de Irrigar).</div></div></details>';
+    if (chica(op)) return '<details><summary style="cursor:pointer;list-style-position:inside;font-size:14px;font-weight:800;color:#2E3236;">Roya de la soja: <span style="padding:2px 9px;border-radius:99px;font-size:12px;background:#EEF0F2;color:#6B7075;">' + (etapa(op).motivo === 'madura' ? 'soja madurando: ya no se avisa' : etapa(op).motivo === 'ndvi' ? 'surco todavía abierto, sin riesgo' : 'soja chica, todavía sin riesgo') + '</span></summary><div style="margin-top:8px;">' + textoChica(op).map(function (x) { return '<div style="font-size:13.5px;color:#2E3236;line-height:1.45;margin-bottom:6px;">' + esc(x) + '</div>'; }).join('') + '<div style="font-size:11.5px;color:#8C9196;margin-top:6px;line-height:1.45;">' + (etapa(op).motivo === 'madura' ? 'SAFIA avisa por roya desde que la soja cierra el surco hasta los ' + DIAS_MADURANDO + ' días de la siembra (criterio de Irrigar).' : FUENTE + ', p. 9 y 12. El cierre del surco se mira con el satélite (NDVI de ' + fmt(NDVI_CIERRE, 2) + ' o más, criterio de SAFIA); sin imagen, el día ' + DIAS_SOJA_CHICA + ' (criterio de Irrigar).') + '</div></div></details>';
     var c = COL[R.nivel], chip = function (d) { return '<span style="display:inline-block;min-width:92px;text-align:center;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:700;background:' + (d.favorable ? '#FBECEA;color:#B5371C' : d.casi ? '#FDF3E3;color:#8A5A00' : '#EEF0F2;color:#6B7075') + ';">' + (d.favorable ? 'Favorable' : d.casi ? 'Casi' : 'No') + '</span>'; };
     var fila = function (d) { return '<tr><td style="padding:5px 6px 5px 0;border-top:1px solid #F0F2F4;white-space:nowrap;">' + esc(d.nombre) + (d.regado ? ' <span title="Se cargó un riego ese día o el anterior" style="color:#2E72C8;font-weight:700;">· riego</span>' : '') + '</td><td style="padding:5px 6px;border-top:1px solid #F0F2F4;">' + chip(d) + '</td><td style="padding:5px 0;border-top:1px solid #F0F2F4;text-align:right;color:#41464B;">' + (d.horas ? d.horas + ' h mojada' + (d.temp != null ? ' a ' + fmt(d.temp, 0) + ' °C' : '') + (d.lluvia > 0 ? ' · lluvia' : '') : 'hoja seca') + '</td></tr>'; };
     return '<details' + (op && op.abierto ? ' open' : '') + '><summary style="cursor:pointer;list-style-position:inside;font-size:14px;font-weight:800;color:#2E3236;">Roya de la soja: <span style="padding:2px 9px;border-radius:99px;font-size:12px;background:' + c[0] + ';color:' + c[1] + ';">' + esc(titulo(R)) + '</span></summary>' +
@@ -156,11 +162,11 @@
   }
   function resumen(R, op) {
     if (!R) return null;
-    if (chica(op)) return { enfermedad: 'roya asiática de la soja', lectura: (etapa(op).motivo === 'ndvi' ? 'el satélite muestra el surco todavía abierto (NDVI ' + fmt(etapa(op).ndvi, 2) + ')' : 'soja chica (día ' + op.dds + ')') + ': todavía sin riesgo de roya; SAFIA avisa cuando el satélite muestre el surco casi cerrado (NDVI ' + fmt(NDVI_CIERRE, 2) + ' o más) o, sin imagen, desde el día ' + DIAS_SOJA_CHICA, que_hacer: textoChica(op), fuente: FUENTE + ', p. 9 y 12 (la mayor incidencia es desde el cierre del surco; antes solo con mucho inóculo: soja sobre soja o lote vecino más adelantado). El día ' + DIAS_SOJA_CHICA + ' es un criterio de Irrigar.' };
+    if (chica(op)) return { enfermedad: 'roya asiática de la soja', lectura: etapa(op).motivo === 'madura' ? 'soja madurando (día ' + op.dds + '): SAFIA ya no avisa por roya; pasados los ' + DIAS_MADURANDO + ' días una aplicación no cambia el rinde (criterio de Irrigar)' : (etapa(op).motivo === 'ndvi' ? 'el satélite muestra el surco todavía abierto (NDVI ' + fmt(etapa(op).ndvi, 2) + ')' : 'soja chica (día ' + op.dds + ')') + ': todavía sin riesgo de roya; SAFIA avisa cuando el satélite muestre el surco casi cerrado (NDVI ' + fmt(NDVI_CIERRE, 2) + ' o más) o, sin imagen, desde el día ' + DIAS_SOJA_CHICA, que_hacer: textoChica(op), fuente: FUENTE + ', p. 9 y 12 (la mayor incidencia es desde el cierre del surco; antes solo con mucho inóculo: soja sobre soja o lote vecino más adelantado). El día ' + DIAS_SOJA_CHICA + ' es un criterio de Irrigar.' };
     return { enfermedad: 'roya asiática de la soja', etapa_del_cultivo: notaEtapa(op) || undefined, lectura: titulo(R), dias_favorables_ultimos: R.favorablesPasados, dias_favorables_proximos: R.favorablesProximos,
       dia_por_dia: R.pasados.slice(-3).concat(R.proximos).map(function (d) { return d.nombre + ': ' + (d.favorable ? 'FAVORABLE' : d.casi ? 'casi' : 'no') + (d.horas ? ' (' + d.horas + ' h de hoja mojada' + (d.temp != null ? ' a ' + Math.round(d.temp) + ' °C' : '') + ')' : '') + (d.regado ? ', con riego cargado' : ''); }),
       que_hacer: consejo(R, op), fuente: FUENTE + ', p. 9 y 10: 6 h o más de hoja mojada con 15 a 25 °C; más de 8 h en los extremos (10 o 27 °C)',
       importante: 'No indica que haya roya en el lote: indica si el clima permite la infección. La hoja mojada es una estimación con el pronóstico (lluvia, o humedad relativa de 90 % o más). El aviso sobre el horario del riego es un criterio de SAFIA, no una recomendación publicada. SAFIA solo cubre la roya de la soja; para otras enfermedades no hay umbral cargado. La aplicación la decide el ingeniero agrónomo.' };
   }
-  window.SafiaEnfermedades = { analizar: analizar, favorable: favorable, riesgoRoya: riesgoRoya, html: html, pintar: pintar, resumen: resumen, esSoja: esSoja, chica: chica, etapa: etapa, NDVI_CIERRE: NDVI_CIERRE, DIAS_SOJA_CHICA: DIAS_SOJA_CHICA, UMBRALES: U, FUENTE: FUENTE };
+  window.SafiaEnfermedades = { analizar: analizar, favorable: favorable, riesgoRoya: riesgoRoya, html: html, pintar: pintar, resumen: resumen, esSoja: esSoja, chica: chica, etapa: etapa, NDVI_CIERRE: NDVI_CIERRE, DIAS_MADURANDO: DIAS_MADURANDO, DIAS_SOJA_CHICA: DIAS_SOJA_CHICA, UMBRALES: U, FUENTE: FUENTE };
 })();
