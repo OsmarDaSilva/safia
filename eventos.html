@@ -21,6 +21,11 @@
   <style>
     /* Estilos mínimos específicos de esta página (resaltado de fila en edición) */
     tr.editando td { background: var(--amber-t); }
+    /* La columna de editar y borrar queda siempre a la vista, aunque la tabla sea más ancha que la pantalla */
+    .tablescroll table.tbl thead th:last-child, .tablescroll table.tbl tbody td:last-child{position:sticky;right:0;z-index:1;box-shadow:-10px 0 10px -10px rgba(0,0,0,.25);}
+    .tablescroll table.tbl tbody td:last-child{background:#fff;}
+    .tablescroll table.tbl tbody tr:hover td:last-child{background:#F7F8F9;}
+    .tablescroll table.tbl tbody tr.editando td:last-child{background:inherit;}
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="safia-sync.js"></script>
