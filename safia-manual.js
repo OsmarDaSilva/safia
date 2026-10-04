@@ -125,6 +125,7 @@
         'Debajo, cada pivot dice: cuánto de la <b>meta</b> sigue alcanzable, lo que <b>ya no se puede recuperar</b>, cómo viene el <b>agua</b> (riego, estrés, rinde perdido y cuánto falta regar), lo que <b>toca ahora</b> y lo que <b>falta cargar</b>.',
         'Si faltó agua, dice en qué fechas y si coincide con el pivot parado.',
         'Con <b>Imprimir</b> lo llevás a la reunión con el dueño.',
+        'Al pie está <b>Acierto de SAFIA</b>: lo que SAFIA dijo durante cada campaña contra lo que se cosechó. SAFIA anota sola sus pronósticos una vez por semana.',
         'Al tocar el aviso de la mañana en el celular se abre directo este parte.' ],
         n: 'El parte junta lo que SAFIA ya calcula en las otras pantallas. Es tan bueno como lo que se cargó: riegos, insumos y paradas.' },
       { t: 'Asistencia técnica de Irrigar', p: [
@@ -187,6 +188,7 @@
         'En el menú abrí <b>Seguimiento</b>: es el resumen de todos tus pivots para decidir.',
         'Las luces de arriba dicen en diez segundos cuál pivot pide atención.',
         'En cada pivot ves cuánto de la <b>meta</b> sigue alcanzable y qué se llevó el resto, cuánto rinde se perdió por <b>agua</b> y por qué, cuánto <b>falta regar</b> hasta la cosecha y qué hay que hacer ahora.',
+        'Al pie, <b>Acierto de SAFIA</b> compara lo que SAFIA dijo en cada campaña con lo que se cosechó: cuánto de la meta se logró y cuántas veces el rinde cayó dentro del rango que anunciaba.',
         'Se puede imprimir.' ],
         n: 'SAFIA no muestra una probabilidad de llegar a la meta: muestra cuánto sigue siendo alcanzable con lo que ya pasó. El riego que falta es una estimación con el clima de los últimos 10 años.' },
       { t: 'Asistencia técnica de Irrigar', p: [

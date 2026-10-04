@@ -51,6 +51,7 @@
 <script src="safia-rotacion.js"></script>
 <script src="safia-seguimiento.js"></script>
 <script src="safia-mantenimiento.js"></script>
+<script src="safia-acierto.js"></script>
 <script src="safia-parte.js"></script>
 </head>
 <body>
@@ -103,6 +104,7 @@
       <div class="crumb">Operación · <b>Seguimiento</b></div>
       <div class="ptop"><div><h2>Parte de seguimiento</h2><div class="sub">Cómo viene cada pivot: la meta, lo que ya no se recupera, el agua, lo que toca ahora y lo que falta cargar</div></div></div>
       <div id="parte"></div>
+      <div id="acierto"></div>
     </main>
   </div>
 <script>
@@ -110,7 +112,16 @@
   var side=document.getElementById('sideNav'),overlay=document.getElementById('sideOverlay');
   document.getElementById('menuToggle').addEventListener('click',function(){side.classList.toggle('abierto');overlay.classList.toggle('visible');document.body.classList.toggle('menu-abierto');});
   overlay.addEventListener('click',function(){side.classList.remove('abierto');overlay.classList.remove('visible');document.body.classList.remove('menu-abierto');});
-  var arrancar = function () { SafiaParte.montar(document.getElementById('parte')); };
+  var arrancar = function () {
+    SafiaParte.montar(document.getElementById('parte'));
+    // Acierto de SAFIA del mismo cliente del parte: se vuelve a pintar al cambiar de cliente y cuando el parte termina de anotar
+    if (window.SafiaAcierto) {
+      var clienteDelParte = function () { var sel = document.getElementById('parteCliente'); if (sel) return sel.value; try { return sessionStorage.getItem('parte_cliente'); } catch (e) { return null; } };
+      var pintarAcierto = SafiaAcierto.montar(document.getElementById('acierto'), clienteDelParte);
+      document.addEventListener('change', function (e) { if (e.target && e.target.id === 'parteCliente') setTimeout(pintarAcierto, 60); });
+      setTimeout(pintarAcierto, 9000);
+    }
+  };
   if (window.SafiaSync && SafiaSync.alListo) SafiaSync.alListo(arrancar); else arrancar();
 })();
 </script>
