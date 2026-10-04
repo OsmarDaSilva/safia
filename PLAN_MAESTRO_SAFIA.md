@@ -3,6 +3,7 @@
 
 > Documento de referencia del proyecto. Ubicar en la raíz del repositorio.
 > Toda decisión de producto, diseño y código debe ser coherente con este documento.
+> Versión 1.3 — 4 de octubre de 2026 (operación diaria, servicio técnico y estado real de cada módulo; ver sección 13)
 > Versión 1.2 — 29 de septiembre de 2026 (visión ampliada de Osmar: agrónomo inteligente y evaluador de inversiones para América Latina)
 
 ---
@@ -174,10 +175,10 @@ Regla de Osmar: un solo lugar para actualizar precios (**Datos → Precios**, `p
 **Informe para el cliente (23-sep-2026)** — `informe.html` + `safia-informe.js`, botón "Informe para el cliente (PDF)" en el Banco. Hoja A4 imprimible (Guardar como PDF del navegador) por campo o por lote, con secciones activables: Resumen (KPIs: superficie, última campaña, frente a la zona, vigor satelital), Lotes (tabla + imagen NDVI de la última pasada despejada de cada lote), Campañas y rinde (vs promedio de la zona de safia_ref_produccion o vs mejor local), Agua (lluvia, riego, ET0, kg/mm, regla práctica), Suelo (último análisis representativo por lote, lectura CAPECO/Embrapa, cambios vs análisis anterior), Vigor satelital (serie 12 meses + comparación entre campañas), Rotación (historial, plan, avisos, índices) y Diagnóstico agronómico (SafiaAgro.informeHTML: mejor campaña vs mejor de la zona, recomendaciones). Reutiliza los motores existentes: safia-ndvi exporta svgSerie/htmlCampanas/serieDe/cargarDeTabla y safia-rotacion exporta planDelLote/indiceRotacion. Pendiente: logo del cliente/empresa, firma del agrónomo con matrícula, envío por correo o WhatsApp.
 Próximos pasos: polígonos de lote (dibujar o desde shapefile) para superficie por zona y prescripción variable; capas satelitales (NDVI) por fecha; zonas de manejo estables (varios años de rinde); calibración del análisis por punto vs promedio.
 
-### Motor 5 · Consultor en vivo — FUTURO
+### Motor 5 · Consultor en vivo — HECHO (meta viva, agua por etapa, NDVI; ver sección 13)
 Durante la campaña, con estación meteorológica y satélite (NDVI): comparar las condiciones de **hoy** (agua acumulada vs demanda, grados-día, verdor) contra la **campaña modelo** que alcanzó el objetivo, **alineado por etapa del cultivo** (no por fecha del calendario), y alertar a tiempo para corregir (foliar, fertirriego, más riego).
 
-### Asistente IA agronómico — FUTURO
+### Asistente IA agronómico — HECHO (30-sep-2026; 18 herramientas al 4-oct-2026)
 Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **sobre los datos del banco**: "¿qué variedad de soja me rindió mejor?", "¿con cuántos mm hice mi mejor maíz?", "¿qué le falta a este suelo comparado con los mejores de Canindeyú?". Regla de oro heredada de SIGA: **todo número sale de los datos, nunca se inventa**.
 
 ## 6. Módulos y estado
@@ -199,17 +200,28 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Finalidad, variedad con lista, encalado y fertilización en la campaña; cosecha por cultivo | ✅ |
 | Catálogo de cultivos compartido (funciona en cualquier navegador) | ✅ |
 | Historial anterior a SAFIA (ciclos manuales) alimenta el motor | ✅ |
-| Permisos por rol | ⬜ |
-| Sincronización por registro (no por colección) | ⬜ antes de roles |
-| Publicación en Vercel (uso desde celular; ya está lista como app instalable) | ⬜ |
+| Permisos por rol (propietario, admin, cliente, encargado, operador; candado por cliente y por estancia) | ✅ 26/30-sep-2026 |
+| Sincronización por registro (no por colección) | ✅ 25-sep-2026 |
+| Publicación en Vercel (https://safia-beige.vercel.app, app instalable) | ✅ |
 | Imágenes satelitales (NDVI por lote e imagen del lote) | ✅ 23-sep-2026 |
-| Estación meteorológica y telemetría del pivote | ⬜ |
-| Consultor en vivo (Motor 5) | ✅ primera versión con NDVI (23-sep-2026); faltan alertas automáticas |
-| Asistente IA agronómico | ⬜ |
+| Estación meteorológica (Metos/FieldClimate, llaves por cliente) | ✅ en código; falta probar con una estación real |
+| Telemetría del pivote (Lindsay FieldNET) | ⬜ falta el acceso de Lindsay |
+| Consultor en vivo (Motor 5) | ✅ con meta viva, agua por etapa y avisos al celular cada mañana |
+| Asistente IA agronómico (18 herramientas, cupo mensual por pivot) | ✅ |
 | Geocodificar las 43 localidades de la referencia (comparar por cercanía también contra la base regional) | ⬜ |
-| Reemplazar alert()/confirm() nativos por avisos en pantalla (56 + 9 lugares) | ⬜ |
-| Comparación de ids uniforme (mismoId) en todas las pantallas | ⬜ |
+| Reemplazar alert()/confirm() nativos por avisos en pantalla (56 + 9 lugares) | ⬜ (todo lo nuevo ya usa avisos en pantalla) |
+| Comparación de ids uniforme (mismoId) en todas las pantallas | ⬜ (los ids de equipo son números; Eventos corregido el 4-oct-2026) |
 | Menú lateral estándar en clima.html y prediccion.html | ⬜ |
+| Suscripción anual por pivot (vencida = ve lo viejo, no carga nada nuevo) | ✅ 29-sep-2026 |
+| Avisos al celular: parte de riego cada mañana por pivot | ✅ 2-oct-2026 (cada usuario activa su celular) |
+| Arranque del pivot antes del estrés, lámina mínima de día y horario de punta de la ANDE | ✅ 30-sep / 3-oct-2026 |
+| Pasturas bajo riego: piquetes, pasto en kilos, carga y kilos de carne | ✅ 3-oct-2026 |
+| Energía y agua: facturas de la ANDE leídas con IA, reparto por pivot, informe de agua de la campaña | ✅ 3-oct-2026 |
+| Ventana para pulverizar (pronóstico por hora, límites Embrapa) | ✅ 3-oct-2026 |
+| Uniformidad del pivot por satélite (franjas circulares en el NDVI) | ✅ 3-oct-2026 |
+| Manual por rol (Operador, Encargado, Propietario) | ✅ 3-oct-2026 |
+| Parte de seguimiento (todos los pivots del cliente en una pantalla) | ✅ 4-oct-2026 |
+| Asistencia técnica: pedidos, conversación, orden de servicio, repuestos pendientes, historial | ✅ 4-oct-2026 |
 
 ## 7. Reglas de negocio clave
 
@@ -254,19 +266,55 @@ Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador d
 | Riego por cultivo día por día, volúmenes, pico, 8 de cada 10 años, año seco | ✅ |
 | Secano realista (siembra con el perfil cargado, IDEAGRO 2025) | ✅ |
 | Economía por cultivo: costos completos, energía por mm, reposición, payback y TIR | ✅ por proyecto (inversión total) |
-| Inversión por partes (equipo, pozos, reservorio, eléctrica, obras) y calculadora de energía US$/mm (kW, tarifa, horas, generador) | ⬜ |
-| Informe PDF para el inversor con potencial, "igualar al mejor" y economía | ⬜ parcial (clima, riego, suelo, agua ya están) |
+| Inversión por partes (equipo, pozos, reservorio, eléctrica, obras) y calculadora de energía US$/mm (kW, tarifa, horas, generador) | ✅ 29-sep-2026 |
+| Informe PDF para el inversor con potencial, "igualar al mejor" y economía | ✅ 29-sep-2026 |
 | Comparar solo dentro de la misma región (Chaco / Oriental) | ✅ Paraguay; ⬜ zonas agroclimáticas del resto de América Latina |
 | Referencia regional de producción y costos | ✅ Paraguay; ⬜ Brasil, Argentina, Bolivia y demás (fuentes oficiales por país) |
-| Moneda y precios por país | ⬜ |
+| Moneda y precios por país | ⬜ (solo las facturas de energía manejan US$, Gs. y R$) |
 | Mejor receta: igualar al líder, materiales, fertilidad, época | ✅ Paraguay |
-| Pasturas bajo riego con carga animal (balance de materia seca, % del peso vivo, carga por mes) | ⬜ |
-| Asistente IA agronómico sobre el banco (responde con la fuente y el N de casos) | ⬜ |
+| Pasturas bajo riego con carga animal (balance de materia seca, % del peso vivo, carga por mes) | ✅ 3-oct-2026 |
+| Asistente IA agronómico sobre el banco (responde con la fuente y el N de casos) | ✅ 30-sep-2026 |
 
-## 12. Próximos pasos
+## 12. Próximos pasos (al 4-oct-2026)
 
 1. Cargar 4–6 clientes completos (Irrigar) para darle fuerza estadística al banco.
-3. Sincronización por registro → permisos por rol → acceso a encargados y operadores.
-4. Publicar en Vercel para uso desde el celular.
-5. Estación meteorológica y satélite → Motor 5.
-6. Asistente IA agronómico sobre el banco.
+2. Uso real en el campo: que cada usuario active los avisos en su celular; probar la cámara y los videos de asistencia con poca señal.
+3. Número de WhatsApp de soporte de Irrigar (se carga en Avisos al celular). Después, envío automático por la API de WhatsApp.
+4. Rol "técnico" para Irrigar (hoy el técnico entra como admin y ve todo).
+5. Telemetría Lindsay FieldNET: falta el acceso de Lindsay. Con eso el pivot avisa solo que está parado.
+6. Probar con una estación Metos real y con datos reales de pasturas (pesadas y cortes de Angelita).
+7. Ganadería y América Latina (zonas agroclimáticas, referencia y moneda por país): sección 11.
+8. Deuda menor: avisos nativos viejos (alert/confirm), menú de clima.html y prediccion.html, cuadro de instalación de piquetes en Evaluar.
+
+## 13. Operación diaria y servicio técnico (30-sep al 4-oct-2026)
+
+Lo que se construyó después de la versión 1.2. La idea que lo ordena: **SAFIA no depende de que el operador avise**; deduce lo que puede de lo que ya se carga (el riego) y le pide lo mínimo.
+
+**Riego del día**
+- El pivot se arranca antes del estrés (estrés 50 % de agua útil, arranque desde 75 % y más arriba si la vuelta es larga).
+- De día, nunca menos de 10 mm por vuelta (10 a 14 mm con más de 30 °C). Horario de punta de la ANDE: lunes a sábado de 18 a 22 h (Res. 49888/2024).
+- En estrés se espera la lluvia solo si hoy y mañana cubren el riego (15 mm o más).
+- Lluvia: CHIRPS, NASA POWER para el mes sin CHIRPS, pronóstico para hoy; lo medido manda.
+- Avisos al celular cada mañana a las 6: el operador abre su pantalla en el pivot; el dueño y el encargado, el parte de seguimiento.
+
+**Parte de seguimiento** (seguimiento.html): todos los pivots del cliente con cuatro luces (meta, agua, equipo, datos), lo que ya no se recupera, el riego que falta con 10 años de clima, lo que toca ahora y lo que falta cargar. Sin probabilidades: "cuánto de la meta sigue alcanzable".
+
+**Pivot parado y asistencia técnica** (asistencias.html)
+- Botón "Pivot parado · Asistencia" en el Operador. La parada se cierra sola con el primer riego cargado después.
+- Cada pedido es un asunto: Irrigar lo toma, carga la visita, las dos partes escriben y mandan fotos o videos cortos (botones Sacar foto, Filmar video, Elegir archivo), se cierra con el informe y la orden de servicio (número y foto). Cerrado, la conversación termina; otro problema es otro pedido.
+- Si nadie lo cierra, se cierra solo al cargarse un riego. Se puede editar, reabrir y (solo Irrigar) borrar.
+- Constancias de lo resuelto por teléfono. Repuestos pendientes por pedido (enviar al cliente, lo lleva el técnico, lo compra el cliente) con lista por cliente para copiar o imprimir.
+- Alerta de pedidos abiertos en todas las pantallas y número en el menú. Tiempos de respuesta y de resolución para la administración.
+- Datos: tabla safia_asistencias (pedidos, notas y pendientes), edge safia-asistencia; fotos en el depósito safia.
+
+**Pasturas en kilos y carne**: altura → kg de materia seca por hectárea (Embrapa; la calibración propia manda), carga que aguanta contra la real, pesadas y kilos de carne por hectárea.
+
+**Energía y agua**: facturas de la ANDE leídas con IA (exceso de potencia, reactiva, punta), reparto por pivot según mm × hectáreas, costo por mm, informe de agua al cierre de la campaña, en el PDF y en el Asistente. Monedas US$, Gs. y R$.
+
+**Ventana para pulverizar**: pronóstico por hora de tres días con los límites de Embrapa Soja (viento 3,2 a 6,5 km/h, hasta 13 con cuidado; humedad 55 % o más; menos de 30 °C), ráfagas y Delta T.
+
+**Uniformidad del pivot por satélite**: franjas circulares en el NDVI por distancia al centro, sobre todo al madurar (aspersores i-Wob UP3).
+
+**Manual por rol** y **Asistente IA** (18 herramientas): los dos se actualizan en cada entrega.
+
+**Descartado por Osmar**: constancia EUDR y todo lo que sea auditoría o certificación ("no somos auditores"); interfaz en portugués (alcanza el traductor del navegador); pronóstico de rinde con probabilidad (ya está la meta viva); tres modelos de pulverización a elegir (un solo semáforo).
