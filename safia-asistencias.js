@@ -36,6 +36,26 @@
   function pedidos() { return leer().filter(function (x) { return x.tipo === 'pedido'; }).sort(function (a, b) { return String(b.creado).localeCompare(String(a.creado)); }); }
   function pedido(id) { return leer().filter(function (x) { return x.tipo === 'pedido' && String(x.id) === String(id); })[0] || null; }
   function notasDe(id) { return leer().filter(function (x) { return x.tipo === 'nota' && String(x.pedidoId) === String(id); }).sort(function (a, b) { return String(a.creado).localeCompare(String(b.creado)); }); }
+  /* Repuestos y pendientes: lo que falta mandar o llevar para terminar de resolver (un rulemán, un contactor, un fusible).
+     Cada uno es un registro aparte ({ tipo:'pendiente', pedidoId, … }) y sigue vivo aunque el pedido se cierre: se termina
+     cuando alguien lo marca como entregado. De ahí sale la lista de pendientes por cliente. */
+  var DESTINOS = { enviar: 'Enviar al cliente', llevar: 'Lo lleva el técnico en la próxima visita', cliente: 'Lo compra el cliente' };
+  function pendientes(soloAbiertos) { return leer().filter(function (x) { return x.tipo === 'pendiente' && (!soloAbiertos || x.estado !== 'entregado'); }).sort(function (a, b) { return String(a.creado).localeCompare(String(b.creado)); }); }
+  function pendientesDe(pedidoId) { return pendientes().filter(function (x) { return String(x.pedidoId) === String(pedidoId); }); }
+  function agregarPendientes(pedidoId, texto, destino) {   // uno por renglón
+    var p = pedido(pedidoId); if (!p) return [];
+    var hechos = String(texto || '').split(/\n+/).map(function (t) { return t.replace(/^[\s\-•*]+/, '').trim(); }).filter(Boolean).map(function (t) {
+      return agregar({ id: nuevoId('ap'), tipo: 'pendiente', pedidoId: p.id, equipoId: p.equipoId, campoId: p.campoId, creado: ahora(), autor: yo(), texto: t.slice(0, 200), destino: DESTINOS[destino] ? destino : 'enviar', estado: 'pendiente', resuelto: null });
+    });
+    if (hechos.length) avisar(p.id, 'nota', 'Repuestos pendientes: ' + hechos.map(function (x) { return x.texto; }).join('; '));
+    return hechos;
+  }
+  function marcarPendiente(id, entregado) {
+    var l = leer(), ok = false;
+    l.forEach(function (x) { if (x.tipo === 'pendiente' && String(x.id) === String(id)) { x.estado = entregado ? 'entregado' : 'pendiente'; x.resuelto = entregado ? { por: yo(), fecha: ahora() } : null; ok = true; } });
+    if (ok) guardar(l); return ok;
+  }
+  function quitarPendiente(id) { guardar(leer().filter(function (x) { return !(x.tipo === 'pendiente' && String(x.id) === String(id)); })); }
   function abiertoDe(equipoId) { return pedidos().filter(function (p) { return p.estado !== 'cerrado' && String(p.equipoId) === String(equipoId); })[0] || null; }
   function cambiar(id, fn) { var l = leer(), i = -1; l.forEach(function (x, k) { if (x.tipo === 'pedido' && String(x.id) === String(id)) i = k; }); if (i < 0) return null; fn(l[i]); guardar(l); return l[i]; }
   function agregar(reg) { var l = leer(); l.push(reg); guardar(l); return reg; }
@@ -210,7 +230,8 @@
     return ps.slice(0, 6).map(function (p) { return { pedido_el: String(p.creado).slice(0, 10), motivo: MOTIVOS[p.motivo] || p.motivo, descripcion: p.descripcion || undefined, estado: estadoTxt(p), pedido_por: p.pedidoPor ? p.pedidoPor.nombre : undefined,
       tardo_en_tomarse: p.tomadoEn && p.origen !== 'constancia' ? lapso(p.creado, p.tomadoEn) : undefined, tardo_en_resolverse: p.cierre && p.origen !== 'constancia' ? lapso(p.creado, p.cierre.fecha) : undefined,
       orden_de_servicio: p.orden ? ((p.orden.nro ? 'N.º ' + p.orden.nro : 'sin número') + (p.orden.foto ? ', con foto' : ', sin foto')) : (p.estado === 'cerrado' ? 'no cargada' : undefined), cerrado_solo_al_cargarse_un_riego: p.cierre && p.cierre.automatico ? true : undefined, como_se_resolvio: p.informe && (p.informe.solucion || p.informe.repuestos) ? [p.informe.solucion, p.informe.repuestos ? 'repuestos: ' + p.informe.repuestos : ''].filter(Boolean).join(' · ') || undefined : (p.cierre && p.cierre.texto) || undefined,
-      constancia_de_irrigar: p.origen === 'constancia' ? (CANALES[p.informe && p.informe.canal] || 'sí') : undefined, notas: notasDe(p.id).filter(function (n) { return !n.sistema; }).length }; });
+      constancia_de_irrigar: p.origen === 'constancia' ? (CANALES[p.informe && p.informe.canal] || 'sí') : undefined, notas: notasDe(p.id).filter(function (n) { return !n.sistema; }).length,
+      repuestos_pendientes: pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).map(function (x) { return x.texto + ' (' + (DESTINOS[x.destino] || '') + ')'; }) }; });
   }
 
   /* ---------- pantalla ---------- */
@@ -257,9 +278,10 @@
         kpi(abiertos.filter(function (p) { return !p.tomadoPor; }).length, 'sin tomar') +
         kpi(hrs(tResp), 'tardó Irrigar en tomarlos (promedio)') + kpi(hrs(tRes), 'tardaron en resolverse (promedio)') + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">' +
-        ['abiertos', 'cerrados', 'todos'].map(function (f) { return '<button data-f="' + f + '" style="' + B + 'padding:7px 12px;border:1.5px solid ' + (vista.filtro === f ? '#22A93A;background:#E7F6EA;color:#178029' : '#E1E4E7;background:#fff;color:#41464B') + ';">' + (f === 'abiertos' ? 'Abiertos' : f === 'cerrados' ? 'Historial (cerrados)' : 'Todos') + '</button>'; }).join('') +
+        ['abiertos', 'cerrados', 'todos', 'pendientes'].map(function (f) { return '<button data-f="' + f + '" style="' + B + 'padding:7px 12px;border:1.5px solid ' + (vista.filtro === f ? '#22A93A;background:#E7F6EA;color:#178029' : '#E1E4E7;background:#fff;color:#41464B') + ';">' + (f === 'abiertos' ? 'Abiertos' : f === 'cerrados' ? 'Historial (cerrados)' : f === 'pendientes' ? 'Repuestos pendientes (' + pendientes(true).length + ')' : 'Todos') + '</button>'; }).join('') +
         (irr && Object.keys(clientesConPedidos).length > 1 ? '<select id="asFCliente" style="' + IN + 'width:auto;padding:7px 10px;"><option value="">Todos los clientes</option>' + Object.keys(clientesConPedidos).map(function (k) { return '<option value="' + esc(k) + '"' + (String(k) === String(vista.cliente) ? ' selected' : '') + '>' + esc(clientesConPedidos[k]) + '</option>'; }).join('') + '</select>' : '') +
         '<select id="asFEquipo" style="' + IN + 'width:auto;max-width:100%;padding:7px 10px;"><option value="">Todos los pivots</option>' + opcionesEquipo(vista.equipo) + '</select></div>';
+    if (vista.filtro === 'pendientes') return h + htmlPendientes();
     if (!l.length) return h + '<div style="background:#fff;border:1px dashed #C9CED3;border-radius:10px;padding:22px;text-align:center;color:#6B7075;font-size:14px;line-height:1.5;">' + (vista.filtro === 'abiertos' ? 'No hay pedidos de asistencia abiertos.' : 'No hay pedidos para mostrar.') + '</div>';
     return h + l.map(function (p) {
       var g = lugar(p), n = notasDe(p.id).filter(function (x) { return !x.sistema; }), paradaCerrada = volvioAAndar(p);
@@ -267,7 +289,7 @@
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="font-size:15px;font-weight:800;color:#2E3236;">' + esc(g.pivot) + '<span style="font-weight:500;color:#6B7075;font-size:13px;"> · ' + esc([g.campo, irr ? g.cliente : ''].filter(Boolean).join(' · ')) + '</span></div>' + chip(p) + '</div>' +
         '<div style="font-size:13.5px;color:#41464B;margin-top:4px;line-height:1.45;"><b>' + esc(MOTIVOS[p.motivo] || p.motivo) + '</b>' + (p.descripcion ? ' · ' + esc(p.descripcion.slice(0, 160)) : '') + '</div>' +
         '<div style="font-size:12px;color:#8C9196;margin-top:4px;">' + (p.origen === 'constancia' ? 'Constancia de ' + firma(p.pedidoPor) + ' · ' + fd(p.fechaProblema) : 'Pedido el ' + fh(p.creado) + ' por ' + firma(p.pedidoPor) + (p.estado !== 'cerrado' ? ' · hace ' + lapso(p.creado) : ' · resuelto en ' + lapso(p.creado, p.cierre && p.cierre.fecha))) +
-          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div></div>';
+          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length ? ' · <b style="color:#B5371C;">' + pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length + ' repuesto(s) pendiente(s)</b>' : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div></div>';
     }).join('');
   }
 
@@ -287,6 +309,8 @@
       '<label style="' + LB + '">El problema</label><textarea id="asProblema" rows="2" placeholder="Ejemplo: el pivot no arrancaba, tablero sin tensión de comando" style="' + IN + '"></textarea>' +
       '<label style="' + LB + '">Cómo se solucionó</label><textarea id="asSolucion" rows="2" placeholder="Ejemplo: fusible del tablero quemado, se cambió" style="' + IN + '"></textarea>' +
       '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" placeholder="Ejemplo: 1 fusible 2 A" style="' + IN + '">' +
+        '<label style="' + LB + '">Repuestos que faltan o quedan pendientes (uno por renglón)</label><textarea id="asPend" rows="2" placeholder="Ejemplo: rulemán 6306 de la bomba&#10;contactor de la torre 4" style="' + IN + '"></textarea>' +
+        '<select id="asPendDestino" style="' + IN + 'margin-top:6px;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select>' +
         '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '';
     else h +=
@@ -325,6 +349,8 @@
         '<label style="' + LB + '">Qué se encontró</label><input id="asCausa" type="text" placeholder="Ejemplo: fusible del tablero quemado" style="' + IN + '">' +
         '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" placeholder="Ejemplo: se cambió el fusible y se probó una vuelta" style="' + IN + '">' +
         '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" style="' + IN + '">' +
+        '<label style="' + LB + '">Repuestos que faltan o quedan pendientes (uno por renglón)</label><textarea id="asPend" rows="2" placeholder="Ejemplo: rulemán 6306 de la bomba&#10;contactor de la torre 4" style="' + IN + '"></textarea>' +
+        '<select id="asPendDestino" style="' + IN + 'margin-top:6px;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select>' +
         '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '"' + (k === 'visita' ? ' selected' : '') + '>' + CANALES[k] + '</option>'; }).join('') + '</select>' +
         '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button></div>';
@@ -345,6 +371,14 @@
         '<button data-a="informe" style="' + BG + 'margin-top:10px;">Guardar el informe</button></div>';
     }
 
+    // repuestos y pendientes: siguen abiertos aunque el pedido esté cerrado
+    var pens = pendientesDe(p.id);
+    h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;">' +
+      '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Repuestos y pendientes</div>' +
+      (pens.length ? pens.map(htmlPendiente).join('') : '<div style="font-size:13.5px;color:#8C9196;">Nada pendiente.</div>') +
+      '<div style="border-top:1px solid #EEF0F2;margin-top:10px;padding-top:10px;"><textarea id="asPendNuevo" rows="2" placeholder="Qué falta (uno por renglón). Ejemplo: fusible de 20 A del tablero" style="' + IN + '"></textarea>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"><select id="asPendNuevoDestino" style="' + IN + 'flex:1;min-width:190px;width:auto;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select><button data-a="pendAgregar" style="' + BG + '">Agregar a pendientes</button></div></div></div>';
+
     // conversación
     h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;">' +
       '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Conversación de este pedido</div>';
@@ -362,6 +396,39 @@
     return h + '</div>';
   }
 
+  function htmlPendiente(x) {
+    var hecho = x.estado === 'entregado';
+    return '<div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:8px 0;border-top:1px solid #F0F2F4;">' +
+      '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:' + (hecho ? '#8C9196;text-decoration:line-through' : '#2E3236') + ';">' + esc(x.texto) + '</div>' +
+      '<div style="font-size:12px;color:#8C9196;line-height:1.4;">' + esc(DESTINOS[x.destino] || '') + ' · lo anotó ' + firma(x.autor) + ' el ' + fh(x.creado) + (hecho && x.resuelto ? ' · <b style="color:#178029;">entregado</b> ' + fh(x.resuelto.fecha) + ' (' + esc(x.resuelto.por && x.resuelto.por.nombre) + ')' : '') + '</div></div>' +
+      '<div style="display:flex;gap:6px;flex:none;">' + (hecho ? '<button data-a="pendVolver" data-id="' + esc(x.id) + '" style="' + BG + 'padding:6px 10px;font-size:12.5px;">Sigue pendiente</button>' : '<button data-a="pendHecho" data-id="' + esc(x.id) + '" style="' + BV + 'padding:6px 10px;font-size:12.5px;">Entregado</button>') +
+      (esIrrigar() ? '<button data-a="pendQuitar" data-id="' + esc(x.id) + '" style="' + BR + 'padding:6px 10px;font-size:12.5px;">Quitar</button>' : '') + '</div></div>';
+  }
+  // La lista de pendientes de todos los pedidos, por cliente y por pivot: para armar el envío o lo que lleva el técnico
+  function gruposPendientes() {
+    var g = {}, orden = [];
+    pendientes(true).forEach(function (x) {
+      var lg = lugar(x); if (vista.equipo && String(x.equipoId) !== String(vista.equipo)) return; if (vista.cliente && String(lg.clienteId) !== String(vista.cliente)) return;
+      var k = String(lg.clienteId || '') + '|' + lg.cliente; if (!g[k]) { g[k] = { clienteId: lg.clienteId, cliente: lg.cliente || 'Sin cliente', items: [] }; orden.push(k); }
+      g[k].items.push({ x: x, lugar: lg });
+    });
+    return orden.map(function (k) { return g[k]; }).sort(function (a, b) { return a.cliente.localeCompare(b.cliente); });
+  }
+  function textoPendientes(grupo) {
+    var porPivot = {}, ord = [];
+    grupo.items.forEach(function (i) { var k = [i.lugar.campo, i.lugar.pivot].filter(Boolean).join(' · '); if (!porPivot[k]) { porPivot[k] = []; ord.push(k); } porPivot[k].push(i.x); });
+    return 'Repuestos y pendientes · ' + grupo.cliente + '\n' + ord.map(function (k) { return k + ':\n' + porPivot[k].map(function (x) { return '  - ' + x.texto + ' (' + (DESTINOS[x.destino] || '') + ')'; }).join('\n'); }).join('\n');
+  }
+  function htmlPendientes() {
+    var gs = gruposPendientes();
+    if (!gs.length) return '<div style="background:#fff;border:1px dashed #C9CED3;border-radius:10px;padding:22px;text-align:center;color:#6B7075;font-size:14px;line-height:1.5;">No hay repuestos ni pendientes sin entregar.</div>';
+    return gs.map(function (g, n) {
+      return '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><div style="font-size:16px;font-weight:800;color:#2E3236;">' + esc(g.cliente) + ' <span style="font-weight:500;color:#6B7075;font-size:13px;">· ' + g.items.length + (g.items.length === 1 ? ' pendiente' : ' pendientes') + '</span></div>' +
+        '<div class="no-imprimir" style="display:flex;gap:6px;"><button data-a="copiar" data-n="' + n + '" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Copiar la lista</button><button data-a="imprimir" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Imprimir</button></div></div>' +
+        g.items.map(function (i) { return '<div style="font-size:12px;color:#6B7075;margin-top:8px;font-weight:700;">' + esc([i.lugar.campo, i.lugar.pivot].filter(Boolean).join(' · ')) + ' <a data-p="' + esc(i.x.pedidoId) + '" href="#" style="color:#178029;font-weight:700;">ver el pedido</a></div>' + htmlPendiente(i.x); }).join('') + '</div>';
+    }).join('');
+  }
   function cargarFotos() {
     var sb = window.safiaSupabase;
     Array.prototype.forEach.call(cont.querySelectorAll('a[data-foto]'), function (a) {
@@ -384,9 +451,23 @@
   function alClic(ev) {
     var t = ev.target, b = t.closest ? t.closest('[data-a]') : null, f = t.closest ? t.closest('[data-f]') : null, card = t.closest ? t.closest('[data-p]') : null;
     if (f) { vista.filtro = f.getAttribute('data-f'); return pintar(); }
-    if (!b) { if (card) ir('detalle', card.getAttribute('data-p')); return; }
+    if (!b) { if (card) { ev.preventDefault(); ir('detalle', card.getAttribute('data-p')); } return; }
     var a = b.getAttribute('data-a'), id = vista.id;
     if (a === 'volver') return ir('lista');
+    if (a === 'pendAgregar') { if (!val('asPendNuevo')) { vista.msg = 'Escribí qué falta.'; return pintar(); } var np = agregarPendientes(id, val('asPendNuevo'), val('asPendNuevoDestino')); return ir('detalle', id, np.length + (np.length === 1 ? ' pendiente agregado.' : ' pendientes agregados.'), true); }
+    if (a === 'pendHecho' || a === 'pendVolver' || a === 'pendQuitar') {
+      var pid = b.getAttribute('data-id');
+      if (a === 'pendQuitar') { if (b.getAttribute('data-seguro') !== '1') { b.setAttribute('data-seguro', '1'); b.textContent = '¿Quitar? Tocá de nuevo'; return; } quitarPendiente(pid); } else marcarPendiente(pid, a === 'pendHecho');
+      return pintar();
+    }
+    if (a === 'imprimir') return window.print();
+    if (a === 'copiar') {
+      var txt = textoPendientes(gruposPendientes()[+b.getAttribute('data-n')]);
+      var listo = function () { b.textContent = 'Copiada'; setTimeout(function () { b.textContent = 'Copiar la lista'; }, 2500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(listo, function () { window.prompt ? (vista.msg = txt, pintar()) : 0; });
+      else { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); listo(); } catch (e) {} ta.remove(); }
+      return;
+    }
     if (a === 'nuevo') return ir('nuevo');
     if (a === 'constancia') return ir('constancia');
     if (a === 'guardarNuevo') {
@@ -402,16 +483,16 @@
     }
     if (a === 'guardarConstancia') {
       if (!val('asProblema') || !val('asSolucion')) { vista.msg = 'Completá el problema y cómo se solucionó.'; return pintar(); }
-      var nroK = val('asOrdenNro'), fotoK = elegido('asOrdenFoto');
+      var nroK = val('asOrdenNro'), fotoK = elegido('asOrdenFoto'), pendK = val('asPend'), destK = val('asPendDestino');
       var c = constancia({ equipoId: val('asEquipo'), motivo: val('asMotivo'), fecha: val('asFecha'), canal: val('asCanal'), problema: val('asProblema'), solucion: val('asSolucion'), repuestos: val('asRepuestos') });
-      vista.filtro = 'cerrados';
+      vista.filtro = 'cerrados'; agregarPendientes(c.id, pendK, destK);
       return conOrden(c.id, nroK, fotoK, b, 'Constancia guardada en el historial del pivot.');
     }
     if (a === 'tomar') { tomar(id); return ir('detalle', id, 'Tomaste el pedido. Al campo le llega el aviso.', true); }
     if (a === 'visita') { var v = val('asVisita'); if (!v) { vista.msg = 'Elegí el día y la hora de la visita.'; return pintar(); } fijarVisita(id, v); return ir('detalle', id, 'Visita guardada. Al campo le llega el aviso.', true); }
     if (a === 'cerrarIrrigar') {
       if (!val('asSolucion')) { vista.msg = 'Para cerrar, escribí qué se hizo.'; return pintar(); }
-      var nroI = val('asOrdenNro'), fotoI = elegido('asOrdenFoto');
+      var nroI = val('asOrdenNro'), fotoI = elegido('asOrdenFoto'); agregarPendientes(id, val('asPend'), val('asPendDestino'));
       cerrar(id, val('asSolucion'), { canal: val('asCanal'), causa: val('asCausa'), solucion: val('asSolucion'), repuestos: val('asRepuestos'), por: yo(), fecha: ahora() });
       return conOrden(id, nroI, fotoI, b);
     }
@@ -457,7 +538,7 @@
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, selector: selector, elegido: elegido, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, selector: selector, elegido: elegido, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
   var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };
