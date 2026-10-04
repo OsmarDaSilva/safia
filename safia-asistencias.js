@@ -104,6 +104,15 @@
     if (n) guardar(l);
     return n;
   }
+  // Orden de servicio: el comprobante del trabajo (número y foto de la orden firmada). La sube quien cierra, o después.
+  function guardarOrden(id, nro, archivo) {
+    var p = pedido(id); if (!p) return Promise.reject(new Error('pedido no encontrado'));
+    nro = String(nro || '').trim();
+    if (!nro && !archivo) return Promise.resolve(p);
+    var anotar = function (ruta) { return cambiar(id, function (x) { var o = x.orden || {}; x.orden = { nro: nro || o.nro || '', foto: ruta || o.foto || null, por: yo(), fecha: ahora() }; }); };
+    // si la foto no sube (sin señal), el número queda guardado igual
+    return (archivo ? subirFoto(p, archivo) : Promise.resolve(null)).then(anotar, function (e) { if (nro) anotar(null); throw e; });
+  }
   function guardarInforme(id, informe) { return cambiar(id, function (x) { x.informe = Object.assign({}, x.informe || {}, informe, { por: yo(), fecha: ahora() }); }); }
   // Constancia: asistencia ya resuelta (por teléfono, WhatsApp, visita) que deja anotada Irrigar
   function constancia(o) {
@@ -168,7 +177,7 @@
     if (!ps.length) return null;
     return ps.slice(0, 6).map(function (p) { return { pedido_el: String(p.creado).slice(0, 10), motivo: MOTIVOS[p.motivo] || p.motivo, descripcion: p.descripcion || undefined, estado: estadoTxt(p), pedido_por: p.pedidoPor ? p.pedidoPor.nombre : undefined,
       tardo_en_tomarse: p.tomadoEn && p.origen !== 'constancia' ? lapso(p.creado, p.tomadoEn) : undefined, tardo_en_resolverse: p.cierre && p.origen !== 'constancia' ? lapso(p.creado, p.cierre.fecha) : undefined,
-      cerrado_solo_al_cargarse_un_riego: p.cierre && p.cierre.automatico ? true : undefined, como_se_resolvio: p.informe && (p.informe.solucion || p.informe.repuestos) ? [p.informe.solucion, p.informe.repuestos ? 'repuestos: ' + p.informe.repuestos : ''].filter(Boolean).join(' · ') || undefined : (p.cierre && p.cierre.texto) || undefined,
+      orden_de_servicio: p.orden ? ((p.orden.nro ? 'N.º ' + p.orden.nro : 'sin número') + (p.orden.foto ? ', con foto' : ', sin foto')) : (p.estado === 'cerrado' ? 'no cargada' : undefined), cerrado_solo_al_cargarse_un_riego: p.cierre && p.cierre.automatico ? true : undefined, como_se_resolvio: p.informe && (p.informe.solucion || p.informe.repuestos) ? [p.informe.solucion, p.informe.repuestos ? 'repuestos: ' + p.informe.repuestos : ''].filter(Boolean).join(' · ') || undefined : (p.cierre && p.cierre.texto) || undefined,
       constancia_de_irrigar: p.origen === 'constancia' ? (CANALES[p.informe && p.informe.canal] || 'sí') : undefined, notas: notasDe(p.id).filter(function (n) { return !n.sistema; }).length }; });
   }
 
@@ -226,7 +235,7 @@
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="font-size:15px;font-weight:800;color:#2E3236;">' + esc(g.pivot) + '<span style="font-weight:500;color:#6B7075;font-size:13px;"> · ' + esc([g.campo, irr ? g.cliente : ''].filter(Boolean).join(' · ')) + '</span></div>' + chip(p) + '</div>' +
         '<div style="font-size:13.5px;color:#41464B;margin-top:4px;line-height:1.45;"><b>' + esc(MOTIVOS[p.motivo] || p.motivo) + '</b>' + (p.descripcion ? ' · ' + esc(p.descripcion.slice(0, 160)) : '') + '</div>' +
         '<div style="font-size:12px;color:#8C9196;margin-top:4px;">' + (p.origen === 'constancia' ? 'Constancia de ' + firma(p.pedidoPor) + ' · ' + fd(p.fechaProblema) : 'Pedido el ' + fh(p.creado) + ' por ' + firma(p.pedidoPor) + (p.estado !== 'cerrado' ? ' · hace ' + lapso(p.creado) : ' · resuelto en ' + lapso(p.creado, p.cierre && p.cierre.fecha))) +
-          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div></div>';
+          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div></div>';
     }).join('');
   }
 
@@ -245,7 +254,9 @@
       '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '">' + CANALES[k] + '</option>'; }).join('') + '</select>' +
       '<label style="' + LB + '">El problema</label><textarea id="asProblema" rows="2" placeholder="Ejemplo: el pivot no arrancaba, tablero sin tensión de comando" style="' + IN + '"></textarea>' +
       '<label style="' + LB + '">Cómo se solucionó</label><textarea id="asSolucion" rows="2" placeholder="Ejemplo: fusible del tablero quemado, se cambió" style="' + IN + '"></textarea>' +
-      '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" placeholder="Ejemplo: 1 fusible 2 A" style="' + IN + '">';
+      '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" placeholder="Ejemplo: 1 fusible 2 A" style="' + IN + '">' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
+        '';
     else h +=
       '<label style="' + LB + '">Contá en pocas palabras qué ves</label><textarea id="asDesc" rows="3" placeholder="Ejemplo: se paró en la torre 5, la luz de seguridad está prendida" style="' + IN + '"></textarea>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px;color:#2E3236;cursor:pointer;"><input type="checkbox" id="asParado" checked style="width:20px;height:20px;flex:none;"> El pivot está parado</label>' +
@@ -267,6 +278,7 @@
           fila('Visita prevista', p.visita ? '<b>' + fh(p.visita) + '</b>' : '')) +
         (p.cierre ? fila('Cerrado', firma(p.cierre.por) + ' · ' + fh(p.cierre.fecha) + (p.origen !== 'constancia' ? ' · resuelto en ' + lapso(p.creado, p.cierre.fecha) : '')) + fila('Al cerrar', esc(p.cierre.texto)) : '') +
         fila('Causa', esc(inf.causa && inf.causa !== p.descripcion ? inf.causa : '')) + fila('Solución', esc(inf.solucion && (!p.cierre || inf.solucion !== p.cierre.texto) ? inf.solucion : '')) + fila('Repuestos', esc(inf.repuestos)) +
+        (p.orden ? fila('Orden de servicio', (p.orden.nro ? 'N.º <b>' + esc(p.orden.nro) + '</b> · ' : '') + 'la subió ' + firma(p.orden.por) + ' · ' + fh(p.orden.fecha) + (p.orden.foto ? '<a data-foto="' + esc(p.orden.foto) + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:12.5px;color:#178029;font-weight:700;">Cargando foto…</a>' : '')) : (p.estado === 'cerrado' ? fila('Orden de servicio', '<span style="color:#8A5A00;">Sin orden cargada</span>') : '')) +
       '</div>' + (paradaCerrada ? '<div style="margin-top:10px;padding:9px 12px;border-radius:8px;background:#E7F6EA;color:#178029;font-size:13.5px;font-weight:600;">El pivot ya volvió a andar. Si el problema está resuelto, cerrá el pedido.</div>' : '') + '</div>';
 
     // acciones
@@ -282,14 +294,19 @@
         '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" placeholder="Ejemplo: se cambió el fusible y se probó una vuelta" style="' + IN + '">' +
         '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" style="' + IN + '">' +
         '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '"' + (k === 'visita' ? ' selected' : '') + '>' + CANALES[k] + '</option>'; }).join('') + '</select>' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
         '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button></div>';
       else h += '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
         '<label style="' + LB + '">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
         '<button data-a="cerrarCampo" style="' + BR + 'margin-top:10px;">Cerrar el pedido</button>' +
         '<div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Al cerrar, la conversación de este pedido termina. Si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando se cargue el próximo riego de este pivot.</div>';
       h += '</div>';
-    } else if (irr) {
-      h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Informe técnico (se puede completar después de cerrar)</div>' +
+    } else {
+      h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">' + (p.orden && p.orden.foto ? 'Cambiar la orden de servicio' : 'Subir la orden de servicio') + '</div>' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
+        '<button data-a="orden" style="' + BG + 'margin-top:10px;">Guardar la orden</button></div>';
+      if (irr) h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Informe técnico (se puede completar después de cerrar)</div>' +
         '<label style="' + LB + '">Qué se encontró</label><input id="asCausa" type="text" value="' + esc(inf.causa || '') + '" style="' + IN + '">' +
         '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" value="' + esc(inf.solucion || '') + '" style="' + IN + '">' +
         '<label style="' + LB + '">Repuestos usados</label><input id="asRepuestos" type="text" value="' + esc(inf.repuestos || '') + '" style="' + IN + '">' +
@@ -352,23 +369,38 @@
     }
     if (a === 'guardarConstancia') {
       if (!val('asProblema') || !val('asSolucion')) { vista.msg = 'Completá el problema y cómo se solucionó.'; return pintar(); }
+      var nroK = val('asOrdenNro'), fotoK = (document.getElementById('asOrdenFoto').files || [])[0];
       var c = constancia({ equipoId: val('asEquipo'), motivo: val('asMotivo'), fecha: val('asFecha'), canal: val('asCanal'), problema: val('asProblema'), solucion: val('asSolucion'), repuestos: val('asRepuestos') });
       vista.filtro = 'cerrados';
-      return ir('detalle', c.id, 'Constancia guardada en el historial del pivot.', true);
+      return conOrden(c.id, nroK, fotoK, b, 'Constancia guardada en el historial del pivot.');
     }
     if (a === 'tomar') { tomar(id); return ir('detalle', id, 'Tomaste el pedido. Al campo le llega el aviso.', true); }
     if (a === 'visita') { var v = val('asVisita'); if (!v) { vista.msg = 'Elegí el día y la hora de la visita.'; return pintar(); } fijarVisita(id, v); return ir('detalle', id, 'Visita guardada. Al campo le llega el aviso.', true); }
     if (a === 'cerrarIrrigar') {
       if (!val('asSolucion')) { vista.msg = 'Para cerrar, escribí qué se hizo.'; return pintar(); }
+      var nroI = val('asOrdenNro'), fotoI = (document.getElementById('asOrdenFoto').files || [])[0];
       cerrar(id, val('asSolucion'), { canal: val('asCanal'), causa: val('asCausa'), solucion: val('asSolucion'), repuestos: val('asRepuestos'), por: yo(), fecha: ahora() });
-      return ir('detalle', id, 'Pedido cerrado. Queda en el historial del pivot.', true);
+      return conOrden(id, nroI, fotoI, b);
     }
-    if (a === 'cerrarCampo') { cerrar(id, val('asCierre') || 'Resuelto.'); return ir('detalle', id, 'Pedido cerrado. Queda en el historial del pivot.', true); }
+    if (a === 'cerrarCampo') { var nroC = val('asOrdenNro'), fotoC = (document.getElementById('asOrdenFoto').files || [])[0]; cerrar(id, val('asCierre') || 'Resuelto.'); return conOrden(id, nroC, fotoC, b); }
+    if (a === 'orden') {
+      var nroO = val('asOrdenNro'), fotoO = (document.getElementById('asOrdenFoto').files || [])[0];
+      if (!nroO && !fotoO) { vista.msg = 'Elegí la foto de la orden o escribí su número.'; return pintar(); }
+      b.disabled = true; b.textContent = fotoO ? 'Subiendo la orden…' : 'Guardando…';
+      return guardarOrden(id, nroO, fotoO).then(function () { ir('detalle', id, 'Orden de servicio guardada.', true); }, function (e) { ir('detalle', id, 'No se pudo subir la orden: ' + e.message); });
+    }
     if (a === 'informe') { guardarInforme(id, { causa: val('asCausa'), solucion: val('asSolucion'), repuestos: val('asRepuestos') }); return ir('detalle', id, 'Informe guardado.', true); }
     if (a === 'nota') {
       var arch = document.getElementById('asNotaFoto').files[0]; b.disabled = true; b.textContent = arch ? 'Subiendo…' : 'Enviando…';
       return nota(id, val('asNota'), arch).then(function () { ir('detalle', id); }, function (e) { ir('detalle', id, e.message); });
     }
+  }
+  // después de cerrar: sube la orden si la eligieron. Si la foto falla, el pedido igual queda cerrado y la orden se sube después.
+  function conOrden(id, nro, foto, boton, hecho) {
+    hecho = hecho || 'Pedido cerrado. Queda en el historial del pivot.';
+    if (!nro && !foto) return ir('detalle', id, hecho, true);
+    if (boton) { boton.disabled = true; boton.textContent = foto ? 'Subiendo la orden…' : 'Guardando…'; }
+    return guardarOrden(id, nro, foto).then(function () { ir('detalle', id, hecho + ' Con la orden de servicio.', true); }, function (e) { ir('detalle', id, hecho + ' Pero la foto de la orden no se pudo subir (' + e.message + '): subila desde acá cuando tengas señal.'); });
   }
   function alCambio(ev) {
     if (ev.target.id === 'asFEquipo') { vista.equipo = ev.target.value; pintar(); }
@@ -391,7 +423,7 @@
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
   var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };
