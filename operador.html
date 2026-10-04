@@ -1018,6 +1018,10 @@
             <span><b>Pedir asistencia técnica a Irrigar</b><br><span style="font-size:12px;color:#6B7075;">Al guardar, les llega el aviso a los técnicos de Irrigar con el pivot, la estancia y el motivo.</span></span>
           </label>
           <div class="campo">
+            <label>Foto o video corto del problema <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional, le llega a Irrigar con el pedido)</span></label>
+            <input type="file" id="parAdjunto" accept="image/*,video/*" style="font-size:13px;padding:8px 0;">
+          </div>
+          <div class="campo">
             <label>Volvió a andar el <span style="color:#aaa;font-weight:400;font-size:11px;">(dejalo vacío si sigue parado)</span></label>
             <input type="date" id="parHasta">
           </div>
@@ -1605,7 +1609,7 @@
       document.getElementById('modalObservaciones').value = '';
       document.getElementById('camposPastoreo').style.display = 'none';
       document.getElementById('camposLectura').style.display = 'none';
-      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica'; document.getElementById('parAsistencia').checked = true;
+      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica'; document.getElementById('parAsistencia').checked = true; document.getElementById('parAdjunto').value = '';
       ['pesCabezas', 'pesPeso', 'calPiquete', 'calAltura', 'calVerde', 'calMs'].forEach(id => { document.getElementById(id).value = ''; }); document.getElementById('pesMotivo').value = 'control';
       document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
@@ -1891,6 +1895,13 @@
         let ped = window.SafiaAsistencias ? SafiaAsistencias.abiertoDe(evento.equipoId) : null;
         if (!ped && window.SafiaAsistencias) ped = SafiaAsistencias.crear({ equipoId: evento.equipoId, motivo: evento.motivo, descripcion: evento.observaciones, fechaProblema: evento.fecha, parado: true, paradaId: evento.id });
         SafiaAsistencia.pedir(evento, ped);
+        // la foto o el video elegido en el formulario va como primera nota del pedido
+        const adj = (document.getElementById('parAdjunto').files || [])[0];
+        if (adj && ped) {
+          const est = document.getElementById('safiaAsisAdjunto'); if (est) { est.style.display = 'block'; est.textContent = 'Subiendo la foto o el video…'; }
+          SafiaAsistencias.nota(ped.id, '', adj).then(() => { if (est) { est.textContent = 'La foto o el video ya está en el pedido.'; est.style.color = '#178029'; } pintarAsistencia(); },
+            e => { if (est) { est.textContent = 'No se pudo subir (' + e.message + '). Subilo desde el pedido.'; est.style.color = '#B5371C'; } });
+        }
       }
       if (tipoEventoActual === 'riego' && window.SafiaAsistencias && SafiaAsistencias.cerrarPorRiego()) mostrarToast('✓ Riego guardado · el pedido de asistencia se cerró solo');
       pintarAsistencia();

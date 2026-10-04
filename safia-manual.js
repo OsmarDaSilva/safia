@@ -55,7 +55,7 @@
       { t: 'Asistencia técnica de Irrigar', p: [
         'Cada pedido de asistencia es un asunto aparte. Se ve en <b>Asistencia técnica</b> (menú): quién de Irrigar lo tomó, cuándo vienen y la conversación de ese pedido.',
         'Para pedir: en Operador tocá <b>Pivot parado · Asistencia</b> y dejá marcado <b>Pedir asistencia técnica a Irrigar</b>, o entrá a Asistencia técnica y tocá <b>Pedir asistencia</b>.',
-        'Dentro del pedido podés <b>escribir</b> y <b>mandar fotos</b>. El técnico te contesta ahí mismo y te llega el aviso al celular (por ejemplo, la visita prevista).',
+        'Dentro del pedido podés <b>escribir</b> y mandar <b>fotos o videos cortos</b> (hasta unos 20 segundos). También podés elegir la foto o el video en el mismo formulario de Pivot parado. El técnico te contesta ahí mismo y te llega el aviso al celular (por ejemplo, la visita prevista).',
         'Al cerrar podés subir la <b>foto de la orden de servicio</b> firmada y su número: queda guardada en el pedido como comprobante. Si te olvidás, se puede subir después, con el pedido ya cerrado.',
         'Cuando el problema está resuelto, el pedido se <b>cierra</b> (lo cierra el técnico con su informe, o vos). Cerrado, esa conversación termina: si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando cargues el próximo riego de ese pivot.',
         'En <b>Historial (cerrados)</b> queda todo lo que se atendió en cada pivot: qué falló, qué se hizo, qué repuestos se usaron y cuánto se tardó.' ] },

@@ -123,6 +123,7 @@
   }
 
   /* ---------- fotos ---------- */
+  var VIDEO_MAX = 45 * 1048576, ES_VIDEO = /\.(mp4|webm|mov|3gp|m4v)$/i;
   function achicar(archivo) {   // a JPEG de 1280 px como mucho: una foto de celular baja de varios MB a unos 200 KB
     return new Promise(function (ok, mal) {
       var img = new Image(), url = URL.createObjectURL(archivo);
@@ -134,9 +135,12 @@
   function subirFoto(p, archivo) {
     var sb = window.safiaSupabase; if (!sb) return Promise.reject(new Error('sin conexión con la nube: la foto no se puede subir'));
     if (!p.campoId) return Promise.reject(new Error('el pivot no tiene campo asignado'));
-    return achicar(archivo).then(function (b) {
-      var ruta = 'campo_' + p.campoId + '/asistencia/' + p.id + '/' + Date.now() + '.jpg';
-      return sb.storage.from('safia').upload(ruta, b, { upsert: false, contentType: 'image/jpeg' }).then(function (r) { if (r.error) throw new Error(/row-level|policy|Unauthorized/i.test(r.error.message) ? 'la base todavía no deja subir fotos de asistencia (falta correr el SQL)' : r.error.message); return ruta; });
+    var esVideo = /^video\//.test(archivo.type || '');
+    if (esVideo && archivo.size > VIDEO_MAX) return Promise.reject(new Error('el video pesa ' + Math.round(archivo.size / 1048576) + ' MB y el tope es ' + Math.round(VIDEO_MAX / 1048576) + ' MB: grabá uno más corto (unos 20 segundos alcanzan)'));
+    var ext = esVideo ? ({ 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov', 'video/3gpp': '3gp', 'video/x-m4v': 'm4v' }[archivo.type] || 'mp4') : 'jpg';
+    return (esVideo ? Promise.resolve(archivo) : achicar(archivo)).then(function (b) {
+      var ruta = 'campo_' + p.campoId + '/asistencia/' + p.id + '/' + Date.now() + '.' + ext;
+      return sb.storage.from('safia').upload(ruta, b, { upsert: false, contentType: esVideo ? archivo.type : 'image/jpeg' }).then(function (r) { if (r.error) throw new Error(/row-level|policy|Unauthorized/i.test(r.error.message) ? 'la base todavía no deja subir fotos de asistencia (falta correr el SQL)' : r.error.message); return ruta; });
     });
   }
   function nota(id, texto, archivo) {
@@ -146,7 +150,7 @@
     if (!texto && !archivo) return Promise.reject(new Error('Escribí una nota o elegí una foto.'));
     return (archivo ? subirFoto(p, archivo) : Promise.resolve(null)).then(function (ruta) {
       var n = agregar({ id: nuevoId('an'), tipo: 'nota', pedidoId: p.id, equipoId: p.equipoId, campoId: p.campoId, creado: ahora(), autor: yo(), texto: texto, foto: ruta });
-      avisar(p.id, 'nota', texto || 'Mandó una foto');
+      avisar(p.id, 'nota', texto || (ruta && ES_VIDEO.test(ruta) ? 'Mandó un video' : 'Mandó una foto'));
       return n;
     });
   }
@@ -260,7 +264,7 @@
     else h +=
       '<label style="' + LB + '">Contá en pocas palabras qué ves</label><textarea id="asDesc" rows="3" placeholder="Ejemplo: se paró en la torre 5, la luz de seguridad está prendida" style="' + IN + '"></textarea>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px;color:#2E3236;cursor:pointer;"><input type="checkbox" id="asParado" checked style="width:20px;height:20px;flex:none;"> El pivot está parado</label>' +
-      '<label style="' + LB + '">Foto (si ayuda a entender)</label><input id="asFoto" type="file" accept="image/*" style="font-size:13px;">';
+      '<label style="' + LB + '">Foto o video corto (si ayuda a entender)</label><input id="asFoto" type="file" accept="image/*,video/*" style="font-size:13px;">';
     return h + '<div style="display:flex;gap:8px;margin-top:16px;"><button data-a="' + (esConstancia ? 'guardarConstancia' : 'guardarNuevo') + '" style="' + BV + 'flex:1;">' + (esConstancia ? 'Guardar la constancia' : 'Enviar el pedido a Irrigar') + '</button></div></div>';
   }
 
@@ -324,8 +328,8 @@
         (n.texto ? '<div style="font-size:14px;color:#2E3236;line-height:1.45;white-space:pre-wrap;margin-top:2px;">' + esc(n.texto) + '</div>' : '') +
         (n.foto ? '<a data-foto="' + esc(n.foto) + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:12.5px;color:#178029;font-weight:700;">Cargando foto…</a>' : '') + '</div></div>';
     }).join('') : '<div style="font-size:13.5px;color:#8C9196;">Todavía no hay notas.</div>';
-    h += abierto ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><textarea id="asNota" rows="2" placeholder="Escribí acá…" style="' + IN + '"></textarea>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;"><input id="asNotaFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"><button data-a="nota" style="' + BV + '">Enviar</button></div></div>'
+    h += abierto ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><textarea id="asNota" rows="2" placeholder="Escribí acá… Abajo podés elegir una foto o un video corto." style="' + IN + '"></textarea>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;"><input id="asNotaFoto" type="file" accept="image/*,video/*" title="Foto o video corto" style="font-size:13px;flex:1;min-width:160px;"><button data-a="nota" style="' + BV + '">Enviar</button></div></div>'
       : '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;font-size:13px;color:#6B7075;line-height:1.45;">Pedido cerrado: la conversación terminó. Si hay otro problema en este pivot, se pide una asistencia nueva.</div>';
     return h + '</div>';
   }
@@ -336,6 +340,7 @@
       if (!sb) { a.textContent = 'Foto (sin conexión)'; return; }
       sb.storage.from('safia').createSignedUrl(a.getAttribute('data-foto'), 3600).then(function (r) {
         if (r.error || !r.data) { a.textContent = 'No se pudo abrir la foto'; return; }
+        if (ES_VIDEO.test(a.getAttribute('data-foto'))) { var v = document.createElement('video'); v.controls = true; v.preload = 'metadata'; v.playsInline = true; v.src = r.data.signedUrl; v.style.cssText = 'max-width:100%;max-height:320px;border-radius:8px;display:block;margin-top:6px;background:#000;'; a.parentNode.replaceChild(v, a); return; }
         a.href = r.data.signedUrl; a.innerHTML = '<img src="' + esc(r.data.signedUrl) + '" alt="Foto" style="max-width:100%;max-height:260px;border-radius:8px;display:block;">';
       });
     });
@@ -364,7 +369,7 @@
       var p = crear({ equipoId: eqId, motivo: val('asMotivo'), descripcion: desc, parado: parado });
       if (parado) { var evp = cargarParada(p); if (evp) cambiar(p.id, function (x) { x.paradaId = evp.id; }); }
       setTimeout(function () { invocar('pedir', { equipoId: eqId, motivo: p.motivo, fecha: p.fechaProblema, nota: desc, pedidoId: p.id, parado: parado }).catch(function () {}); }, 2500);
-      if (foto) { b.disabled = true; b.textContent = 'Subiendo la foto…'; return nota(p.id, '', foto).then(function () { ir('detalle', p.id, 'Pedido enviado a Irrigar con la foto.', true); }, function (e) { ir('detalle', p.id, 'El pedido se envió, pero la foto no se pudo subir: ' + e.message); }); }
+      if (foto) { b.disabled = true; b.textContent = 'Subiendo…'; return nota(p.id, '', foto).then(function () { ir('detalle', p.id, 'Pedido enviado a Irrigar con el archivo.', true); }, function (e) { ir('detalle', p.id, 'El pedido se envió, pero el archivo no se pudo subir: ' + e.message); }); }
       return ir('detalle', p.id, 'Pedido enviado a Irrigar. Cuando un técnico lo tome te va a llegar el aviso.', true);
     }
     if (a === 'guardarConstancia') {

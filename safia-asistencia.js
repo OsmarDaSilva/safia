@@ -59,7 +59,8 @@
       '<div style="font-size:17px;font-weight:800;color:#2E3236;margin-bottom:6px;">Asistencia técnica de Irrigar</div>' +
       '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:12px;">La parada ya quedó guardada.</div>' +
       '<div id="safiaAsisEstado" style="font-size:13px;line-height:1.45;padding:10px 12px;border-radius:8px;background:#F4F5F6;color:#41464B;margin-bottom:12px;">Avisando a los técnicos de Irrigar…</div>' +
-      (pedido ? '<a href="asistencias.html?p=' + encodeURIComponent(pedido.id) + '" style="' + btn + 'border:1.5px solid #22A93A;background:#fff;color:#178029;margin-bottom:8px;">Ver el pedido, escribir o mandar una foto</a>' : '') +
+      (pedido ? '<a href="asistencias.html?p=' + encodeURIComponent(pedido.id) + '" style="' + btn + 'border:1.5px solid #22A93A;background:#fff;color:#178029;margin-bottom:8px;">Ver el pedido, escribir o mandar foto o video</a>' : '') +
+      '<div id="safiaAsisAdjunto" style="display:none;font-size:13px;font-weight:600;color:#6B7075;margin-bottom:8px;line-height:1.4;"></div>' +
       '<div id="safiaAsisWa"></div>' +
       '<button id="safiaAsisCerrar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#41464B;margin-top:8px;">Cerrar</button></div>';
     document.body.appendChild(d);
