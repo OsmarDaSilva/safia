@@ -82,6 +82,7 @@
         'En <b>Campañas</b> podés crear una campaña nueva y cargarle datos; lo que no podés es borrar.',
         'Si falta un análisis, una meta o un plan de rotación, pedíselo al encargado o al dueño.' ] },
       { t: 'Avisos en el celular', p: [
+        'Al tocar el aviso se abre esta pantalla en el pivot del aviso, lista para cargar el riego. Al encargado y al dueño el mismo aviso les abre el parte de seguimiento.',
         'Abrí SAFIA en el celular y tocá <b>tu nombre</b> (abajo en el menú).',
         'Entrá en <b>Avisos al celular</b> y tocá <b>Activar en este dispositivo</b>. Aceptá el permiso que pide el teléfono.',
         'En <b>iPhone</b> primero hay que instalar SAFIA: botón Compartir y después "Agregar a inicio". Abrila desde ese ícono y recién ahí activá los avisos.' ] },
@@ -189,6 +190,7 @@
         'El operador solo ve y carga en las estancias que tiene asignadas; el encargado, lo mismo, con todo lo de gestión.',
         'Si alguien olvidó la contraseña, se la cambia Irrigar.' ] },
       { t: 'Avisos y Asistente', p: [
+        'Al tocar el aviso de la mañana se abre el <b>parte de seguimiento</b>, con todos tus pivots.',
         'Activá los <b>avisos en tu celular</b>: tocá tu nombre en el menú, <b>Avisos al celular</b>, <b>Activar en este dispositivo</b>. Te llega el parte de riego de cada pivot y el mantenimiento vencido.',
         'El <b>Asistente IA</b> responde con tus datos: "¿por qué pago tanto de energía?", "¿regué de más?", "¿qué tiene el mejor lote de mi zona que yo no tengo?".' ] },
       { t: 'La suscripción', p: [

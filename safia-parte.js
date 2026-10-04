@@ -299,6 +299,8 @@
   }
   function montar(cont) {
     var cls = clientesConPivots(), guard = null; try { guard = sessionStorage.getItem('parte_cliente'); } catch (e) {}
+    // llegó desde un aviso del celular (?equipo=…): se abre en el cliente de ese pivot
+    try { var qe = new URLSearchParams(location.search).get('equipo'); if (qe) { var eqA = leer('equipos').find(function (x) { return String(x.id) === String(qe); }), caA = eqA && leer('campos').find(function (x) { return String(x.id) === String(eqA.campoId); }); if (caA && caA.clienteId != null) guard = caA.clienteId; } } catch (e) {}
     if (!cls.length) { cont.innerHTML = '<div class="card"><div class="muted">Todavía no hay clientes con pivots cargados.</div></div>'; return; }
     var actual = cls.find(function (k) { return String(k.id) === String(guard); }) || cls.find(function (k) { return pivotsDe(k.id).some(function (p) { return p.cam; }); }) || cls[0];
     cont.innerHTML = '<div class="parte-barra" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">' +
