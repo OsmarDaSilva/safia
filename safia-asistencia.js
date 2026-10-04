@@ -50,7 +50,7 @@
   function enlace(ev) { var n = numero(); return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(mensaje(ev)) : ''; }
 
   // Ventana que aparece después de guardar la parada: avisa a Irrigar y ofrece el WhatsApp
-  function pedir(ev) {
+  function pedir(ev, pedido) {
     var d = document.getElementById('safiaAsisModal'); if (d) d.remove();
     d = document.createElement('div'); d.id = 'safiaAsisModal';
     d.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
@@ -59,6 +59,7 @@
       '<div style="font-size:17px;font-weight:800;color:#2E3236;margin-bottom:6px;">Asistencia técnica de Irrigar</div>' +
       '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:12px;">La parada ya quedó guardada.</div>' +
       '<div id="safiaAsisEstado" style="font-size:13px;line-height:1.45;padding:10px 12px;border-radius:8px;background:#F4F5F6;color:#41464B;margin-bottom:12px;">Avisando a los técnicos de Irrigar…</div>' +
+      (pedido ? '<a href="asistencias.html?p=' + encodeURIComponent(pedido.id) + '" style="' + btn + 'border:1.5px solid #22A93A;background:#fff;color:#178029;margin-bottom:8px;">Ver el pedido, escribir o mandar una foto</a>' : '') +
       '<div id="safiaAsisWa"></div>' +
       '<button id="safiaAsisCerrar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#41464B;margin-top:8px;">Cerrar</button></div>';
     document.body.appendChild(d);
@@ -66,12 +67,12 @@
     function pintarWa() {
       var caja = document.getElementById('safiaAsisWa'); if (!caja) return;
       var href = enlace(ev);
-      caja.innerHTML = href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener" style="' + btn + 'border:0;background:#22A93A;color:#fff;">Enviar también por WhatsApp</a><div style="font-size:12px;color:#8C9196;line-height:1.4;margin-top:6px;">Se abre WhatsApp con el mensaje ya escrito para el soporte de Irrigar. Solo falta tocar Enviar.</div>' : '';
+      caja.innerHTML = href ? '<a href="' + esc(href) + '" target="_blank" rel="noopener" style="' + btn + 'border:0;background:#22A93A;color:#fff;">Avisar también por WhatsApp</a><div style="font-size:12px;color:#8C9196;line-height:1.4;margin-top:6px;">Se abre WhatsApp con el mensaje ya escrito para el soporte de Irrigar. Solo falta tocar Enviar.</div>' : '';
     }
     pintarWa();
     function estado(t, ok) { var e = document.getElementById('safiaAsisEstado'); if (!e) return; e.textContent = t; e.style.background = ok ? '#E7F6EA' : '#FDF3E3'; e.style.color = ok ? '#178029' : '#8A5A00'; }
     function intentar(vez) {
-      invocar('pedir', { equipoId: ev.equipoId, motivo: ev.motivo, fecha: String(ev.fecha).slice(0, 10), nota: ev.observaciones || '' }).then(function (r) {
+      invocar('pedir', { equipoId: ev.equipoId, motivo: ev.motivo, fecha: String(ev.fecha).slice(0, 10), nota: ev.observaciones || '', pedidoId: pedido ? pedido.id : '' }).then(function (r) {
         recordar(r.whatsapp); pintarWa();
         if (r.enviados) estado('Aviso enviado al celular de ' + r.tecnicos + (r.tecnicos === 1 ? ' persona' : ' personas') + ' de Irrigar.', true);
         else estado('El pedido quedó anotado para Irrigar, pero en este momento nadie de Irrigar tiene los avisos activados en su celular.' + (numero() ? ' Mandalo por WhatsApp con el botón de abajo.' : ' Llamá a Irrigar para avisar.'), false);

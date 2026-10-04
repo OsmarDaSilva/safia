@@ -2,7 +2,8 @@
 // Acciones (POST { accion, ... }), todas con sesión de SAFIA (verify_jwt = true):
 //   soporte          → el número de WhatsApp de soporte de Irrigar (para armar el enlace en el celular del operador)
 //   soporte_guardar  → (solo Irrigar) guarda ese número                       { whatsapp }
-//   pedir            → avisa al celular de los usuarios de Irrigar que tienen los avisos activados   { equipoId, motivo, fecha, nota }
+//   pedir            → avisa al celular de los usuarios de Irrigar que tienen los avisos activados   { equipoId, motivo, fecha, nota, pedidoId }
+//   avisar           → novedad de un pedido (tomado, visita, nota, cerrado): avisa a la otra parte   { pedidoId, evento, texto }
 // El número y las llaves del envío viven en safia_avisos_config (solo servidor). El envío es el mismo de safia-avisos.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -51,8 +52,31 @@ async function enviarPush(disp, mensaje, vapid, contacto) {
 // deno-lint-ignore no-explicit-any
 type Cualquiera = any;
 const hoyPY = () => new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);   // Paraguay = UTC-3 todo el año
-const MOTIVOS: Record<string, string> = { electrica: 'falla eléctrica', mecanica: 'falla mecánica', bomba: 'falla de la bomba', energia: 'corte de energía (ANDE)', agua: 'falta de agua en la fuente', mantenimiento: 'mantenimiento programado', otro: 'otro motivo' };
+const MOTIVOS: Record<string, string> = { electrica: 'falla eléctrica', mecanica: 'falla mecánica', bomba: 'falla de la bomba', energia: 'corte de energía (ANDE)', agua: 'falta de agua en la fuente', mantenimiento: 'mantenimiento programado', consulta: 'consulta o ajuste', otro: 'otro motivo' };
 const ROLES: Record<string, string> = { cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar' };
+
+async function enviarA(admin: Cualquiera, ids: string[], mensaje: Cualquiera, equipoId: string) {
+  const disp = ids.length ? await admin.from('safia_avisos_dispositivos').select('*').in('usuario_id', ids) : { data: [] as Cualquiera[] };
+  const dispositivos: Cualquiera[] = disp.data || [];
+  const vap = dispositivos.length ? await admin.from('safia_avisos_config').select('valor').eq('clave', 'vapid').maybeSingle() : { data: null };
+  let enviados = 0; const alcanzados = new Set<string>(), fallos: string[] = [];
+  if (vap.data && vap.data.valor) {
+    for (const d of dispositivos) {
+      const r = await enviarPush(d, mensaje, vap.data.valor, SITIO);
+      if (r.ok) { enviados++; alcanzados.add(d.usuario_id); await admin.from('safia_avisos_dispositivos').update({ ultimo_ok: new Date().toISOString(), fallos: 0 }).eq('id', d.id); }
+      else if (r.baja) await admin.from('safia_avisos_dispositivos').delete().eq('id', d.id);
+      else fallos.push(r.status + ' ' + r.detalle);
+    }
+  }
+  // queda anotado para todos (lo ven en "Últimos avisos"), aunque no tengan el celular activado
+  if (ids.length) {
+    const hoy = hoyPY();
+    const l = await admin.from('safia_avisos_log').upsert(ids.map((id: string) => ({ fecha: hoy, usuario_id: id, equipo_id: equipoId, tipo: 'asistencia', titulo: mensaje.titulo, cuerpo: mensaje.cuerpo, enviados: alcanzados.has(id) ? 1 : 0 })), { onConflict: 'fecha,usuario_id,equipo_id,tipo' });
+    if (l.error) console.error('asistencia: no se pudo anotar', l.error.message);
+  }
+  console.log('asistencia:', mensaje.titulo, '· enviados', enviados, 'de', dispositivos.length, '· fallos', fallos.length);
+  return { enviados, tecnicos: alcanzados.size };
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -104,31 +128,55 @@ Deno.serve(async (req: Request) => {
       const motivo = MOTIVOS[String(cuerpo.motivo || '')] || 'motivo sin indicar';
       const fecha = /^\d{4}-\d{2}-\d{2}$/.test(String(cuerpo.fecha || '')) ? String(cuerpo.fecha) : hoyPY();
       const nota = String(cuerpo.nota || '').replace(/\s+/g, ' ').trim().slice(0, 200);
-      const titulo = 'Pivot parado: ' + pivot + (cliente ? ' · ' + cliente : '');
-      const texto = [campo, 'Parado desde el ' + fecha.slice(8, 10) + '/' + fecha.slice(5, 7) + ' por ' + motivo + '.', nota ? 'Nota: ' + nota + '.' : '', 'Pide asistencia ' + (yo.data.nombre || 'un usuario') + ' (' + (ROLES[yo.data.rol] || yo.data.rol) + ').'].filter(Boolean).join(' ');
+      const parado = cuerpo.parado !== false;
+      const titulo = (parado ? 'Pivot parado: ' : 'Asistencia pedida: ') + pivot + (cliente ? ' · ' + cliente : '');
+      const texto = [campo, (parado ? 'Parado desde el ' + fecha.slice(8, 10) + '/' + fecha.slice(5, 7) + ' por ' : 'Motivo: ') + motivo + '.', nota ? 'Nota: ' + nota + '.' : '', 'Pide asistencia ' + (yo.data.nombre || 'un usuario') + ' (' + (ROLES[yo.data.rol] || yo.data.rol) + ').'].filter(Boolean).join(' ');
 
       const irr = await admin.from('safia_usuarios').select('id,nombre').in('rol', ['propietario', 'admin']).eq('estado', 'activo');
       const ids = (irr.data || []).map((x: Cualquiera) => x.id).filter((id: string) => id !== yo.data.id);
-      const disp = ids.length ? await admin.from('safia_avisos_dispositivos').select('*').in('usuario_id', ids) : { data: [] as Cualquiera[] };
-      const dispositivos: Cualquiera[] = disp.data || [];
-      const vap = dispositivos.length ? await admin.from('safia_avisos_config').select('valor').eq('clave', 'vapid').maybeSingle() : { data: null };
-      let enviados = 0; const alcanzados = new Set<string>(), fallos: string[] = [];
-      if (vap.data && vap.data.valor) {
-        for (const d of dispositivos) {
-          const r = await enviarPush(d, { titulo, cuerpo: texto, url: 'operador.html?equipo=' + encodeURIComponent(equipoId), tag: 'safia-asistencia-' + equipoId }, vap.data.valor, SITIO);
-          if (r.ok) { enviados++; alcanzados.add(d.usuario_id); await admin.from('safia_avisos_dispositivos').update({ ultimo_ok: new Date().toISOString(), fallos: 0 }).eq('id', d.id); }
-          else if (r.baja) await admin.from('safia_avisos_dispositivos').delete().eq('id', d.id);
-          else fallos.push(r.status + ' ' + r.detalle);
+      const pedidoId = String(cuerpo.pedidoId || '');
+      const r = await enviarA(admin, ids, { titulo, cuerpo: texto, url: pedidoId ? 'asistencias.html?p=' + encodeURIComponent(pedidoId) : 'operador.html?equipo=' + encodeURIComponent(equipoId), tag: 'safia-asistencia-' + equipoId }, equipoId);
+      return json({ ok: true, ...r, whatsapp });
+    }
+    if (accion === 'avisar') {
+      const pid = String(cuerpo.pedidoId || '');
+      if (!pid) return json({ error: 'Falta el pedido' }, 400);
+      const f = await admin.from('safia_asistencias').select('id,datos,cliente_id,campo_ref').eq('id', pid).maybeSingle();
+      if (f.error) return json({ error: 'Falta preparar la base de asistencia: hay que correr el SQL safia_asistencias.sql' }, 500);
+      if (!f.data) return json({ error: 'Ese pedido todavía no está en la nube. Esperá unos segundos y volvé a intentar.' }, 404);
+      const p: Cualquiera = f.data.datos || {};
+      const campos: string[] = (yo.data.campos || []).map(String);
+      const mio = String(f.data.cliente_id || '') === String(yo.data.cliente_id || '') && (yo.data.rol === 'cliente' || !campos.length || campos.includes(String(f.data.campo_ref)));
+      if (!esIrrigar && !mio) return json({ error: 'Ese pedido no es de tu estancia' }, 403);
+      const eq = await admin.from('safia_equipos').select('datos').eq('id', String(p.equipoId || '')).maybeSingle();
+      const pivot = String((eq.data && eq.data.datos && eq.data.datos.nombre) || 'Pivot');
+
+      // a quién: si escribe Irrigar, a la gente de esa estancia; si escribe el campo, al técnico que lo tomó (o a todo Irrigar)
+      let ids: string[] = [];
+      if (esIrrigar) {
+        if (f.data.cliente_id) {
+          const us = await admin.from('safia_usuarios').select('id,rol,campos').eq('cliente_id', f.data.cliente_id).eq('estado', 'activo').in('rol', ['cliente', 'encargado', 'operador']);
+          ids = (us.data || []).filter((x: Cualquiera) => x.rol === 'cliente' || !(x.campos || []).length || (x.campos || []).map(String).includes(String(f.data.campo_ref))).map((x: Cualquiera) => x.id);
         }
+      } else {
+        const irr = await admin.from('safia_usuarios').select('id').in('rol', ['propietario', 'admin']).eq('estado', 'activo');
+        ids = (irr.data || []).map((x: Cualquiera) => x.id);
+        const tomo = p.tomadoPor && p.tomadoPor.id; if (tomo && ids.includes(tomo)) ids = [tomo];
       }
-      // queda anotado para todos los de Irrigar (lo ven en "Últimos avisos"), aunque no tengan el celular activado
-      if (ids.length) {
-        const hoy = hoyPY();
-        const l = await admin.from('safia_avisos_log').upsert(ids.map((id: string) => ({ fecha: hoy, usuario_id: id, equipo_id: equipoId, tipo: 'asistencia', titulo, cuerpo: texto, enviados: alcanzados.has(id) ? 1 : 0 })), { onConflict: 'fecha,usuario_id,equipo_id,tipo' });
-        if (l.error) console.error('asistencia: no se pudo anotar', l.error.message);
-      }
-      console.log('asistencia:', titulo, '· enviados', enviados, 'de', dispositivos.length, '· fallos', fallos.length);
-      return json({ ok: true, enviados, tecnicos: alcanzados.size, whatsapp });
+      ids = ids.filter((id) => id !== yo.data.id);
+
+      const quien = (yo.data.nombre || 'Un usuario') + (esIrrigar ? ' (Irrigar)' : ' (' + (ROLES[yo.data.rol] || yo.data.rol) + ')');
+      const txt = String(cuerpo.texto || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+      const v = String(p.visita || ''), visita = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) ? v.slice(8, 10) + '/' + v.slice(5, 7) + ' a las ' + v.slice(11, 16) : v;
+      const evento = String(cuerpo.evento || '');
+      const m = evento === 'tomado' ? { titulo: 'Irrigar tomó tu pedido · ' + pivot, cuerpo: quien + ' tomó el pedido de asistencia.' }
+        : evento === 'visita' ? { titulo: 'Visita de Irrigar: ' + visita, cuerpo: pivot + '. ' + quien + ' cargó la visita prevista.' }
+        : evento === 'cerrado' ? { titulo: 'Asistencia cerrada · ' + pivot, cuerpo: quien + ' cerró el pedido.' + (txt ? ' ' + txt : '') }
+        : evento === 'nota' ? { titulo: 'Asistencia · ' + pivot, cuerpo: quien + ': ' + (txt || 'mandó una nota') }
+        : null;
+      if (!m) return json({ error: 'Novedad desconocida' }, 400);
+      const r = await enviarA(admin, ids, { ...m, url: 'asistencias.html?p=' + encodeURIComponent(pid), tag: 'safia-asistencia-' + pid }, String(p.equipoId || ''));
+      return json({ ok: true, ...r });
     }
     return json({ error: 'Acción desconocida' }, 400);
   } catch (e) {

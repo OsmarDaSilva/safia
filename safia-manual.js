@@ -52,6 +52,12 @@
         'Dejá marcado <b>Pedir asistencia técnica a Irrigar</b> si necesitás que vengan: al guardar les llega el aviso a los técnicos con el pivot, la estancia y el motivo. Si aparece el botón verde <b>Enviar también por WhatsApp</b>, tocalo y después tocá Enviar: el mensaje ya va escrito.',
         'Cuando vuelva a andar, tocá el mismo botón, que ahora dice <b>Volvió a andar</b>, y poné la fecha. Si te olvidás, SAFIA la cierra sola cuando cargues el próximo riego.',
         'Sirve para que el parte de seguimiento explique por qué faltó agua esos días: una cosa es que se rompió el equipo y otra que no se regó a tiempo.' ] },
+      { t: 'Asistencia técnica de Irrigar', p: [
+        'Cada pedido de asistencia es un asunto aparte. Se ve en <b>Asistencia técnica</b> (menú): quién de Irrigar lo tomó, cuándo vienen y la conversación de ese pedido.',
+        'Para pedir: en Operador tocá <b>Pivot parado · Asistencia</b> y dejá marcado <b>Pedir asistencia técnica a Irrigar</b>, o entrá a Asistencia técnica y tocá <b>Pedir asistencia</b>.',
+        'Dentro del pedido podés <b>escribir</b> y <b>mandar fotos</b>. El técnico te contesta ahí mismo y te llega el aviso al celular (por ejemplo, la visita prevista).',
+        'Cuando el problema está resuelto, el pedido se <b>cierra</b> (lo cierra el técnico con su informe, o vos). Cerrado, esa conversación termina: si aparece otro problema, se pide una asistencia nueva.',
+        'En <b>Historial (cerrados)</b> queda todo lo que se atendió en cada pivot: qué falló, qué se hizo, qué repuestos se usaron y cuánto se tardó.' ] },
       { t: 'Horas del equipo y mantenimiento', p: [
         'En la tarjeta de <b>mantenimiento</b> cargá lo que marca el horímetro del pivot, de la bomba y del cañón, y tocá <b>Cargar lectura</b>.',
         'SAFIA marca las tareas <b>vencidas</b> y las <b>próximas</b> según esas horas.',
@@ -95,6 +101,10 @@
         'Si faltó agua, dice en qué fechas y si coincide con el pivot parado.',
         'Con <b>Imprimir</b> lo llevás a la reunión con el dueño.' ],
         n: 'El parte junta lo que SAFIA ya calcula en las otras pantallas. Es tan bueno como lo que se cargó: riegos, insumos y paradas.' },
+      { t: 'Asistencia técnica de Irrigar', p: [
+        'En <b>Asistencia técnica</b> (menú) están los pedidos a Irrigar de tus pivots: quién lo tomó, la visita prevista y la conversación de cada pedido, con notas y fotos.',
+        'Podés pedir asistencia desde ahí con <b>Pedir asistencia</b>, o el operador desde <b>Pivot parado · Asistencia</b>. Te llega el aviso al celular cuando el técnico contesta.',
+        'Cuando se resuelve, el pedido se cierra y esa conversación termina; otro problema es otro pedido. En <b>Historial (cerrados)</b> queda qué falló en cada pivot, qué se hizo, qué repuestos se usaron y cuánto se tardó en atender y en resolver.' ] },
       { t: 'Abrir una campaña', p: [
         'Abrí <b>Campañas</b> y tocá <b>+ Crear nueva campaña</b>. O usá <b>Ficha de campaña</b>, que tiene todo en un solo formulario.',
         'Elegí el lote, el cultivo, la variedad y la <b>fecha de siembra</b>. SAFIA completa sola la fecha estimada de fin de ciclo.',
@@ -148,6 +158,10 @@
         'En cada pivot ves cuánto de la <b>meta</b> sigue alcanzable y qué se llevó el resto, cuánto rinde se perdió por <b>agua</b> y por qué, cuánto <b>falta regar</b> hasta la cosecha y qué hay que hacer ahora.',
         'Se puede imprimir.' ],
         n: 'SAFIA no muestra una probabilidad de llegar a la meta: muestra cuánto sigue siendo alcanzable con lo que ya pasó. El riego que falta es una estimación con el clima de los últimos 10 años.' },
+      { t: 'Asistencia técnica de Irrigar', p: [
+        'En <b>Asistencia técnica</b> (menú) están los pedidos a Irrigar de tus pivots: quién lo tomó, la visita prevista y la conversación de cada pedido, con notas y fotos.',
+        'Arriba ves cuántos pedidos hay abiertos y cuánto tardaron en tomarse y en resolverse. No hace falta que hagas nada: es para que sepas cómo te están atendiendo.',
+        'Cuando se resuelve, el pedido se cierra y esa conversación termina; otro problema es otro pedido. En <b>Historial (cerrados)</b> queda qué falló en cada pivot, qué se hizo, qué repuestos se usaron y cuánto se tardó en atender y en resolver.' ] },
       { t: 'Cómo viene la campaña', p: [
         'En <b>Banco Agronómico → Meta de rinde</b> ves si la meta sigue siendo alcanzable, qué se hizo, qué se perdió y qué se puede hacer todavía.',
         'En <b>Vigor satelital</b> ves el cultivo desde el satélite contra las campañas anteriores.',

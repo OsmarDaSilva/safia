@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAFIA — Seguimiento</title>
+  <title>SAFIA — Asistencia técnica</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M 50 8 Q 12 50 12 80 Q 12 110 50 110 Q 88 110 88 80 Q 88 50 50 8 Z' fill='%2322A93A'/%3E%3C/svg%3E">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0F3D14">
@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="safia-theme.css">
   <style>
-    .main{max-width:1000px;}
+    .main{max-width:860px;}
     @media print{.side,.menu-toggle,.side-overlay,.parte-barra,.crumb,#safiaCuenta,.safia-cuenta{display:none !important;} .app{display:block !important;} .main{max-width:none !important;padding:0 !important;margin:0 !important;} .card{box-shadow:none !important;break-inside:avoid;} body{background:#fff !important;}}
   </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -23,35 +23,10 @@
 <script src="safia-cuenta.js"></script>
 <script src="safia-pwa.js"></script>
 <script src="safia-iconos.js"></script>
-<script src="safia-cultivos-fao.js"></script>
 <script src="safia-balance.js"></script>
-<script src="safia-lluvia.js"></script>
-<script src="safia-clima.js"></script>
-<script src="safia-ficha-agua.js"></script>
-<script src="safia-pasturas.js"></script>
-<script src="safia-piquetes.js"></script>
-<script src="safia-forraje.js"></script>
-<script src="safia-sensores.js"></script>
-<script src="safia-clima-proyecto.js"></script>
-<script src="safia-insumos.js"></script>
-<script src="safia-casos.js"></script>
-<script src="safia-fertilidad.js"></script>
-<script src="safia-agronomia.js"></script>
-<script src="safia-senave.js"></script>
-<script src="safia-materiales.js"></script>
-<script src="safia-precios.js"></script>
-<script src="safia-meta.js"></script>
-<script src="safia-nutrientes.js"></script>
-<script src="safia-foliar.js"></script>
-<script src="safia-ndvi.js"></script>
-<script src="safia-agua.js"></script>
-<script src="safia-energia.js"></script>
-<script src="safia-pulverizar.js"></script>
-<script src="safia-calidad-agua.js"></script>
-<script src="safia-rotacion.js"></script>
-<script src="safia-seguimiento.js"></script>
-<script src="safia-mantenimiento.js"></script>
 <script src="safia-parte.js"></script>
+<script src="safia-asistencia.js"></script>
+<script src="safia-asistencias.js"></script>
 </head>
 <body>
   <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir menú">☰</button>
@@ -89,8 +64,8 @@
         <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
         <a href="eventos.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
         <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
-        <a href="seguimiento.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6v3H9z"/><path d="M7 5.5H5.5v15h13v-15H17"/><path d="m9 13 2 2 4-4"/></svg>Seguimiento</a>
-        <a href="asistencias.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17v3h3l5.2-5.2a4 4 0 0 0 5.3-5.3l-2.6 2.6-2.3-.6-.6-2.3z"/></svg>Asistencia técnica</a>
+        <a href="seguimiento.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6v3H9z"/><path d="M7 5.5H5.5v15h13v-15H17"/><path d="m9 13 2 2 4-4"/></svg>Seguimiento</a>
+        <a href="asistencias.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17v3h3l5.2-5.2a4 4 0 0 0 5.3-5.3l-2.6 2.6-2.3-.6-.6-2.3z"/></svg>Asistencia técnica</a>
         <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
         <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
       </nav>
@@ -100,9 +75,9 @@
     </aside>
     <div class="side-overlay" id="sideOverlay"></div>
     <main class="main">
-      <div class="crumb">Operación · <b>Seguimiento</b></div>
-      <div class="ptop"><div><h2>Parte de seguimiento</h2><div class="sub">Cómo viene cada pivot: la meta, lo que ya no se recupera, el agua, lo que toca ahora y lo que falta cargar</div></div></div>
-      <div id="parte"></div>
+      <div class="crumb">Operación · <b>Asistencia técnica</b></div>
+      <div class="ptop"><div><h2>Asistencia técnica</h2><div class="sub">Pedidos a Irrigar: quién lo tomó, cuándo vienen, la conversación de cada pedido y el historial de cada pivot</div></div></div>
+      <div id="asistencias"></div>
     </main>
   </div>
 <script>
@@ -110,7 +85,7 @@
   var side=document.getElementById('sideNav'),overlay=document.getElementById('sideOverlay');
   document.getElementById('menuToggle').addEventListener('click',function(){side.classList.toggle('abierto');overlay.classList.toggle('visible');document.body.classList.toggle('menu-abierto');});
   overlay.addEventListener('click',function(){side.classList.remove('abierto');overlay.classList.remove('visible');document.body.classList.remove('menu-abierto');});
-  var arrancar = function () { SafiaParte.montar(document.getElementById('parte')); };
+  var arrancar = function () { SafiaAsistencias.montar(document.getElementById('asistencias')); };
   if (window.SafiaSync && SafiaSync.alListo) SafiaSync.alListo(arrancar); else arrancar();
 })();
 </script>
