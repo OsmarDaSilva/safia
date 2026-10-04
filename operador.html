@@ -914,12 +914,17 @@
             <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M7 14V9a5 5 0 0 1 10 0v5"/><path d="M12 9v3"/></svg></div>
             <div class="boton-carga-label">Pesada</div>
           </button>
+          <button class="boton-carga boton-aplicacion" id="btnFertirriego" style="display:none;" onclick="abrirFertirriego()">
+            <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B8731A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s5 5.4 5 9a5 5 0 0 1-10 0c0-3.6 5-9 5-9z"/><path d="M12 10.5v4M10 12.5h4"/><path d="M4 20h16"/></svg></div>
+            <div class="boton-carga-label">Fertirriego</div>
+          </button>
           <button class="boton-carga boton-aplicacion" id="btnParada" style="display:none;" onclick="abrirModal('parada')">
             <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B5371C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9v6M14.5 9v6"/></svg></div>
             <div class="boton-carga-label" id="btnParadaLabel">Pivot parado · Asistencia</div>
           </button>
         </div>
         <div id="asisCard" style="display:none;margin:12px 0;background:#fff;border:1px solid #E7C4BB;border-left:4px solid #B5371C;border-radius:10px;padding:10px 14px;"></div>
+        <div id="fertiCard" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:12px 14px;"></div>
         <div id="pulvCard" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:10px 14px;"><div id="pulvPanel"></div></div>
         <div id="pasturaPanel" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:12px 14px;"></div>
 
@@ -1166,6 +1171,7 @@
 <script src="safia-forraje.js"></script>
 <script src="safia-pulverizar.js"></script>
 <script src="safia-parte.js"></script>
+<script src="safia-fertirriego.js"></script>
 <script src="safia-asistencia.js"></script>
 <script src="safia-asistencias.js"></script>
   <script src="safia-lluvia.js"></script>
@@ -1718,6 +1724,31 @@
       document.getElementById('btnParadaLabel').textContent = abierta ? 'Volvió a andar' : 'Pivot parado · Asistencia';
       b.style.borderColor = abierta ? '#B5371C' : '';
       pintarAsistencia();
+      pintarFertirriego();
+    }
+    // Fertirriego: el botón y la tarjeta (plan de N del maíz y lo aplicado por el pivot) van con campaña activa en un lote con riego
+    function datosFertirriego() {
+      const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
+      if (!eq || !window.SafiaFertirriego || (window.SafiaBalance && SafiaBalance.esSecano(eq))) return null;
+      const camp = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(eq.id) && c.estado === 'Activa' && c.cultivos && c.cultivos[0]);
+      if (!camp || (window.SafiaPasturas && SafiaPasturas.esPastura(camp.cultivos[0].cultivo))) return null;
+      const campo = JSON.parse(localStorage.getItem('campos') || '[]').find(c => String(c.id) === String(eq.campoId)) || null;
+      return { equipo: eq, campo: campo, campana: camp, cultivo: camp.cultivos[0] };
+    }
+    function pintarFertirriego() {
+      const b = document.getElementById('btnFertirriego'), c = document.getElementById('fertiCard'); if (!b || !c) return;
+      const d = datosFertirriego();
+      b.style.display = d ? '' : 'none';
+      const h = d ? SafiaFertirriego.htmlTarjeta(d.equipo, d.campo, d.campana, d.cultivo) : '';
+      c.innerHTML = h; c.style.display = h ? 'block' : 'none';
+    }
+    function abrirFertirriego() {
+      const d = datosFertirriego(); if (!d) return;
+      SafiaFertirriego.abrir(Object.assign(d, { alGuardar: function (ev, riego, nu) {
+        mostrarToast('✓ Fertirriego guardado' + (nu ? ': ' + SafiaFertirriego.textoNutrientes(nu) + ' por hectárea' : '') + (riego ? ' · riego de ' + riego.cantidad + ' mm cargado' : ''));
+        mostrarEventos(); mostrarCampana(); pintarBotonParada();
+        if (riego) { if (window.SafiaAsistencias) SafiaAsistencias.cerrarPorRiego(); mostrarRecomendacionClima(); }
+      } }));
     }
     // Con el pedido de asistencia marcado, el pivot está parado: no se pregunta cuándo volvió a andar. La foto solo va con el pedido.
     function ajustarParada() {
@@ -1973,7 +2004,7 @@
         } else if (ev.tipo === 'aplicacion') {
           icono = '🧪';
           titulo = `${ev.producto} (${ev.dosis} ${ev.unidad})`;
-          detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+          detalle = `${ev.metodo === 'fertirriego' ? 'fertirriego' + (window.SafiaFertirriego && ev.n_kg_ha != null ? ' = ' + SafiaFertirriego.textoNutrientes({ n: ev.n_kg_ha, p2o5: ev.p2o5_kg_ha, k2o: ev.k2o_kg_ha }) + '/ha' : '') + ' · ' : ''}${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'horimetro') {
           icono = '⏱️';
           titulo = `Horímetro${ev.contador === 'bomba' ? ' bomba' : ev.contador === 'canon' ? ' cañón final' : ''} ${ev.cantidad} h`;

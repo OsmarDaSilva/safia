@@ -47,6 +47,14 @@
         'Elegí el <b>producto del catálogo</b> o escribí el nombre, y poné la <b>dosis</b> con su unidad.',
         'Tocá <b>Guardar</b>.' ],
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
+      { t: 'Fertirriego (fertilizante por el pivot)', p: [
+        'En Operador tocá <b>Fertirriego</b>.',
+        'Elegí el <b>producto</b> con su fórmula (por ejemplo, Urea 46-00-00) y poné los <b>kilos de producto</b>: por hectárea, o los de toda la vuelta.',
+        'SAFIA muestra al instante los kilos de nutriente: <b>100 kg/ha de urea = 46 kg de N por hectárea</b>, y cuántos kilos de producto lleva la vuelta entera.',
+        'Si querés, abrí <b>La cuenta del tanque</b>: con los litros de solución y las horas de la vuelta te dice a cuántos <b>litros por hora</b> poner la inyectora. Ahí también podés cargar el riego de esa vuelta.',
+        'Tocá <b>Guardar</b>. Entra solo en el balance de nutrientes de la campaña.',
+        'En maíz, la tarjeta <b>Fertirriego</b> muestra el plan de nitrógeno por etapa (cuántas hojas), lo aplicado y lo que falta.' ],
+        n: 'El plan de nitrógeno sale de la tabla de Embrapa para maíz. En soja no se aplica nitrógeno. La dosis final la define el agrónomo.' },
       { t: 'Si el pivot se para', p: [
         'Tocá <b>Pivot parado · Asistencia</b>, poné la fecha en que se paró y elegí el motivo (falla eléctrica, mecánica, bomba, corte de energía, falta de agua).',
         'Dejá marcado <b>Pedir asistencia técnica a Irrigar</b> si necesitás que vengan, y contá en las observaciones qué ves.',
@@ -129,6 +137,7 @@
       { t: 'Cargar el manejo y los insumos', p: [
         'En la campaña tocá <b>Manejo e insumos</b>.',
         'Cargá fertilizantes, semillas, encalado y aplicaciones con su dosis.',
+        'El <b>fertirriego</b> lo carga el operador desde su botón (kilos de producto → kilos de nutriente). En maíz, la tarjeta Fertirriego del Operador muestra el plan de nitrógeno por etapa y lo que falta.',
         'Con eso SAFIA calcula el balance de nutrientes y compara con lo que pide la meta.' ] },
       { t: 'Cerrar la cosecha', p: [
         'En la campaña tocá <b>Registrar cosecha</b>.',
