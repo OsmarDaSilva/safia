@@ -82,7 +82,7 @@
   // Pedido nuevo. o = { equipoId, motivo, descripcion, fechaProblema, parado, paradaId }
   function crear(o) {
     var e = equipo(o.equipoId) || {};
-    var p = { id: nuevoId('as'), tipo: 'pedido', origen: 'pedido', equipoId: o.equipoId, campoId: e.campoId || null, paradaId: o.paradaId || null, creado: ahora(), fechaProblema: o.fechaProblema || hoy(),
+    var p = { id: nuevoId('as'), tipo: 'pedido', origen: 'pedido', equipoId: e.id != null ? e.id : o.equipoId, campoId: e.campoId || null, paradaId: o.paradaId || null, creado: ahora(), fechaProblema: o.fechaProblema || hoy(),
       motivo: o.motivo || 'otro', descripcion: String(o.descripcion || '').trim(), parado: !!o.parado, pedidoPor: yo(), estado: 'abierto', tomadoPor: null, tomadoEn: null, visita: null, cierre: null, informe: null };
     return agregar(p);
   }
@@ -160,7 +160,7 @@
   // Constancia: asistencia ya resuelta (por teléfono, WhatsApp, visita) que deja anotada Irrigar
   function constancia(o) {
     var e = equipo(o.equipoId) || {}, t = ahora();
-    return agregar({ id: nuevoId('as'), tipo: 'pedido', origen: 'constancia', equipoId: o.equipoId, campoId: e.campoId || null, paradaId: null, creado: t, fechaProblema: o.fecha || hoy(), motivo: o.motivo || 'otro', descripcion: String(o.problema || '').trim(), parado: false,
+    return agregar({ id: nuevoId('as'), tipo: 'pedido', origen: 'constancia', equipoId: e.id != null ? e.id : o.equipoId, campoId: e.campoId || null, paradaId: null, creado: t, fechaProblema: o.fecha || hoy(), motivo: o.motivo || 'otro', descripcion: String(o.problema || '').trim(), parado: false,
       pedidoPor: yo(), estado: 'cerrado', tomadoPor: yo(), tomadoEn: t, visita: null, cierre: { por: yo(), fecha: t, texto: String(o.solucion || '').trim() },
       informe: { canal: o.canal || 'telefono', causa: String(o.problema || '').trim(), solucion: String(o.solucion || '').trim(), repuestos: String(o.repuestos || '').trim(), por: yo(), fecha: t } });
   }
@@ -632,9 +632,19 @@
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, editar: editar, reabrir: reabrir, borrar: borrar, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, repararEquipos: repararEquipos, editar: editar, reabrir: reabrir, borrar: borrar, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
-  var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };
+  function repararEquipos() {
+    var real = {}; lista('equipos').forEach(function (e) { real[String(e.id)] = e.id; });
+    var arreglar = function (clave, filtro) {
+      var l = lista(clave), n = 0;
+      l.forEach(function (x) { if (x && filtro(x) && typeof x.equipoId === 'string' && real[x.equipoId] !== undefined && typeof real[x.equipoId] !== 'string') { x.equipoId = real[x.equipoId]; n++; } });
+      if (n) localStorage.setItem(clave, JSON.stringify(l));
+      return n;
+    };
+    return arreglar('eventos', function (x) { return x.tipo === 'parada'; }) + arreglar(CLAVE, function () { return true; });
+  }
+  var alArrancar = function () { try { repararEquipos(); } catch (e) {} try { cerrarPorRiego(); } catch (e) {} };
   if (window.SafiaSync && SafiaSync.alListo) SafiaSync.alListo(function () { setTimeout(alArrancar, 1500); }); else setTimeout(alArrancar, 1500);
 })();

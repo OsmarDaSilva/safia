@@ -30,6 +30,8 @@
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-pasturas.js"></script>
 <script src="safia-parte.js"></script>
+<script src="safia-asistencia.js"></script>
+<script src="safia-asistencias.js"></script>
 </head>
 <body>
 
@@ -332,7 +334,7 @@
       let filtrados = eventos;
 
       if (filtroTipo !== 'todos') filtrados = filtrados.filter(e => filtroTipo === 'equipo' ? (e.tipo === 'horimetro' || e.tipo === 'mantenimiento') : e.tipo === filtroTipo);
-      if (filtroEquipo) filtrados = filtrados.filter(e => e.equipoId === parseInt(filtroEquipo));
+      if (filtroEquipo) filtrados = filtrados.filter(e => String(e.equipoId) === String(filtroEquipo));
       if (filtroOrigen !== 'todos') filtrados = filtrados.filter(e => e.cargadoPor === filtroOrigen);
 
       if (filtroPeriodo !== 'todo') {
@@ -349,7 +351,7 @@
         const campos = JSON.parse(localStorage.getItem('campos') || '[]');
         const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
         filtrados = filtrados.filter(e => {
-          const eq = equipos.find(x => x.id === e.equipoId);
+          const eq = equipos.find(x => String(x.id) === String(e.equipoId));
           const ca = eq ? campos.find(c => c.id === eq.campoId) : null;
           const cl = ca ? clientes.find(c => c.id === ca.clienteId) : null;
           const sinAcento = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -406,7 +408,7 @@
 
       const todos = filtrados.concat(autos.filas).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)) || ((a.virtual ? 1 : 0) - (b.virtual ? 1 : 0)));
       lista.innerHTML = todos.map(ev => {
-        const equipo = equipos.find(e => e.id === ev.equipoId);
+        const equipo = equipos.find(e => String(e.id) === String(ev.equipoId));
         const campo = ev.virtual ? campos.find(c => String(c.id) === String(ev.campoId)) : (equipo ? campos.find(c => c.id === equipo.campoId) : null);
         const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
 
@@ -751,7 +753,7 @@
       const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
 
       return filtrados.map(ev => {
-        const equipo = equipos.find(e => e.id === ev.equipoId);
+        const equipo = equipos.find(e => String(e.id) === String(ev.equipoId));
         const campo = equipo ? campos.find(c => c.id === equipo.campoId) : null;
         const cliente = campo ? clientes.find(cl => cl.id === campo.clienteId) : null;
 
