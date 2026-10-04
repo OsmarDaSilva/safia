@@ -177,9 +177,10 @@
 
   /* ---------- elegir el archivo: cámara de fotos, cámara de video o galería ----------
      En el celular, "Sacar foto" y "Filmar video" abren la cámara directamente (atributo capture); en una PC abren el
-     explorador de archivos. Un solo archivo por vez: elegir otro reemplaza al anterior. */
+     explorador de archivos. Se pueden sumar varios (foto y video) antes de enviar. */
   var ICO = { foto: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/>', video: '<rect x="3" y="6.5" width="12" height="11" rx="2"/><path d="m15 10.5 6-3v9l-6-3z"/>', archivo: '<path d="M20 11.5 12.5 19a4.6 4.6 0 0 1-6.5-6.5l7.8-7.8a3.1 3.1 0 0 1 4.4 4.4l-7.7 7.7a1.6 1.6 0 0 1-2.3-2.3l7-7"/>' };
   function selector(id, soloFoto) {
+    SEL[id] = [];
     var bt = 'position:relative;width:auto;margin:0;text-transform:none;letter-spacing:0;display:inline-flex;align-items:center;gap:6px;padding:9px 12px;border:1.5px solid #E1E4E7;border-radius:10px;background:#fff;color:#2E3236;font-size:13.5px;font-weight:700;cursor:pointer;overflow:hidden;';
     var boton = function (suf, texto, accept, camara) {
       return '<label style="' + bt + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + ICO[suf] + '</svg>' + texto +
@@ -188,19 +189,38 @@
     return '<div style="flex:1;min-width:200px;"><div style="display:flex;gap:8px;flex-wrap:wrap;">' + boton('foto', 'Sacar foto', 'image/*', true) + (soloFoto ? '' : boton('video', 'Filmar video', 'video/*', true)) + boton('archivo', 'Elegir archivo', soloFoto ? 'image/*' : 'image/*,video/*', false) + '</div>' +
       '<div id="' + id + '_estado" style="font-size:12.5px;color:#6B7075;margin-top:6px;line-height:1.4;">' + (soloFoto ? '' : 'El video, corto: unos 15 segundos alcanzan.') + '</div></div>';
   }
-  function elegido(id) { var f = null; ['foto', 'video', 'archivo'].forEach(function (k) { var e = document.getElementById(id + '_' + k); if (e && e.files && e.files[0]) f = e.files[0]; }); return f; }
-  function quitar(id) { ['foto', 'video', 'archivo'].forEach(function (k) { var e = document.getElementById(id + '_' + k); if (e) e.value = ''; }); var est = document.getElementById(id + '_estado'); if (est) est.textContent = ''; }
+  // Lo elegido queda en memoria, por selector: así se puede mandar una foto Y un video (o varias fotos) en el mismo envío.
+  // La orden de servicio (selector sin botón de video) lleva una sola foto: elegir otra la reemplaza.
+  var SEL = {}, SEL_MAX = 5;
+  function elegidos(id) { return (SEL[id] || []).slice(); }
+  function elegido(id) { return (SEL[id] || [])[0] || null; }
+  function pintarElegidos(id, aviso) {
+    var est = document.getElementById(id + '_estado'); if (!est) return;
+    var l = SEL[id] || [];
+    est.innerHTML = (aviso ? '<div style="color:#B5371C;font-weight:700;">' + aviso + '</div>' : '') + (l.length ? l.map(function (f, i) {
+      var esV = /^video\//.test(f.type || ''), mb = f.size / 1048576, peso = mb >= 1 ? Math.round(mb) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
+      return '<div><b style="color:#178029;">' + (esV ? 'Video' : 'Foto') + ' ' + (l.length > 1 ? (i + 1) + ' ' : '') + 'para enviar</b> · ' + peso + ' · <a href="#" data-quitar="' + id + '" data-i="' + i + '" style="color:#B5371C;font-weight:700;">Quitar</a></div>';
+    }).join('') + (document.getElementById(id + '_video') && l.length < SEL_MAX ? '<div>Podés sumar otra foto o un video con los mismos botones.</div>' : '') : (aviso ? '' : (document.getElementById(id + '_video') ? 'El video, corto: unos 15 segundos alcanzan.' : '')));
+  }
+  function quitar(id, i) { if (i == null) SEL[id] = []; else (SEL[id] || []).splice(i, 1); pintarElegidos(id); }
   if (document.addEventListener) {
     document.addEventListener('change', function (ev) {
       var t = ev.target, id = t && t.getAttribute && t.getAttribute('data-sel'); if (!id) return;
-      ['foto', 'video', 'archivo'].forEach(function (k) { var e = document.getElementById(id + '_' + k); if (e && e !== t) e.value = ''; });
-      var f = t.files && t.files[0], est = document.getElementById(id + '_estado'); if (!est) return;
-      if (!f) { est.textContent = ''; return; }
-      var esV = /^video\//.test(f.type || ''), mb = f.size / 1048576, peso = mb >= 1 ? Math.round(mb) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
-      est.innerHTML = esV && f.size > VIDEO_MAX ? '<b style="color:#B5371C;">El video pesa ' + Math.round(mb) + ' MB y el tope es ' + Math.round(VIDEO_MAX / 1048576) + ' MB.</b> Filmá uno más corto (unos 15 segundos).'
-        : '<b style="color:#178029;">' + (esV ? 'Video listo' : 'Foto lista') + ' para enviar</b> · ' + peso + ' · <a href="#" data-quitar="' + id + '" style="color:#B5371C;font-weight:700;">Quitar</a>';
-    });
-    document.addEventListener('click', function (ev) { var q = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-quitar'); if (q) { ev.preventDefault(); quitar(q); } }, true);   // en captura: el formulario del Operador frena los clics antes de que lleguen al documento
+      var f = t.files && t.files[0]; t.value = ''; if (!f) return;
+      var varios = !!document.getElementById(id + '_video'), l = SEL[id] = SEL[id] || [];
+      if (/^video\//.test(f.type || '') && f.size > VIDEO_MAX) return pintarElegidos(id, 'Ese video pesa ' + Math.round(f.size / 1048576) + ' MB y el tope es ' + Math.round(VIDEO_MAX / 1048576) + ' MB. Filmá uno más corto (unos 15 segundos).');
+      if (!varios) SEL[id] = [f]; else if (l.length >= SEL_MAX) return pintarElegidos(id, 'Hasta ' + SEL_MAX + ' archivos por envío.'); else l.push(f);
+      pintarElegidos(id);
+    }, true);
+    document.addEventListener('click', function (ev) { var q = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-quitar'); if (q) { ev.preventDefault(); quitar(q, +ev.target.getAttribute('data-i')); } }, true);   // en captura: el formulario del Operador frena los clics antes de que lleguen al documento
+  }
+  // Varias fotos o videos: una nota por archivo (la primera lleva el texto). Si alguno falla, sigue con los demás y avisa cuántos faltaron.
+  function notaVarios(id, texto, archivos) {
+    archivos = archivos || [];
+    if (!archivos.length) return nota(id, texto, null);
+    var fallos = [], p = Promise.resolve();
+    archivos.forEach(function (f, i) { p = p.then(function () { return nota(id, i === 0 ? texto : '', f).catch(function (e) { fallos.push(e.message); if (i === 0 && String(texto || '').trim()) return nota(id, texto, null).catch(function () {}); }); }); });
+    return p.then(function () { if (fallos.length) throw new Error((fallos.length === archivos.length ? 'no se pudo subir' : 'no se pudieron subir ' + fallos.length + ' de ' + archivos.length + ' archivos') + ' (' + fallos[0] + ')'); });
   }
 
   /* ---------- lectura para otras pantallas ---------- */
@@ -444,7 +464,7 @@
       if (!sb) { a.textContent = 'Foto (sin conexión)'; return; }
       sb.storage.from('safia').createSignedUrl(a.getAttribute('data-foto'), 3600).then(function (r) {
         if (r.error || !r.data) { a.textContent = 'No se pudo abrir la foto'; return; }
-        if (ES_VIDEO.test(a.getAttribute('data-foto'))) { var v = document.createElement('video'); v.controls = true; v.preload = 'metadata'; v.playsInline = true; v.src = r.data.signedUrl; v.style.cssText = 'max-width:100%;max-height:320px;border-radius:8px;display:block;margin-top:6px;background:#000;'; a.parentNode.replaceChild(v, a); return; }
+        if (ES_VIDEO.test(a.getAttribute('data-foto'))) { var v = document.createElement('video'); v.controls = true; v.preload = 'metadata'; v.playsInline = true; v.src = r.data.signedUrl; v.style.cssText = 'max-width:100%;max-height:320px;border-radius:8px;display:block;margin-top:6px;background:#000;'; a.parentNode.insertBefore(v, a); a.href = r.data.signedUrl; a.textContent = 'Abrir o descargar el video'; return; }
         a.href = r.data.signedUrl; a.innerHTML = '<img src="' + esc(r.data.signedUrl) + '" alt="Foto" style="max-width:100%;max-height:260px;border-radius:8px;display:block;">';
       });
     });
@@ -483,11 +503,11 @@
       var eqId = val('asEquipo'), ya = abiertoDe(eqId);
       if (ya) return ir('detalle', ya.id, 'Ese pivot ya tiene un pedido abierto: seguí la conversación acá. Cuando se cierre, se puede pedir otro.');
       var desc = val('asDesc'); if (!desc) { vista.msg = 'Contá en pocas palabras qué pasa.'; return pintar(); }
-      var foto = elegido('asFoto'), parado = document.getElementById('asParado').checked;
+      var fotos = elegidos('asFoto'), parado = document.getElementById('asParado').checked;
       var p = crear({ equipoId: eqId, motivo: val('asMotivo'), descripcion: desc, parado: parado });
       if (parado) { var evp = cargarParada(p); if (evp) cambiar(p.id, function (x) { x.paradaId = evp.id; }); }
       setTimeout(function () { invocar('pedir', { equipoId: eqId, motivo: p.motivo, fecha: p.fechaProblema, nota: desc, pedidoId: p.id, parado: parado }).catch(function () {}); }, 2500);
-      if (foto) { b.disabled = true; b.textContent = 'Subiendo…'; return nota(p.id, '', foto).then(function () { ir('detalle', p.id, 'Pedido enviado a Irrigar con el archivo.', true); }, function (e) { ir('detalle', p.id, 'El pedido se envió, pero el archivo no se pudo subir: ' + e.message); }); }
+      if (fotos.length) { b.disabled = true; b.textContent = 'Subiendo…'; return notaVarios(p.id, '', fotos).then(function () { ir('detalle', p.id, 'Pedido enviado a Irrigar con ' + (fotos.length === 1 ? 'el archivo.' : 'los ' + fotos.length + ' archivos.'), true); }, function (e) { ir('detalle', p.id, 'El pedido se envió, pero ' + e.message + '. Subilo de nuevo desde acá.'); }); }
       return ir('detalle', p.id, 'Pedido enviado a Irrigar. Cuando un técnico lo tome te va a llegar el aviso.', true);
     }
     if (a === 'guardarConstancia') {
@@ -521,8 +541,8 @@
     }
     if (a === 'informe') { guardarInforme(id, { causa: val('asCausa'), solucion: val('asSolucion'), repuestos: val('asRepuestos') }); return ir('detalle', id, 'Informe guardado.', true); }
     if (a === 'nota') {
-      var arch = elegido('asNotaFoto'); b.disabled = true; b.textContent = arch ? 'Subiendo…' : 'Enviando…';
-      return nota(id, val('asNota'), arch).then(function () { ir('detalle', id); }, function (e) { ir('detalle', id, e.message); });
+      var archs = elegidos('asNotaFoto'); b.disabled = true; b.textContent = archs.length ? 'Subiendo…' : 'Enviando…';
+      return notaVarios(id, val('asNota'), archs).then(function () { ir('detalle', id); }, function (e) { ir('detalle', id, e.message); });
     }
   }
   // después de cerrar: sube la orden si la eligieron. Si la foto falla, el pedido igual queda cerrado y la orden se sube después.
@@ -556,7 +576,7 @@
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, selector: selector, elegido: elegido, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
   var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };

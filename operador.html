@@ -1902,11 +1902,11 @@
         if (!ped && window.SafiaAsistencias) ped = SafiaAsistencias.crear({ equipoId: evento.equipoId, motivo: evento.motivo, descripcion: evento.observaciones, fechaProblema: evento.fecha, parado: true, paradaId: evento.id });
         SafiaAsistencia.pedir(evento, ped);
         // la foto o el video elegido en el formulario va como primera nota del pedido
-        const adj = SafiaAsistencias.elegido('parAdjunto');
-        if (adj && ped) {
-          const est = document.getElementById('safiaAsisAdjunto'); if (est) { est.style.display = 'block'; est.textContent = 'Subiendo la foto o el video…'; }
-          SafiaAsistencias.nota(ped.id, '', adj).then(() => { if (est) { est.textContent = 'La foto o el video ya está en el pedido.'; est.style.color = '#178029'; } pintarAsistencia(); },
-            e => { if (est) { est.textContent = 'No se pudo subir (' + e.message + '). Subilo desde el pedido.'; est.style.color = '#B5371C'; } });
+        const adj = SafiaAsistencias.elegidos('parAdjunto');
+        if (adj.length && ped) {
+          const est = document.getElementById('safiaAsisAdjunto'); if (est) { est.style.display = 'block'; est.textContent = adj.length === 1 ? 'Subiendo la foto o el video…' : 'Subiendo ' + adj.length + ' archivos…'; }
+          SafiaAsistencias.notaVarios(ped.id, '', adj).then(() => { if (est) { est.textContent = adj.length === 1 ? 'La foto o el video ya está en el pedido.' : 'Los ' + adj.length + ' archivos ya están en el pedido.'; est.style.color = '#178029'; } pintarAsistencia(); },
+            e => { if (est) { est.textContent = 'Atención: ' + e.message + '. Subilo desde el pedido.'; est.style.color = '#B5371C'; } });
         }
       }
       if (tipoEventoActual === 'riego' && window.SafiaAsistencias && SafiaAsistencias.cerrarPorRiego()) mostrarToast('✓ Riego guardado · el pedido de asistencia se cerró solo');

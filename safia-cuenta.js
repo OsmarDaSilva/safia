@@ -510,5 +510,39 @@
   function kmEntre(a, b) { var R = 6371, r = Math.PI / 180, dLa = (b.lat - a.lat) * r, dLo = (b.lon - a.lon) * r, x = Math.sin(dLa / 2) * Math.sin(dLa / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLo / 2) * Math.sin(dLo / 2); return 2 * R * Math.asin(Math.sqrt(x)); }
   window.SafiaCoord = { leer: leerCoordenadas, km: kmEntre };
 
+  /* ---------- Alerta de asistencia técnica: en TODAS las pantallas ----------
+     No toca el diseño de ninguna página (el Dashboard es una grilla fija): es una pastilla flotante arriba a la derecha y un
+     número al lado de "Asistencia técnica" en el menú. Irrigar ve los pedidos de todos (en rojo los que nadie tomó); el campo
+     ve los suyos con su estado. Se actualiza sola con la sincronización. */
+  function alertaAsistencia() {
+    var u = null; try { u = JSON.parse(localStorage.getItem('safia_usuario') || 'null'); } catch (e) {}
+    var l = []; try { l = JSON.parse(localStorage.getItem('asistencias') || '[]') || []; } catch (e) {}
+    var abiertos = l.filter(function (x) { return x && x.tipo === 'pedido' && x.estado !== 'cerrado'; }), sinTomar = abiertos.filter(function (x) { return !x.tomadoPor; });
+    var irr = esAlto(u), n = abiertos.length;
+    // número en el menú
+    Array.prototype.forEach.call(document.querySelectorAll('a[href="asistencias.html"]'), function (a) {
+      var b = a.querySelector('.safia-as-num');
+      if (!n) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement('span'); b.className = 'safia-as-num'; b.style.cssText = 'margin-left:auto;min-width:20px;padding:1px 6px;border-radius:99px;font-size:11px;font-weight:800;text-align:center;color:#fff;'; a.appendChild(b); }
+      b.textContent = n; b.style.background = sinTomar.length ? '#C0392B' : '#1F5FA8';
+    });
+    // pastilla flotante (no en la propia pantalla de Asistencia ni dentro de una vista embebida)
+    var p = document.getElementById('safiaAsAlerta'), enAsis = /asistencias(\.html)?$/i.test(location.pathname), embebido = false; try { embebido = window.top !== window; } catch (e) { embebido = true; }
+    if (!n || !u || enAsis || embebido || !document.body) { if (p) p.remove(); return; }
+    var fh = function (v) { return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(v)) ? String(v).slice(8, 10) + '/' + String(v).slice(5, 7) + ' ' + String(v).slice(11, 16) : ''; };
+    var texto = irr ? (sinTomar.length ? sinTomar.length + (sinTomar.length === 1 ? ' pedido de asistencia sin tomar' : ' pedidos de asistencia sin tomar') : n + (n === 1 ? ' pedido de asistencia abierto' : ' pedidos de asistencia abiertos'))
+      : (n === 1 ? 'Asistencia pedida: ' + (abiertos[0].visita ? 'visita ' + fh(abiertos[0].visita) : abiertos[0].tomadoPor ? 'la tomó ' + abiertos[0].tomadoPor.nombre : 'esperando a Irrigar') : n + ' pedidos de asistencia abiertos');
+    var rojo = irr ? sinTomar.length > 0 : false;
+    if (!p) { p = document.createElement('a'); p.id = 'safiaAsAlerta'; document.body.appendChild(p); }
+    p.href = n === 1 ? 'asistencias.html?p=' + encodeURIComponent(abiertos[0].id) : 'asistencias.html';
+    p.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9990;max-width:calc(100vw - 80px);display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:99px;text-decoration:none;font:700 12.5px/1.2 system-ui,sans-serif;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.22);background:' + (rojo ? '#C0392B' : '#1F5FA8') + ';';
+    p.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17v3h3l5.2-5.2a4 4 0 0 0 5.3-5.3l-2.6 2.6-2.3-.6-.6-2.3z"/></svg><span></span>';
+    p.lastChild.textContent = texto;
+  }
+  try {
+    var arrancarAlerta = function () { alertaAsistencia(); setInterval(alertaAsistencia, 15000); window.addEventListener('safia:datos', alertaAsistencia); window.addEventListener('storage', function (e) { if (e.key === 'asistencias') alertaAsistencia(); }); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancarAlerta); else arrancarAlerta();
+  } catch (e) {}
+
   window.SafiaCuenta = { avisos: modalAvisos, acerca: modalAcerca, montar: montar, aplicarRol: aplicarRol, fueraDeRol: fueraDeRol, verComo: verComo, salirVerComo: salirVerComo, verComoActual: verComoActual, cambiarClave: modalClave, salir: salir };
 })();
