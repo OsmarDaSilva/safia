@@ -4,7 +4,7 @@
    las HERRAMIENTAS se ejecutan acá, en el navegador, sobre los datos que este usuario ya ve con su rol (un cliente: lo
    suyo y los lotes de la zona sin nombres). Así los números los calcula SAFIA, no la IA, y nadie ve lo que no debe.
    Herramientas: buscar_casos, resumen_casos, referencia_zona, info_material, clima_y_riego, agua_hoy, como_va_campana, interpretar_suelo, mis_campos,
-   mi_lote, mantenimiento, riegos_y_lluvias, historial_suelo, comparar_con_lider, agua_de_riego, plan_rotacion, energia_y_agua.
+   mi_lote, mantenimiento, riegos_y_lluvias, historial_suelo, comparar_con_lider, agua_de_riego, plan_rotacion, energia_y_agua, parte_seguimiento.
    Uso: SafiaAsistente.montar(elemento). */
 (function () {
   'use strict';
@@ -634,6 +634,38 @@
             control_de_calidad: (L.control || []).length ? L.control : 'el análisis cierra (cationes y aniones)', evaluado_para: L.aspersion ? 'riego por aspersión (pivot)' : 'riego sin mojar la hoja' } };
       }), fuente: 'Banco → Análisis de agua de SAFIA: FAO Riego y Drenaje 29 (Ayers y Westcot 1985) y USDA Handbook 60 (diagrama Riverside)' };
     },
+    parte_seguimiento: function (i) {
+      // El parte de seguimiento (pantalla Seguimiento): luces por pivot, orden de riego, agua de la campaña, paradas del equipo y lo que falta cargar
+      var P = window.SafiaParte; if (!P) return { error: 'Módulo de seguimiento no disponible en esta página' };
+      var L = lotesDe(i); if (L.error) return L;
+      var camps = propios('campanas'), TXT = { verde: 'bien', ambar: 'atención', rojo: 'urgente', gris: 'sin datos' }, fd = function (f) { return f ? String(f).slice(0, 10) : null; };
+      var parada = function (q) { return { desde: fd(q.fecha), hasta: q.hasta ? fd(q.hasta) : 'sigue parado', motivo: P.motivoTxt(q), cerrada_sola_al_volver_a_regar: !!q.cerradaPorRiego, pidio_asistencia_a_irrigar: !!q.asistencia, nota: q.observaciones || undefined }; };
+      var todos = L.lista.filter(function (x) { return x.c && !x.e.zona; }), lista = todos.slice(0, 8), salida = [], p = Promise.resolve();
+      lista.forEach(function (x) {
+        var cam = camps.find(function (k) { return String(k.equipoId) === String(x.e.id) && k.estado === 'Activa' && k.cultivos && k.cultivos[0]; }) || null;
+        p = p.then(function () { return P.armar({ e: x.e, c: x.c, cam: cam, cu: cam ? cam.cultivos[0] : null }); }).then(function (D) {
+          var o = { campo: x.c.nombre, cliente: nombreClienteDe(x.c) || undefined, lote: x.e.nombre };
+          var abierta = P.paradaAbierta(x.e.id);
+          if (D.sinCampana) { o.estado = 'sin campaña activa'; o.parado_ahora = abierta ? parada(abierta) : null; salida.push(o); return; }
+          o.cultivo = cam.cultivos[0].cultivo; o.dias_desde_siembra = D.dds; o.es_pastura = D.pastura || undefined; o.secano = D.secano || undefined;
+          if (D.luces) o.luces = { meta: TXT[D.luces.meta], agua: TXT[D.luces.agua], equipo: TXT[D.luces.equipo], datos: TXT[D.luces.datos] };
+          if (D.prox) o.riego_hoy = { orden: D.prox.titulo, detalle: D.prox.detalle };
+          if (D.agua) o.agua_de_la_campana = { riego_mm: D.agua.riego, lluvia_mm: D.agua.lluvia, dias_con_estres: D.agua.diasEstres, rinde_perdido_por_agua_pct: D.agua.perdidaPct, etapa: D.agua.etapa || undefined,
+            episodios_de_estres: (D.agua.episodios || []).map(function (ep) { var cr = P.cruzar(ep, D.paradas || [], D.hoy); return { desde: ep.desde, hasta: ep.hasta, dias: ep.dias, etapa: ep.etapa, explicado_por_parada_del_pivot: cr ? (cr.cubre >= 0.6 ? 'sí, coincide con una parada' : 'solo en parte (' + Math.round(cr.cubre * 100) + ' % de los días)') : 'no: no hay parada cargada en esos días' }; }) };
+          if (!D.secano) o.equipo = { parado_ahora: abierta ? parada(abierta) : null, paradas_de_la_campana: (D.paradas || []).map(parada),
+            mantenimiento: D.mant ? (D.mant.sinPlan ? 'sin plan cargado' : { tareas_vencidas: D.mant.vencidas.length, tareas_proximas: D.mant.proximas.length }) : undefined };
+          if (D.forraje && D.forraje.uaReal != null) o.pastura = { carga_real_UA: D.forraje.uaReal, capacidad_UA: D.forraje.uaCapacidad };
+          o.falta_cargar = D.falta && D.falta.length ? D.falta : 'nada';
+          if (D.errores && D.errores.length) o.no_se_pudo_calcular = D.errores;
+          salida.push(o);
+        }, function (er) { salida.push({ campo: x.c.nombre, lote: x.e.nombre, error: String(er && er.message || er).slice(0, 120) }); });
+      });
+      return p.then(function () { return { pivots: salida, lotes_no_revisados: todos.length > lista.length ? todos.slice(lista.length).map(function (x) { return x.c.nombre + ' · ' + x.e.nombre; }) : undefined,
+        soporte_whatsapp_cargado: !!(window.SafiaAsistencia && SafiaAsistencia.numero()),
+        fuente: 'Pantalla Seguimiento de SAFIA (el parte): junta la ficha de agua del Operador, el balance de agua por etapa, la meta viva, el mantenimiento y las paradas del pivot',
+        reglas: 'Luces: meta, agua, equipo y datos (bien, atención, urgente o sin datos). Una parada sin fecha de fin se cierra sola el día del primer riego cargado después (si se regó, el pivot anda); un riego del mismo día no la cierra. Un episodio de estrés se explica por una parada solo si la parada cubre esos días. Al marcar Pivot parado en el Operador se puede pedir asistencia técnica a Irrigar: les llega un aviso al celular a los de Irrigar y, si Irrigar cargó su número de soporte, se ofrece el WhatsApp con el mensaje ya escrito.',
+        importante: 'Si nadie marcó la parada, SAFIA no puede saber que el pivot estuvo roto: el estrés figura como falta de riego. El detalle de la meta (qué se perdió y qué toca ahora) está en como_va_campana; el riego del día con el pronóstico, en agua_hoy.' }; });
+    },
     energia_y_agua: function (i) {
       // Facturas de energía, reparto por pivot e informe de agua de la campaña: el mismo cálculo de Banco → Energía y agua
       var EN = window.SafiaEnergia; if (!EN) return { error: 'Módulo de energía no disponible en esta página' };
@@ -704,7 +736,7 @@
       return r.data;
     });
   }
-  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona', agua_de_riego: 'Revisando el análisis del agua de riego', plan_rotacion: 'Revisando la rotación del lote', energia_y_agua: 'Revisando las facturas de energía y el agua de la campaña' };
+  var NOMBRES = { buscar_casos: 'Buscando casos en el banco', resumen_casos: 'Comparando casos del banco', referencia_zona: 'Leyendo la referencia de la zona', info_material: 'Buscando la ficha del material', clima_y_riego: 'Calculando clima y riego (unos segundos)', agua_hoy: 'Mirando el agua del suelo y el pronóstico', como_va_campana: 'Revisando la campaña: meta, agua, satélite, hoja e insumos', interpretar_suelo: 'Interpretando el suelo', mis_campos: 'Revisando tus campos', mi_lote: 'Revisando el lote y su historia', mantenimiento: 'Revisando el mantenimiento del equipo', riegos_y_lluvias: 'Sumando riegos y lluvias', historial_suelo: 'Revisando los análisis de suelo', comparar_con_lider: 'Comparando con el mejor lote de la zona', agua_de_riego: 'Revisando el análisis del agua de riego', plan_rotacion: 'Revisando la rotación del lote', energia_y_agua: 'Revisando las facturas de energía y el agua de la campaña', parte_seguimiento: 'Armando el parte de seguimiento de cada pivot' };
   function preguntar(texto, al) {
     if (ocupado || !texto.trim()) return Promise.resolve();
     // sin ningún pivot con suscripción vigente no se consulta a la IA (no se gasta)
