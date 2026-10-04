@@ -55,8 +55,20 @@
   }
 
   /* ---------- paradas del pivot ---------- */
+  // Una parada sin fecha de fin se da por terminada el día del primer riego cargado DESPUÉS de la parada: si se regó, el pivot ya
+  // anda (Osmar, 4-oct-2026: pocos operadores van a avisar que volvió a andar). No se guarda: se deduce cada vez, así vale para los
+  // riegos cargados desde cualquier pantalla (Operador, voz, Eventos, importación). Un riego del mismo día de la parada no la cierra.
+  function finDe(p, todos) {
+    if (p.hasta) return { hasta: dia(p.hasta), porRiego: false };
+    var ini = dia(p.fecha), f = null;
+    (todos || leer('eventos')).forEach(function (v) { if (v.tipo === 'riego' && String(v.equipoId) === String(p.equipoId) && v.fecha && dia(v.fecha) > ini && (num(v.cantidad) || 0) > 0 && (!f || dia(v.fecha) < f)) f = dia(v.fecha); });
+    return { hasta: f, porRiego: !!f };
+  }
   function paradasDe(equipoId, desde) {
-    return leer('eventos').filter(function (v) { return v.tipo === 'parada' && String(v.equipoId) === String(equipoId) && v.fecha && (!desde || !v.hasta || dia(v.hasta) >= desde); })
+    var todos = leer('eventos');
+    return todos.filter(function (v) { return v.tipo === 'parada' && String(v.equipoId) === String(equipoId) && v.fecha; })
+      .map(function (v) { var f = finDe(v, todos); return f.porRiego ? Object.assign({}, v, { hasta: f.hasta, cerradaPorRiego: true }) : v; })
+      .filter(function (v) { return !desde || !v.hasta || dia(v.hasta) >= desde; })
       .sort(function (a, b) { return dia(a.fecha).localeCompare(dia(b.fecha)); });
   }
   function paradaAbierta(equipoId) { var l = paradasDe(equipoId).filter(function (p) { return !p.hasta; }); return l[l.length - 1] || null; }
@@ -198,7 +210,7 @@
       t += '<br><b style="color:#B5371C;">' + a.diasEstres + ' días con estrés</b>: ya costaron <b>' + fmt(a.perdidaPct, 1) + ' % del rinde</b>.';
       if (a.episodios.length) t += '<ul style="margin:3px 0 0 18px;padding:0;">' + a.episodios.slice(-5).map(function (p) {
         var cr = cruzar(p, D.paradas || [], D.hoy);
-        return '<li>Del ' + fmtF(p.desde) + ' al ' + fmtF(p.hasta) + ' (' + p.dias + ' días, en ' + (ETAPA[p.etapa] || p.etapa) + '): ' + (cr ? (function () { var lista = cr.paradas.map(function (q) { return esc(motivoTxt(q)) + ' (del ' + fmtF(q.fecha) + (q.hasta ? ' al ' + fmtF(q.hasta) : ' hasta hoy') + ')'; }).join(' y ');
+        return '<li>Del ' + fmtF(p.desde) + ' al ' + fmtF(p.hasta) + ' (' + p.dias + ' días, en ' + (ETAPA[p.etapa] || p.etapa) + '): ' + (cr ? (function () { var lista = cr.paradas.map(function (q) { return esc(motivoTxt(q)) + ' (del ' + fmtF(q.fecha) + (q.hasta ? ' al ' + fmtF(q.hasta) + (q.cerradaPorRiego ? ', cuando se volvió a regar' : '') : ' hasta hoy') + ')'; }).join(' y ');
           return cr.cubre >= 0.6 ? 'coincide con el <b>pivot parado</b> por ' + lista + '.' : 'el <b>pivot estuvo parado</b> por ' + lista + ', pero eso explica solo una parte: <span style="color:#8a5713;">el resto de los días no hay parada cargada (faltó regar a tiempo, o se regó y no se cargó).</span>'; })() : '<span style="color:#8a5713;">no hay un pivot parado cargado en esas fechas: faltó regar a tiempo, o se regó y no se cargó.</span>') + '</li>'; }).join('') + '</ul>';
     } else t += '<br><b style="color:#178029;">Sin días de estrés</b>: no se perdió rinde por agua.';
     t += '<div id="' + id + '" style="margin-top:4px;color:#3A3E41;">Calculando cuánto falta regar hasta la cosecha…</div>';
@@ -298,5 +310,5 @@
     cont.querySelector('#parteImprimir').addEventListener('click', function () { window.print(); });
     ir();
   }
-  window.SafiaParte = { montar: montar, armar: armar, pivotsDe: pivotsDe, riegoRestante: riegoRestante, paradasDe: paradasDe, paradaAbierta: paradaAbierta, MOTIVOS: MOTIVOS, motivoTxt: motivoTxt, cruzar: cruzar };
+  window.SafiaParte = { montar: montar, armar: armar, pivotsDe: pivotsDe, riegoRestante: riegoRestante, paradasDe: paradasDe, paradaAbierta: paradaAbierta, finDe: finDe, MOTIVOS: MOTIVOS, motivoTxt: motivoTxt, cruzar: cruzar };
 })();

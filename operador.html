@@ -1634,7 +1634,7 @@
         const abierta = SafiaParte.paradaAbierta(equipoSeleccionadoId), fc = f => String(f).slice(8, 10) + '/' + String(f).slice(5, 7);
         document.getElementById('parNueva').style.display = abierta ? 'none' : '';
         if (abierta) { titulo.innerHTML = 'El pivot volvió a andar'; document.getElementById('parInfo').innerHTML = 'Figura <b>parado desde el ' + fc(abierta.fecha) + '</b> por ' + SafiaParte.motivoTxt(abierta) + '. Poné arriba la <b>fecha en que volvió a andar</b> y guardá.'; }
-        else { titulo.innerHTML = 'Pivot parado'; document.getElementById('parInfo').innerHTML = 'Poné arriba la <b>fecha en que se paró</b>. Sirve para que el parte de seguimiento explique por qué faltó agua esos días. Cuando vuelva a andar, tocá este mismo botón.'; }
+        else { titulo.innerHTML = 'Pivot parado'; document.getElementById('parInfo').innerHTML = 'Poné arriba la <b>fecha en que se paró</b>. Sirve para que el parte de seguimiento explique por qué faltó agua esos días. Cuando vuelva a andar, tocá este mismo botón; si te olvidás, se cierra sola cuando cargues el próximo riego.'; }
       } else if (tipo === 'pesada') {
         titulo.innerHTML = 'Pesada del lote';
         camposRiegoLluvia.style.display = 'none';
@@ -1868,7 +1868,7 @@
       setTimeout(pintarPanelPastura, 0);
 
       cerrarModal();
-      mostrarToast('✓ ' + capitalizar(tipoEventoActual === 'parada' ? 'parada del pivot' : tipoEventoActual) + ' guardado'); if (tipoEventoActual === 'parada') pintarBotonParada();
+      mostrarToast('✓ ' + capitalizar(tipoEventoActual === 'parada' ? 'parada del pivot' : tipoEventoActual) + ' guardado'); if (tipoEventoActual === 'parada' || tipoEventoActual === 'riego') pintarBotonParada();
       mostrarEventos();
       mostrarCampana();
       mostrarRecomendacionClima();
@@ -1947,7 +1947,7 @@
         } else if (ev.tipo === 'parada') {
           icono = '⚠️';
           titulo = 'Pivot parado: ' + SafiaParte.motivoTxt(ev);
-          detalle = `desde ${diaSemana} ${fechaStr}${ev.hasta ? ' hasta el ' + String(ev.hasta).slice(8, 10) + '/' + String(ev.hasta).slice(5, 7) : ' · sigue parado'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
+          { const pf = SafiaParte.finDe(ev); detalle = `desde ${diaSemana} ${fechaStr}${pf.hasta ? ' hasta el ' + pf.hasta.slice(8, 10) + '/' + pf.hasta.slice(5, 7) + (pf.porRiego ? ' (se cerró sola al cargar un riego)' : '') : ' · sigue parado'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`; }
         } else if (ev.tipo === 'pesada') {
           icono = '🐄';
           titulo = (ev.motivo === 'ingreso' ? 'Ingreso del lote' : ev.motivo === 'salida' ? 'Salida del lote' : 'Pesada') + ': ' + ev.cabezas + ' cab. de ' + ev.pesoKg + ' kg';

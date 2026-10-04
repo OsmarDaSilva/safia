@@ -49,7 +49,7 @@
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
       { t: 'Si el pivot se para', p: [
         'Tocá <b>Pivot parado</b>, poné la fecha en que se paró y elegí el motivo (falla eléctrica, mecánica, bomba, corte de energía, falta de agua).',
-        'Cuando vuelva a andar, tocá el mismo botón, que ahora dice <b>Volvió a andar</b>, y poné la fecha.',
+        'Cuando vuelva a andar, tocá el mismo botón, que ahora dice <b>Volvió a andar</b>, y poné la fecha. Si te olvidás, SAFIA la cierra sola cuando cargues el próximo riego.',
         'Sirve para que el parte de seguimiento explique por qué faltó agua esos días: una cosa es que se rompió el equipo y otra que no se regó a tiempo.' ] },
       { t: 'Horas del equipo y mantenimiento', p: [
         'En la tarjeta de <b>mantenimiento</b> cargá lo que marca el horímetro del pivot, de la bomba y del cañón, y tocá <b>Cargar lectura</b>.',
