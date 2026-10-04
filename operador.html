@@ -913,7 +913,7 @@
           </button>
           <button class="boton-carga boton-aplicacion" id="btnParada" style="display:none;" onclick="abrirModal('parada')">
             <div class="boton-carga-icono"><svg class="ic-reco" viewBox="0 0 24 24" fill="none" stroke="#B5371C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9v6M14.5 9v6"/></svg></div>
-            <div class="boton-carga-label" id="btnParadaLabel">Pivot parado</div>
+            <div class="boton-carga-label" id="btnParadaLabel">Pivot parado · Asistencia</div>
           </button>
         </div>
         <div id="pulvCard" style="display:none;margin:12px 0;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:10px 14px;"><div id="pulvPanel"></div></div>
@@ -999,7 +999,7 @@
         <div id="parNueva">
           <div class="campo">
             <label>Por qué se paró</label>
-            <select id="parMotivo">
+            <select id="parMotivo" onchange="document.getElementById('parAsistencia').checked = SafiaAsistencia.pedirDeEntrada(this.value)">
               <option value="electrica">Falla eléctrica</option>
               <option value="mecanica">Falla mecánica (rueda, motorreductor, estructura)</option>
               <option value="bomba">Falla de la bomba</option>
@@ -1009,6 +1009,10 @@
               <option value="otro">Otro motivo (escribilo en las observaciones)</option>
             </select>
           </div>
+          <label style="display:flex;gap:10px;align-items:flex-start;margin:2px 0 14px;padding:11px 12px;border:1.5px solid #E1E4E7;border-radius:10px;cursor:pointer;font-size:14px;line-height:1.35;color:#2E3236;">
+            <input type="checkbox" id="parAsistencia" checked style="width:20px;height:20px;margin-top:1px;flex:none;">
+            <span><b>Pedir asistencia técnica a Irrigar</b><br><span style="font-size:12px;color:#6B7075;">Al guardar, les llega el aviso a los técnicos de Irrigar con el pivot, la estancia y el motivo.</span></span>
+          </label>
           <div class="campo">
             <label>Volvió a andar el <span style="color:#aaa;font-weight:400;font-size:11px;">(dejalo vacío si sigue parado)</span></label>
             <input type="date" id="parHasta">
@@ -1154,6 +1158,7 @@
 <script src="safia-forraje.js"></script>
 <script src="safia-pulverizar.js"></script>
 <script src="safia-parte.js"></script>
+<script src="safia-asistencia.js"></script>
   <script src="safia-lluvia.js"></script>
 <script src="safia-clima.js"></script>
   <script src="safia-ficha-agua.js"></script>
@@ -1595,7 +1600,7 @@
       document.getElementById('modalObservaciones').value = '';
       document.getElementById('camposPastoreo').style.display = 'none';
       document.getElementById('camposLectura').style.display = 'none';
-      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica';
+      document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica'; document.getElementById('parAsistencia').checked = true;
       ['pesCabezas', 'pesPeso', 'calPiquete', 'calAltura', 'calVerde', 'calMs'].forEach(id => { document.getElementById(id).value = ''; }); document.getElementById('pesMotivo').value = 'control';
       document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
@@ -1634,7 +1639,7 @@
         const abierta = SafiaParte.paradaAbierta(equipoSeleccionadoId), fc = f => String(f).slice(8, 10) + '/' + String(f).slice(5, 7);
         document.getElementById('parNueva').style.display = abierta ? 'none' : '';
         if (abierta) { titulo.innerHTML = 'El pivot volvió a andar'; document.getElementById('parInfo').innerHTML = 'Figura <b>parado desde el ' + fc(abierta.fecha) + '</b> por ' + SafiaParte.motivoTxt(abierta) + '. Poné arriba la <b>fecha en que volvió a andar</b> y guardá.'; }
-        else { titulo.innerHTML = 'Pivot parado'; document.getElementById('parInfo').innerHTML = 'Poné arriba la <b>fecha en que se paró</b>. Sirve para que el parte de seguimiento explique por qué faltó agua esos días. Cuando vuelva a andar, tocá este mismo botón; si te olvidás, se cierra sola cuando cargues el próximo riego.'; }
+        else { titulo.innerHTML = 'Pivot parado'; document.getElementById('parInfo').innerHTML = 'Poné arriba la <b>fecha en que se paró</b>. Si dejás marcado <b>Pedir asistencia</b>, al guardar se avisa a los técnicos de Irrigar. Cuando vuelva a andar, tocá este mismo botón; si te olvidás, se cierra sola cuando cargues el próximo riego.'; }
       } else if (tipo === 'pesada') {
         titulo.innerHTML = 'Pesada del lote';
         camposRiegoLluvia.style.display = 'none';
@@ -1701,7 +1706,7 @@
       const mostrar = !!eq && !(window.SafiaBalance && SafiaBalance.esSecano(eq)) && !!window.SafiaParte;
       b.style.display = mostrar ? '' : 'none'; if (!mostrar) return;
       const abierta = SafiaParte.paradaAbierta(equipoSeleccionadoId);
-      document.getElementById('btnParadaLabel').textContent = abierta ? 'Volvió a andar' : 'Pivot parado';
+      document.getElementById('btnParadaLabel').textContent = abierta ? 'Volvió a andar' : 'Pivot parado · Asistencia';
       b.style.borderColor = abierta ? '#B5371C' : '';
     }
     function calibracionLeida() {
@@ -1810,6 +1815,7 @@
         const hasta = document.getElementById('parHasta').value;
         if (hasta && hasta < fecha) { mostrarToast('La fecha en que volvió a andar no puede ser anterior a la parada.'); return; }
         evento.motivo = document.getElementById('parMotivo').value; evento.hasta = hasta || null;
+        if (!hasta && document.getElementById('parAsistencia').checked) evento.asistencia = true;   // pidió asistencia a Irrigar
         if (evento.motivo === 'otro' && !observaciones) { mostrarToast('Escribí el motivo en las observaciones.'); return; }
 
       } else if (tipoEventoActual === 'pesada') {
@@ -1869,6 +1875,7 @@
 
       cerrarModal();
       mostrarToast('✓ ' + capitalizar(tipoEventoActual === 'parada' ? 'parada del pivot' : tipoEventoActual) + ' guardado'); if (tipoEventoActual === 'parada' || tipoEventoActual === 'riego') pintarBotonParada();
+      if (evento.asistencia && window.SafiaAsistencia) SafiaAsistencia.pedir(evento);
       mostrarEventos();
       mostrarCampana();
       mostrarRecomendacionClima();
@@ -1947,7 +1954,7 @@
         } else if (ev.tipo === 'parada') {
           icono = '⚠️';
           titulo = 'Pivot parado: ' + SafiaParte.motivoTxt(ev);
-          { const pf = SafiaParte.finDe(ev); detalle = `desde ${diaSemana} ${fechaStr}${pf.hasta ? ' hasta el ' + pf.hasta.slice(8, 10) + '/' + pf.hasta.slice(5, 7) + (pf.porRiego ? ' (se cerró sola al cargar un riego)' : '') : ' · sigue parado'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`; }
+          { const pf = SafiaParte.finDe(ev); detalle = `${ev.asistencia ? 'se pidió asistencia a Irrigar · ' : ''}desde ${diaSemana} ${fechaStr}${pf.hasta ? ' hasta el ' + pf.hasta.slice(8, 10) + '/' + pf.hasta.slice(5, 7) + (pf.porRiego ? ' (se cerró sola al cargar un riego)' : '') : ' · sigue parado'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`; }
         } else if (ev.tipo === 'pesada') {
           icono = '🐄';
           titulo = (ev.motivo === 'ingreso' ? 'Ingreso del lote' : ev.motivo === 'salida' ? 'Salida del lote' : 'Pesada') + ': ' + ev.cabezas + ' cab. de ' + ev.pesoKg + ' kg';

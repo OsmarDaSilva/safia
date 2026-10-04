@@ -372,7 +372,7 @@
     d = document.createElement('div'); d.id = 'safiaAvisosModal';
     d.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
     var alto = esAlto(usuario), rol = usuario && usuario.rol;
-    var queLlega = alto ? 'Como Irrigar te llegan las suscripciones que están por vencer (a 30, 15, 7, 3 y 1 día).' :
+    var queLlega = alto ? 'Como Irrigar te llegan los pedidos de asistencia (cuando un cliente marca un pivot parado) en el momento, y las suscripciones que están por vencer (a 30, 15, 7, 3 y 1 día).' :
       rol === 'operador' ? 'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También cuándo toca rotar los animales de piquete.' :
       rol === 'encargado' ? 'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También cuándo toca rotar los animales y cuándo hay mantenimiento vencido.' :
       'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También el mantenimiento vencido.';
@@ -391,7 +391,11 @@
       '<div id="safiaAvUltimos" style="margin-top:12px;"></div>' +
       (alto ? '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e1e4e7;"><div style="font-size:11px;font-weight:700;color:#8C9196;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Irrigar · todos los clientes</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="safiaAvVista" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#2E3236;">Ver qué se avisaría hoy</button><button id="safiaAvEnviar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#2E3236;">Enviar los avisos de hoy ahora</button></div>' +
-        '<div id="safiaAvVistaRes" style="margin-top:10px;font-size:12px;color:#41464B;line-height:1.5;"></div></div>' : '') +
+        '<div id="safiaAvVistaRes" style="margin-top:10px;font-size:12px;color:#41464B;line-height:1.5;"></div></div>' +
+        '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #e1e4e7;"><div style="font-size:11px;font-weight:700;color:#8C9196;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">Irrigar · WhatsApp de soporte</div>' +
+        '<div style="font-size:12px;color:#41464B;line-height:1.45;margin-bottom:8px;">Cuando un cliente marca un pivot parado y pide asistencia, SAFIA le abre el WhatsApp hacia este número con el mensaje ya escrito. Va completo, con el código del país (Paraguay: 595 y el número sin el 0).</div>' +
+        '<div style="display:flex;gap:8px;"><input id="safiaSopNum" type="tel" inputmode="numeric" placeholder="595 981 123456" style="flex:1;min-width:0;padding:10px 12px;border:1.5px solid #e1e4e7;border-radius:10px;font-size:14px;"><button id="safiaSopGuardar" style="' + btn + 'border:0;background:#22A93A;color:#fff;">Guardar</button></div>' +
+        '<div id="safiaSopMsg" style="margin-top:6px;font-size:12px;color:#8C9196;line-height:1.4;">Consultando…</div></div>' : '') +
       '</div>';
     document.body.appendChild(d);
     var msg = function (t, ok) { var m = $('safiaAvMsg'); if (!t) { m.style.display = 'none'; return; } m.textContent = t; m.style.display = 'block'; m.style.background = ok ? '#E7F6EA' : '#FBECEA'; m.style.color = ok ? '#178029' : '#C0392B'; };
@@ -420,6 +424,11 @@
     $('safiaAvQuitar').addEventListener('click', function () { var fin = ocupar(this, 'Quitando…'); msg(''); AV.desactivar().then(function () { msg('Este dispositivo ya no recibe avisos.', true); }, function (e) { msg(e.message); }).then(function () { fin(); pintar(); }); });
     $('safiaAvProbar').addEventListener('click', function () { var fin = ocupar(this, 'Enviando…'); msg(''); AV.invocar('probar').then(function (r) { msg(r.enviados ? 'Enviado a ' + r.enviados + ' dispositivo' + (r.enviados === 1 ? '' : 's') + '. Tiene que aparecer en unos segundos.' : 'No se pudo entregar: ' + ((r.fallos || []).join('; ') || 'sin detalle'), !!r.enviados); }, function (e) { msg(e.message); }).then(function () { fin(); pintar(); }); });
     if (alto) {
+      var sop = function (accion, extra) { var c = extra || {}; c.accion = accion; return window.safiaSupabase.functions.invoke('safia-asistencia', { body: c }).then(function (r) { if (r.error) { var ctx = r.error.context; if (ctx && typeof ctx.json === 'function') return ctx.json().then(function (j) { return j; }, function () { return null; }).then(function (j) { throw new Error((j && j.error) || r.error.message); }); throw new Error(r.error.message); } if (r.data && r.data.error) throw new Error(r.data.error); return r.data; }); };
+      var sopMsg = function (t, color) { var m = $('safiaSopMsg'); if (m) { m.textContent = t; m.style.color = color || '#8C9196'; } };
+      var sopVer = function (n) { if ($('safiaSopNum')) $('safiaSopNum').value = n || ''; try { localStorage.setItem('safia_soporte_wa', n || ''); } catch (e) {} sopMsg(n ? 'Número guardado: +' + n + '. Los pedidos de asistencia ofrecen el WhatsApp a este número.' : 'Todavía no hay número cargado: los pedidos de asistencia llegan solo como aviso de la app.', n ? '#178029' : '#8C9196'); };
+      if (window.safiaSupabase) sop('soporte').then(function (r) { sopVer(r.whatsapp); }, function (e) { sopMsg('No se pudo consultar: ' + e.message, '#C0392B'); }); else sopMsg('Sin conexión con la nube.', '#C0392B');
+      $('safiaSopGuardar').addEventListener('click', function () { var fin = ocupar(this, 'Guardando…'); sop('soporte_guardar', { whatsapp: $('safiaSopNum').value }).then(function (r) { sopVer(r.whatsapp); }, function (e) { sopMsg(e.message, '#C0392B'); }).then(fin); });
       var mostrar = function (r) {
         var h = '<b>' + (r.modo === 'diario' ? 'Enviados ' + r.enviados + ' avisos (' + r.nuevos + ' nuevos de ' + r.calculados + ' calculados; lo ya avisado hoy no se repite).' : 'Vista del ' + String(r.hoy).slice(8, 10) + '/' + String(r.hoy).slice(5, 7) + ' · ' + r.celulares + ' dispositivo(s) con avisos activados. No se envió nada.') + '</b>';
         (r.clientes || []).forEach(function (c) {

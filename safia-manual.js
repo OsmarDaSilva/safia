@@ -48,7 +48,8 @@
         'Tocá <b>Guardar</b>.' ],
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
       { t: 'Si el pivot se para', p: [
-        'Tocá <b>Pivot parado</b>, poné la fecha en que se paró y elegí el motivo (falla eléctrica, mecánica, bomba, corte de energía, falta de agua).',
+        'Tocá <b>Pivot parado · Asistencia</b>, poné la fecha en que se paró y elegí el motivo (falla eléctrica, mecánica, bomba, corte de energía, falta de agua).',
+        'Dejá marcado <b>Pedir asistencia técnica a Irrigar</b> si necesitás que vengan: al guardar les llega el aviso a los técnicos con el pivot, la estancia y el motivo. Si aparece el botón verde <b>Enviar también por WhatsApp</b>, tocalo y después tocá Enviar: el mensaje ya va escrito.',
         'Cuando vuelva a andar, tocá el mismo botón, que ahora dice <b>Volvió a andar</b>, y poné la fecha. Si te olvidás, SAFIA la cierra sola cuando cargues el próximo riego.',
         'Sirve para que el parte de seguimiento explique por qué faltó agua esos días: una cosa es que se rompió el equipo y otra que no se regó a tiempo.' ] },
       { t: 'Horas del equipo y mantenimiento', p: [
