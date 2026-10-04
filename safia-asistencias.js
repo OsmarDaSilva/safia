@@ -106,15 +106,36 @@
   // el pivot anda (se arregló por teléfono o vino el técnico y nadie lo cerró). Regla de Osmar, 4-oct-2026, igual que la parada.
   // Vale el riego de un día posterior al problema, o el cargado después del pedido con fecha de ese día en adelante. Una consulta
   // con el pivot andando no se cierra así. El técnico puede completar el informe después.
+  // Corregir el motivo o la descripción. Irrigar siempre; el campo, mientras el pedido está abierto.
+  function editar(id, motivo, descripcion, fecha) {
+    return cambiar(id, function (x) { if (MOTIVOS[motivo]) x.motivo = motivo; x.descripcion = String(descripcion || '').trim(); if (/^\d{4}-\d{2}-\d{2}$/.test(String(fecha || ''))) x.fechaProblema = fecha; x.editado = { por: yo(), fecha: ahora() }; });
+  }
+  // Reabrir un pedido que se cerró por error (o que se cerró solo y el problema sigue). Vuelve la conversación. Un pedido abierto por pivot.
+  function reabrir(id) {
+    var p = pedido(id); if (!p || p.estado !== 'cerrado') return null;
+    var otro = abiertoDe(p.equipoId); if (otro) return { error: 'Ese pivot ya tiene otro pedido abierto: cerrá ese primero o seguí la conversación ahí.' };
+    p = cambiar(id, function (x) { x.estado = 'abierto'; x.cierreAnterior = x.cierre; x.cierre = null; x.reabierto = ahora(); x.origen = 'pedido'; });
+    notaSistema(p, 'Reabrió el pedido.'); avisar(id, 'nota', 'Reabrió el pedido');
+    return p;
+  }
+  // Borrar un pedido con todo lo suyo (notas, pendientes y archivos). Solo Irrigar: la base no deja borrar a nadie más.
+  function borrar(id) {
+    var l = leer(), rutas = [];
+    l.forEach(function (x) { if (String(x.id) === String(id) && x.orden && x.orden.foto) rutas.push(x.orden.foto); if (x.tipo === 'nota' && String(x.pedidoId) === String(id) && x.foto) rutas.push(x.foto); });
+    guardar(l.filter(function (x) { return !(String(x.id) === String(id) && x.tipo === 'pedido') && String(x.pedidoId) !== String(id); }));
+    var sb = window.safiaSupabase; if (sb && rutas.length) { try { sb.storage.from('safia').remove(rutas).then(function () {}, function () {}); } catch (e) {} }
+    return true;
+  }
+  function diaLocal(iso) { var d = new Date(iso); return isNaN(d) ? String(iso).slice(0, 10) : d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function cerrarPorRiego() {
     var l = leer(), riegos = null, n = 0;
     l.forEach(function (p) {
       if (p.tipo !== 'pedido' || p.estado === 'cerrado' || !p.parado) return;
       if (!riegos) riegos = lista('eventos').filter(function (v) { return v.tipo === 'riego' && v.fecha && parseFloat(v.cantidad) > 0; });
-      var f0 = String(p.fechaProblema || p.creado).slice(0, 10), r = null;
+      var desde = p.reabierto || p.creado, f0 = p.reabierto ? diaLocal(p.reabierto) : String(p.fechaProblema || p.creado).slice(0, 10), r = null;
       riegos.forEach(function (v) {
         if (String(v.equipoId) !== String(p.equipoId)) return;
-        var fv = String(v.fecha).slice(0, 10), vale = fv > f0 || (fv === f0 && v.fechaCreacion && String(v.fechaCreacion) > String(p.creado));
+        var fv = String(v.fecha).slice(0, 10), vale = fv > f0 || (fv === f0 && v.fechaCreacion && String(v.fechaCreacion) > String(desde));
         if (vale && (!r || fv < String(r.fecha).slice(0, 10))) r = v;
       });
       if (!r) return;
@@ -271,7 +292,7 @@
   }
   function opcionesMotivo(sel) { return Object.keys(MOTIVOS).map(function (k) { return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(MOTIVOS[k]) + '</option>'; }).join(''); }
   function aviso(t, ok) { return t ? '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;line-height:1.45;background:' + (ok ? '#E7F6EA' : '#FBECEA') + ';color:' + (ok ? '#178029' : '#B5371C') + ';">' + esc(t) + '</div>' : ''; }
-  function ir(modo, id, msg, ok) { if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
+  function ir(modo, id, msg, ok) { vista.editando = false; if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
 
   function htmlLista() {
     var todos = pedidos(), irr = esIrrigar();
@@ -364,7 +385,17 @@
         (p.cierre ? fila('Cerrado', firma(p.cierre.por) + ' · ' + fh(p.cierre.fecha) + (p.origen !== 'constancia' ? ' · resuelto en ' + lapso(p.creado, p.cierre.fecha) : '')) + fila('Al cerrar', esc(p.cierre.texto)) : '') +
         fila('Causa', esc(inf.causa && inf.causa !== p.descripcion ? inf.causa : '')) + fila('Solución', esc(inf.solucion && (!p.cierre || inf.solucion !== p.cierre.texto) ? inf.solucion : '')) + fila('Repuestos', esc(inf.repuestos)) +
         (p.orden ? fila('Orden de servicio', (p.orden.nro ? 'N.º <b>' + esc(p.orden.nro) + '</b> · ' : '') + 'la subió ' + firma(p.orden.por) + ' · ' + fh(p.orden.fecha) + (p.orden.foto ? '<a data-foto="' + esc(p.orden.foto) + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:12.5px;color:#178029;font-weight:700;">Cargando foto…</a>' : '')) : (p.estado === 'cerrado' ? fila('Orden de servicio', '<span style="color:#8A5A00;">Sin orden cargada</span>') : '')) +
-      '</div>' + (paradaCerrada ? '<div style="margin-top:10px;padding:9px 12px;border-radius:8px;background:#E7F6EA;color:#178029;font-size:13.5px;font-weight:600;">El pivot ya volvió a andar. Si el problema está resuelto, cerrá el pedido.</div>' : '') + '</div>';
+      '</div>' + (paradaCerrada ? '<div style="margin-top:10px;padding:9px 12px;border-radius:8px;background:#E7F6EA;color:#178029;font-size:13.5px;font-weight:600;">El pivot ya volvió a andar. Si el problema está resuelto, cerrá el pedido.</div>' : '') +
+      (p.editado ? '<div style="font-size:12px;color:#8C9196;margin-top:8px;">Corregido por ' + firma(p.editado.por) + ' el ' + fh(p.editado.fecha) + '</div>' : '') +
+      (vista.editando ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Corregir el pedido</div>' +
+          '<label style="' + LB + '">Motivo</label><select id="asEdMotivo" style="' + IN + '">' + opcionesMotivo(p.motivo) + '</select>' +
+          '<label style="' + LB + '">Qué pasa</label><textarea id="asEdDesc" rows="3" style="' + IN + '">' + esc(p.descripcion || '') + '</textarea>' +
+          '<label style="' + LB + '">Fecha del problema</label><input id="asEdFecha" type="date" value="' + esc(String(p.fechaProblema || '').slice(0, 10)) + '" max="' + hoy() + '" style="' + IN + '">' +
+          '<div style="display:flex;gap:8px;margin-top:10px;"><button data-a="edGuardar" style="' + BV + '">Guardar</button><button data-a="edCancelar" style="' + BG + '">Cancelar</button></div></div>'
+        : '<div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;">' +
+          (irr || abierto ? '<button data-a="edAbrir" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Editar</button>' : '') +
+          (!abierto ? '<button data-a="reabrir" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Reabrir el pedido</button>' : '') +
+          (irr ? '<button data-a="borrar" style="' + BR + 'padding:7px 11px;font-size:12.5px;margin-left:auto;">Borrar</button>' : '') + '</div>') + '</div>';
 
     // acciones
     if (abierto) {
@@ -524,6 +555,18 @@
       vista.filtro = 'cerrados'; agregarPendientes(c.id, pendK, destK);
       return conOrden(c.id, nroK, fotoK, b, 'Constancia guardada en el historial del pivot.');
     }
+    if (a === 'edAbrir') { vista.editando = true; return pintar(); }
+    if (a === 'edCancelar') { vista.editando = false; return pintar(); }
+    if (a === 'edGuardar') { if (!val('asEdDesc')) { vista.msg = 'Escribí qué pasa.'; return pintar(); } editar(id, val('asEdMotivo'), val('asEdDesc'), val('asEdFecha')); vista.editando = false; return ir('detalle', id, 'Pedido corregido.', true); }
+    if (a === 'reabrir') {
+      if (b.getAttribute('data-seguro') !== '1') { b.setAttribute('data-seguro', '1'); b.textContent = '¿Reabrir? Tocá de nuevo'; return; }
+      var rr = reabrir(id); if (rr && rr.error) return ir('detalle', id, rr.error);
+      vista.filtro = 'abiertos'; return ir('detalle', id, 'Pedido reabierto: se puede volver a escribir y cerrar.', true);
+    }
+    if (a === 'borrar') {
+      if (b.getAttribute('data-seguro') !== '1') { b.setAttribute('data-seguro', '1'); b.textContent = '¿Borrar con sus notas, fotos y pendientes? Tocá de nuevo'; return; }
+      borrar(id); return ir('lista', null, 'Pedido borrado.', true);
+    }
     if (a === 'tomar') { tomar(id); return ir('detalle', id, 'Tomaste el pedido. Al campo le llega el aviso.', true); }
     if (a === 'visita') { var v = val('asVisita'); if (!v) { vista.msg = 'Elegí el día y la hora de la visita.'; return pintar(); } fijarVisita(id, v); return ir('detalle', id, 'Visita guardada. Al campo le llega el aviso.', true); }
     if (a === 'cerrarIrrigar') {
@@ -570,13 +613,13 @@
     setInterval(function () {
       var h2 = localStorage.getItem(CLAVE) || ''; if (h2 === huella) return; huella = h2;
       var act = document.activeElement, escribiendo = act && cont.contains(act) && /INPUT|TEXTAREA|SELECT/.test(act.tagName) && (act.type === 'file' ? act.files.length : String(act.value || '').length);
-      if (!escribiendo) escribiendo = !!(elegido('asNotaFoto') || elegido('asOrdenFoto') || elegido('asFoto') || (document.getElementById('asNota') || {}).value);
+      if (!escribiendo) escribiendo = !!(elegido('asNotaFoto') || elegido('asOrdenFoto') || elegido('asFoto') || (document.getElementById('asNota') || {}).value) || !!vista.editando;
       if (!escribiendo) pintar();
     }, 4000);
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, editar: editar, reabrir: reabrir, borrar: borrar, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
   var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };
