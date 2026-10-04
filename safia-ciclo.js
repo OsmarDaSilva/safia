@@ -103,7 +103,13 @@
     o = o || {}; var cu = cultivoClave(o.cultivo), d = material(o.cultivo, o.variedad);
     if (!d || !o.fechaSiembra) return Promise.resolve(null);
     var p = publicado(d);
-    var fin = function (r) { if (!r) return null; r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d.nombre; return r; };
+    var fin = function (r) {
+      if (!r) return null;
+      // lo aprendido de las cosechas propias corrige la estimación (SafiaAprende, nivel 1); al aprender se pide sin corregir
+      var ap = !o.sinAprender && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: d.nombre || o.variedad, lat: o.lat, lon: o.lon }) : null;
+      if (ap && ap.dias) { r.diasFuente = r.dias; r.dias += ap.dias; r.aprendido = ap; r.texto += ' · corregido con ' + ap.n + ' cosechas propias (' + (ap.dias > 0 ? '+' : '') + ap.dias + ' días)'; }
+      r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d.nombre; return r;
+    };
     if (p) return Promise.resolve(fin(p));
     if (cu === 'soja') return Promise.resolve(fin(porGM(d)));
     if (cu === 'maiz') return porGDU(d, o.fechaSiembra, num(o.lat), num(o.lon)).then(fin);

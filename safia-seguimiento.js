@@ -160,6 +160,9 @@
     var agua = ag && ag.perdidaPct > 0 ? ag.perdidaPct : 0;
     if (agua) { min *= (1 - agua / 100); max *= (1 - agua / 100); }
     if (min > max) min = max;
+    // lo aprendido: si en este cultivo y región se cosecha sistemáticamente más o menos que el centro del rango, se corrige (SafiaAprende, nivel 1)
+    var min0 = Math.round(min / 10) * 10, max0 = Math.round(max / 10) * 10, apr = null;
+    if (window.SafiaAprende) { var eqA = (L('equipos') || []).filter(function (e) { return String(e.id) === String(camp.equipoId); })[0], cpA = eqA ? (L('campos') || []).filter(function (x) { return String(x.id) === String(eqA.campoId); })[0] : null, regA = cpA && window.SafiaCasos ? SafiaCasos.region({ departamento: cpA.departamento, lat: cpA.latitud, lon: cpA.longitud }) : null; apr = SafiaAprende.factorMeta(cu.cultivo, regA); if (apr) { min *= apr.f; max *= apr.f; } }
     min = Math.round(min / 10) * 10; max = Math.round(max / 10) * 10;
     var k = !sabemos ? 'gris' : (meta <= min ? 'verde' : (meta <= max ? 'ambar' : 'rojo'));
     var nutri = null;
@@ -169,7 +172,7 @@
       else if (bal.aplicado.items) nutri = { k: 'verde', texto: 'La fertilización cargada cubre lo que se llevará la meta (P₂O₅ ' + fmt(bal.aplicado.p2o5) + ' de ' + fmt(bal.exportado.p2o5) + ' · K₂O ' + fmt(bal.aplicado.k2o) + ' de ' + fmt(bal.exportado.k2o) + ' kg/ha).' };
       else nutri = { k: 'gris', texto: 'Sin fertilizantes cargados en la campaña: cargalos en la ficha (paso 3) para saber si alcanzan para la meta.' };
     }
-    return { meta: meta, base: base, min: min, max: max, k: k, sabemos: sabemos, etapa: etapa, dds: dds, agua: agua, perdidos: perdidos, ahora: ahora, futuros: futuros, hechos: hechos, total: items.length, nutri: nutri };
+    return { meta: meta, base: base, min: min, max: max, min0: min0, max0: max0, aprendido: apr, k: k, sabemos: sabemos, etapa: etapa, dds: dds, agua: agua, perdidos: perdidos, ahora: ahora, futuros: futuros, hechos: hechos, total: items.length, nutri: nutri };
   }
   function htmlMetaViva(mv) {
     if (!mv) return '';

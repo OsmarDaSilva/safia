@@ -222,6 +222,7 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Manual por rol (Operador, Encargado, Propietario) | ✅ 3-oct-2026 |
 | Parte de seguimiento (todos los pivots del cliente en una pantalla) | ✅ 4-oct-2026 |
 | Asistencia técnica: pedidos, conversación, orden de servicio, repuestos pendientes, historial | ✅ 4-oct-2026 |
+| Lo que SAFIA aprendió: nivel 1 (ciclo, cierre del surco, rango de la meta), nivel 2 (modelo de rinde) y nivel 3 (recomendaciones) | ✅ 4-oct-2026 (aprende a medida que entran cosechas) |
 | Suplementación de luz en el pivot (ficha, uso por campaña, comparación con y sin, energía separada) | ✅ 4-oct-2026 |
 | Imagen de dron multiespectral (GeoTIFF NDVI): recorte al pivot, perfil cada metro y anillos | ✅ 4-oct-2026 (falta probar con un vuelo real) |
 | Acierto de SAFIA: bitácora semanal de pronósticos y comparación con la cosecha | ✅ 4-oct-2026 |

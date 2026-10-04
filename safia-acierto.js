@@ -33,7 +33,7 @@
       var cu = l[i].cultivos[0], b = cu.bitacora || [], ult = b[b.length - 1];
       if (ult && dias(ult.f, h) < CADA_DIAS) return false;
       var reg = { f: h, dds: D.dds }; if (D.conLuz) reg.luz = 1;   // pivot con suplementación de luz: para ver si adelanta o atrasa el ciclo
-      if (mv) { reg.meta = mv.meta; reg.min = Math.round(mv.min); reg.max = Math.round(mv.max); reg.k = mv.k; reg.sabe = !!mv.sabemos; }
+      if (mv) { reg.meta = mv.meta; reg.min = Math.round(mv.min); reg.max = Math.round(mv.max); reg.k = mv.k; reg.sabe = !!mv.sabemos; if (mv.min0 != null) { reg.min0 = mv.min0; reg.max0 = mv.max0; } }   // min0/max0: sin la corrección aprendida, para no aprender de lo ya corregido
       else if (num(x.cu.rendimientoObj)) reg.meta = num(x.cu.rendimientoObj);
       if (a) { reg.agua = Math.round((a.perdidaPct || 0) * 10) / 10; reg.estres = a.diasEstres; }
       if (cu.fechaCosecha && !cu.rendimientoReal) reg.fin = dia(cu.fechaCosecha);   // fin de ciclo que SAFIA estima hoy

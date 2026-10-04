@@ -115,7 +115,9 @@
     if (cerro) return { avisar: true, motivo: 'ndvi', ndvi: +cerro.ndvi, fecha: String(cerro.fecha).slice(0, 10), dia: diasEntre(siembra, cerro.fecha) };
     var ult = pts[pts.length - 1];
     if (ult && diasEntre(ult.fecha, h) <= PASADA_VIEJA) return { avisar: false, motivo: 'ndvi', ndvi: +ult.ndvi, fecha: String(ult.fecha).slice(0, 10), dia: diasEntre(siembra, ult.fecha) };
-    return { avisar: op.dds >= DIAS_SOJA_CHICA, motivo: 'dias', sinPasada: op.dds >= NDVI_DESDE_DIA };
+    // sin imagen reciente: el día de cierre aprendido de campañas propias (SafiaAprende) o, si no hay, el día 30
+    var ap = window.SafiaAprende ? SafiaAprende.diasCierre('soja', op.variedad, null) : null, dc = ap ? ap.dias : DIAS_SOJA_CHICA;
+    return { avisar: op.dds >= dc, motivo: 'dias', sinPasada: op.dds >= NDVI_DESDE_DIA, diasCierre: dc, aprendido: ap };
   }
   function fcorta(f) { return f.slice(8, 10) + '/' + f.slice(5, 7); }
   function chica(op) { return !etapa(op).avisar; }
@@ -124,7 +126,7 @@
     if (e.motivo === 'madura') return ['La soja ya pasó los ' + DIAS_NACIDA + ' días desde que nació (hoy van ' + op.dds + ' desde la siembra): está madurando. A esta altura fumigar contra la roya ya no cambia el rinde, por eso SAFIA deja de avisar.'];
     var exc = 'La excepción: soja sembrada sobre soja, o con un lote vecino más adelantado que ya tenga roya. En ese caso, recorré el lote igual.';
     if (e.motivo === 'ndvi') return ['El satélite muestra la soja todavía abierta: NDVI ' + fmt(e.ndvi, 2) + ' el ' + fcorta(e.fecha) + ' (día ' + e.dia + ' desde la siembra). La roya aparece sobre todo desde que el cultivo cierra el surco: recién ahí hay humedad y sombra para que el hongo prospere. SAFIA empieza a avisar cuando el satélite muestre el surco casi cerrado (NDVI de ' + fmt(NDVI_CIERRE, 2) + ' o más).', exc];
-    return ['La soja todavía es chica (día ' + op.dds + ' desde la siembra). La roya aparece sobre todo desde que el cultivo cierra el surco: recién ahí hay humedad y sombra para que el hongo prospere. SAFIA empieza a avisar cuando el satélite muestre el surco casi cerrado' + (e.sinPasada ? '; como no hay una pasada limpia en los últimos ' + PASADA_VIEJA + ' días, avisa desde el día ' + DIAS_SOJA_CHICA + '.' : ' o, si está nublado y no hay imagen, desde el día ' + DIAS_SOJA_CHICA + '.'), exc];
+    return ['La soja todavía es chica (día ' + op.dds + ' desde la siembra). La roya aparece sobre todo desde que el cultivo cierra el surco: recién ahí hay humedad y sombra para que el hongo prospere. SAFIA empieza a avisar cuando el satélite muestre el surco casi cerrado' + (e.sinPasada ? '; como no hay una pasada limpia en los últimos ' + PASADA_VIEJA + ' días, avisa desde el día ' + e.diasCierre + (e.aprendido ? ' (lo que tardó en cerrar en ' + e.aprendido.n + ' campañas propias)' : '') + '.' : ' o, si está nublado y no hay imagen, desde el día ' + DIAS_SOJA_CHICA + '.'), exc];
   }
   function notaEtapa(op) {
     var e = etapa(op);

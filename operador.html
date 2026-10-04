@@ -801,6 +801,7 @@
         <span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg></span><span>Rankings</span>
       </a>
       <a href="asistente.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg></span><span>Asistente IA</span></a>
+      <a href="aprende.html" class="sidebar-link"><span class="sidebar-link-icono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z"/><path d="M9.5 20h5M10.5 17v3M13.5 17v3"/></svg></span><span>Lo que SAFIA aprendió</span></a>
 
       <div class="sidebar-grupo">Operación</div>
       <a href="operador.html" class="sidebar-link activo">
@@ -1173,6 +1174,7 @@
 <script src="safia-pulverizar.js"></script>
 <script src="safia-parte.js"></script>
 <script src="safia-fertirriego.js"></script>
+<script src="safia-aprende.js"></script>
 <script src="safia-enfermedades.js"></script>
 <script src="safia-asistencia.js"></script>
 <script src="safia-asistencias.js"></script>
@@ -1400,7 +1402,7 @@
       window._pulvCoords = { lat, lon };
       if (window.SafiaPulverizar) SafiaPulverizar.pintar('pulvPanel', lat, lon, { abierto: window.innerWidth >= 1100 }).then(R => { const pc = document.getElementById('pulvCard'); if (pc) pc.style.display = R ? '' : 'none'; }).catch(() => {});
       // Clima favorable a la roya (solo con soja en campaña): pliegue debajo de los botones
-      window._pintarRoya = function () { if (!window.SafiaEnfermedades) return; const cr = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(equipoSeleccionadoId) && c.estado === 'Activa' && c.cultivos && c.cultivos[0]); const cuR = cr ? cr.cultivos[0] : null; SafiaEnfermedades.pintar('royaCard', lat, lon, { cultivo: cuR ? cuR.cultivo : '', equipoId: equipoSeleccionadoId, siembra: cuR ? cuR.fechaSiembra : null, dds: cuR && cuR.fechaSiembra ? Math.floor((Date.now() - new Date(String(cuR.fechaSiembra).slice(0, 10) + 'T12:00:00')) / 86400000) : null }).catch(() => {}); };
+      window._pintarRoya = function () { if (!window.SafiaEnfermedades) return; const cr = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(equipoSeleccionadoId) && c.estado === 'Activa' && c.cultivos && c.cultivos[0]); const cuR = cr ? cr.cultivos[0] : null; SafiaEnfermedades.pintar('royaCard', lat, lon, { cultivo: cuR ? cuR.cultivo : '', variedad: cuR ? cuR.variedad : '', equipoId: equipoSeleccionadoId, siembra: cuR ? cuR.fechaSiembra : null, dds: cuR && cuR.fechaSiembra ? Math.floor((Date.now() - new Date(String(cuR.fechaSiembra).slice(0, 10) + 'T12:00:00')) / 86400000) : null }).catch(() => {}); };
       window._pintarRoya();
 
       icono.textContent = '⏳';

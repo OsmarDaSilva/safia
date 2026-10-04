@@ -86,6 +86,7 @@
     analisis_agua:   'safia_analisis_agua',
     facturas_energia: 'safia_facturas_energia',
     asistencias:     'safia_asistencias',
+    aprendizaje:     'safia_aprendizaje',
     suscripciones:   'safia_suscripciones'
   };
 

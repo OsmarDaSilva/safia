@@ -202,6 +202,10 @@
         'En <b>Repuestos pendientes</b> ves lo que falta mandar o comprar, y quién lo trae (Irrigar, el técnico o vos).',
         'Cada pedido cerrado guarda la <b>orden de servicio</b> (número y foto) como comprobante del trabajo.',
         'Cuando se resuelve, el pedido se cierra y esa conversación termina; otro problema es otro pedido. En <b>Historial (cerrados)</b> queda qué falló en cada pivot, qué se hizo, qué repuestos se usaron y cuánto se tardó en atender y en resolver.' ] },
+      { t: 'Lo que SAFIA aprendió', p: [
+        'En el menú, <b>Lo que SAFIA aprendió</b> muestra cómo SAFIA corrige sus números con las cosechas de Irrigar: el ciclo real de cada material, cuándo cierra el surco la soja y si el rango de la meta anunciaba de más o de menos.',
+        'También el <b>modelo de rinde</b> (qué pesa más: agua, fecha de siembra, suelo) y qué recomendaciones rindieron más. Los dos aparecen cuando hay suficientes cosechas.',
+        'Siempre dice con cuántos casos. No es un servicio pago: son cálculos de SAFIA con los datos de ustedes, que no salen de SAFIA.' ] },
       { t: 'Cómo viene la campaña', p: [
         'En <b>Banco Agronómico → Meta de rinde</b> ves si la meta sigue siendo alcanzable, qué se hizo, qué se perdió y qué se puede hacer todavía.',
         'En <b>Vigor satelital</b> ves el cultivo desde el satélite contra las campañas anteriores.',
