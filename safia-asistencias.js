@@ -155,6 +155,34 @@
     });
   }
 
+  /* ---------- elegir el archivo: cámara de fotos, cámara de video o galería ----------
+     En el celular, "Sacar foto" y "Filmar video" abren la cámara directamente (atributo capture); en una PC abren el
+     explorador de archivos. Un solo archivo por vez: elegir otro reemplaza al anterior. */
+  var ICO = { foto: '<path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4"/>', video: '<rect x="3" y="6.5" width="12" height="11" rx="2"/><path d="m15 10.5 6-3v9l-6-3z"/>', archivo: '<path d="M20 11.5 12.5 19a4.6 4.6 0 0 1-6.5-6.5l7.8-7.8a3.1 3.1 0 0 1 4.4 4.4l-7.7 7.7a1.6 1.6 0 0 1-2.3-2.3l7-7"/>' };
+  function selector(id, soloFoto) {
+    var bt = 'position:relative;width:auto;margin:0;text-transform:none;letter-spacing:0;display:inline-flex;align-items:center;gap:6px;padding:9px 12px;border:1.5px solid #E1E4E7;border-radius:10px;background:#fff;color:#2E3236;font-size:13.5px;font-weight:700;cursor:pointer;overflow:hidden;';
+    var boton = function (suf, texto, accept, camara) {
+      return '<label style="' + bt + '"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#178029" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + ICO[suf] + '</svg>' + texto +
+        '<input type="file" data-sel="' + id + '" id="' + id + '_' + suf + '" accept="' + accept + '"' + (camara ? ' capture="environment"' : '') + ' style="position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;"></label>';
+    };
+    return '<div style="flex:1;min-width:200px;"><div style="display:flex;gap:8px;flex-wrap:wrap;">' + boton('foto', 'Sacar foto', 'image/*', true) + (soloFoto ? '' : boton('video', 'Filmar video', 'video/*', true)) + boton('archivo', 'Elegir archivo', soloFoto ? 'image/*' : 'image/*,video/*', false) + '</div>' +
+      '<div id="' + id + '_estado" style="font-size:12.5px;color:#6B7075;margin-top:6px;line-height:1.4;">' + (soloFoto ? '' : 'El video, corto: unos 15 segundos alcanzan.') + '</div></div>';
+  }
+  function elegido(id) { var f = null; ['foto', 'video', 'archivo'].forEach(function (k) { var e = document.getElementById(id + '_' + k); if (e && e.files && e.files[0]) f = e.files[0]; }); return f; }
+  function quitar(id) { ['foto', 'video', 'archivo'].forEach(function (k) { var e = document.getElementById(id + '_' + k); if (e) e.value = ''; }); var est = document.getElementById(id + '_estado'); if (est) est.textContent = ''; }
+  if (document.addEventListener) {
+    document.addEventListener('change', function (ev) {
+      var t = ev.target, id = t && t.getAttribute && t.getAttribute('data-sel'); if (!id) return;
+      ['foto', 'video', 'archivo'].forEach(function (k) { var e = document.getElementById(id + '_' + k); if (e && e !== t) e.value = ''; });
+      var f = t.files && t.files[0], est = document.getElementById(id + '_estado'); if (!est) return;
+      if (!f) { est.textContent = ''; return; }
+      var esV = /^video\//.test(f.type || ''), mb = f.size / 1048576, peso = mb >= 1 ? Math.round(mb) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
+      est.innerHTML = esV && f.size > VIDEO_MAX ? '<b style="color:#B5371C;">El video pesa ' + Math.round(mb) + ' MB y el tope es ' + Math.round(VIDEO_MAX / 1048576) + ' MB.</b> Filmá uno más corto (unos 15 segundos).'
+        : '<b style="color:#178029;">' + (esV ? 'Video listo' : 'Foto lista') + ' para enviar</b> · ' + peso + ' · <a href="#" data-quitar="' + id + '" style="color:#B5371C;font-weight:700;">Quitar</a>';
+    });
+    document.addEventListener('click', function (ev) { var q = ev.target && ev.target.getAttribute && ev.target.getAttribute('data-quitar'); if (q) { ev.preventDefault(); quitar(q); } }, true);   // en captura: el formulario del Operador frena los clics antes de que lleguen al documento
+  }
+
   /* ---------- lectura para otras pantallas ---------- */
   function volvioAAndar(p) {
     if (p.estado === 'cerrado' || !p.paradaId || !window.SafiaParte) return false;
@@ -259,12 +287,12 @@
       '<label style="' + LB + '">El problema</label><textarea id="asProblema" rows="2" placeholder="Ejemplo: el pivot no arrancaba, tablero sin tensión de comando" style="' + IN + '"></textarea>' +
       '<label style="' + LB + '">Cómo se solucionó</label><textarea id="asSolucion" rows="2" placeholder="Ejemplo: fusible del tablero quemado, se cambió" style="' + IN + '"></textarea>' +
       '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" placeholder="Ejemplo: 1 fusible 2 A" style="' + IN + '">' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '';
     else h +=
       '<label style="' + LB + '">Contá en pocas palabras qué ves</label><textarea id="asDesc" rows="3" placeholder="Ejemplo: se paró en la torre 5, la luz de seguridad está prendida" style="' + IN + '"></textarea>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:14px;color:#2E3236;cursor:pointer;"><input type="checkbox" id="asParado" checked style="width:20px;height:20px;flex:none;"> El pivot está parado</label>' +
-      '<label style="' + LB + '">Foto o video corto (si ayuda a entender)</label><input id="asFoto" type="file" accept="image/*,video/*" style="font-size:13px;">';
+      '<label style="' + LB + '">Foto o video corto (si ayuda a entender)</label>' + selector('asFoto');
     return h + '<div style="display:flex;gap:8px;margin-top:16px;"><button data-a="' + (esConstancia ? 'guardarConstancia' : 'guardarNuevo') + '" style="' + BV + 'flex:1;">' + (esConstancia ? 'Guardar la constancia' : 'Enviar el pedido a Irrigar') + '</button></div></div>';
   }
 
@@ -298,17 +326,17 @@
         '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" placeholder="Ejemplo: se cambió el fusible y se probó una vuelta" style="' + IN + '">' +
         '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" style="' + IN + '">' +
         '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '"' + (k === 'visita' ? ' selected' : '') + '>' + CANALES[k] + '</option>'; }).join('') + '</select>' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button></div>';
       else h += '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
         '<label style="' + LB + '">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="cerrarCampo" style="' + BR + 'margin-top:10px;">Cerrar el pedido</button>' +
         '<div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Al cerrar, la conversación de este pedido termina. Si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando se cargue el próximo riego de este pivot.</div>';
       h += '</div>';
     } else {
       h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">' + (p.orden && p.orden.foto ? 'Cambiar la orden de servicio' : 'Subir la orden de servicio') + '</div>' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;"><input id="asOrdenFoto" type="file" accept="image/*" style="font-size:13px;flex:1;min-width:160px;"></div>' +
+        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="orden" style="' + BG + 'margin-top:10px;">Guardar la orden</button></div>';
       if (irr) h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Informe técnico (se puede completar después de cerrar)</div>' +
         '<label style="' + LB + '">Qué se encontró</label><input id="asCausa" type="text" value="' + esc(inf.causa || '') + '" style="' + IN + '">' +
@@ -329,7 +357,7 @@
         (n.foto ? '<a data-foto="' + esc(n.foto) + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:12.5px;color:#178029;font-weight:700;">Cargando foto…</a>' : '') + '</div></div>';
     }).join('') : '<div style="font-size:13.5px;color:#8C9196;">Todavía no hay notas.</div>';
     h += abierto ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><textarea id="asNota" rows="2" placeholder="Escribí acá… Abajo podés elegir una foto o un video corto." style="' + IN + '"></textarea>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;"><input id="asNotaFoto" type="file" accept="image/*,video/*" title="Foto o video corto" style="font-size:13px;flex:1;min-width:160px;"><button data-a="nota" style="' + BV + '">Enviar</button></div></div>'
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-top:8px;">' + selector('asNotaFoto') + '<button data-a="nota" style="' + BV + '">Enviar</button></div></div>'
       : '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;font-size:13px;color:#6B7075;line-height:1.45;">Pedido cerrado: la conversación terminó. Si hay otro problema en este pivot, se pide una asistencia nueva.</div>';
     return h + '</div>';
   }
@@ -365,7 +393,7 @@
       var eqId = val('asEquipo'), ya = abiertoDe(eqId);
       if (ya) return ir('detalle', ya.id, 'Ese pivot ya tiene un pedido abierto: seguí la conversación acá. Cuando se cierre, se puede pedir otro.');
       var desc = val('asDesc'); if (!desc) { vista.msg = 'Contá en pocas palabras qué pasa.'; return pintar(); }
-      var foto = document.getElementById('asFoto').files[0], parado = document.getElementById('asParado').checked;
+      var foto = elegido('asFoto'), parado = document.getElementById('asParado').checked;
       var p = crear({ equipoId: eqId, motivo: val('asMotivo'), descripcion: desc, parado: parado });
       if (parado) { var evp = cargarParada(p); if (evp) cambiar(p.id, function (x) { x.paradaId = evp.id; }); }
       setTimeout(function () { invocar('pedir', { equipoId: eqId, motivo: p.motivo, fecha: p.fechaProblema, nota: desc, pedidoId: p.id, parado: parado }).catch(function () {}); }, 2500);
@@ -374,7 +402,7 @@
     }
     if (a === 'guardarConstancia') {
       if (!val('asProblema') || !val('asSolucion')) { vista.msg = 'Completá el problema y cómo se solucionó.'; return pintar(); }
-      var nroK = val('asOrdenNro'), fotoK = (document.getElementById('asOrdenFoto').files || [])[0];
+      var nroK = val('asOrdenNro'), fotoK = elegido('asOrdenFoto');
       var c = constancia({ equipoId: val('asEquipo'), motivo: val('asMotivo'), fecha: val('asFecha'), canal: val('asCanal'), problema: val('asProblema'), solucion: val('asSolucion'), repuestos: val('asRepuestos') });
       vista.filtro = 'cerrados';
       return conOrden(c.id, nroK, fotoK, b, 'Constancia guardada en el historial del pivot.');
@@ -383,20 +411,20 @@
     if (a === 'visita') { var v = val('asVisita'); if (!v) { vista.msg = 'Elegí el día y la hora de la visita.'; return pintar(); } fijarVisita(id, v); return ir('detalle', id, 'Visita guardada. Al campo le llega el aviso.', true); }
     if (a === 'cerrarIrrigar') {
       if (!val('asSolucion')) { vista.msg = 'Para cerrar, escribí qué se hizo.'; return pintar(); }
-      var nroI = val('asOrdenNro'), fotoI = (document.getElementById('asOrdenFoto').files || [])[0];
+      var nroI = val('asOrdenNro'), fotoI = elegido('asOrdenFoto');
       cerrar(id, val('asSolucion'), { canal: val('asCanal'), causa: val('asCausa'), solucion: val('asSolucion'), repuestos: val('asRepuestos'), por: yo(), fecha: ahora() });
       return conOrden(id, nroI, fotoI, b);
     }
-    if (a === 'cerrarCampo') { var nroC = val('asOrdenNro'), fotoC = (document.getElementById('asOrdenFoto').files || [])[0]; cerrar(id, val('asCierre') || 'Resuelto.'); return conOrden(id, nroC, fotoC, b); }
+    if (a === 'cerrarCampo') { var nroC = val('asOrdenNro'), fotoC = elegido('asOrdenFoto'); cerrar(id, val('asCierre') || 'Resuelto.'); return conOrden(id, nroC, fotoC, b); }
     if (a === 'orden') {
-      var nroO = val('asOrdenNro'), fotoO = (document.getElementById('asOrdenFoto').files || [])[0];
+      var nroO = val('asOrdenNro'), fotoO = elegido('asOrdenFoto');
       if (!nroO && !fotoO) { vista.msg = 'Elegí la foto de la orden o escribí su número.'; return pintar(); }
       b.disabled = true; b.textContent = fotoO ? 'Subiendo la orden…' : 'Guardando…';
       return guardarOrden(id, nroO, fotoO).then(function () { ir('detalle', id, 'Orden de servicio guardada.', true); }, function (e) { ir('detalle', id, 'No se pudo subir la orden: ' + e.message); });
     }
     if (a === 'informe') { guardarInforme(id, { causa: val('asCausa'), solucion: val('asSolucion'), repuestos: val('asRepuestos') }); return ir('detalle', id, 'Informe guardado.', true); }
     if (a === 'nota') {
-      var arch = document.getElementById('asNotaFoto').files[0]; b.disabled = true; b.textContent = arch ? 'Subiendo…' : 'Enviando…';
+      var arch = elegido('asNotaFoto'); b.disabled = true; b.textContent = arch ? 'Subiendo…' : 'Enviando…';
       return nota(id, val('asNota'), arch).then(function () { ir('detalle', id); }, function (e) { ir('detalle', id, e.message); });
     }
   }
@@ -423,12 +451,13 @@
     setInterval(function () {
       var h2 = localStorage.getItem(CLAVE) || ''; if (h2 === huella) return; huella = h2;
       var act = document.activeElement, escribiendo = act && cont.contains(act) && /INPUT|TEXTAREA|SELECT/.test(act.tagName) && (act.type === 'file' ? act.files.length : String(act.value || '').length);
+      if (!escribiendo) escribiendo = !!(elegido('asNotaFoto') || elegido('asOrdenFoto') || elegido('asFoto') || (document.getElementById('asNota') || {}).value);
       if (!escribiendo) pintar();
     }, 4000);
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, guardarOrden: guardarOrden, selector: selector, elegido: elegido, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
   var alArrancar = function () { try { cerrarPorRiego(); } catch (e) {} };
