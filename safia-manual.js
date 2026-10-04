@@ -47,6 +47,12 @@
         'Elegí el <b>producto del catálogo</b> o escribí el nombre, y poné la <b>dosis</b> con su unidad.',
         'Tocá <b>Guardar</b>.' ],
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
+      { t: 'Roya de la soja: cuándo recorrer el lote', p: [
+        'Con soja en campaña, debajo de los botones aparece el pliegue <b>Roya de la soja</b>. Dice si el clima permite la infección: verde, poco favorable; amarillo o rojo, favorable.',
+        'La roya necesita <b>6 horas o más de hoja mojada</b> con 15 a 25 °C. SAFIA lo estima con el pronóstico, noche por noche.',
+        'Si dice <b>Favorable</b>, recorré el lote y avisale al agrónomo. No quiere decir que haya roya: quiere decir que, si hay esporas, pueden infectar.',
+        'Si una noche dice <b>Casi</b> (3 a 5 horas de hoja mojada), no riegues al atardecer: el riego puede completar las 6 horas. Mejor de madrugada o de mañana.' ],
+        n: 'Es una estimación con el pronóstico, no una medición. La aplicación la decide el ingeniero agrónomo. SAFIA solo cubre la roya de la soja.' },
       { t: 'Fertirriego (fertilizante por el pivot)', p: [
         'En Operador tocá <b>Fertirriego</b>.',
         'Elegí el <b>producto</b> con su fórmula (por ejemplo, Urea 46-00-00) y poné los <b>kilos de producto</b>: por hectárea, o los de toda la vuelta.',
