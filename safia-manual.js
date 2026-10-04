@@ -49,15 +49,17 @@
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
       { t: 'Si el pivot se para', p: [
         'Tocá <b>Pivot parado · Asistencia</b>, poné la fecha en que se paró y elegí el motivo (falla eléctrica, mecánica, bomba, corte de energía, falta de agua).',
-        'Si solo querés anotar una parada que ya pasó, <b>desmarcá</b> el pedido de asistencia: ahí aparece la fecha en que volvió a andar.',
-        'Dejá marcado <b>Pedir asistencia técnica a Irrigar</b> si necesitás que vengan: al guardar les llega el aviso a los técnicos con el pivot, la estancia y el motivo. Si aparece el botón verde <b>Enviar también por WhatsApp</b>, tocalo y después tocá Enviar: el mensaje ya va escrito.',
+        'Dejá marcado <b>Pedir asistencia técnica a Irrigar</b> si necesitás que vengan, y contá en las observaciones qué ves.',
+        'Si ayuda, tocá <b>Sacar foto</b> o <b>Filmar video</b> (abren la cámara del celular). Podés mandar varias fotos y un video corto juntos.',
+        'Tocá <b>Guardar</b>: a los técnicos de Irrigar les llega el aviso con el pivot, la estancia y el motivo. Si aparece el botón verde <b>Avisar también por WhatsApp</b>, tocalo y después tocá Enviar: el mensaje ya va escrito.',
+        'Si solo querés anotar una parada que ya pasó y no necesitás técnico, <b>desmarcá</b> el pedido de asistencia: ahí aparece la fecha en que volvió a andar.',
         'Cuando vuelva a andar, tocá el mismo botón, que ahora dice <b>Volvió a andar</b>, y poné la fecha. Si te olvidás, SAFIA la cierra sola cuando cargues el próximo riego.',
         'Sirve para que el parte de seguimiento explique por qué faltó agua esos días: una cosa es que se rompió el equipo y otra que no se regó a tiempo.' ] },
       { t: 'Asistencia técnica de Irrigar', p: [
         'Mientras haya un pedido abierto, en todas las pantallas aparece arriba a la derecha un aviso azul con su estado (quién lo tomó, la visita prevista). Tocalo para abrir el pedido.',
         'Cada pedido de asistencia es un asunto aparte. Se ve en <b>Asistencia técnica</b> (menú): quién de Irrigar lo tomó, cuándo vienen y la conversación de ese pedido.',
-        'Para pedir: en Operador tocá <b>Pivot parado · Asistencia</b> y dejá marcado <b>Pedir asistencia técnica a Irrigar</b>, o entrá a Asistencia técnica y tocá <b>Pedir asistencia</b>.',
-        'Dentro del pedido podés <b>escribir</b> y mandar <b>fotos o videos cortos</b> (hasta unos 15 segundos; se pueden mandar varias fotos y un video juntos). En el mismo formulario de Pivot parado están los botones <b>Sacar foto</b>, <b>Filmar video</b> y <b>Elegir archivo</b>: los dos primeros abren la cámara del celular. El técnico te contesta ahí mismo y te llega el aviso al celular (por ejemplo, la visita prevista).',
+        'Para pedir: en Operador con <b>Pivot parado · Asistencia</b> (ver arriba), o en Asistencia técnica con <b>Pedir asistencia</b> (también sirve para una consulta con el pivot andando).',
+        'Dentro del pedido podés <b>escribir</b> y mandar <b>fotos o videos cortos</b> (unos 15 segundos) con los botones <b>Sacar foto</b>, <b>Filmar video</b> y <b>Elegir archivo</b>. El técnico te contesta ahí mismo y te llega el aviso al celular (por ejemplo, la visita prevista).',
         'Al cerrar podés subir la <b>foto de la orden de servicio</b> firmada y su número: queda guardada en el pedido como comprobante. Si te olvidás, se puede subir después, con el pedido ya cerrado.',
         'Cuando el problema está resuelto, el pedido se <b>cierra</b> (lo cierra el técnico con su informe, o vos). Cerrado, esa conversación termina: si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando cargues el próximo riego de ese pivot.',
         'Si un pedido se cerró por error, abrilo y tocá <b>Reabrir el pedido</b>. Con <b>Editar</b> se corrige el motivo o la descripción mientras está abierto. Borrar un pedido solo lo puede hacer Irrigar; si el pedido cargó una parada del pivot, pregunta si se borra también.',
@@ -79,16 +81,19 @@
         'Tocá el micrófono y decí, por ejemplo: "regué 12 milímetros en el pivot 1" o "llovieron 20 milímetros".',
         'Revisá lo que entendió y confirmá. Funciona en español y en portugués.' ] },
       { t: 'Corregir o borrar algo que cargaste', p: [
-        'En Operador, abajo, están los <b>Últimos eventos</b>: la <b>×</b> borra uno.',
-        'Para cambiar la fecha, el lote o una observación, abrí <b>Eventos</b> en el menú y tocá el evento.' ] },
+        'En Operador, abajo, están los <b>últimos eventos</b>: la <b>×</b> de cada uno lo borra (pide tocar otra vez para confirmar).',
+        'Para cambiar la fecha, el lote, la cantidad o una observación, abrí <b>Eventos</b> en el menú. En cada fila, a la derecha, el <b>lápiz</b> edita y el <b>tacho</b> borra (tocalo dos veces).',
+        'Lo que dice <b>auto</b> (lluvia del satélite o de la estación) no se borra: si en el campo llovió otra cosa, cargá la del pluviómetro y manda la tuya.' ] },
       { t: 'Campañas', p: [
         'En <b>Campañas</b> podés crear una campaña nueva y cargarle datos; lo que no podés es borrar.',
         'Si falta un análisis, una meta o un plan de rotación, pedíselo al encargado o al dueño.' ] },
       { t: 'Avisos en el celular', p: [
-        'Al tocar el aviso se abre esta pantalla en el pivot del aviso, lista para cargar el riego. Al encargado y al dueño el mismo aviso les abre el parte de seguimiento.',
         'Abrí SAFIA en el celular y tocá <b>tu nombre</b> (abajo en el menú).',
-        'Entrá en <b>Avisos al celular</b> y tocá <b>Activar en este dispositivo</b>. Aceptá el permiso que pide el teléfono.',
-        'En <b>iPhone</b> primero hay que instalar SAFIA: botón Compartir y después "Agregar a inicio". Abrila desde ese ícono y recién ahí activá los avisos.' ] },
+        'Entrá en <b>Avisos al celular</b> y tocá <b>Activar en este dispositivo</b>. Aceptá el permiso que pide el teléfono. Con <b>Enviar aviso de prueba</b> comprobás que llega.',
+        'En <b>iPhone</b> primero hay que instalar SAFIA: botón Compartir y después "Agregar a inicio". Abrila desde ese ícono y recién ahí activá los avisos.',
+        'Te llega cada mañana el riego de cada pivot y, cuando hay un pedido de asistencia, cada respuesta del técnico.',
+        'Al tocar el aviso del riego se abre Operador en ese pivot, listo para cargar. Al tocar uno de asistencia se abre el pedido.' ],
+        n: 'Hay que activarlos en cada celular. Si cambiás de teléfono o borrás SAFIA, activalos de nuevo.' },
       { t: 'Preguntarle al Asistente', p: [
         'En el menú abrí <b>Asistente IA</b>.',
         'Escribí como le hablarías a un agrónomo: "¿riego hoy?", "¿cuánto llovió este mes?", "¿qué mantenimiento tengo vencido?".',
@@ -105,11 +110,16 @@
         'En el menú abrí <b>Seguimiento</b>. Arriba hay una fila por pivot con cuatro luces: meta, agua, equipo y datos.',
         'Debajo, cada pivot dice: cuánto de la <b>meta</b> sigue alcanzable, lo que <b>ya no se puede recuperar</b>, cómo viene el <b>agua</b> (riego, estrés, rinde perdido y cuánto falta regar), lo que <b>toca ahora</b> y lo que <b>falta cargar</b>.',
         'Si faltó agua, dice en qué fechas y si coincide con el pivot parado.',
-        'Con <b>Imprimir</b> lo llevás a la reunión con el dueño.' ],
+        'Con <b>Imprimir</b> lo llevás a la reunión con el dueño.',
+        'Al tocar el aviso de la mañana en el celular se abre directo este parte.' ],
         n: 'El parte junta lo que SAFIA ya calcula en las otras pantallas. Es tan bueno como lo que se cargó: riegos, insumos y paradas.' },
       { t: 'Asistencia técnica de Irrigar', p: [
         'En <b>Asistencia técnica</b> (menú) están los pedidos a Irrigar de tus pivots: quién lo tomó, la visita prevista y la conversación de cada pedido, con notas y fotos.',
         'Podés pedir asistencia desde ahí con <b>Pedir asistencia</b>, o el operador desde <b>Pivot parado · Asistencia</b>. Te llega el aviso al celular cuando el técnico contesta.',
+        'Mientras haya un pedido abierto, en todas las pantallas aparece un aviso arriba a la derecha y un número al lado de Asistencia técnica en el menú.',
+        'Al cerrar, subí la <b>foto de la orden de servicio</b> firmada con su número: es el comprobante. Si quedó para después, se sube con el pedido ya cerrado.',
+        'Pestaña <b>Repuestos pendientes</b>: lo que falta enviar o llevar en todos tus pivots. Cuando llega, tocá <b>Entregado</b>. Con <b>Copiar la lista</b> la pegás en un WhatsApp.',
+        'Si un pedido se cerró por error, <b>Reabrir el pedido</b>. Si se cerró solo porque se cargó un riego, el técnico igual puede completar el informe.',
         'Cuando se resuelve, el pedido se cierra y esa conversación termina; otro problema es otro pedido. En <b>Historial (cerrados)</b> queda qué falló en cada pivot, qué se hizo, qué repuestos se usaron y cuánto se tardó en atender y en resolver.' ] },
       { t: 'Abrir una campaña', p: [
         'Abrí <b>Campañas</b> y tocá <b>+ Crear nueva campaña</b>. O usá <b>Ficha de campaña</b>, que tiene todo en un solo formulario.',
@@ -167,6 +177,9 @@
       { t: 'Asistencia técnica de Irrigar', p: [
         'En <b>Asistencia técnica</b> (menú) están los pedidos a Irrigar de tus pivots: quién lo tomó, la visita prevista y la conversación de cada pedido, con notas y fotos.',
         'Arriba ves cuántos pedidos hay abiertos y cuánto tardaron en tomarse y en resolverse. No hace falta que hagas nada: es para que sepas cómo te están atendiendo.',
+        'Mientras haya un pedido abierto, en todas las pantallas aparece un aviso arriba a la derecha con su estado.',
+        'En <b>Repuestos pendientes</b> ves lo que falta mandar o comprar, y quién lo trae (Irrigar, el técnico o vos).',
+        'Cada pedido cerrado guarda la <b>orden de servicio</b> (número y foto) como comprobante del trabajo.',
         'Cuando se resuelve, el pedido se cierra y esa conversación termina; otro problema es otro pedido. En <b>Historial (cerrados)</b> queda qué falló en cada pivot, qué se hizo, qué repuestos se usaron y cuánto se tardó en atender y en resolver.' ] },
       { t: 'Cómo viene la campaña', p: [
         'En <b>Banco Agronómico → Meta de rinde</b> ves si la meta sigue siendo alcanzable, qué se hizo, qué se perdió y qué se puede hacer todavía.',
@@ -194,8 +207,8 @@
         'Si alguien olvidó la contraseña, se la cambia Irrigar.' ] },
       { t: 'Avisos y Asistente', p: [
         'Al tocar el aviso de la mañana se abre el <b>parte de seguimiento</b>, con todos tus pivots.',
-        'Activá los <b>avisos en tu celular</b>: tocá tu nombre en el menú, <b>Avisos al celular</b>, <b>Activar en este dispositivo</b>. Te llega el parte de riego de cada pivot y el mantenimiento vencido.',
-        'El <b>Asistente IA</b> responde con tus datos: "¿por qué pago tanto de energía?", "¿regué de más?", "¿qué tiene el mejor lote de mi zona que yo no tengo?".' ] },
+        'Activá los <b>avisos en tu celular</b>: tocá tu nombre en el menú, <b>Avisos al celular</b>, <b>Activar en este dispositivo</b>. Te llega el parte de riego de cada pivot, el mantenimiento vencido y las respuestas de Irrigar a tus pedidos de asistencia.',
+        'El <b>Asistente IA</b> responde con tus datos: "¿por qué pago tanto de energía?", "¿regué de más?", "¿qué tiene el mejor lote de mi zona que yo no tengo?", "¿qué repuestos faltan?".' ] },
       { t: 'La suscripción', p: [
         'Cada pivot tiene su suscripción anual.',
         'Si vence, seguís viendo todo lo cargado, pero en ese pivot no se puede cargar nada nuevo hasta renovarla con Irrigar.' ] }

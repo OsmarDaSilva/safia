@@ -76,7 +76,9 @@
       '<tr><td><b>Arrancar el pivot el (día)</b></td><td>Todavía no, pero ese día toca. Sirve para planificar la semana.</td></tr>' +
       '<tr><td><b>Sin riego entra en estrés el (día)</b></td><td>La fecha límite si nadie riega (como el "vence el" de FieldNET).</td></tr>' +
       '<tr><td><b>Mantener el pivot girando</b></td><td>El cultivo consume más de lo que el pivot puede poner por día: no pararlo.</td></tr>' +
-      '<tr><td><b>Regar ya: el cultivo está en estrés</b></td><td>Ya se está perdiendo rinde. Regar aunque se anuncie lluvia.</td></tr>' +
+      '<tr><td><b>Regar ya: el cultivo está en estrés</b></td><td>Ya se está perdiendo rinde. Regar aunque se anuncie lluvia, salvo el caso de abajo.</td></tr>' +
+      '<tr><td><b>En estrés, pero viene lluvia: esperar</b></td><td>La lluvia prevista para hoy y mañana (15 mm o más) cubre lo que había que regar. Esperarla; si mañana a la noche no llovió, regar.</td></tr>' +
+      '<tr><td><b>Sin riego previsto en los próximos días</b></td><td>El suelo tiene agua de sobra para los días que alcanza el pronóstico.</td></tr>' +
       '<tr><td><b>Lote de secano</b></td><td>No se riega: SAFIA sigue la lluvia y avisa el estrés (por debajo del 50 %). El balance completo está en el Banco → Agua.</td></tr>' +
       '</tbody></table>';
     h += '<h3>6. Qué te toca a vos (' + (rol === 'encargado' ? 'Encargado' : rol === 'propietario' ? 'Propietario' : 'Operador') + ')</h3><ol class="mr-ol">' + (RUTINA[rol] || RUTINA.operador).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ol>';
