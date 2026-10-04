@@ -7,6 +7,8 @@
    NIVEL 1 · corregir los números de partida con lo propio (mezcla con la fuente: con pocos casos casi no se mueve)
      · Ciclo de cada variedad: días reales de siembra a cosecha contra lo que estimaba SafiaCiclo → SafiaCiclo.estimar
        suma la corrección. ajuste = suma de diferencias / (casos + 3).
+     · Ciclo propio de los materiales sin ciclo publicado (ni días, ni grados-día): promedio de los días reales de
+       siembra a cosecha → SafiaCiclo.estimar lo usa como estimación, diciendo con cuántas cosechas.
      · Cierre del surco de la soja: días hasta que el satélite mostró NDVI 0,60 → la tarjeta de la roya lo usa cuando
        no hay imagen reciente (en vez del día 30 fijo). valor = (suma + 3 × 30) / (casos + 3).
      · Rango alcanzable de la meta: cosecha real contra el centro del rango que anunciaba la meta viva (bitácora de
@@ -20,7 +22,7 @@
    separado en el modelo; solo grano (no forraje ni ensilaje). */
 (function () {
   'use strict';
-  var K = 3, MIN = { ciclo: 2, cierre: 2, meta: 3, modelo: 15, rec: 3 }, NDVI_CIERRE = 0.6, DIAS_CIERRE_BASE = 30, ID = 'parametros';
+  var K = 3, MIN = { ciclo: 2, propio: 1, cierre: 2, meta: 3, modelo: 15, rec: 3 }, NDVI_CIERRE = 0.6, DIAS_CIERRE_BASE = 30, ID = 'parametros';
   function lista(k) { try { var l = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
   function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : null; }
   function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
@@ -31,6 +33,8 @@
   function fmt(n, d) { return n == null || !isFinite(n) ? '—' : Number(n).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
   function regionDe(x) { try { return window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region(x) : null; } catch (e) { return null; } }
   function clave(cultivo, variedad, region) { return cultivoK(cultivo) + '|' + norm(variedad) + '|' + (region || ''); }
+  // nombre de la ficha del material ("Pioner 3322" y "P3322 PWU" son el mismo): así se juntan las cosechas del mismo híbrido
+  function material(cultivo, variedad) { try { var d = variedad && window.SafiaMateriales ? SafiaMateriales.buscar(cultivo, variedad) : null; return d && d.nombre ? d.nombre : variedad; } catch (e) { return variedad; } }
 
   /* ================= LEER lo aprendido (lo usan los motores) ================= */
   function datos() { var l = lista('aprendizaje'); for (var i = 0; i < l.length; i++) if (l[i] && l[i].id === ID) return l[i]; return null; }
@@ -41,7 +45,9 @@
     return a && a.n >= min ? a : b && b.n >= min ? b : null;
   }
   // Nivel 1 · corrección del ciclo de una variedad (días a sumar a la estimación de SafiaCiclo)
-  function ajusteCiclo(o) { var r = buscar('ciclos', o.cultivo, o.variedad, o.region || regionDe(o), MIN.ciclo); return r ? { dias: Math.round(r.ajuste), n: r.n, region: r.region } : null; }
+  function ajusteCiclo(o) { var r = buscar('ciclos', o.cultivo, material(o.cultivo, o.variedad), o.region || regionDe(o), MIN.ciclo); return r ? { dias: Math.round(r.ajuste), n: r.n, region: r.region } : null; }
+  // Nivel 1 · ciclo propio de un material sin ciclo publicado: días promedio de siembra a cosecha en las cosechas del banco
+  function cicloPropio(o) { var r = buscar('propios', o.cultivo, material(o.cultivo, o.variedad), o.region || regionDe(o), MIN.propio); return r ? { dias: Math.round(r.media), n: r.n, region: r.region, min: Math.min.apply(null, r.valores), max: Math.max.apply(null, r.valores) } : null; }
   // Nivel 1 · días hasta el cierre del surco de la soja (NDVI 0,60) para usar sin imagen reciente
   function diasCierre(cultivo, variedad, region) {
     var r = buscar('cierre', cultivo, variedad, region, MIN.cierre) || buscar('cierre', cultivo, '', region, MIN.cierre);
@@ -119,7 +125,7 @@
     if (!window.SafiaCasos) return Promise.reject(new Error('falta el módulo de casos'));
     var todos = SafiaCasos.armarCasos(), grano = todos.filter(function (c) { return c.rindeKgHa > 0 && c.cultivo && SafiaCasos.grupoFinalidad(c.cultivo, c.finalidad) === 'comercial'; });
     grano.forEach(function (c) { c._region = regionDe(c); });
-    var P = { id: ID, fecha: new Date().toISOString(), casos: grano.length, ciclos: {}, cierre: {}, meta: {}, modelos: {}, recomendaciones: {}, practicas: {}, faltan: {} };
+    var P = { id: ID, fecha: new Date().toISOString(), casos: grano.length, ciclos: {}, propios: {}, cierre: {}, meta: {}, modelos: {}, recomendaciones: {}, practicas: {}, faltan: {} };
     var sumar = function (tabla, k, extra) { var o = tabla[k] || (tabla[k] = { n: 0, suma: 0, valores: [] }); o.n++; o.suma += extra.v; o.valores.push(Math.round(extra.v)); Object.keys(extra).forEach(function (q) { if (q !== 'v') o[q] = extra[q]; }); };
 
     /* --- 1a. ciclo de cada variedad: real contra lo que estimaba SafiaCiclo --- */
@@ -129,14 +135,20 @@
         avisar('Comparando ciclos reales (' + (i + 1) + ' de ' + conCiclo.length + ')…');
         if (!window.SafiaCiclo) return;
         return SafiaCiclo.estimar({ cultivo: c.cultivo, variedad: c.variedad, fechaSiembra: c.siembra, lat: c.lat, lon: c.lon, sinAprender: true }).then(function (r) {
-          if (!r || !r.dias) { sinFicha++; return; }
+          var mat = material(c.cultivo, c.variedad);
+          if (!r || !r.dias) {   // sin ciclo publicado: lo que duró de verdad pasa a ser el ciclo propio del material
+            sinFicha++;
+            [c._region, ''].forEach(function (reg) { sumar(P.propios, clave(c.cultivo, mat, reg), { v: c.dias, cultivo: c.cultivo, variedad: mat, region: reg }); });
+            return;
+          }
           var dif = c.dias - r.dias; if (Math.abs(dif) > 60) return;   // fechas mal cargadas
-          [c._region, ''].forEach(function (reg) { sumar(P.ciclos, clave(c.cultivo, c.variedad, reg), { v: dif, cultivo: c.cultivo, variedad: c.variedad, region: reg, estimado: r.dias }); });
+          [c._region, ''].forEach(function (reg) { sumar(P.ciclos, clave(c.cultivo, r.material || mat, reg), { v: dif, cultivo: c.cultivo, variedad: r.material || mat, region: reg, estimado: r.dias }); });
         }).catch(function () {});
       });
     });
     return cadena.then(function () {
       Object.keys(P.ciclos).forEach(function (k) { var o = P.ciclos[k]; o.ajuste = o.suma / (o.n + K); o.difMedia = o.suma / o.n; });
+      Object.keys(P.propios).forEach(function (k) { var o = P.propios[k]; o.media = o.suma / o.n; });
       P.faltan.cicloSinFicha = sinFicha;
 
       /* --- 1b. cierre del surco de la soja (NDVI 0,60) --- */
@@ -231,6 +243,9 @@
     var cic = Object.keys(P.ciclos).map(function (k) { return P.ciclos[k]; }).filter(function (o) { return o.variedad; }).sort(function (a, b) { return b.n - a.n; });
     var n1 = cic.length ? tabla(['Material y región', 'Estimado', 'Real (promedio)', 'Cosechas', 'SAFIA corrige'], cic.slice(0, 30).map(function (o) { return '<tr><td><b>' + esc(o.variedad) + '</b> <span class="muted">· ' + esc(o.cultivo) + ' · ' + regNombre(o.region) + '</span></td><td class="r">' + fmt(o.estimado) + ' días</td><td class="r">' + fmt(o.estimado + o.difMedia) + ' días</td><td class="r">' + o.n + '</td><td class="r"><b>' + (o.n >= MIN.ciclo ? (o.ajuste >= 0 ? '+' : '') + fmt(o.ajuste) + ' días' : 'todavía no') + '</b></td></tr>'; }))
       : vacio('Ninguna cosecha tiene variedad, fecha de siembra y de cosecha, y ficha del material para comparar.');
+    var pro = Object.keys(P.propios || {}).map(function (k) { return P.propios[k]; }).filter(function (o) { return o.variedad; }).sort(function (a, b) { return b.n - a.n; });
+    var n1p = pro.length ? '<div style="font-weight:700;margin:4px 0;">Materiales sin ciclo publicado: ciclo propio</div>' + tabla(['Material y región', 'Cosechas', 'Siembra a cosecha', 'Rango', 'SAFIA usa'], pro.slice(0, 30).map(function (o) { return '<tr><td><b>' + esc(o.variedad) + '</b> <span class="muted">· ' + esc(o.cultivo) + ' · ' + regNombre(o.region) + '</span></td><td class="r">' + o.n + '</td><td class="r">' + fmt(o.media) + ' días</td><td class="r">' + fmt(Math.min.apply(null, o.valores)) + '–' + fmt(Math.max.apply(null, o.valores)) + '</td><td class="r"><b>' + fmt(o.media) + ' días</b></td></tr>'; })) +
+      '<div class="muted" style="font-size:12px;margin:4px 0 12px;">El obtentor no publica los días ni los grados-día de estos materiales: para la fecha de fin de ciclo de Campañas y Ficha, SAFIA usa lo que duraron en las cosechas del banco y dice con cuántas. Con una sola cosecha es un primer dato.</div>' : '';
     var cie = Object.keys(P.cierre).map(function (k) { return P.cierre[k]; }).sort(function (a, b) { return b.n - a.n; });
     var n1b = cie.length ? tabla(['Soja', 'Campañas', 'Cerró en promedio', 'SAFIA usa'], cie.slice(0, 12).map(function (o) { return '<tr><td>' + (o.variedad ? '<b>' + esc(o.variedad) + '</b>' : 'todas las variedades') + ' <span class="muted">· ' + regNombre(o.region) + '</span></td><td class="r">' + o.n + '</td><td class="r">día ' + fmt(o.media) + '</td><td class="r"><b>' + (o.n >= MIN.cierre ? 'día ' + fmt(o.valor) : 'todavía día 30') + '</b></td></tr>'; }))
       : vacio('Ninguna campaña de soja cerrada tiene pasadas del satélite que muestren el cierre del surco.');
@@ -238,7 +253,7 @@
     var n1c = met.length ? tabla(['Cultivo y región', 'Campañas', 'Cosechado / anunciado', 'Factor que usa'], met.map(function (o) { return '<tr><td>' + esc(o.cultivo) + ' <span class="muted">· ' + regNombre(o.region) + '</span></td><td class="r">' + o.n + '</td><td class="r">' + fmt(o.media * 100) + ' %</td><td class="r"><b>' + (o.n >= MIN.meta ? '× ' + fmt(o.factor, 2) : 'todavía no') + '</b></td></tr>'; }))
       : vacio('Todavía no hay campañas cosechadas con la bitácora de pronósticos (empezó el 4 de octubre de 2026).');
     h += tarjeta('Nivel 1 · Números de partida corregidos', 'SAFIA empieza con Embrapa y la ficha del material, y los corrige con las cosechas',
-      '<div style="font-weight:700;margin:4px 0;">Ciclo de cada material (siembra a cosecha)</div>' + n1 + '<div class="muted" style="font-size:12px;margin:4px 0 12px;">Con ' + MIN.ciclo + ' cosechas o más, la fecha de fin de ciclo de Campañas y Ficha suma la corrección. Con pocas cosechas se mueve poco: la corrección es la suma de diferencias dividida por las cosechas más 3.' + (P.faltan.cicloSinFicha ? ' ' + P.faltan.cicloSinFicha + ' cosechas no se pudieron comparar porque el material no tiene ficha en SAFIA.' : '') + '</div>' +
+      '<div style="font-weight:700;margin:4px 0;">Ciclo de cada material (siembra a cosecha)</div>' + n1 + '<div class="muted" style="font-size:12px;margin:4px 0 12px;">Con ' + MIN.ciclo + ' cosechas o más, la fecha de fin de ciclo de Campañas y Ficha suma la corrección. Con pocas cosechas se mueve poco: la corrección es la suma de diferencias dividida por las cosechas más 3.' + (P.faltan.cicloSinFicha && !pro.length ? ' ' + P.faltan.cicloSinFicha + ' cosechas no se pudieron comparar porque el material no tiene ficha en SAFIA.' : '') + '</div>' + n1p +
       '<div style="font-weight:700;margin:4px 0;">Cierre del surco de la soja (satélite, NDVI 0,60)</div>' + n1b + '<div class="muted" style="font-size:12px;margin:4px 0 12px;">La tarjeta de la roya usa este día cuando no hay una imagen reciente del satélite, en vez del día 30 fijo.</div>' +
       '<div style="font-weight:700;margin:4px 0;">Rango alcanzable de la meta</div>' + n1c + '<div class="muted" style="font-size:12px;margin-top:4px;">Con ' + MIN.meta + ' campañas o más, la meta viva multiplica su rango por este factor.</div>');
     // nivel 2
@@ -276,9 +291,10 @@
     if (!cu) return null;
     var reg = campo ? regionDe({ departamento: campo.departamento, lat: campo.latitud, lon: campo.longitud }) : null, o = {};
     var c = ajusteCiclo({ cultivo: cu.cultivo, variedad: cu.variedad, region: reg }); if (c) o.ciclo = 'el ciclo de ' + cu.variedad + ' sale ' + (c.dias >= 0 ? c.dias + ' días más largo' : -c.dias + ' días más corto') + ' que lo estimado, según ' + c.n + ' cosechas propias';
+    var cp = !c ? cicloPropio({ cultivo: cu.cultivo, variedad: cu.variedad, region: reg }) : null; if (cp) o.ciclo = cu.variedad + ' no tiene ciclo publicado por el obtentor: en las cosechas de SAFIA duró ' + cp.dias + ' días de siembra a cosecha (' + cp.n + (cp.n === 1 ? ' cosecha' : ' cosechas') + ')';
     if (cultivoK(cu.cultivo) === 'soja') { var d = diasCierre('soja', cu.variedad, reg); if (d) o.cierre_del_surco = 'cierra cerca del día ' + d.dias + ' según ' + d.n + ' campañas propias'; }
     var f = factorMeta(cu.cultivo, reg); if (f) o.rango_de_la_meta = 'se cosechó en promedio el ' + Math.round((f.f) * 100) + ' % del centro del rango que anunciaba la meta (' + f.n + ' campañas): el rango se ajusta por eso';
     return Object.keys(o).length ? o : null;
   }
-  window.SafiaAprende = { aprender: aprender, publicar: publicar, datos: datos, ajusteCiclo: ajusteCiclo, diasCierre: diasCierre, factorMeta: factorMeta, predecir: predecir, evidencia: evidencia, montar: montar, html: html, paraCampana: paraCampana, ridge: ridge, ajustar: ajustar, MIN: MIN };
+  window.SafiaAprende = { aprender: aprender, publicar: publicar, datos: datos, ajusteCiclo: ajusteCiclo, cicloPropio: cicloPropio, diasCierre: diasCierre, factorMeta: factorMeta, predecir: predecir, evidencia: evidencia, montar: montar, html: html, paraCampana: paraCampana, ridge: ridge, ajustar: ajustar, MIN: MIN };
 })();

@@ -9,7 +9,9 @@
       10 años del lugar (Open-Meteo, reanálisis ERA5). Fórmula de Embrapa Milho e Sorgo (Sistemas de
       Produção 2, "Plantio"): GDU del día = (Tmáx + Tmín)/2 − 10, con Tmáx tope 30 °C y Tmín piso 10 °C.
       https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf
-   Lo que no se puede estimar con fuente queda vacío: nunca se inventa un ciclo.
+   4. Material sin nada de lo anterior: el ciclo propio que aprendió SafiaAprende (días reales de siembra a cosecha en
+      las cosechas del banco), diciendo con cuántas cosechas.
+   Lo que no se puede estimar con fuente ni con cosechas propias queda vacío: nunca se inventa un ciclo.
    Uso: SafiaCiclo.estimar({ cultivo, variedad, fechaSiembra, lat, lon }) → Promise<{ dias, fechaFin, metodo, texto, fuente } | null>
         SafiaCiclo.fichaMaterial(cultivo, variedad) → texto corto para mostrar debajo de la variedad */
 (function () {
@@ -99,17 +101,28 @@
     }).catch(function () { return null; });
   }
 
+  /* ---------- 4) ciclo propio: lo que duró el material en las cosechas del banco ---------- */
+  function propio(o, d) {
+    if (o.sinAprender || !window.SafiaAprende || !SafiaAprende.cicloPropio) return null;   // al aprender no se usa lo ya aprendido
+    var r = SafiaAprende.cicloPropio({ cultivo: o.cultivo, variedad: d && d.nombre ? d.nombre : o.variedad, lat: o.lat, lon: o.lon }); if (!r) return null;
+    return { dias: r.dias, metodo: 'propio', confianza: r.n >= 3 ? 'media' : 'baja', propio: r,
+      texto: 'ciclo propio: lo que duró en ' + r.n + (r.n === 1 ? ' cosecha' : ' cosechas') + ' de SAFIA, de siembra a cosecha' + (r.n > 1 ? ' (' + r.min + ' a ' + r.max + ' días)' : '') + '; el obtentor no publica los días',
+      fuente: { n: 'Lo que SAFIA aprendió (cosechas del banco)', url: '' } };
+  }
+
   function estimar(o) {
     o = o || {}; var cu = cultivoClave(o.cultivo), d = material(o.cultivo, o.variedad);
-    if (!d || !o.fechaSiembra) return Promise.resolve(null);
+    if (!o.fechaSiembra || !o.variedad) return Promise.resolve(null);
     var p = publicado(d);
     var fin = function (r) {
+      if (!r) r = propio(o, d);
       if (!r) return null;
       // lo aprendido de las cosechas propias corrige la estimación (SafiaAprende, nivel 1); al aprender se pide sin corregir
-      var ap = !o.sinAprender && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: d.nombre || o.variedad, lat: o.lat, lon: o.lon }) : null;
+      var ap = !o.sinAprender && r.metodo !== 'propio' && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: (d && d.nombre) || o.variedad, lat: o.lat, lon: o.lon }) : null;
       if (ap && ap.dias) { r.diasFuente = r.dias; r.dias += ap.dias; r.aprendido = ap; r.texto += ' · corregido con ' + ap.n + ' cosechas propias (' + (ap.dias > 0 ? '+' : '') + ap.dias + ' días)'; }
-      r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d.nombre; return r;
+      r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d ? d.nombre : o.variedad; return r;
     };
+    if (!d) return Promise.resolve(fin(null));
     if (p) return Promise.resolve(fin(p));
     if (cu === 'soja') return Promise.resolve(fin(porGM(d)));
     if (cu === 'maiz') return porGDU(d, o.fechaSiembra, num(o.lat), num(o.lon)).then(fin);
@@ -118,12 +131,14 @@
 
   /* ---------- texto corto del material para la pantalla de campañas ---------- */
   function fichaMaterial(cultivo, variedad) {
-    var d = material(cultivo, variedad); if (!d) return '';
+    var cp = variedad && window.SafiaAprende && SafiaAprende.cicloPropio ? SafiaAprende.cicloPropio({ cultivo: cultivo, variedad: variedad }) : null, cpT = cp ? 'ciclo propio en SAFIA: ' + cp.dias + ' días de siembra a cosecha (' + cp.n + (cp.n === 1 ? ' cosecha' : ' cosechas') + ')' : '';
+    var d = material(cultivo, variedad); if (!d) return cpT ? cpT.charAt(0).toUpperCase() + cpT.slice(1) + '.' : '';
     var cu = cultivoClave(cultivo), p = [];
-    if (d.soloSenave) return 'Sin ficha verificada en SAFIA. ' + (d.nota || d.senave || '');
+    if (d.soloSenave) return 'Sin ficha verificada en SAFIA. ' + (d.nota || d.senave || '') + (cpT ? ' · ' + cpT : '');
     if (cu === 'soja') { if (d.gm != null) p.push('GM ' + fmt(d.gm, 1)); else p.push('GM sin dato verificado'); if (d.habito) p.push(d.habito); }
     if (cu === 'maiz') { if (d.ciclo) p.push(d.ciclo); if (d.gduFlor) p.push(fmt(d.gduFlor, 0) + ' GDU a floración'); if (d.gduMad) p.push(fmt(d.gduMad, 0) + ' a madurez'); }
     if (d.cicloTexto || num(d.cicloDias) > 0) p.push('ciclo ' + (d.cicloTexto || Math.round(num(d.cicloDias)) + ' días') + regionTxt(d.cicloRegion));
+    if (cpT && !(num(d.cicloDias) > 0) && !(num(d.gduMad) > 0)) p.push(cpT);
     if (d.densidad) p.push(d.densidad);
     if (d.sanidad) p.push(d.sanidad);
     var fuente = d.nivel ? ' · fuente: ' + d.nivel + (d.url ? ' (' + fuenteCorta(d.url) + ')' : '') : '';

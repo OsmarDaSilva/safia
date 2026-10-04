@@ -35,11 +35,11 @@
     ],
     'Maíz': [
       // Pioneer
-      'P1972 VYHR', 'P2530 VYH', 'P3010 VYH', 'P3322 VYHR', 'P3016 VYH', 'P3282 VYHR', 'P3340 VYHR', 'P3862 VYHR', 'P4285 YHR', '30F35 VYH', '30A37 PW',
+      'P1972 VYHR', 'P2530 VYH', 'P3010 VYH', 'P3322 PWU', 'P3016 VYH', 'P3282 VYHR', 'P3340 VYHR', 'P3862 VYHR', 'P4285 YHR', '30F35 VYH', '30A37 PW',
       // Dekalb (Bayer)
       'DKB 177 PRO3', 'DKB 230 PRO3', 'DKB 255 PRO3', 'DKB 265 PRO3', 'DKB 290 PRO3', 'DKB 310 PRO3', 'DKB 360 PRO3', 'DKB 390 PRO3',
       // Agroceres / Agroeste
-      'AG 7098 PRO2', 'AG 8088 PRO3', 'AG 8780 PRO3', 'AG 9010 PRO3', 'AG 9035', 'AS 1666 PRO3', 'AS 1730 PRO3', 'AS 1757 PRO3', 'AS 1868 PRO3',
+      'AG 7098 PRO2', 'AG 8088 PRO3', 'AG 8780 PRO3', 'AG 9010 PRO', 'AG 9035 PRO3', 'AS 1666 PRO3', 'AS 1730 PRO3', 'AS 1757 PRO3', 'AS 1868 PRO3',
       // Syngenta
       'NK 501 VIP3', 'NK 505 VIP3', 'Status VIP3', 'Feroz VIP3', 'Supremo VIP3', 'Fórmula VIP3', 'Impacto VIP3', 'Defender VIP3', 'SYN 505 VIP3', 'SYN 522 VIP3',
       // Brevant (Corteva)

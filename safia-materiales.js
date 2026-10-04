@@ -144,8 +144,10 @@
     var cu = cultivoClave(cultivo), t = IDX[cu];
     if (!t) { var r0 = window.SafiaSenave ? window.SafiaSenave.buscar(cultivo, nombre) : null; return r0 ? desdeSenave(cu, r0) : null; }   // trigo, poroto, sorgo…: solo lo inscripto en SENAVE
     var b = base(nombre); if (cu === 'soja' && ALIAS_SOJA[b]) b = ALIAS_SOJA[b];
+    if (cu === 'maiz') b = b.replace(/^(pioneer|pioner|pionner|pionier)/, '').replace(/^dekalb/, 'dkb').replace(/^agroceres/, 'ag');   // la marca escrita delante: "Pioner 3322" = "P3322"
     var d = t[b] || null;
-    if (!d && cu === 'maiz' && /^[0-9]/.test(b)) d = t['p' + b] || null;         // "3282" = "P3282"
+    if (!d && cu === 'maiz' && /^[0-9]/.test(b)) d = t['p' + b] || null;
+    if (!d && cu === 'maiz') d = t[b + 'pro'] || (/pro$/.test(b) ? t[b.replace(/pro$/, '')] : null) || null;   // AG 9010 PRO3 = AG 9010 PRO (misma genética, otra tecnología)         // "3282" = "P3282"
     if (!d && cu === 'soja' && /^p?9[0-9][a-z][0-9]/.test(b)) d = t[b.replace(/^p?/, 'p')] || null;   // "96R29" = "P96R29", "96Y90" = "P96Y90"
     var reg = window.SafiaSenave ? window.SafiaSenave.buscar(cultivo, nombre) : null;
     if (!d) return reg ? desdeSenave(cu, reg) : null;
