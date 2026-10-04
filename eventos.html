@@ -69,6 +69,7 @@
         <a href="operador.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 0 1 16 0"/><path d="M12 18l4-5"/><circle cx="12" cy="18" r="1.1"/></svg>Operador</a>
         <a href="eventos.html" class="active"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4"/></svg>Eventos</a>
         <a href="encargado.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.4"/><path d="M4 20c0-3.3 2.7-6 6-6 1 0 2 .2 2.8.7"/><path d="m15.5 17.5 2 2 3.5-3.5"/></svg>Encargado</a>
+        <a href="seguimiento.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6v3H9z"/><path d="M7 5.5H5.5v15h13v-15H17"/><path d="m9 13 2 2 4-4"/></svg>Seguimiento</a>
         <a href="propietario.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M3 12h18"/></svg>Propietario</a>
         <a href="voz.html"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>Cargar por voz</a>
       </nav>
@@ -416,6 +417,7 @@
         else if (ev.tipo === 'horimetro') { badgeClase = 'muted'; tipoLabel = 'Horímetro'; cantidad = (ev.cantidad != null && ev.cantidad !== '' ? Number(ev.cantidad).toLocaleString('es-PY') : '—') + ' h'; prodSub = '<div class="sub">' + ({ pivote: 'Pivot', bomba: 'Bomba', canon: 'Cañón final' }[ev.contador] || 'Pivot') + '</div>'; }
         else if (ev.tipo === 'mantenimiento') { badgeClase = 'muted'; tipoLabel = 'Mantenimiento'; cantidad = ev.horasEquipo != null && ev.horasEquipo !== '' ? Number(ev.horasEquipo).toLocaleString('es-PY') + ' h' : '—'; prodSub = ev.tarea ? '<div class="sub">' + textoSeguro(ev.tarea) + '</div>' : ''; }
         else if (ev.tipo === 'lectura') { badgeClase = 'green'; tipoLabel = 'Altura del pasto'; cantidad = (ev.alturaCm || '—') + ' cm'; prodSub = '<div class="sub">piquete ' + (ev.piquete || '?') + ' · ' + ((ev.medidas || []).length) + ' medidas</div>'; }
+        else if (ev.tipo === 'parada') { badgeClase = 'red'; tipoLabel = 'Pivot parado'; cantidad = ev.hasta ? 'hasta ' + String(ev.hasta).slice(8, 10) + '/' + String(ev.hasta).slice(5, 7) : 'sigue parado'; prodSub = '<div class="sub">' + ({ electrica: 'falla eléctrica', mecanica: 'falla mecánica', energia: 'corte de energía', bomba: 'falla de la bomba', agua: 'falta de agua en la fuente', mantenimiento: 'mantenimiento programado', otro: 'otro motivo' }[ev.motivo] || '') + '</div>'; }
         else if (ev.tipo === 'pesada') { badgeClase = 'green'; tipoLabel = ev.motivo === 'ingreso' ? 'Ingreso del lote' : ev.motivo === 'salida' ? 'Salida del lote' : 'Pesada'; cantidad = (ev.pesoKg || '—') + ' kg'; prodSub = '<div class="sub">' + (ev.cabezas || '?') + ' cabezas · peso promedio</div>'; }
         else if (ev.tipo === 'calibracion') { badgeClase = 'green'; tipoLabel = 'Corte de muestra'; cantidad = (ev.kgMsHa || '—') + ' kg MS/ha'; prodSub = '<div class="sub">a ' + (ev.alturaCm || '?') + ' cm' + (ev.piquete ? ' · piquete ' + ev.piquete : '') + '</div>'; }
         else if (ev.tipo === 'pastoreo') { badgeClase = 'green'; tipoLabel = ev.accion === 'entrada' ? 'Entrada' : ev.accion === 'salida' ? 'Salida' : 'Corte'; cantidad = 'piquete ' + (ev.piquete || '?'); prodSub = '<div class="sub">' + [ev.cabezas ? ev.cabezas + ' cab.' : '', ev.kgMsHa ? ev.kgMsHa + ' kg MS/ha' : '', ev.alturaCm ? ev.alturaCm + ' cm' : ''].filter(Boolean).join(' · ') + '</div>'; }
@@ -477,7 +479,7 @@
         selectEquipo.appendChild(opt);
       });
 
-      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura' || ev.tipo === 'pesada' || ev.tipo === 'calibracion') {
+      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura' || ev.tipo === 'pesada' || ev.tipo === 'calibracion' || ev.tipo === 'parada') {
         document.getElementById('editCamposRiegoLluvia').style.display = 'none';
         document.getElementById('editCamposAplicacion').style.display = 'none';
       } else if (ev.tipo === 'aplicacion') {
@@ -699,7 +701,7 @@
       const ca = campanas.find(c => c.equipoId === equipoId && c.estado === 'Activa');
       ev.campanaId = ca ? ca.id : null;
 
-      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura' || ev.tipo === 'pesada' || ev.tipo === 'calibracion') {
+      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura' || ev.tipo === 'pesada' || ev.tipo === 'calibracion' || ev.tipo === 'parada') {
         // fecha, lote y observaciones se editan; el detalle del pastoreo o de la lectura se carga desde el Operador
       } else if (ev.tipo === 'aplicacion') {
         const producto = document.getElementById('editProducto').value.trim();
@@ -755,7 +757,7 @@
 
         return {
           fecha: ev.fecha,
-          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : ev.tipo === 'lectura' ? ('Altura piquete ' + (ev.piquete || '') + ' ' + (ev.alturaCm || '') + ' cm') : ev.tipo === 'pesada' ? ('Pesada ' + (ev.cabezas || '') + ' cab. ' + (ev.pesoKg || '') + ' kg') : ev.tipo === 'calibracion' ? ('Corte de muestra ' + (ev.kgMsHa || '') + ' kg MS/ha a ' + (ev.alturaCm || '') + ' cm') : ev.tipo === 'horimetro' ? ('Horímetro ' + ({ pivote: 'pivot', bomba: 'bomba', canon: 'cañón final' }[ev.contador] || 'pivot')) : ev.tipo === 'mantenimiento' ? ('Mantenimiento: ' + (ev.tarea || '')) : 'Aplicación',
+          tipo: ev.tipo === 'riego' ? 'Riego' : ev.tipo === 'lluvia' ? 'Lluvia' : ev.tipo === 'pastoreo' ? ('Pastoreo ' + (ev.accion || '') + ' piquete ' + (ev.piquete || '')) : ev.tipo === 'lectura' ? ('Altura piquete ' + (ev.piquete || '') + ' ' + (ev.alturaCm || '') + ' cm') : ev.tipo === 'parada' ? ('Pivot parado' + (ev.hasta ? ' hasta ' + ev.hasta : '')) : ev.tipo === 'pesada' ? ('Pesada ' + (ev.cabezas || '') + ' cab. ' + (ev.pesoKg || '') + ' kg') : ev.tipo === 'calibracion' ? ('Corte de muestra ' + (ev.kgMsHa || '') + ' kg MS/ha a ' + (ev.alturaCm || '') + ' cm') : ev.tipo === 'horimetro' ? ('Horímetro ' + ({ pivote: 'pivot', bomba: 'bomba', canon: 'cañón final' }[ev.contador] || 'pivot')) : ev.tipo === 'mantenimiento' ? ('Mantenimiento: ' + (ev.tarea || '')) : 'Aplicación',
           cliente: cliente ? cliente.nombre : '',
           campo: campo ? campo.nombre : '',
           equipo: equipo ? equipo.nombre : '',

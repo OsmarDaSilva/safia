@@ -30,7 +30,7 @@
 
   /* ---------- menú y permisos por rol ---------- */
   var PAGINAS_IRRIGAR = ['mis-clientes.html', 'usuarios.html', 'evaluar.html', 'informe-evaluacion.html', 'backup.html', 'precios.html', 'suscripciones.html', 'conexiones.html'];
-  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html', 'mis-campanas.html'];   // Campañas desde el 30-sep-2026 (la base deja cargar y cambiar, no borrar)
+  var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html', 'mis-campanas.html', 'seguimiento.html'];   // Campañas desde el 30-sep-2026 (la base deja cargar y cambiar, no borrar)
   var PAGINAS_ESTRUCTURA = ['mis-equipos.html'];   // pivots y lotes: solo Irrigar (30-sep-2026; la base tampoco deja a nadie más)
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {

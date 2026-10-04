@@ -47,6 +47,10 @@
         'Elegí el <b>producto del catálogo</b> o escribí el nombre, y poné la <b>dosis</b> con su unidad.',
         'Tocá <b>Guardar</b>.' ],
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
+      { t: 'Si el pivot se para', p: [
+        'Tocá <b>Pivot parado</b>, poné la fecha en que se paró y elegí el motivo (falla eléctrica, mecánica, bomba, corte de energía, falta de agua).',
+        'Cuando vuelva a andar, tocá el mismo botón, que ahora dice <b>Volvió a andar</b>, y poné la fecha.',
+        'Sirve para que el parte de seguimiento explique por qué faltó agua esos días: una cosa es que se rompió el equipo y otra que no se regó a tiempo.' ] },
       { t: 'Horas del equipo y mantenimiento', p: [
         'En la tarjeta de <b>mantenimiento</b> cargá lo que marca el horímetro del pivot, de la bomba y del cañón, y tocá <b>Cargar lectura</b>.',
         'SAFIA marca las tareas <b>vencidas</b> y las <b>próximas</b> según esas horas.',
@@ -84,6 +88,12 @@
         'En amarillo: mantenimiento próximo y <b>cosechas sin cargar</b>.',
         'En gris: lotes en campaña que llevan <b>más de 7 días sin ninguna carga</b>. Avisale al operador.',
         'Tocando cualquier renglón vas directo a ese pivot.' ] },
+      { t: 'El parte de seguimiento', p: [
+        'En el menú abrí <b>Seguimiento</b>. Arriba hay una fila por pivot con cuatro luces: meta, agua, equipo y datos.',
+        'Debajo, cada pivot dice: cuánto de la <b>meta</b> sigue alcanzable, lo que <b>ya no se puede recuperar</b>, cómo viene el <b>agua</b> (riego, estrés, rinde perdido y cuánto falta regar), lo que <b>toca ahora</b> y lo que <b>falta cargar</b>.',
+        'Si faltó agua, dice en qué fechas y si coincide con el pivot parado.',
+        'Con <b>Imprimir</b> lo llevás a la reunión con el dueño.' ],
+        n: 'El parte junta lo que SAFIA ya calcula en las otras pantallas. Es tan bueno como lo que se cargó: riegos, insumos y paradas.' },
       { t: 'Abrir una campaña', p: [
         'Abrí <b>Campañas</b> y tocá <b>+ Crear nueva campaña</b>. O usá <b>Ficha de campaña</b>, que tiene todo en un solo formulario.',
         'Elegí el lote, el cultivo, la variedad y la <b>fecha de siembra</b>. SAFIA completa sola la fecha estimada de fin de ciclo.',
@@ -131,6 +141,12 @@
         'En el <b>Resumen ejecutivo</b> ves las campañas activas, el estado del riego de cada pivot, lo que llovió y lo que se regó en los últimos 30 días.',
         'Mirá el <b>mantenimiento</b>: qué está vencido y qué está por vencer.',
         'Si un pivot aparece en estrés o sin cargas hace días, hablá con el encargado.' ] },
+      { t: 'El parte de seguimiento: todo en una pantalla', p: [
+        'En el menú abrí <b>Seguimiento</b>: es el resumen de todos tus pivots para decidir.',
+        'Las luces de arriba dicen en diez segundos cuál pivot pide atención.',
+        'En cada pivot ves cuánto de la <b>meta</b> sigue alcanzable y qué se llevó el resto, cuánto rinde se perdió por <b>agua</b> y por qué, cuánto <b>falta regar</b> hasta la cosecha y qué hay que hacer ahora.',
+        'Se puede imprimir.' ],
+        n: 'SAFIA no muestra una probabilidad de llegar a la meta: muestra cuánto sigue siendo alcanzable con lo que ya pasó. El riego que falta es una estimación con el clima de los últimos 10 años.' },
       { t: 'Cómo viene la campaña', p: [
         'En <b>Banco Agronómico → Meta de rinde</b> ves si la meta sigue siendo alcanzable, qué se hizo, qué se perdió y qué se puede hacer todavía.',
         'En <b>Vigor satelital</b> ves el cultivo desde el satélite contra las campañas anteriores.',
