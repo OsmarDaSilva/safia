@@ -222,6 +222,7 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Manual por rol (Operador, Encargado, Propietario) | ✅ 3-oct-2026 |
 | Parte de seguimiento (todos los pivots del cliente en una pantalla) | ✅ 4-oct-2026 |
 | Asistencia técnica: pedidos, conversación, orden de servicio, repuestos pendientes, historial | ✅ 4-oct-2026 |
+| Imagen de dron multiespectral (GeoTIFF NDVI): recorte al pivot, perfil cada metro y anillos | ✅ 4-oct-2026 (falta probar con un vuelo real) |
 | Acierto de SAFIA: bitácora semanal de pronósticos y comparación con la cosecha | ✅ 4-oct-2026 |
 | Clima favorable a la roya de la soja y horario del riego (Embrapa Soja Doc. 428) | ✅ 4-oct-2026 |
 | Fertirriego: kilos de producto → kilos de nutriente, cuenta del tanque, plan de N del maíz por etapa (Embrapa CT 78) | ✅ 4-oct-2026 |

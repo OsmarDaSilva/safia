@@ -69,6 +69,7 @@
 <script src="safia-mapas.js"></script>
 <script src="safia-ndvi.js"></script>
 <script src="safia-uniformidad.js"></script>
+<script src="safia-dron.js"></script>
 <script src="safia-rotacion.js"></script>
 <script src="safia-meta.js"></script>
 <script src="safia-materiales.js"></script>
@@ -998,6 +999,7 @@
       if (b.dataset.tab === 'mapas' && window.SafiaMapas) SafiaMapas.activar();
       if (b.dataset.tab === 'ndvi' && window.SafiaNDVI) SafiaNDVI.activar();
       if (b.dataset.tab === 'ndvi' && window.SafiaUniformidad) SafiaUniformidad.montar();
+      if (b.dataset.tab === 'ndvi' && window.SafiaDron) SafiaDron.montar({ lote: function () { var sel = document.getElementById('ndviLote'), B = window.SafiaBanco; return sel && B ? B.leer('equipos').find(function (e) { return String(e.id) === String(sel.value); }) || null : null; } });
       if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
       if (b.dataset.tab === 'calidadAgua' && window.SafiaCalidadAgua) SafiaCalidadAgua.activar();
@@ -2256,6 +2258,7 @@
     mapa_cosecha: ['Mapa de cosecha', 'green'],
     analisis: ['Análisis', 'blue'],
     fertilizacion: ['Fertilización', 'amber'],
+    dron: ['Imagen de dron', 'green'],
     otro: ['Documento', 'muted']
   };
   function fmtTamano(b) {
