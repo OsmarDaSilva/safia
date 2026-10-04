@@ -9,7 +9,10 @@
        · p. 10: la infección necesita agua libre sobre la hoja: como mínimo 6 horas de mojado con temperatura entre
          15 y 25 °C, y más de 8 horas en los extremos (10 °C o 27 °C). La lluvia favorece las epidemias. El período
          latente (de la infección a los primeros esporos) es de 6 días a 26 °C y llega a 12–16 días a 15 °C.
-       · p. 9: la mayor incidencia aparece desde que el cultivo cierra el surco (más humedad y sombra).
+       · p. 9: los síntomas pueden aparecer en cualquier etapa, pero la mayor incidencia es desde que el cultivo cierra el
+         surco (más humedad, y la sombra protege a los esporos del sol). Antes del cierre solo aparece cuando hay mucho
+         inóculo a la siembra: soja sobre soja, o un lote vecino más adelantado.
+       · p. 12: el vacío sanitario atrasa las primeras apariciones y baja la chance de roya en las etapas iniciales.
    [2] Embrapa Instrumentação (P. Cruvinel; plataforma de predicción de roya, 2026): el período de hoja mojada se toma
        como las horas con humedad relativa mayor a 90 % (visto en la nota de prensa de la plataforma, no en el artículo).
    [3] Embrapa Hortaliças, "Irrigação": el riego por aspersión, sobre todo con alta frecuencia, favorece la humedad alta
@@ -20,10 +23,14 @@
    · Cada día se mira la tanda de mojado más larga entre las 18 h del día anterior y las 18 h de ese día (la noche y su mañana).
    · El aviso sobre el horario del riego sale de la misma regla de las 6 horas: si la noche ya trae 3 a 5 horas de hoja
      mojada, un riego al atardecer puede completar las 6. No es una recomendación publicada: es aritmética sobre [1].
+   · SOJA CHICA: antes de los 30 días de la siembra SAFIA no avisa por roya aunque el clima sea húmedo. El número (30 días)
+     es de Osmar (4-oct-2026: "una soja recién plantada, a partir de unos 20 a 30 días recién estaría con riesgo");
+     Embrapa no da días, dice "desde el cierre del surco" [1, p. 9].
    Otras enfermedades (moho blanco, manchas del maíz) NO están: no hay umbral verificado cargado. */
 (function () {
   'use strict';
   var FUENTE = 'Embrapa Soja, Documentos 428 (Godoy et al., 2020)';
+  var DIAS_SOJA_CHICA = 30;
   var U = { hrMojado: 90, horasMin: 6, tOptMin: 15, tOptMax: 25, horasExtremo: 8, tMin: 10, tMax: 27, casiDesde: 3 };
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function fmt(n, d) { return n == null || !isFinite(n) ? '—' : Number(n).toLocaleString('es-PY', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
@@ -86,24 +93,27 @@
     if (R.favorablesPasados >= 2) return 'Hubo ' + R.favorablesPasados + ' días favorables a la roya; los próximos, no';
     return 'Clima poco favorable a la roya en los próximos días';
   }
+  function chica(op) { return !!op && op.dds != null && op.dds < DIAS_SOJA_CHICA; }
+  function textoChica(op) { return ['La soja todavía es chica (día ' + op.dds + ' desde la siembra). La roya aparece sobre todo desde que el cultivo cierra el surco: recién ahí hay humedad y sombra para que el hongo prospere. Por eso SAFIA no avisa por roya hasta el día ' + DIAS_SOJA_CHICA + ', aunque llueva.', 'La excepción: soja sembrada sobre soja, o con un lote vecino más adelantado que ya tenga roya. En ese caso, recorré el lote igual.']; }
   function consejo(R, op) {
+    if (chica(op)) return textoChica(op);
     var c = [];
     if (R.favorablesPasados) c.push('En los últimos días hubo ' + R.favorablesPasados + (R.favorablesPasados === 1 ? ' noche favorable' : ' noches favorables') + ' a la infección. Si había esporas, las manchas aparecen entre 6 y 16 días después: recorré el lote y revisá las hojas.');
     if (R.favorablesProximos) c.push('Vienen días con 6 horas o más de hoja mojada. Avisale al agrónomo: es cuando se decide la aplicación.');
     if (R.casiProximos.length) c.push((R.casiProximos.length === 1 ? 'La noche de ' + R.casiProximos[0].nombre + ' trae' : 'Hay ' + R.casiProximos.length + ' noches que traen') + ' entre 3 y 5 horas de hoja mojada. Un riego al atardecer puede completar las 6 horas: si hay que regar, mejor de madrugada o de mañana, para que la hoja se seque de día.');
     if (!c.length) c.push('Sin noches largas de hoja mojada a la vista. Igual conviene recorrer el lote una vez por semana.');
-    if (op && op.dds != null && op.dds < 30) c.push('El cultivo es chico (día ' + op.dds + '): la roya aparece sobre todo desde que la soja cierra el surco.');
     return c;
   }
   var COL = { alto: ['#FBECEA', '#B5371C'], medio: ['#FDF3E3', '#8A5A00'], bajo: ['#E7F6EA', '#178029'] };
   function html(R, op) {
     if (!R) return '';
+    if (chica(op)) return '<details><summary style="cursor:pointer;list-style-position:inside;font-size:14px;font-weight:800;color:#2E3236;">Roya de la soja: <span style="padding:2px 9px;border-radius:99px;font-size:12px;background:#EEF0F2;color:#6B7075;">soja chica, todavía sin riesgo</span></summary><div style="margin-top:8px;">' + textoChica(op).map(function (x) { return '<div style="font-size:13.5px;color:#2E3236;line-height:1.45;margin-bottom:6px;">' + esc(x) + '</div>'; }).join('') + '<div style="font-size:11.5px;color:#8C9196;margin-top:6px;line-height:1.45;">' + FUENTE + ', p. 9 y 12. El día ' + DIAS_SOJA_CHICA + ' es un criterio de Irrigar; Embrapa habla del cierre del surco.</div></div></details>';
     var c = COL[R.nivel], chip = function (d) { return '<span style="display:inline-block;min-width:92px;text-align:center;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:700;background:' + (d.favorable ? '#FBECEA;color:#B5371C' : d.casi ? '#FDF3E3;color:#8A5A00' : '#EEF0F2;color:#6B7075') + ';">' + (d.favorable ? 'Favorable' : d.casi ? 'Casi' : 'No') + '</span>'; };
     var fila = function (d) { return '<tr><td style="padding:5px 6px 5px 0;border-top:1px solid #F0F2F4;white-space:nowrap;">' + esc(d.nombre) + (d.regado ? ' <span title="Se cargó un riego ese día o el anterior" style="color:#2E72C8;font-weight:700;">· riego</span>' : '') + '</td><td style="padding:5px 6px;border-top:1px solid #F0F2F4;">' + chip(d) + '</td><td style="padding:5px 0;border-top:1px solid #F0F2F4;text-align:right;color:#41464B;">' + (d.horas ? d.horas + ' h mojada' + (d.temp != null ? ' a ' + fmt(d.temp, 0) + ' °C' : '') + (d.lluvia > 0 ? ' · lluvia' : '') : 'hoja seca') + '</td></tr>'; };
     return '<details' + (op && op.abierto ? ' open' : '') + '><summary style="cursor:pointer;list-style-position:inside;font-size:14px;font-weight:800;color:#2E3236;">Roya de la soja: <span style="padding:2px 9px;border-radius:99px;font-size:12px;background:' + c[0] + ';color:' + c[1] + ';">' + esc(titulo(R)) + '</span></summary>' +
       '<div style="margin-top:8px;">' + consejo(R, op).map(function (x) { return '<div style="font-size:13.5px;color:#2E3236;line-height:1.45;margin-bottom:6px;">' + esc(x) + '</div>'; }).join('') +
       '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;"><tbody>' + R.pasados.slice(-3).concat(R.proximos).map(fila).join('') + '</tbody></table>' +
-      '<div style="font-size:11.5px;color:#8C9196;margin-top:8px;line-height:1.45;">No dice que haya roya: dice si el clima permite la infección. La roya necesita 6 horas o más de hoja mojada con 15 a 25 °C (' + FUENTE + '). La hoja mojada se estima con el pronóstico (lluvia, o humedad de 90 % o más); no es una medición. El aviso sobre el horario del riego es un criterio de SAFIA a partir de esa regla. La aplicación la decide el ingeniero agrónomo.</div></div></details>';
+      '<div style="font-size:11.5px;color:#8C9196;margin-top:8px;line-height:1.45;">No dice que haya roya: dice si el clima permite la infección. La roya necesita 6 horas o más de hoja mojada con 15 a 25 °C; con más de 27 °C durante el mojado, no cuenta (' + FUENTE + '). La hoja mojada se estima con el pronóstico (lluvia, o humedad de 90 % o más); no es una medición. El aviso sobre el horario del riego es un criterio de SAFIA a partir de esa regla. La aplicación la decide el ingeniero agrónomo.</div></div></details>';
   }
   // Pinta la tarjeta (solo soja). Devuelve la promesa con el resultado o null.
   function pintar(idCaja, lat, lon, op) {
@@ -114,10 +124,11 @@
   }
   function resumen(R, op) {
     if (!R) return null;
+    if (chica(op)) return { enfermedad: 'roya asiática de la soja', lectura: 'soja chica (día ' + op.dds + '): todavía sin riesgo de roya; SAFIA empieza a avisar desde el día ' + DIAS_SOJA_CHICA, que_hacer: textoChica(op), fuente: FUENTE + ', p. 9 y 12 (la mayor incidencia es desde el cierre del surco; antes solo con mucho inóculo: soja sobre soja o lote vecino más adelantado). El día ' + DIAS_SOJA_CHICA + ' es un criterio de Irrigar.' };
     return { enfermedad: 'roya asiática de la soja', lectura: titulo(R), dias_favorables_ultimos: R.favorablesPasados, dias_favorables_proximos: R.favorablesProximos,
       dia_por_dia: R.pasados.slice(-3).concat(R.proximos).map(function (d) { return d.nombre + ': ' + (d.favorable ? 'FAVORABLE' : d.casi ? 'casi' : 'no') + (d.horas ? ' (' + d.horas + ' h de hoja mojada' + (d.temp != null ? ' a ' + Math.round(d.temp) + ' °C' : '') + ')' : '') + (d.regado ? ', con riego cargado' : ''); }),
       que_hacer: consejo(R, op), fuente: FUENTE + ', p. 9 y 10: 6 h o más de hoja mojada con 15 a 25 °C; más de 8 h en los extremos (10 o 27 °C)',
       importante: 'No indica que haya roya en el lote: indica si el clima permite la infección. La hoja mojada es una estimación con el pronóstico (lluvia, o humedad relativa de 90 % o más). El aviso sobre el horario del riego es un criterio de SAFIA, no una recomendación publicada. SAFIA solo cubre la roya de la soja; para otras enfermedades no hay umbral cargado. La aplicación la decide el ingeniero agrónomo.' };
   }
-  window.SafiaEnfermedades = { analizar: analizar, favorable: favorable, riesgoRoya: riesgoRoya, html: html, pintar: pintar, resumen: resumen, esSoja: esSoja, UMBRALES: U, FUENTE: FUENTE };
+  window.SafiaEnfermedades = { analizar: analizar, favorable: favorable, riesgoRoya: riesgoRoya, html: html, pintar: pintar, resumen: resumen, esSoja: esSoja, chica: chica, DIAS_SOJA_CHICA: DIAS_SOJA_CHICA, UMBRALES: U, FUENTE: FUENTE };
 })();
