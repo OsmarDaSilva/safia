@@ -1399,7 +1399,8 @@
       window._pulvCoords = { lat, lon };
       if (window.SafiaPulverizar) SafiaPulverizar.pintar('pulvPanel', lat, lon, { abierto: window.innerWidth >= 1100 }).then(R => { const pc = document.getElementById('pulvCard'); if (pc) pc.style.display = R ? '' : 'none'; }).catch(() => {});
       // Clima favorable a la roya (solo con soja en campaña): pliegue debajo de los botones
-      if (window.SafiaEnfermedades) { const cr = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(equipoSeleccionadoId) && c.estado === 'Activa' && c.cultivos && c.cultivos[0]); const cuR = cr ? cr.cultivos[0] : null; SafiaEnfermedades.pintar('royaCard', lat, lon, { cultivo: cuR ? cuR.cultivo : '', equipoId: equipoSeleccionadoId, dds: cuR && cuR.fechaSiembra ? Math.floor((Date.now() - new Date(String(cuR.fechaSiembra).slice(0, 10) + 'T12:00:00')) / 86400000) : null }).catch(() => {}); }
+      window._pintarRoya = function () { if (!window.SafiaEnfermedades) return; const cr = JSON.parse(localStorage.getItem('campanas') || '[]').find(c => String(c.equipoId) === String(equipoSeleccionadoId) && c.estado === 'Activa' && c.cultivos && c.cultivos[0]); const cuR = cr ? cr.cultivos[0] : null; SafiaEnfermedades.pintar('royaCard', lat, lon, { cultivo: cuR ? cuR.cultivo : '', equipoId: equipoSeleccionadoId, siembra: cuR ? cuR.fechaSiembra : null, dds: cuR && cuR.fechaSiembra ? Math.floor((Date.now() - new Date(String(cuR.fechaSiembra).slice(0, 10) + 'T12:00:00')) / 86400000) : null }).catch(() => {}); };
+      window._pintarRoya();
 
       icono.textContent = '⏳';
       titulo.textContent = 'Consultando clima...';
@@ -1409,7 +1410,8 @@
       try {
         // Conexión robusta vía cliente compartido (safia-clima.js):
         // timeout + reintento ante 502/503/red + respaldo de caché + error honesto.
-        const pSat = SafiaBalance.prepararSatelite ? SafiaBalance.prepararSatelite([equipo]).catch(() => {}) : Promise.resolve();   // pasadas del satélite (consumo real del cultivo)
+        const pSat = SafiaBalance.prepararSatelite ? SafiaBalance.prepararSatelite([equipo]).catch(() => {}) : Promise.resolve();
+        pSat.then(() => { if (window._pintarRoya) window._pintarRoya(); });   // con las pasadas nuevas del satélite se sabe si la soja ya cerró el surco   // pasadas del satélite (consumo real del cultivo)
         const rClima = await SafiaClima.obtenerClima({
           lat, lon,
           daily: 'precipitation_sum,et0_fao_evapotranspiration,temperature_2m_max,temperature_2m_min',

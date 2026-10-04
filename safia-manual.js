@@ -49,7 +49,7 @@
         n: 'La ventana es un pronóstico: antes de pulverizar medí en el lote con termohigrómetro y anemómetro.' },
       { t: 'Roya de la soja: cuándo recorrer el lote', p: [
         'Con soja en campaña, debajo de los botones aparece el pliegue <b>Roya de la soja</b>. Dice si el clima permite la infección: verde, poco favorable; amarillo o rojo, favorable.',
-        'Con la <b>soja chica</b> (menos de 30 días desde la siembra) dice "todavía sin riesgo": la roya aparece sobre todo cuando el cultivo cierra el surco. La excepción es soja sobre soja o un lote vecino más adelantado.',
+        'Mientras la soja <b>no cierra el surco</b> dice "todavía sin riesgo": la roya aparece sobre todo desde el cierre. SAFIA lo mira con el satélite; si está nublado y no hay imagen, avisa desde el día 30. La excepción es soja sobre soja o un lote vecino más adelantado.',
         'La roya necesita <b>6 horas o más de hoja mojada</b> con 15 a 25 °C; con mucho calor (más de 27 °C) no cuenta. SAFIA lo estima con el pronóstico, noche por noche.',
         'Si dice <b>Favorable</b>, recorré el lote y avisale al agrónomo. No quiere decir que haya roya: quiere decir que, si hay esporas, pueden infectar.',
         'Si una noche dice <b>Casi</b> (3 a 5 horas de hoja mojada), no riegues al atardecer: el riego puede completar las 6 horas. Mejor de madrugada o de mañana.' ],

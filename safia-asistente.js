@@ -662,7 +662,7 @@
           salida.push(o);
           // clima favorable a la roya (solo soja): pronóstico por hora del lote
           var co = window.SafiaEnfermedades && SafiaEnfermedades.esSoja(o.cultivo) && window.SafiaBalance && SafiaBalance.coordenadasLote ? SafiaBalance.coordenadasLote(x.e, x.c) : null;
-          if (co) return SafiaEnfermedades.riesgoRoya(co.lat, co.lon, { equipoId: x.e.id }).then(function (R) { if (R) o.clima_para_la_roya = SafiaEnfermedades.resumen(R, { dds: D.dds }); }, function () {});
+          if (co) return SafiaEnfermedades.riesgoRoya(co.lat, co.lon, { equipoId: x.e.id }).then(function (R) { if (R) o.clima_para_la_roya = SafiaEnfermedades.resumen(R, { dds: D.dds, equipoId: x.e.id, siembra: D.siembra }); }, function () {});
         }, function (er) { salida.push({ campo: x.c.nombre, lote: x.e.nombre, error: String(er && er.message || er).slice(0, 120) }); });
       });
       return p.then(function () { return { pivots: salida, lotes_no_revisados: todos.length > lista.length ? todos.slice(lista.length).map(function (x) { return x.c.nombre + ' · ' + x.e.nombre; }) : undefined,
