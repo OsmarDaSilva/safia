@@ -521,7 +521,7 @@
         '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button></div>';
       else h += (function () {
-          var wa = window.SafiaAsistencia && SafiaAsistencia.enlace ? SafiaAsistencia.enlace({ equipoId: p.equipoId, motivo: p.motivo, fecha: p.fechaProblema, observaciones: p.descripcion, parado: p.parado }) : '';
+          var wa = window.SafiaAsistencia && SafiaAsistencia.enlace ? SafiaAsistencia.enlace({ equipoId: p.equipoId, motivo: p.motivo, fecha: p.fechaProblema, observaciones: p.descripcion, parado: p.parado, pedidoId: p.id }) : '';
           return wa ? '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #EEF0F2;"><a href="' + esc(wa) + '" target="_blank" rel="noopener" style="' + BV + 'display:inline-block;text-decoration:none;">Avisar también por WhatsApp</a><div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Abre WhatsApp con el mensaje ya escrito para el soporte de Irrigar.</div></div>' : '';
         })() + '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
         '<label style="' + LB + '">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +

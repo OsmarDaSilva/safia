@@ -45,12 +45,14 @@
     if (ev.observaciones) l.push('Nota: ' + ev.observaciones);
     if (isFinite(parseFloat(lat)) && isFinite(parseFloat(lon))) l.push('Ubicación: https://maps.google.com/?q=' + (+lat).toFixed(5) + ',' + (+lon).toFixed(5));
     if (u && u.nombre) l.push('Avisa: ' + u.nombre);
+    if (ev.pedidoId) l.push('Ver y asignar técnico en SAFIA: ' + location.origin + '/asistencias.html?p=' + encodeURIComponent(ev.pedidoId));
     return l.join('\n');
   }
   function enlace(ev) { var n = numero(); return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(mensaje(ev)) : ''; }
 
   // Ventana que aparece después de guardar la parada: avisa a Irrigar y ofrece el WhatsApp
   function pedir(ev, pedido) {
+    if (pedido && !ev.pedidoId) ev.pedidoId = pedido.id;   // el WhatsApp lleva el enlace al pedido
     var d = document.getElementById('safiaAsisModal'); if (d) d.remove();
     d = document.createElement('div'); d.id = 'safiaAsisModal';
     d.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
