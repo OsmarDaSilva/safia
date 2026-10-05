@@ -169,7 +169,7 @@
         (resto.length ? resto.map(u => {
           const esYo = yo && yo.id === u.id;
           return `<div class="fila-usr" data-id="${esc(u.id)}">
-            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${u.telefono ? ' · ' + esc(u.telefono) : ''}${esYo ? ' · <b>vos</b>' : ''}</div></div>
+            <div><input type="text" class="f-nombre" value="${esc(u.nombre || '')}" placeholder="Nombre"><input type="tel" class="f-tel" value="${esc(u.telefono || '')}" placeholder="Teléfono (ej.: 0981 123456)" style="margin-top:5px;"><div class="correo">${esc(window.SafiaUsuario ? SafiaUsuario.aUsuario(u.email || '') : (u.email || ''))}${esYo ? ' · <b>vos</b>' : ''}</div></div>
             <div><span class="badge ${u.estado === 'activo' ? 'green' : 'red'}">${u.estado === 'activo' ? 'Activo' : 'De baja'}</span>${u.aprobado_en ? '<div class="correo">desde ' + fmtF(u.aprobado_en) + '</div>' : ''}</div>
             <div><select class="f-rol" ${esYo || bloqueada(u) ? 'disabled' : ''}>${opcionesRol(u.rol)}</select></div>
             <div><select class="f-cliente">${opcionesClientes(u.cliente_id)}</select><div class="f-campos">${camposHtml(u.cliente_id, u.rol, u.campos)}</div></div>
@@ -183,7 +183,8 @@
     function datosFila(fila) {
       const rol = fila.querySelector('.f-rol').value;
       const campos = (rol === 'operador' || rol === 'encargado') ? Array.from(fila.querySelectorAll('.f-campo:checked')).map(x => x.value) : null;
-      return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), rol, clienteId: rol === 'tecnico' ? null : (fila.querySelector('.f-cliente').value || null), campos };   // el técnico va sin cliente
+      const tel = fila.querySelector('.f-tel');
+      return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), telefono: tel ? tel.value.trim() : undefined, rol, clienteId: rol === 'tecnico' ? null : (fila.querySelector('.f-cliente').value || null), campos };   // el técnico va sin cliente
     }
     // al cambiar rol o cliente de una fila, se vuelven a mostrar sus estancias
     document.addEventListener('change', (ev) => {
@@ -200,7 +201,7 @@
       const correr = (p, msg) => { ocupar(b, true); p.then(() => { toast(msg); return cargar(); }).catch(e => { toast(e.message || 'No se pudo', true); ocupar(b, false); }); };
       if (acc === 'aprobar') correr(SafiaSync.accionUsuario({ accion: 'aprobar', id: d.id, rol: d.rol, clienteId: d.clienteId, campos: d.campos, nombre: d.nombre }), 'Acceso aprobado: ' + (d.nombre || u.email));
       if (acc === 'rechazar') confirmar('Rechazar solicitud', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista de SAFIA. La cuenta sigue existiendo (puede volver a pedir acceso).`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Solicitud rechazada'));
-      if (acc === 'guardar') correr(SafiaSync.guardarUsuario(d.id, { nombre: d.nombre, rol: d.rol, cliente_id: d.clienteId, campos: d.campos }), 'Guardado');
+      if (acc === 'guardar') correr(SafiaSync.guardarUsuario(d.id, Object.assign({ nombre: d.nombre, rol: d.rol, cliente_id: d.clienteId, campos: d.campos }, d.telefono !== undefined ? { telefono: d.telefono || null } : {})), 'Guardado');
       if (acc === 'baja') confirmar('Dar de baja', `<b>${esc(d.nombre || u.email)}</b> no va a poder entrar más a SAFIA${u.email ? ' (' + esc(u.email) + ')' : ''}. Si usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas apps.`, () => correr(SafiaSync.accionUsuario({ accion: 'baja', id: d.id }), 'Usuario dado de baja'));
       if (acc === 'reactivar') correr(SafiaSync.accionUsuario({ accion: 'reactivar', id: d.id }), 'Usuario reactivado');
       if (acc === 'quitar') confirmar('Quitar de SAFIA', `Se saca a <b>${esc(d.nombre || u.email)}</b> de la lista. No borra la cuenta.`, () => correr(SafiaSync.accionUsuario({ accion: 'quitar', id: d.id }), 'Usuario quitado'));
