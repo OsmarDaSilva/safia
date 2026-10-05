@@ -133,7 +133,7 @@
     function dias(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000); }
     function fecha(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; }
     function usuario() { try { if (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) return SafiaSync.usuario(); } catch (e) {} try { return JSON.parse(_giSusc.call(window.localStorage, 'safia_usuario') || 'null'); } catch (e) { return null; } }
-    function soyIrrigar() { var u = usuario(); return !!u && (u.rol === 'admin' || u.rol === 'propietario'); }
+    function soyIrrigar() { var u = usuario(); return !!u && (u.rol === 'admin' || u.rol === 'propietario' || u.rol === 'tecnico'); }
     function registro(eqId) { return lista('suscripciones').find(function (x) { return x && String(x.id) === String(eqId); }) || null; }
     function vence(r) { var v = r && r.vence; return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : null; }
     function estadoPivot(eqId) {
@@ -534,6 +534,7 @@
   function programarRefresco() {
     setInterval(function () { if (document.visibilityState === 'visible' && navigator.onLine !== false) sincronizarTodo(false); }, INTERVALO_REFRESCO);
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') sincronizarTodo(false); });
+    window.addEventListener('online', function () { setTimeout(function () { sincronizarTodo(false); }, 1500); });   // volvió la señal: sube lo que se cargó sin señal
   }
 
   // Cambio de usuario en el mismo navegador: los datos del anterior no pueden quedar (ni mezclarse)

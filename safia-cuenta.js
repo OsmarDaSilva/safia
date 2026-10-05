@@ -40,10 +40,12 @@
     }
   } catch (e) {}
   var PAGINAS_OPERADOR = ['operador.html', 'eventos.html', 'encargado.html', 'voz.html', 'clima.html', 'prediccion.html', 'asistente.html', 'mis-campanas.html', 'seguimiento.html', 'asistencias.html'];   // Campañas desde el 30-sep-2026 (la base deja cargar y cambiar, no borrar)
+  var PAGINAS_TECNICO = ['asistencias.html'];   // técnico de Irrigar: solo Asistencia técnica (5-oct-2026)
   var PAGINAS_ESTRUCTURA = ['mis-equipos.html'];   // pivots y lotes: solo Irrigar (30-sep-2026; la base tampoco deja a nadie más)
   function paginaActual() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
   function fueraDeRol(rol, pag) {
     if (rol === 'operador') return PAGINAS_OPERADOR.indexOf(pag) < 0;
+    if (rol === 'tecnico') return PAGINAS_TECNICO.indexOf(pag) < 0;
     // dueño (cliente) y gerente (encargado) operan todo menos lo de Irrigar; los pivots y lotes los carga Irrigar
     if (rol === 'cliente') return PAGINAS_IRRIGAR.indexOf(pag) >= 0 || PAGINAS_ESTRUCTURA.indexOf(pag) >= 0;
     if (rol === 'encargado') return PAGINAS_IRRIGAR.indexOf(pag) >= 0 || PAGINAS_ESTRUCTURA.indexOf(pag) >= 0 || pag === 'mis-campos.html';   // las estancias se las asigna Irrigar
@@ -53,7 +55,7 @@
     if (!u || esAlto(u)) return;
     var rol = u.rol, pag = paginaActual();
     // Redirigir solo con el usuario confirmado por la nube (el guardado en el navegador puede estar viejo)
-    if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : rol === 'encargado' ? 'encargado.html' : 'index.html'); return; }
+    if (confirmado && fueraDeRol(rol, pag)) { location.replace(rol === 'operador' ? 'operador.html' : rol === 'encargado' ? 'encargado.html' : rol === 'tecnico' ? 'asistencias.html' : 'index.html'); return; }
     // el gerente sigue entrando por su pantalla de Encargado (el Dashboard le queda en el menú)
     if (confirmado && rol === 'encargado' && pag === 'index.html' && /login(\.html)?(\?|#|$)/i.test(document.referrer || '')) { location.replace('encargado.html'); return; }
     // Enlaces a pantallas que el rol no abre: los del menú y los que son un botón ("Cargar →") se esconden;
@@ -382,6 +384,7 @@
     d.style.cssText = 'position:fixed;inset:0;z-index:99995;background:rgba(20,25,30,.55);display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,sans-serif;';
     var alto = esAlto(usuario), rol = usuario && usuario.rol;
     var queLlega = alto ? 'Como Irrigar te llegan los pedidos de asistencia (cuando un cliente marca un pivot parado) en el momento, y las suscripciones que están por vencer (a 30, 15, 7, 3 y 1 día).' :
+      rol === 'tecnico' ? 'Te llega cuando la oficina de Irrigar te asigna una visita, y cuando el campo escribe o cierra un pedido tuyo. Si estás sin señal, te llega apenas vuelva.' :
       rol === 'operador' ? 'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También cuándo toca rotar los animales de piquete.' :
       rol === 'encargado' ? 'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También cuándo toca rotar los animales y cuándo hay mantenimiento vencido.' :
       'Cada mañana te llega el estado de cada pivot: cuánta agua útil tiene, si viene lluvia y qué hacer (no regar, arrancar tal día, arrancar hoy o regar ya). También el mantenimiento vencido.';
@@ -467,7 +470,7 @@
         AV.suscripcion().then(function (s) { if (!s) return; return AV.invocar('suscribir', { suscripcion: s.toJSON(), dispositivo: esteCelular() }).then(function () { try { localStorage.setItem('safia_avisos_sync', hoyK()); } catch (e) {} }); }).catch(function () {});
         return;
       }
-      if (Notification.permission !== 'default' || ['operador', 'encargado', 'cliente'].indexOf(u.rol) < 0) return;
+      if (Notification.permission !== 'default' || ['operador', 'encargado', 'cliente', 'tecnico'].indexOf(u.rol) < 0) return;
       var visto = null; try { visto = localStorage.getItem('safia_avisos_invita'); } catch (e) {}
       if (visto || $('safiaAvisoInvita') || paginaActual() === 'login.html') return;
       var b = document.createElement('div'); b.id = 'safiaAvisoInvita';

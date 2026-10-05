@@ -4,13 +4,16 @@
    pedido. Irrigar también puede dejar constancia de una asistencia resuelta por teléfono. Todo queda en el historial del pivot.
    Datos: colección `asistencias` (tabla safia_asistencias). Dos clases de registro, cada uno con su id (así dos personas
    escribiendo a la vez no se pisan): { tipo:'pedido', … } y { tipo:'nota', pedidoId, … }. Fotos: depósito `safia`,
-   carpeta campo_<id>/asistencia/<pedido>/. Avisos al celular: edge safia-asistencia (acciones pedir y avisar). */
+   carpeta campo_<id>/asistencia/<pedido>/. Avisos al celular: edge safia-asistencia (acciones pedir y avisar).
+   Técnicos (5-oct-2026): la oficina (propietario/admin) asigna cada pedido a un técnico con su orden en la ruta; el técnico
+   (rol 'tecnico') entra solo acá, ve "Mis visitas" en orden con "Cómo llegar", y si está sin señal lo que escribe queda en el
+   celular y sube solo, igual que los avisos, cuando vuelve la señal. La oficina le manda la ruta también por WhatsApp. */
 (function () {
   'use strict';
   var CLAVE = 'asistencias';
   var MOTIVOS = { electrica: 'Falla eléctrica', mecanica: 'Falla mecánica (rueda, motorreductor, estructura)', bomba: 'Falla de la bomba', energia: 'Corte de energía (ANDE)', agua: 'Falta de agua en la fuente', mantenimiento: 'Mantenimiento programado', consulta: 'Consulta o ajuste (el pivot anda)', otro: 'Otro motivo' };
   var CANALES = { telefono: 'Por teléfono', whatsapp: 'Por WhatsApp', visita: 'Visita al campo', remoto: 'Remoto (telemetría)' };
-  var ROLES = { sistema: 'automático', cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar' };
+  var ROLES = { sistema: 'automático', cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar', tecnico: 'técnico de Irrigar' };
 
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function lista(k) { try { var l = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
@@ -20,7 +23,10 @@
   function ahora() { return new Date().toISOString(); }
   function hoy() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
   function usuario() { var u = (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) || null; if (!u) { try { u = JSON.parse(localStorage.getItem('safia_usuario') || 'null'); } catch (e) {} } return u || { id: 'local', nombre: 'Usuario', rol: 'cliente' }; }
-  function esIrrigar() { var r = usuario().rol; return r === 'propietario' || r === 'admin'; }
+  function esOficina() { var r = usuario().rol; return r === 'propietario' || r === 'admin'; }
+  function esTecnico() { return usuario().rol === 'tecnico'; }
+  function esIrrigar() { return esOficina() || esTecnico(); }
+  function rolIrrigar(r) { return r === 'propietario' || r === 'admin' || r === 'tecnico'; }
   function yo() { var u = usuario(); return { id: u.id, nombre: u.nombre || u.email || 'Usuario', rol: u.rol }; }
   function firma(p) { return p ? esc(p.nombre) + ' (' + (ROLES[p.rol] || p.rol || '') + ')' : ''; }
   function equipo(id) { return lista('equipos').filter(function (e) { return String(e.id) === String(id); })[0] || null; }
@@ -71,13 +77,26 @@
     });
   }
   // El aviso al celular sale unos segundos después: primero el registro tiene que subir a la nube. Si falla, no frena nada.
+  var COLA = 'safia_avisos_cola';
+  function cola() { try { var l = JSON.parse(localStorage.getItem(COLA) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+  function encolar(a) { var l = cola(); l.push(a); try { localStorage.setItem(COLA, JSON.stringify(l.slice(-40))); } catch (e) {} }
+  function sinSenal(e) { return navigator.onLine === false || /Failed to fetch|NetworkError|sin conexión|Load failed|network/i.test(String(e && e.message || e)); }
   function avisar(pedidoId, evento, texto, vez) {
+    if (navigator.onLine === false) return encolar({ pedidoId: pedidoId, evento: evento, texto: texto || '' });   // sin señal: sale cuando vuelve
     setTimeout(function () {
       invocar('avisar', { pedidoId: pedidoId, evento: evento, texto: texto || '' }).catch(function (e) {
+        if (sinSenal(e) || ((vez || 1) >= 3 && /todavía no está en la nube/.test(e.message))) return encolar({ pedidoId: pedidoId, evento: evento, texto: texto || '' });
         if ((vez || 1) < 3 && /todavía no está en la nube/.test(e.message)) avisar(pedidoId, evento, texto, (vez || 1) + 1);
       });
     }, (vez || 1) === 1 ? 2500 : 7000);
   }
+  // al volver la señal: primero sube lo cargado (sync) y después salen los avisos que quedaron en cola
+  function vaciarCola() {
+    var l = cola(); if (!l.length || navigator.onLine === false) return;
+    localStorage.setItem(COLA, '[]');
+    l.forEach(function (a, i) { setTimeout(function () { avisar(a.pedidoId, a.evento, a.texto, 2); }, 9000 + i * 1500); });
+  }
+  window.addEventListener('online', vaciarCola);
 
   // Pedido nuevo. o = { equipoId, motivo, descripcion, fechaProblema, parado, paradaId }
   function crear(o) {
@@ -95,7 +114,49 @@
     var l = lista('eventos'); l.push(ev); localStorage.setItem('eventos', JSON.stringify(l));
     return ev;
   }
-  function tomar(id) { var p = cambiar(id, function (x) { x.tomadoPor = yo(); x.tomadoEn = ahora(); }); if (p) { notaSistema(p, 'Tomó el pedido.'); avisar(id, 'tomado'); } return p; }
+  function tomar(id) { var p = cambiar(id, function (x) { x.tomadoPor = yo(); x.tomadoEn = ahora(); if (esIrrigar()) { x.asignado = yo(); x.asignadoEn = ahora(); } }); if (p) { notaSistema(p, 'Tomó el pedido.'); avisar(id, 'tomado'); } return p; }
+  // Técnicos que la oficina puede asignar (técnicos primero; también la gente de la oficina que sale a campo). Se guardan en el
+  // celular para poder asignar aunque se corte la conexión.
+  var TEC = 'safia_tecnicos';
+  function tecnicos() { try { var l = JSON.parse(localStorage.getItem(TEC) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+  function tecnico(id) { return tecnicos().filter(function (t) { return String(t.id) === String(id); })[0] || null; }
+  function traerTecnicos() {
+    var sb = window.safiaSupabase; if (!sb || !esOficina()) return Promise.resolve(tecnicos());
+    return Promise.resolve(sb.from('safia_usuarios').select('id,nombre,email,telefono,rol,estado').in('rol', ['tecnico', 'admin', 'propietario']).eq('estado', 'activo')).then(function (r) {
+      if (r && r.data) { var l = r.data.map(function (u) { return { id: u.id, nombre: u.nombre || String(u.email || '').split('@')[0], telefono: u.telefono || '', rol: u.rol }; })
+        .sort(function (a, b) { return (a.rol === 'tecnico' ? 0 : 1) - (b.rol === 'tecnico' ? 0 : 1) || String(a.nombre).localeCompare(String(b.nombre)); });
+        try { localStorage.setItem(TEC, JSON.stringify(l)); } catch (e) {} }
+      return tecnicos();
+    }, function () { return tecnicos(); });
+  }
+  // Pedidos abiertos de un técnico, en el orden que le puso la oficina (sin orden: por visita y después por antigüedad)
+  function rutaDe(tecId) {
+    return pedidos().filter(function (p) { return p.estado !== 'cerrado' && p.asignado && String(p.asignado.id) === String(tecId); }).sort(function (a, b) {
+      var oa = a.ordenRuta > 0 ? a.ordenRuta : 999, ob = b.ordenRuta > 0 ? b.ordenRuta : 999; if (oa !== ob) return oa - ob;
+      return String(a.visita || '9999').localeCompare(String(b.visita || '9999')) || String(a.creado).localeCompare(String(b.creado)); });
+  }
+  function asignar(id, tec, orden) {
+    var t = { id: tec.id, nombre: tec.nombre, rol: tec.rol || 'tecnico' };
+    var p = cambiar(id, function (x) { x.asignado = t; x.ordenRuta = orden > 0 ? Math.round(orden) : null; x.asignadoEn = ahora(); x.asignadoPor = yo(); x.tomadoPor = t; if (!x.tomadoEn) x.tomadoEn = ahora(); });
+    if (p) { notaSistema(p, 'Asignado a ' + t.nombre + (p.ordenRuta ? ' (' + p.ordenRuta + '.º en su ruta)' : '') + '.'); avisar(id, 'asignado'); }
+    return p;
+  }
+  // Cómo llegar: el centro del pivot dibujado o, si no hay, la ubicación de la estancia (Google Maps)
+  function coordsDe(p) {
+    var e = equipo(p.equipoId) || {}, c = campo(p.campoId || e.campoId) || {}, ce = e.poligono && e.poligono.centro;
+    var lat = ce ? +ce.lat : parseFloat(String(c.latitud || '').replace(',', '.')), lon = ce ? +ce.lon : parseFloat(String(c.longitud || '').replace(',', '.'));
+    return isFinite(lat) && isFinite(lon) && Math.abs(lat) > 0.01 ? { lat: lat, lon: lon } : null;
+  }
+  function mapaUrl(p) { var k = coordsDe(p); return k ? 'https://www.google.com/maps/dir/?api=1&destination=' + k.lat.toFixed(6) + ',' + k.lon.toFixed(6) : ''; }
+  // WhatsApp al técnico: el número como lo cargaron (0981…, +595…) pasado a 595…
+  function telWa(t) { var d = String(t || '').replace(/\D/g, ''); if (!d) return ''; if (d.indexOf('00') === 0) d = d.slice(2); if (d.charAt(0) === '0') d = '595' + d.slice(1); else if (d.length === 9 && d.charAt(0) === '9') d = '595' + d; return d.length >= 10 ? d : ''; }
+  function textoPedidoRuta(p, n) {
+    var g = lugar(p), m = mapaUrl(p);
+    return (n ? n + '. ' : '') + g.pivot + [g.campo, g.cliente].filter(Boolean).map(function (x) { return ' · ' + x; }).join('') + '\n   ' + (MOTIVOS[p.motivo] || p.motivo) + (p.descripcion ? ': ' + p.descripcion.slice(0, 100) : '') +
+      (p.visita ? '\n   Visita: ' + fh(p.visita) : '') + (m ? '\n   Cómo llegar: ' + m : '') + '\n   Pedido: ' + location.origin + '/asistencias.html?p=' + encodeURIComponent(p.id);
+  }
+  function textoRuta(tecId) { var t = tecnico(tecId) || {}, l = rutaDe(tecId); return 'SAFIA · Visitas asignadas a ' + (t.nombre || 'vos') + ' (' + l.length + ')\n\n' + l.map(function (p, i) { return textoPedidoRuta(p, p.ordenRuta > 0 ? p.ordenRuta : i + 1); }).join('\n\n'); }
+  function waUrl(tel, texto) { var n = telWa(tel); return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(texto) : ''; }
   function fijarVisita(id, cuando) { var p = cambiar(id, function (x) { x.visita = cuando || null; if (!x.tomadoPor) { x.tomadoPor = yo(); x.tomadoEn = ahora(); } }); if (p && cuando) { notaSistema(p, 'Visita prevista: ' + fh(cuando) + '.'); avisar(id, 'visita'); } return p; }
   function cerrar(id, texto, informe) {
     var p = cambiar(id, function (x) { x.estado = 'cerrado'; x.cierre = { por: yo(), fecha: ahora(), texto: String(texto || '').trim() }; if (informe) x.informe = informe; });
@@ -254,6 +315,7 @@
   }
   function estadoTxt(p) {
     if (p.estado === 'cerrado') return 'Cerrado el ' + fh(p.cierre && p.cierre.fecha);
+    if (p.asignado && !p.visita) return 'Lo atiende ' + p.asignado.nombre + ' (Irrigar)';
     if (p.visita) return 'Visita prevista: ' + fh(p.visita) + (p.tomadoPor ? ' · ' + p.tomadoPor.nombre : '');
     if (p.tomadoPor) return 'Lo tomó ' + p.tomadoPor.nombre + ' (Irrigar)';
     return 'Esperando que Irrigar lo tome';
@@ -271,6 +333,7 @@
     var ps = pedidos().filter(function (p) { return String(p.equipoId) === String(equipoId); });
     if (!ps.length) return null;
     return ps.slice(0, 6).map(function (p) { return { pedido_el: String(p.creado).slice(0, 10), motivo: MOTIVOS[p.motivo] || p.motivo, descripcion: p.descripcion || undefined, estado: estadoTxt(p), pedido_por: p.pedidoPor ? p.pedidoPor.nombre : undefined,
+      tecnico_asignado: p.asignado ? p.asignado.nombre + (p.ordenRuta ? ' (' + p.ordenRuta + '.º en su ruta)' : '') : undefined,
       tardo_en_tomarse: p.tomadoEn && p.origen !== 'constancia' ? lapso(p.creado, p.tomadoEn) : undefined, tardo_en_resolverse: p.cierre && p.origen !== 'constancia' ? lapso(p.creado, p.cierre.fecha) : undefined,
       orden_de_servicio: p.orden ? ((p.orden.nro ? 'N.º ' + p.orden.nro : 'sin número') + (p.orden.foto ? ', con foto' : ', sin foto')) : (p.estado === 'cerrado' ? 'no cargada' : undefined), cerrado_solo_al_cargarse_un_riego: p.cierre && p.cierre.automatico ? true : undefined, como_se_resolvio: p.informe && (p.informe.solucion || p.informe.repuestos) ? [p.informe.solucion, p.informe.repuestos ? 'repuestos: ' + p.informe.repuestos : ''].filter(Boolean).join(' · ') || undefined : (p.cierre && p.cierre.texto) || undefined,
       constancia_de_irrigar: p.origen === 'constancia' ? (CANALES[p.informe && p.informe.canal] || 'sí') : undefined, notas: notasDe(p.id).filter(function (n) { return !n.sistema; }).length,
@@ -284,7 +347,7 @@
   var IN = 'width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #E1E4E7;border-radius:10px;font-size:14px;font-family:inherit;background:#fff;color:#2E3236;';
   var LB = 'display:block;font-size:12px;font-weight:700;color:#6B7075;margin:10px 0 4px;';
   function chip(p) {
-    var c = p.estado === 'cerrado' ? ['#EEF0F2', '#6B7075', p.origen === 'constancia' ? 'Constancia' : p.cierre && p.cierre.automatico ? 'Cerrado solo (se regó)' : 'Cerrado'] : p.visita ? ['#E7F6EA', '#178029', 'Visita ' + fh(p.visita)] : p.tomadoPor ? ['#E8F1FB', '#1F5FA8', 'Tomado'] : ['#FBECEA', '#B5371C', 'Sin tomar'];
+    var c = p.estado === 'cerrado' ? ['#EEF0F2', '#6B7075', p.origen === 'constancia' ? 'Constancia' : p.cierre && p.cierre.automatico ? 'Cerrado solo (se regó)' : 'Cerrado'] : p.visita ? ['#E7F6EA', '#178029', 'Visita ' + fh(p.visita)] : p.asignado ? ['#E8F1FB', '#1F5FA8', 'Asignado' + (p.ordenRuta ? ' · ' + p.ordenRuta + '.º' : '')] : p.tomadoPor ? ['#E8F1FB', '#1F5FA8', 'Tomado'] : ['#FBECEA', '#B5371C', esIrrigar() ? 'Sin asignar' : 'Sin tomar'];
     return '<span style="display:inline-block;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:700;background:' + c[0] + ';color:' + c[1] + ';white-space:nowrap;">' + esc(c[2]) + '</span>';
   }
   function equiposVisibles() { return lista('equipos').filter(function (e) { return !e.zona && !(window.SafiaBalance && SafiaBalance.esSecano && SafiaBalance.esSecano(e)); }); }
@@ -294,6 +357,8 @@
   }
   function opcionesMotivo(sel) { return Object.keys(MOTIVOS).map(function (k) { return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(MOTIVOS[k]) + '</option>'; }).join(''); }
   function aviso(t, ok) { return t ? '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;line-height:1.45;background:' + (ok ? '#E7F6EA' : '#FBECEA') + ';color:' + (ok ? '#178029' : '#B5371C') + ';">' + esc(t) + '</div>' : ''; }
+  function sinSenalHtml() { return navigator.onLine === false ? '<div style="margin:0 0 10px;padding:10px 12px;border-radius:8px;background:#FFF4DC;color:#8A5A00;font-size:13px;font-weight:600;line-height:1.45;">Sin señal: lo que escribas o cierres queda guardado en el celular y se manda solo cuando vuelva la señal. Las fotos y la orden de servicio necesitan señal.</div>' : ''; }
+  function mapaHtml(p, chico) { var m = mapaUrl(p); return m ? '<a href="' + esc(m) + '" target="_blank" rel="noopener" style="display:inline-block;' + (chico ? 'margin-top:8px;padding:6px 10px;font-size:12.5px;' : 'padding:8px 12px;font-size:13px;') + 'border-radius:8px;border:1.5px solid #CFE3D2;background:#F2FAF3;color:#178029;font-weight:700;text-decoration:none;">Cómo llegar</a>' : ''; }
   function ir(modo, id, msg, ok) { vista.editando = false; vista.borrando = false; if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
 
   function htmlLista() {
@@ -313,26 +378,48 @@
     var kpi = function (v, t, color) { return '<div style="flex:1;min-width:120px;background:#fff;border:1px solid #E1E4E7;border-radius:10px;padding:10px 12px;"><div style="font-size:22px;font-weight:800;color:' + (color || '#2E3236') + ';">' + v + '</div><div style="font-size:12px;color:#6B7075;">' + t + '</div></div>'; };
     var clientesConPedidos = {}; todos.forEach(function (p) { var g = lugar(p); if (g.clienteId) clientesConPedidos[g.clienteId] = g.cliente; });
     var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
-      '<button data-a="nuevo" style="' + BV + '">Pedir asistencia</button>' +
+      (esTecnico() ? '' : '<button data-a="nuevo" style="' + BV + '">Pedir asistencia</button>') +
       (irr ? '<button data-a="constancia" style="' + BG + '">Registrar asistencia ya resuelta</button>' : '') + '</div>' +
-      aviso(vista.msg, vista.msgOk) +
+      aviso(vista.msg, vista.msgOk) + sinSenalHtml() +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
         kpi(abiertos.length, 'pedidos abiertos', abiertos.length ? '#B5371C' : '#178029') +
-        kpi(abiertos.filter(function (p) { return !p.tomadoPor; }).length, 'sin tomar') +
+        kpi(abiertos.filter(function (p) { return !p.tomadoPor; }).length, irr ? 'sin asignar' : 'sin tomar', irr && abiertos.some(function (p) { return !p.tomadoPor; }) ? '#B5371C' : null) +
         kpi(hrs(tResp), 'tardó Irrigar en tomarlos (promedio)') + kpi(hrs(tRes), 'tardaron en resolverse (promedio)') + '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">' +
-        ['abiertos', 'cerrados', 'todos', 'pendientes'].map(function (f) { return '<button data-f="' + f + '" style="' + B + 'padding:7px 12px;border:1.5px solid ' + (vista.filtro === f ? '#22A93A;background:#E7F6EA;color:#178029' : '#E1E4E7;background:#fff;color:#41464B') + ';">' + (f === 'abiertos' ? 'Abiertos' : f === 'cerrados' ? 'Historial (cerrados)' : f === 'pendientes' ? 'Repuestos pendientes (' + pendientes(true).length + ')' : 'Todos') + '</button>'; }).join('') +
+        (esTecnico() ? ['mias', 'abiertos', 'cerrados', 'pendientes'] : esOficina() ? ['abiertos', 'ruta', 'cerrados', 'todos', 'pendientes'] : ['abiertos', 'cerrados', 'todos', 'pendientes']).map(function (f) { return '<button data-f="' + f + '" style="' + B + 'padding:7px 12px;border:1.5px solid ' + (vista.filtro === f ? '#22A93A;background:#E7F6EA;color:#178029' : '#E1E4E7;background:#fff;color:#41464B') + ';">' + (f === 'mias' ? 'Mis visitas (' + rutaDe(yo().id).length + ')' : f === 'ruta' ? 'Por técnico' : f === 'abiertos' ? 'Abiertos' : f === 'cerrados' ? 'Historial (cerrados)' : f === 'pendientes' ? 'Repuestos pendientes (' + pendientes(true).length + ')' : 'Todos') + '</button>'; }).join('') +
         (irr && Object.keys(clientesConPedidos).length > 1 ? '<select id="asFCliente" style="' + IN + 'width:auto;padding:7px 10px;"><option value="">Todos los clientes</option>' + Object.keys(clientesConPedidos).map(function (k) { return '<option value="' + esc(k) + '"' + (String(k) === String(vista.cliente) ? ' selected' : '') + '>' + esc(clientesConPedidos[k]) + '</option>'; }).join('') + '</select>' : '') +
         '<select id="asFEquipo" style="' + IN + 'width:auto;max-width:100%;padding:7px 10px;"><option value="">Todos los pivots</option>' + opcionesEquipo(vista.equipo) + '</select></div>';
     if (vista.filtro === 'pendientes') return h + htmlPendientes();
+    if (vista.filtro === 'ruta') return h + htmlRuta();
+    if (vista.filtro === 'mias') { l = rutaDe(yo().id); if (!l.length) return h + '<div style="background:#fff;border:1px dashed #C9CED3;border-radius:10px;padding:22px;text-align:center;color:#6B7075;font-size:14px;line-height:1.5;">No tenés visitas asignadas. Cuando la oficina te asigne una, te llega el aviso y aparece acá, en orden.</div>'; }
     if (!l.length) return h + '<div style="background:#fff;border:1px dashed #C9CED3;border-radius:10px;padding:22px;text-align:center;color:#6B7075;font-size:14px;line-height:1.5;">' + (vista.filtro === 'abiertos' ? 'No hay pedidos de asistencia abiertos.' : 'No hay pedidos para mostrar.') + '</div>';
-    return h + l.map(function (p) {
+    return h + l.map(function (p, i) {
       var g = lugar(p), n = notasDe(p.id).filter(function (x) { return !x.sistema; }), paradaCerrada = volvioAAndar(p);
       return '<div data-p="' + esc(p.id) + '" style="background:#fff;border:1px solid #E1E4E7;border-left:4px solid ' + (p.estado === 'cerrado' ? '#B9BEC3' : p.tomadoPor ? '#1F5FA8' : '#B5371C') + ';border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div style="font-size:15px;font-weight:800;color:#2E3236;">' + esc(g.pivot) + '<span style="font-weight:500;color:#6B7075;font-size:13px;"> · ' + esc([g.campo, irr ? g.cliente : ''].filter(Boolean).join(' · ')) + '</span></div>' + chip(p) + '</div>' +
         '<div style="font-size:13.5px;color:#41464B;margin-top:4px;line-height:1.45;"><b>' + esc(MOTIVOS[p.motivo] || p.motivo) + '</b>' + (p.descripcion ? ' · ' + esc(p.descripcion.slice(0, 160)) : '') + '</div>' +
         '<div style="font-size:12px;color:#8C9196;margin-top:4px;">' + (p.origen === 'constancia' ? 'Constancia de ' + firma(p.pedidoPor) + ' · ' + fd(p.fechaProblema) : 'Pedido el ' + fh(p.creado) + ' por ' + firma(p.pedidoPor) + (p.estado !== 'cerrado' ? ' · hace ' + lapso(p.creado) : ' · resuelto en ' + lapso(p.creado, p.cierre && p.cierre.fecha))) +
-          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length ? ' · <b style="color:#B5371C;">' + pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length + ' repuesto(s) pendiente(s)</b>' : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div>' + (irr && p.estado !== 'cerrado' ? '<div style="margin-top:8px;font-size:13px;font-weight:700;color:#178029;">Abrir para responder, cargar la visita o registrar la solución</div>' : '') + '</div>';
+          (n.length ? ' · ' + n.length + (n.length === 1 ? ' nota' : ' notas') : '') + (pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length ? ' · <b style="color:#B5371C;">' + pendientesDe(p.id).filter(function (x) { return x.estado !== 'entregado'; }).length + ' repuesto(s) pendiente(s)</b>' : '') + (p.orden && (p.orden.foto || p.orden.nro) ? ' · <b>con orden de servicio' + (p.orden.nro ? ' N.º ' + esc(p.orden.nro) : '') + '</b>' : '') + (paradaCerrada ? ' · <b style="color:#178029;">el pivot ya volvió a andar</b>' : '') + '</div>' +
+        (p.asignado && p.estado !== 'cerrado' ? '<div style="font-size:12.5px;color:#1F5FA8;font-weight:700;margin-top:4px;">' + (vista.filtro === 'mias' ? (p.ordenRuta > 0 ? p.ordenRuta : i + 1) + '.º en tu ruta' : 'Técnico: ' + esc(p.asignado.nombre) + (p.ordenRuta ? ' · ' + p.ordenRuta + '.º en su ruta' : '')) + (p.visita ? ' · visita ' + fh(p.visita) : '') + '</div>' : '') +
+        (irr && p.estado !== 'cerrado' ? mapaHtml(p, true) : '') + (irr && p.estado !== 'cerrado' ? '<div style="margin-top:8px;font-size:13px;font-weight:700;color:#178029;">Abrir para responder, cargar la visita o registrar la solución</div>' : '') + '</div>';
+    }).join('');
+  }
+
+  // Oficina: la ruta de cada técnico, en orden, con el botón para mandársela por WhatsApp
+  function htmlRuta() {
+    var abiertos = pedidos().filter(function (p) { return p.estado !== 'cerrado'; }), sin = abiertos.filter(function (p) { return !p.asignado; });
+    var ids = tecnicos().map(function (t) { return String(t.id); }); abiertos.forEach(function (p) { if (p.asignado && ids.indexOf(String(p.asignado.id)) < 0) ids.push(String(p.asignado.id)); });
+    var fila = function (p, n) { var g = lugar(p); return '<div data-p="' + esc(p.id) + '" style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #F0F2F4;cursor:pointer;"><div style="flex:none;width:28px;height:28px;border-radius:99px;background:' + (n ? '#E8F1FB;color:#1F5FA8' : '#FBECEA;color:#B5371C') + ';font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">' + (n || '!') + '</div>' +
+      '<div style="min-width:0;flex:1;"><div style="font-size:14px;font-weight:700;color:#2E3236;">' + esc(g.pivot) + ' <span style="font-weight:500;color:#6B7075;font-size:12.5px;">· ' + esc([g.campo, g.cliente].filter(Boolean).join(' · ')) + '</span></div><div style="font-size:12.5px;color:#41464B;">' + esc(MOTIVOS[p.motivo] || p.motivo) + ' · pedido hace ' + lapso(p.creado) + (p.visita ? ' · <b>visita ' + fh(p.visita) + '</b>' : '') + (p.parado ? ' · <b style="color:#B5371C;">parado</b>' : '') + '</div></div>' + mapaHtml(p, true) + '</div>'; };
+    var h = '<div style="background:#fff;border:1px solid #E1E4E7;border-left:4px solid #B5371C;border-radius:12px;padding:12px 14px;margin-bottom:10px;"><div style="font-size:15px;font-weight:800;color:#2E3236;">Sin asignar <span style="font-weight:500;color:#6B7075;font-size:13px;">· ' + sin.length + '</span></div>' +
+      (sin.length ? sin.map(function (p) { return fila(p, 0); }).join('') + '<div style="font-size:12px;color:#8C9196;margin-top:6px;">Tocá un pedido para elegir el técnico y su orden en la ruta.</div>' : '<div style="font-size:13px;color:#8C9196;margin-top:4px;">Todos los pedidos abiertos tienen técnico.</div>') + '</div>';
+    if (!tecnicos().length) h += aviso('Todavía no hay técnicos cargados. En Usuarios, creá un acceso con el rol "Técnico de Irrigar" y su teléfono.');
+    return h + ids.map(function (id) {
+      var t = tecnico(id) || {}, l = rutaDe(id), nombre = t.nombre || ((l[0] || {}).asignado || {}).nombre || 'Técnico', wa = l.length && t.telefono ? waUrl(t.telefono, textoRuta(id)) : '';
+      if (!l.length && t.rol && t.rol !== 'tecnico') return '';   // la gente de la oficina aparece solo si tiene algo asignado
+      return '<div style="background:#fff;border:1px solid #E1E4E7;border-left:4px solid #1F5FA8;border-radius:12px;padding:12px 14px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;"><div style="font-size:15px;font-weight:800;color:#2E3236;">' + esc(nombre) + ' <span style="font-weight:500;color:#6B7075;font-size:13px;">· ' + (l.length ? l.length + (l.length === 1 ? ' visita' : ' visitas') : 'libre') + (t.telefono ? ' · ' + esc(t.telefono) : '') + '</span></div>' +
+        (wa ? '<a href="' + esc(wa) + '" target="_blank" rel="noopener" style="' + BG + 'padding:7px 11px;font-size:12.5px;text-decoration:none;">Mandar la ruta por WhatsApp</a>' : l.length && !t.telefono ? '<span style="font-size:12px;color:#8C9196;">Sin teléfono cargado en Usuarios</span>' : '') + '</div>' +
+        l.map(function (p, i) { return fila(p, p.ordenRuta > 0 ? p.ordenRuta : i + 1); }).join('') + '</div>';
     }).join('');
   }
 
@@ -377,12 +464,13 @@
     var g = lugar(p), irr = esIrrigar(), ns = notasDe(p.id), abierto = p.estado !== 'cerrado', inf = p.informe || {};
     var fila = function (a, b) { return b ? '<div style="display:flex;gap:10px;font-size:13.5px;line-height:1.5;padding:3px 0;"><div style="flex:none;width:120px;color:#8C9196;">' + a + '</div><div style="color:#2E3236;">' + b + '</div></div>' : ''; };
     var paradaCerrada = volvioAAndar(p);
-    var h = '<button data-a="volver" style="' + BG + 'margin-bottom:12px;">Volver a la lista</button>' + aviso(vista.msg, vista.msgOk) +
+    var h = '<button data-a="volver" style="' + BG + 'margin-bottom:12px;">Volver a la lista</button>' + aviso(vista.msg, vista.msgOk) + sinSenalHtml() +
       '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:16px;margin-bottom:10px;">' +
-      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div><div style="font-size:18px;font-weight:800;color:#2E3236;">' + esc(g.pivot) + '</div><div style="font-size:13px;color:#6B7075;">' + esc([g.campo, g.cliente].filter(Boolean).join(' · ')) + '</div></div>' + chip(p) + '</div>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;"><div><div style="font-size:18px;font-weight:800;color:#2E3236;">' + esc(g.pivot) + '</div><div style="font-size:13px;color:#6B7075;">' + esc([g.campo, g.cliente].filter(Boolean).join(' · ')) + '</div>' + (irr && abierto ? '<div style="margin-top:6px;">' + mapaHtml(p) + '</div>' : '') + '</div>' + chip(p) + '</div>' +
       '<div style="margin-top:10px;">' + fila('Motivo', esc(MOTIVOS[p.motivo] || p.motivo)) + fila('Qué pasa', esc(p.descripcion)) +
         fila(p.origen === 'constancia' ? 'Constancia de' : 'Lo pidió', firma(p.pedidoPor) + ' · ' + fh(p.creado)) +
-        (p.origen === 'constancia' ? fila('Fecha', fd(p.fechaProblema)) + fila('Se atendió', esc(CANALES[inf.canal] || '')) : fila('Lo tomó', p.tomadoPor ? esc(p.tomadoPor.nombre) + ' (Irrigar) · ' + fh(p.tomadoEn) + ' · a los ' + lapso(p.creado, p.tomadoEn) : '<span style="color:#B5371C;font-weight:700;">Todavía nadie de Irrigar lo tomó</span>') +
+        (p.origen === 'constancia' ? fila('Fecha', fd(p.fechaProblema)) + fila('Se atendió', esc(CANALES[inf.canal] || '')) : fila('Lo tomó', p.tomadoPor ? esc(p.tomadoPor.nombre) + (p.tomadoPor.rol === 'tecnico' ? ' (técnico de Irrigar)' : ' (Irrigar)') + ' · ' + fh(p.tomadoEn) + ' · a los ' + lapso(p.creado, p.tomadoEn) : '<span style="color:#B5371C;font-weight:700;">Todavía nadie de Irrigar lo tomó</span>') +
+          fila('Técnico', p.asignado ? '<b>' + esc(p.asignado.nombre) + '</b>' + (p.ordenRuta ? ' · ' + p.ordenRuta + '.º en su ruta' : '') + (p.asignadoPor ? ' · lo asignó ' + esc(p.asignadoPor.nombre) + ' ' + fh(p.asignadoEn) : '') : '') +
           fila('Visita prevista', p.visita ? '<b>' + fh(p.visita) + '</b>' : '')) +
         (p.cierre ? fila('Cerrado', firma(p.cierre.por) + ' · ' + fh(p.cierre.fecha) + (p.origen !== 'constancia' ? ' · resuelto en ' + lapso(p.creado, p.cierre.fecha) : '')) + fila('Al cerrar', esc(p.cierre.texto)) : '') +
         fila('Causa', esc(inf.causa && inf.causa !== p.descripcion ? inf.causa : '')) + fila('Solución', esc(inf.solucion && (!p.cierre || inf.solucion !== p.cierre.texto) ? inf.solucion : '')) + fila('Repuestos', esc(inf.repuestos)) +
@@ -402,12 +490,23 @@
         : '<div style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;">' +
           (irr || abierto ? '<button data-a="edAbrir" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Editar</button>' : '') +
           (!abierto ? '<button data-a="reabrir" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Reabrir el pedido</button>' : '') +
-          (irr ? '<button data-a="borrar" style="' + BR + 'padding:7px 11px;font-size:12.5px;margin-left:auto;">Borrar</button>' : '') + '</div>') + '</div>';
+          (esOficina() ? '<button data-a="borrar" style="' + BR + 'padding:7px 11px;font-size:12.5px;margin-left:auto;">Borrar</button>' : '') + '</div>') + '</div>';
 
     // acciones
     if (abierto) {
       h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;">';
       if (irr) h += '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Irrigar</div>' +
+        (esOficina() ? (function () {
+          var ts = tecnicos(), sel = p.asignado ? String(p.asignado.id) : (ts[0] ? String(ts[0].id) : ''), sig = sel ? rutaDe(sel).filter(function (x) { return String(x.id) !== String(p.id); }).length + 1 : 1, t = p.asignado ? tecnico(p.asignado.id) : null;
+          var wa = p.asignado && t && t.telefono ? waUrl(t.telefono, 'SAFIA · Visita asignada\n\n' + textoPedidoRuta(p, p.ordenRuta)) : '';
+          return '<div style="padding:10px 12px;border-radius:10px;background:#F4F7FB;margin-bottom:12px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">' + (p.asignado ? 'Técnico asignado: ' + esc(p.asignado.nombre) : 'Asignar un técnico') + '</div>' +
+            (ts.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:6px;"><div style="flex:1;min-width:170px;"><label style="' + LB + 'margin-top:0;">Técnico</label><select id="asTec" style="' + IN + '">' + ts.map(function (x) { return '<option value="' + esc(x.id) + '"' + (String(x.id) === sel ? ' selected' : '') + '>' + esc(x.nombre) + (x.rol === 'tecnico' ? '' : ' (oficina)') + ' · ' + rutaDe(x.id).length + ' en ruta</option>'; }).join('') + '</select></div>' +
+              '<div style="width:110px;"><label style="' + LB + 'margin-top:0;">Orden en su ruta</label><input id="asOrden" type="number" min="1" step="1" value="' + (p.ordenRuta || sig) + '" style="' + IN + '"></div>' +
+              '<button data-a="asignar" style="' + BV + '">' + (p.asignado ? 'Cambiar' : 'Asignar') + '</button></div>' +
+              '<div style="font-size:12px;color:#6B7075;margin-top:6px;line-height:1.4;">Al técnico le llega el aviso con el orden y cómo llegar; al campo, que ya tiene técnico. 1 = va primero.</div>' +
+              (wa ? '<a href="' + esc(wa) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;' + BG + 'padding:7px 11px;font-size:12.5px;text-decoration:none;">Mandarle este pedido por WhatsApp</a>' : p.asignado && t && !t.telefono ? '<div style="font-size:12px;color:#8C9196;margin-top:6px;">Para mandárselo por WhatsApp, cargale el teléfono en Usuarios.</div>' : '')
+            : '<div style="font-size:13px;color:#6B7075;margin-top:4px;line-height:1.45;">Todavía no hay técnicos cargados. En Usuarios, creá un acceso con el rol "Técnico de Irrigar" y su teléfono.</div>') + '</div>';
+        })() : '') +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">' +
         (!p.tomadoPor || String(p.tomadoPor.id) !== String(yo().id) ? '<button data-a="tomar" style="' + BV + '">' + (p.tomadoPor ? 'Tomarlo yo' : 'Tomar el pedido') + '</button>' : '') +
         '<div style="flex:1;min-width:190px;"><label style="' + LB + 'margin-top:0;">Visita prevista (día y hora)</label><input id="asVisita" type="datetime-local" value="' + esc(p.visita || '') + '" style="' + IN + '"></div>' +
@@ -451,7 +550,7 @@
       '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Conversación de este pedido</div>';
     h += ns.length ? ns.map(function (n) {
       if (n.sistema) return '<div style="text-align:center;font-size:12px;color:#8C9196;margin:8px 0;">' + esc(n.autor && n.autor.nombre) + ' · ' + esc(n.texto) + ' · ' + fh(n.creado) + '</div>';
-      var mia = String(n.autor && n.autor.id) === String(yo().id), deIrr = n.autor && (n.autor.rol === 'propietario' || n.autor.rol === 'admin');
+      var mia = String(n.autor && n.autor.id) === String(yo().id), deIrr = n.autor && rolIrrigar(n.autor.rol);
       return '<div style="display:flex;justify-content:' + (mia ? 'flex-end' : 'flex-start') + ';margin:6px 0;"><div style="max-width:86%;background:' + (deIrr ? '#E8F1FB' : '#F1F3F4') + ';border-radius:12px;padding:8px 11px;">' +
         '<div style="font-size:11.5px;font-weight:700;color:' + (deIrr ? '#1F5FA8' : '#41464B') + ';">' + firma(n.autor) + ' · ' + fh(n.creado) + '</div>' +
         (n.texto ? '<div style="font-size:14px;color:#2E3236;line-height:1.45;white-space:pre-wrap;margin-top:2px;">' + esc(n.texto) + '</div>' : '') +
@@ -469,7 +568,7 @@
       '<div style="min-width:0;"><div style="font-size:14px;font-weight:700;color:' + (hecho ? '#8C9196;text-decoration:line-through' : '#2E3236') + ';">' + esc(x.texto) + '</div>' +
       '<div style="font-size:12px;color:#8C9196;line-height:1.4;">' + esc(DESTINOS[x.destino] || '') + ' · lo anotó ' + firma(x.autor) + ' el ' + fh(x.creado) + (hecho && x.resuelto ? ' · <b style="color:#178029;">entregado</b> ' + fh(x.resuelto.fecha) + ' (' + esc(x.resuelto.por && x.resuelto.por.nombre) + ')' : '') + '</div></div>' +
       '<div style="display:flex;gap:6px;flex:none;">' + (hecho ? '<button data-a="pendVolver" data-id="' + esc(x.id) + '" style="' + BG + 'padding:6px 10px;font-size:12.5px;">Sigue pendiente</button>' : '<button data-a="pendHecho" data-id="' + esc(x.id) + '" style="' + BV + 'padding:6px 10px;font-size:12.5px;">Entregado</button>') +
-      (esIrrigar() ? '<button data-a="pendQuitar" data-id="' + esc(x.id) + '" style="' + BR + 'padding:6px 10px;font-size:12.5px;">Quitar</button>' : '') + '</div></div>';
+      (esOficina() ? '<button data-a="pendQuitar" data-id="' + esc(x.id) + '" style="' + BR + 'padding:6px 10px;font-size:12.5px;">Quitar</button>' : '') + '</div></div>';
   }
   // La lista de pendientes de todos los pedidos, por cliente y por pivot: para armar el envío o lo que lleva el técnico
   function gruposPendientes() {
@@ -516,6 +615,7 @@
     vista.msg = '';
   }
   function alClic(ev) {
+    if (ev.target.closest && ev.target.closest('a[target="_blank"]')) return;   // Cómo llegar y WhatsApp abren aparte, sin abrir el pedido
     var t = ev.target, b = t.closest ? t.closest('[data-a]') : null, f = t.closest ? t.closest('[data-f]') : null, card = t.closest ? t.closest('[data-p]') : null;
     if (f) { vista.filtro = f.getAttribute('data-f'); return pintar(); }
     if (!b) { if (card) { ev.preventDefault(); ir('detalle', card.getAttribute('data-p')); } return; }
@@ -580,6 +680,11 @@
       if (b.getAttribute('data-seguro') !== '1') { b.setAttribute('data-seguro', '1'); b.textContent = '¿Borrar con sus notas, fotos y pendientes? Tocá de nuevo'; return; }
       borrar(id); return ir('lista', null, 'Pedido borrado.', true);
     }
+    if (a === 'asignar') {
+      var tec = tecnico(val('asTec')); if (!tec) { vista.msg = 'Elegí el técnico.'; return pintar(); }
+      asignar(id, tec, parseInt(val('asOrden'), 10));
+      return ir('detalle', id, 'Asignado a ' + tec.nombre + '. Le llega el aviso' + (tec.telefono ? '; si está sin señal, mandale también el WhatsApp de abajo.' : '.'), true);
+    }
     if (a === 'tomar') { tomar(id); return ir('detalle', id, 'Tomaste el pedido. Al campo le llega el aviso.', true); }
     if (a === 'visita') { var v = val('asVisita'); if (!v) { vista.msg = 'Elegí el día y la hora de la visita.'; return pintar(); } fijarVisita(id, v); return ir('detalle', id, 'Visita guardada. Al campo le llega el aviso.', true); }
     if (a === 'cerrarIrrigar') {
@@ -618,9 +723,12 @@
     cont = c; cont.addEventListener('click', alClic); cont.addEventListener('change', alCambio);
     var q = new URLSearchParams(location.search);
     if (q.get('equipo')) vista.equipo = q.get('equipo');
+    if (esTecnico()) vista.filtro = 'mias';   // el técnico arranca en sus visitas, en orden
     if (q.get('p')) { vista.modo = 'detalle'; vista.id = q.get('p'); var pp = pedido(vista.id); if (pp && pp.estado === 'cerrado') vista.filtro = 'cerrados'; }
     else if (q.get('nuevo')) vista.modo = 'nuevo';
     pintar();
+    if (esOficina()) traerTecnicos().then(function () { if (vista.modo === 'detalle' || vista.filtro === 'ruta') pintar(); });
+    window.addEventListener('online', function () { pintar(); }); window.addEventListener('offline', function () { pintar(); });
     // lo que escribió la otra parte llega con la sincronización: se vuelve a pintar si cambió algo y nadie está escribiendo
     var huella = localStorage.getItem(CLAVE) || '';
     setInterval(function () {
@@ -632,7 +740,7 @@
     if (window.SafiaSync && SafiaSync.refrescar && vista.modo === 'detalle') setInterval(function () { if (!document.hidden && vista.modo === 'detalle') { try { SafiaSync.refrescar(); } catch (e) {} } }, 30000);
   }
 
-  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, repararEquipos: repararEquipos, editar: editar, reabrir: reabrir, borrar: borrar, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
+  window.SafiaAsistencias = { montar: montar, crear: crear, pedidos: pedidos, pedido: pedido, notasDe: notasDe, abiertoDe: abiertoDe, tomar: tomar, asignar: asignar, rutaDe: rutaDe, tecnicos: tecnicos, traerTecnicos: traerTecnicos, mapaUrl: mapaUrl, telWa: telWa, fijarVisita: fijarVisita, nota: nota, cerrar: cerrar, cerrarPorRiego: cerrarPorRiego, repararEquipos: repararEquipos, editar: editar, reabrir: reabrir, borrar: borrar, guardarOrden: guardarOrden, selector: selector, elegido: elegido, elegidos: elegidos, notaVarios: notaVarios, pendientes: pendientes, pendientesDe: pendientesDe, agregarPendientes: agregarPendientes, marcarPendiente: marcarPendiente, constancia: constancia, guardarInforme: guardarInforme,
     tarjetaOperador: tarjetaOperador, resumenEquipo: resumenEquipo, estadoTxt: estadoTxt, MOTIVOS: MOTIVOS };
   // al abrir cualquier pantalla que cargue este módulo (Operador, Asistencia, Asistente), con los datos ya bajados de la nube
   function repararEquipos() {
@@ -645,6 +753,6 @@
     };
     return arreglar('eventos', function (x) { return x.tipo === 'parada'; }) + arreglar(CLAVE, function () { return true; });
   }
-  var alArrancar = function () { try { repararEquipos(); } catch (e) {} try { cerrarPorRiego(); } catch (e) {} };
+  var alArrancar = function () { try { repararEquipos(); } catch (e) {} try { cerrarPorRiego(); } catch (e) {} try { vaciarCola(); } catch (e) {} };
   if (window.SafiaSync && SafiaSync.alListo) SafiaSync.alListo(function () { setTimeout(alArrancar, 1500); }); else setTimeout(alArrancar, 1500);
 })();

@@ -3,7 +3,9 @@
 //   soporte          → el número de WhatsApp de soporte de Irrigar (para armar el enlace en el celular del operador)
 //   soporte_guardar  → (solo Irrigar) guarda ese número                       { whatsapp }
 //   pedir            → avisa al celular de los usuarios de Irrigar que tienen los avisos activados   { equipoId, motivo, fecha, nota, pedidoId }
-//   avisar           → novedad de un pedido (tomado, visita, nota, cerrado): avisa a la otra parte   { pedidoId, evento, texto }
+//   avisar           → novedad de un pedido (tomado, visita, nota, cerrado, asignado): avisa a la otra parte   { pedidoId, evento, texto }
+// v3 (5-oct-2026): rol técnico. La oficina (propietario/admin) asigna cada pedido a un técnico con su orden en la ruta:
+//   al técnico le llega "Visita asignada" y al campo "Irrigar asignó a …". Lo que escribe el campo le llega al técnico asignado.
 // El número y las llaves del envío viven en safia_avisos_config (solo servidor). El envío es el mismo de safia-avisos.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -53,7 +55,8 @@ async function enviarPush(disp, mensaje, vapid, contacto) {
 type Cualquiera = any;
 const hoyPY = () => new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);   // Paraguay = UTC-3 todo el año
 const MOTIVOS: Record<string, string> = { electrica: 'falla eléctrica', mecanica: 'falla mecánica', bomba: 'falla de la bomba', energia: 'corte de energía (ANDE)', agua: 'falta de agua en la fuente', mantenimiento: 'mantenimiento programado', consulta: 'consulta o ajuste', otro: 'otro motivo' };
-const ROLES: Record<string, string> = { cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar' };
+const ROLES: Record<string, string> = { cliente: 'dueño', encargado: 'encargado', operador: 'operador', propietario: 'Irrigar', admin: 'Irrigar', tecnico: 'técnico de Irrigar' };
+const OFICINA = ['propietario', 'admin'];
 
 async function enviarA(admin: Cualquiera, ids: string[], mensaje: Cualquiera, equipoId: string) {
   const disp = ids.length ? await admin.from('safia_avisos_dispositivos').select('*').in('usuario_id', ids) : { data: [] as Cualquiera[] };
@@ -92,7 +95,7 @@ Deno.serve(async (req: Request) => {
     if (eU || !u || !u.user) return json({ error: 'Hay que iniciar sesión en SAFIA' }, 401);
     const yo = await admin.from('safia_usuarios').select('id,nombre,rol,estado,cliente_id,campos').eq('id', u.user.id).maybeSingle();
     if (!yo.data || yo.data.estado !== 'activo') return json({ error: 'Tu usuario no está activo en SAFIA' }, 403);
-    const esIrrigar = yo.data.rol === 'propietario' || yo.data.rol === 'admin';
+    const esOficina = OFICINA.includes(yo.data.rol), esTecnico = yo.data.rol === 'tecnico', esIrrigar = esOficina || esTecnico;
 
     const cfg = await admin.from('safia_avisos_config').select('valor').eq('clave', 'soporte').maybeSingle();
     if (cfg.error) return json({ error: 'Falta preparar la base de los avisos: hay que correr el SQL safia_avisos.sql' }, 500);
@@ -101,7 +104,7 @@ Deno.serve(async (req: Request) => {
     if (accion === 'soporte') return json({ ok: true, whatsapp });
 
     if (accion === 'soporte_guardar') {
-      if (!esIrrigar) return json({ error: 'Solo Irrigar puede cambiar el número de soporte' }, 403);
+      if (!esOficina) return json({ error: 'Solo la oficina de Irrigar puede cambiar el número de soporte' }, 403);
       const n = String(cuerpo.whatsapp || '').replace(/\D/g, '');
       if (n && (n.length < 10 || n.length > 15)) return json({ error: 'El número tiene que ir completo, con el código del país. Ejemplo de Paraguay: 595 981 123456' }, 400);
       const g = await admin.from('safia_avisos_config').upsert({ clave: 'soporte', valor: { whatsapp: n }, actualizado_en: new Date().toISOString() }, { onConflict: 'clave' });
@@ -117,7 +120,7 @@ Deno.serve(async (req: Request) => {
       const campoId = eq.data.datos && eq.data.datos.campoId;
       const delCliente = String(eq.data.cliente_id || '') === String(yo.data.cliente_id || '');
       const campos: string[] = (yo.data.campos || []).map(String);
-      const deSuEstancia = yo.data.rol === 'cliente' || !campos.length || campos.includes(String(campoId));
+      const deSuEstancia = yo.data.rol === 'cliente' || !campos.length || campos.includes(String(campoId));   // (el técnico entra como Irrigar)
       if (!esIrrigar && !(delCliente && deSuEstancia)) return json({ error: 'Ese pivot no es de tu estancia' }, 403);
 
       const [campoR, clienteR] = await Promise.all([
@@ -132,7 +135,8 @@ Deno.serve(async (req: Request) => {
       const titulo = (parado ? 'Pivot parado: ' : 'Asistencia pedida: ') + pivot + (cliente ? ' · ' + cliente : '');
       const texto = [campo, (parado ? 'Parado desde el ' + fecha.slice(8, 10) + '/' + fecha.slice(5, 7) + ' por ' : 'Motivo: ') + motivo + '.', nota ? 'Nota: ' + nota + '.' : '', 'Pide asistencia ' + (yo.data.nombre || 'un usuario') + ' (' + (ROLES[yo.data.rol] || yo.data.rol) + ').'].filter(Boolean).join(' ');
 
-      const irr = await admin.from('safia_usuarios').select('id,nombre').in('rol', ['propietario', 'admin']).eq('estado', 'activo');
+      // el pedido nuevo le llega a la oficina, que decide qué técnico va
+      const irr = await admin.from('safia_usuarios').select('id,nombre').in('rol', OFICINA).eq('estado', 'activo');
       const ids = (irr.data || []).map((x: Cualquiera) => x.id).filter((id: string) => id !== yo.data.id);
       const pedidoId = String(cuerpo.pedidoId || '');
       const r = await enviarA(admin, ids, { titulo, cuerpo: texto, url: pedidoId ? 'asistencias.html?p=' + encodeURIComponent(pedidoId) : 'operador.html?equipo=' + encodeURIComponent(equipoId), tag: 'safia-asistencia-' + equipoId }, equipoId);
@@ -151,31 +155,59 @@ Deno.serve(async (req: Request) => {
       const eq = await admin.from('safia_equipos').select('datos').eq('id', String(p.equipoId || '')).maybeSingle();
       const pivot = String((eq.data && eq.data.datos && eq.data.datos.nombre) || 'Pivot');
 
-      // a quién: si escribe Irrigar, a la gente de esa estancia; si escribe el campo, al técnico que lo tomó (o a todo Irrigar)
-      let ids: string[] = [];
-      if (esIrrigar) {
-        if (f.data.cliente_id) {
-          const us = await admin.from('safia_usuarios').select('id,rol,campos').eq('cliente_id', f.data.cliente_id).eq('estado', 'activo').in('rol', ['cliente', 'encargado', 'operador']);
-          ids = (us.data || []).filter((x: Cualquiera) => x.rol === 'cliente' || !(x.campos || []).length || (x.campos || []).map(String).includes(String(f.data.campo_ref))).map((x: Cualquiera) => x.id);
-        }
-      } else {
-        const irr = await admin.from('safia_usuarios').select('id').in('rol', ['propietario', 'admin']).eq('estado', 'activo');
-        ids = (irr.data || []).map((x: Cualquiera) => x.id);
-        const tomo = p.tomadoPor && p.tomadoPor.id; if (tomo && ids.includes(tomo)) ids = [tomo];
-      }
-      ids = ids.filter((id) => id !== yo.data.id);
-
+      // a quién: la gente de la estancia, la oficina y el técnico asignado, según quién escribe y qué pasó
+      const evento = String(cuerpo.evento || '');
+      const delCampo = async () => {
+        if (!f.data.cliente_id) return [] as string[];
+        const us = await admin.from('safia_usuarios').select('id,rol,campos').eq('cliente_id', f.data.cliente_id).eq('estado', 'activo').in('rol', ['cliente', 'encargado', 'operador']);
+        return (us.data || []).filter((x: Cualquiera) => x.rol === 'cliente' || !(x.campos || []).length || (x.campos || []).map(String).includes(String(f.data.campo_ref))).map((x: Cualquiera) => x.id as string);
+      };
+      const deOficina = async () => { const o = await admin.from('safia_usuarios').select('id').in('rol', OFICINA).eq('estado', 'activo'); return (o.data || []).map((x: Cualquiera) => x.id as string); };
+      const asignado = p.asignado && p.asignado.id ? String(p.asignado.id) : '';
+      const tomo = p.tomadoPor && p.tomadoPor.id ? String(p.tomadoPor.id) : '';
+      const sinMi = (l: string[]) => Array.from(new Set(l)).filter((id) => id && id !== yo.data.id);
       const quien = (yo.data.nombre || 'Un usuario') + (esIrrigar ? ' (Irrigar)' : ' (' + (ROLES[yo.data.rol] || yo.data.rol) + ')');
       const txt = String(cuerpo.texto || '').replace(/\s+/g, ' ').trim().slice(0, 160);
       const v = String(p.visita || ''), visita = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) ? v.slice(8, 10) + '/' + v.slice(5, 7) + ' a las ' + v.slice(11, 16) : v;
-      const evento = String(cuerpo.evento || '');
+      const url = 'asistencias.html?p=' + encodeURIComponent(pid), tag = 'safia-asistencia-' + pid, eqId = String(p.equipoId || '');
+
+      if (evento === 'asignado') {
+        if (!esOficina) return json({ error: 'Solo la oficina de Irrigar asigna técnicos' }, 403);
+        if (!asignado) return json({ error: 'El pedido no tiene técnico asignado' }, 400);
+        const [campoR, clienteR, tecR] = await Promise.all([
+          f.data.campo_ref ? admin.from('safia_campos').select('datos').eq('id', String(f.data.campo_ref)).maybeSingle() : Promise.resolve({ data: null }),
+          f.data.cliente_id ? admin.from('safia_clientes').select('datos').eq('id', String(f.data.cliente_id)).maybeSingle() : Promise.resolve({ data: null }),
+          admin.from('safia_usuarios').select('id,nombre,rol,estado').eq('id', asignado).maybeSingle(),
+        ]);
+        if (!tecR.data || tecR.data.estado !== 'activo' || !['tecnico', ...OFICINA].includes(tecR.data.rol)) return json({ error: 'Ese técnico no está activo en SAFIA' }, 400);
+        const campo = String((campoR.data && campoR.data.datos && campoR.data.datos.nombre) || ''), cliente = String((clienteR.data && clienteR.data.datos && clienteR.data.datos.nombre) || '');
+        const motivo = MOTIVOS[String(p.motivo || '')] || 'asistencia';
+        const orden = Number(p.ordenRuta) > 0 ? Number(p.ordenRuta) + '.º en tu ruta. ' : '';
+        const aTec = await enviarA(admin, sinMi([asignado]), { titulo: 'Visita asignada: ' + pivot + (cliente ? ' · ' + cliente : ''), cuerpo: orden + [campo, motivo + (p.descripcion ? ': ' + String(p.descripcion).slice(0, 90) : '') + '.', 'Asignó ' + (yo.data.nombre || 'la oficina') + '.'].filter(Boolean).join(' '), url, tag }, eqId);
+        const aCampo = await enviarA(admin, sinMi(await delCampo()), { titulo: 'Irrigar asignó un técnico · ' + pivot, cuerpo: String(tecR.data.nombre || 'Un técnico') + ' va a atender tu pedido de asistencia.', url, tag }, eqId);
+        return json({ ok: true, enviados: aTec.enviados + aCampo.enviados, tecnico: aTec.enviados > 0 });
+      }
+
+      let ids: string[] = [];
+      if (esIrrigar) {
+        ids = await delCampo();
+        // si escribe el técnico, la oficina se entera de que lo tomó, de la visita y del cierre; si escribe la oficina, el técnico asignado
+        if (esTecnico && ['tomado', 'visita', 'cerrado'].includes(evento)) ids = ids.concat(await deOficina());
+        if (esOficina && asignado) ids.push(asignado);
+      } else {
+        // escribe el campo: al técnico asignado (o al que lo tomó); si nadie, a la oficina. El cierre también a la oficina.
+        ids = asignado ? [asignado] : tomo ? [tomo] : await deOficina();
+        if (evento === 'cerrado' && (asignado || tomo)) ids = ids.concat(await deOficina());
+      }
+      ids = sinMi(ids);
+
       const m = evento === 'tomado' ? { titulo: 'Irrigar tomó tu pedido · ' + pivot, cuerpo: quien + ' tomó el pedido de asistencia.' }
         : evento === 'visita' ? { titulo: 'Visita de Irrigar: ' + visita, cuerpo: pivot + '. ' + quien + ' cargó la visita prevista.' }
         : evento === 'cerrado' ? { titulo: 'Asistencia cerrada · ' + pivot, cuerpo: quien + ' cerró el pedido.' + (txt ? ' ' + txt : '') }
         : evento === 'nota' ? { titulo: 'Asistencia · ' + pivot, cuerpo: quien + ': ' + (txt || 'mandó una nota') }
         : null;
       if (!m) return json({ error: 'Novedad desconocida' }, 400);
-      const r = await enviarA(admin, ids, { ...m, url: 'asistencias.html?p=' + encodeURIComponent(pid), tag: 'safia-asistencia-' + pid }, String(p.equipoId || ''));
+      const r = await enviarA(admin, ids, { ...m, url, tag }, eqId);
       return json({ ok: true, ...r });
     }
     return json({ error: 'Acción desconocida' }, 400);

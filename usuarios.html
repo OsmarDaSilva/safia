@@ -123,10 +123,10 @@
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmtF = (f) => { if (!f) return '—'; const d = new Date(f); return isNaN(d) ? '—' : d.toLocaleDateString('es-PY'); };
     function toast(m, err) { const t = $('toast'); t.textContent = m; t.className = 'toast visible' + (err ? ' error' : ' ok'); setTimeout(() => { t.className = 'toast'; }, 3600); }
-    const ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
+    const ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador', tecnico: 'Técnico de Irrigar' };
     const soyProp = () => SafiaSync.esPropietario && SafiaSync.esPropietario();
     // opciones de rol: admin/propietario solo las puede dar el propietario; un admin no puede tocar filas de admin/propietario
-    const opcionesRol = (sel) => ['cliente', 'encargado', 'operador'].concat(soyProp() ? ['admin', 'propietario'] : []).map(r => `<option value="${r}"${sel === r ? ' selected' : ''}>${ROL[r]}</option>`).join('') + (!soyProp() && (sel === 'admin' || sel === 'propietario') ? `<option value="${sel}" selected>${ROL[sel]}</option>` : '');
+    const opcionesRol = (sel) => ['cliente', 'encargado', 'operador', 'tecnico'].concat(soyProp() ? ['admin', 'propietario'] : []).map(r => `<option value="${r}"${sel === r ? ' selected' : ''}>${ROL[r]}</option>`).join('') + (!soyProp() && (sel === 'admin' || sel === 'propietario') ? `<option value="${sel}" selected>${ROL[sel]}</option>` : '');
     const bloqueada = (u) => !soyProp() && (u.rol === 'admin' || u.rol === 'propietario');
     const clientes = (() => { try { return JSON.parse(localStorage.getItem('clientes') || '[]'); } catch (e) { return []; } })();
     let usuarios = [];
@@ -176,14 +176,14 @@
             <div class="acc">${bloqueada(u) ? '<span class="muted" style="font-size:11px;">solo el propietario</span>' : `<button class="btn" data-acc="guardar">Guardar</button><button class="btn" data-acc="clave">Contraseña</button>${esYo ? '' : (u.estado === 'activo' ? '<button class="btn danger" data-acc="baja">Dar de baja</button>' : '<button class="btn green" data-acc="reactivar">Reactivar</button><button class="btn danger" data-acc="quitar">Quitar</button>')}`}</div>
           </div>`;
         }).join('') : '<div class="muted" style="padding:12px 0;">Todavía no hay usuarios aprobados.</div>') +
-        `<div class="muted" style="font-size:11px;margin-top:10px;">Propietario = dueño de SAFIA, sin límites · Administrador = funcionarios de Irrigar (soporte): manejan usuarios y clientes, pero no tocan al propietario ni nombran administradores · Cliente = productor que ve solo lo suyo · Encargado = supervisa una o varias estancias del cliente (ve lo mismo que el operador, de todas sus estancias) · Operador = regante que carga en su estancia. Al encargado y al operador se les marcan las estancias que ven; sin marcar ninguna ven todas las del cliente. Cada cliente ve y carga solo lo suyo (el candado está en la base, no en la pantalla); en Rankings y en el Banco ve a los demás como "Lote 1 de Katueté", sin nombres. El operador y el encargado ven solo Operador, Eventos, Encargado y Cargar por voz, de sus estancias. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
+        `<div class="muted" style="font-size:11px;margin-top:10px;">Técnico de Irrigar = entra solo a Asistencia técnica, ve los pedidos de todos los clientes y atiende los que le asigna la oficina (va sin cliente; cargale el teléfono para mandarle la ruta por WhatsApp) · Propietario = dueño de SAFIA, sin límites · Administrador = funcionarios de Irrigar (soporte): manejan usuarios y clientes, pero no tocan al propietario ni nombran administradores · Cliente = productor que ve solo lo suyo · Encargado = supervisa una o varias estancias del cliente (ve lo mismo que el operador, de todas sus estancias) · Operador = regante que carga en su estancia. Al encargado y al operador se les marcan las estancias que ven; sin marcar ninguna ven todas las del cliente. Cada cliente ve y carga solo lo suyo (el candado está en la base, no en la pantalla); en Rankings y en el Banco ve a los demás como "Lote 1 de Katueté", sin nombres. El operador y el encargado ven solo Operador, Eventos, Encargado y Cargar por voz, de sus estancias. "Dar de baja" bloquea la entrada a SAFIA (si la persona usa la misma cuenta en SIGA o AGROinvest360, también le bloquea esas: avisá antes). "Quitar" solo la saca de la lista de SAFIA.</div></div>`;
       cont.innerHTML = h;
     }
 
     function datosFila(fila) {
       const rol = fila.querySelector('.f-rol').value;
       const campos = (rol === 'operador' || rol === 'encargado') ? Array.from(fila.querySelectorAll('.f-campo:checked')).map(x => x.value) : null;
-      return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), rol, clienteId: fila.querySelector('.f-cliente').value || null, campos };
+      return { id: fila.dataset.id, nombre: fila.querySelector('.f-nombre').value.trim(), rol, clienteId: rol === 'tecnico' ? null : (fila.querySelector('.f-cliente').value || null), campos };   // el técnico va sin cliente
     }
     // al cambiar rol o cliente de una fila, se vuelven a mostrar sus estancias
     document.addEventListener('change', (ev) => {

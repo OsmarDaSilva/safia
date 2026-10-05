@@ -17,7 +17,9 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
-const ROLES = ['propietario', 'admin', 'cliente', 'encargado', 'operador'];
+const ROLES = ['propietario', 'admin', 'cliente', 'encargado', 'operador', 'tecnico'];
+// v5 (5-oct-2026): rol técnico de Irrigar, siempre sin cliente (atiende a todos los clientes desde Asistencia técnica)
+const clienteDe = (c: Record<string, unknown>, rol: string) => rol === 'tecnico' || !c.clienteId ? null : String(c.clienteId);
 // estancias asignadas: solo para operador y encargado; lista vacía = todas las del cliente
 const camposDe = (c: Record<string, unknown>, rol: string) => (rol === 'operador' || rol === 'encargado') && Array.isArray(c.campos) ? (c.campos as unknown[]).map(String).filter(Boolean) : null;
 const ALTOS = ['propietario', 'admin'];   // solo un propietario puede otorgar estos roles o tocar a un propietario/admin
@@ -85,7 +87,7 @@ Deno.serve(async (req) => {
         if (c.cambiarClave) await admin.auth.admin.updateUserById(id, { password, ban_duration: 'none' });
         else await admin.auth.admin.updateUserById(id, { ban_duration: 'none' });
       } else id = r.data.user.id;
-      const perfil: Record<string, unknown> = { id, email, nombre, rol, estado: 'activo', cliente_id: c.clienteId ? String(c.clienteId) : null, campos: camposDe(c, rol), telefono: c.telefono ? String(c.telefono) : null, aprobado_en: ahora, actualizado_en: ahora };
+      const perfil: Record<string, unknown> = { id, email, nombre, rol, estado: 'activo', cliente_id: clienteDe(c, rol), campos: camposDe(c, rol), telefono: c.telefono ? String(c.telefono) : null, aprobado_en: ahora, actualizado_en: ahora };
       let { error: eF } = await admin.from('safia_usuarios').upsert(perfil);
       if (eF && /campos/.test(eF.message)) { delete perfil.campos; ({ error: eF } = await admin.from('safia_usuarios').upsert(perfil)); }   // base sin la columna todavía
       if (eF) return json({ error: 'La cuenta se creó pero no se pudo guardar el perfil: ' + eF.message }, 500);
@@ -100,7 +102,7 @@ Deno.serve(async (req) => {
     if (accion === 'aprobar') {
       const rol = ROLES.includes(c.rol) ? c.rol : 'cliente';
       if (!puedeDarRol(rol)) return json({ error: 'Solo el propietario puede otorgar ese rol' }, 403);
-      const cambios: Record<string, unknown> = { estado: 'activo', rol, cliente_id: c.clienteId ? String(c.clienteId) : null, campos: camposDe(c, rol), aprobado_en: ahora, actualizado_en: ahora };
+      const cambios: Record<string, unknown> = { estado: 'activo', rol, cliente_id: clienteDe(c, rol), campos: camposDe(c, rol), aprobado_en: ahora, actualizado_en: ahora };
       if (c.nombre) cambios.nombre = String(c.nombre).trim();
       let { error } = await admin.from('safia_usuarios').update(cambios).eq('id', id);
       if (error && /campos/.test(error.message)) { delete cambios.campos; ({ error } = await admin.from('safia_usuarios').update(cambios).eq('id', id)); }

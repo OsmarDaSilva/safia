@@ -75,6 +75,7 @@
         'Mientras haya un pedido abierto, en todas las pantallas aparece arriba a la derecha un aviso azul con su estado (quién lo tomó, la visita prevista). Tocalo para abrir el pedido.',
         'Cada pedido de asistencia es un asunto aparte. Se ve en <b>Asistencia técnica</b> (menú): quién de Irrigar lo tomó, cuándo vienen y la conversación de ese pedido.',
         'Para pedir: en Operador con <b>Pivot parado · Asistencia</b> (ver arriba), o en Asistencia técnica con <b>Pedir asistencia</b> (también sirve para una consulta con el pivot andando).',
+        'La oficina de Irrigar decide qué técnico va y en qué orden. Cuando te asignan uno, te llega el aviso con su nombre, y lo que escribas en el pedido le llega directo a él.',
         'Dentro del pedido podés <b>escribir</b> y mandar <b>fotos o videos cortos</b> (unos 15 segundos) con los botones <b>Sacar foto</b>, <b>Filmar video</b> y <b>Elegir archivo</b>. El técnico te contesta ahí mismo y te llega el aviso al celular (por ejemplo, la visita prevista).',
         'Al cerrar podés subir la <b>foto de la orden de servicio</b> firmada y su número: queda guardada en el pedido como comprobante. Si te olvidás, se puede subir después, con el pedido ya cerrado.',
         'Cuando el problema está resuelto, el pedido se <b>cierra</b> (lo cierra el técnico con su informe, o vos). Cerrado, esa conversación termina: si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando cargues el próximo riego de ese pivot.',
@@ -198,6 +199,7 @@
       { t: 'Asistencia técnica de Irrigar', p: [
         'En <b>Asistencia técnica</b> (menú) están los pedidos a Irrigar de tus pivots: quién lo tomó, la visita prevista y la conversación de cada pedido, con notas y fotos.',
         'Arriba ves cuántos pedidos hay abiertos y cuánto tardaron en tomarse y en resolverse. No hace falta que hagas nada: es para que sepas cómo te están atendiendo.',
+        'Cada pedido muestra el <b>técnico</b> que te asignó la oficina de Irrigar. Te llega el aviso cuando lo asignan y cuando carga la visita.',
         'Mientras haya un pedido abierto, en todas las pantallas aparece un aviso arriba a la derecha con su estado.',
         'En <b>Repuestos pendientes</b> ves lo que falta mandar o comprar, y quién lo trae (Irrigar, el técnico o vos).',
         'Cada pedido cerrado guarda la <b>orden de servicio</b> (número y foto) como comprobante del trabajo.',

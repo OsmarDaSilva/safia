@@ -14,8 +14,8 @@
   function generarClave() { var s = 'abcdefghjkmnpqrstuvwxyz23456789', p = ''; for (var i = 0; i < 4; i++) p += s.charAt(Math.floor(Math.random() * s.length)); return 'safia-' + p + Math.floor(10 + Math.random() * 89); }
   function opcionesClientes(sel) { return '<option value="">— Ninguno (Irrigar) —</option>' + leer('clientes').slice().sort(function (a, b) { return String(a.nombre).localeCompare(String(b.nombre)); }).map(function (c) { return '<option value="' + esc(c.id) + '"' + (String(sel || '') === String(c.id) ? ' selected' : '') + '>' + esc(c.nombre) + '</option>'; }).join(''); }
   function nombreCliente(id) { var c = leer('clientes').find(function (x) { return String(x.id) === String(id); }); return c ? c.nombre : ''; }
-  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
-  var OPCIONES_ROL = '<option value="cliente">Cliente (productor, dueño de sus campos)</option><option value="encargado">Encargado (gerente: opera todo en sus estancias)</option><option value="operador">Operador (regante: riego, eventos y campañas)</option>';
+  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador', tecnico: 'Técnico de Irrigar' };
+  var OPCIONES_ROL = '<option value="cliente">Cliente (productor, dueño de sus campos)</option><option value="encargado">Encargado (gerente: opera todo en sus estancias)</option><option value="operador">Operador (regante: riego, eventos y campañas)</option><option value="tecnico">Técnico de Irrigar (solo Asistencia técnica, de todos los clientes)</option>';
   // Estancias del cliente elegido, con casillas: el operador o encargado ve solo las marcadas (ninguna marcada = todas)
   function pintarCampos(marcados) {
     var wrap = $('accCamposWrap'), cont = $('accCampos'); if (!wrap || !cont) return;
@@ -107,6 +107,7 @@
     var escrito = $('accEmail').value.trim(), interno = escrito.indexOf('@') === -1;
     var datos = { accion: 'crear', nombre: $('accNombre').value.trim(), email: window.SafiaUsuario ? SafiaUsuario.aCorreo(escrito) : escrito.toLowerCase(), telefono: $('accTelefono').value.trim(), rol: $('accRol').value, clienteId: $('accCliente').value || null, password: $('accPass').value.trim() };
     if (datos.rol === 'operador' || datos.rol === 'encargado') datos.campos = camposMarcados();
+    if (datos.rol === 'tecnico') datos.clienteId = null;   // el técnico atiende a todos los clientes: sin cliente
     if (!datos.nombre) { aviso('Falta el nombre y apellido (arriba de todo).', true, 'accNombre'); return; }
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) { aviso(interno ? 'Poné un correo o un nombre de usuario (letras y números).' : 'El correo no es válido.', true, 'accEmail'); return; }
     var usuarioMostrar = interno ? SafiaUsuario.aUsuario(datos.email) : datos.email;
