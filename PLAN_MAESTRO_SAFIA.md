@@ -222,6 +222,8 @@ Una IA (como Don Lindomar en SIGA) que responde preguntas en lenguaje natural **
 | Manual por rol (Operador, Encargado, Propietario) | ✅ 3-oct-2026 |
 | Parte de seguimiento (todos los pivots del cliente en una pantalla) | ✅ 4-oct-2026 |
 | Asistencia técnica: pedidos, conversación, orden de servicio, repuestos pendientes, historial | ✅ 4-oct-2026 |
+| Ciclo del maíz y la soja afinados: materiales sin ciclo publicado usan el ciclo propio de las cosechas; en maíz la fecha de cosecha es madurez por grados-día + secado en la planta aprendido; soja de zafriña con tope de 115 días (referencia de campo de Irrigar) y aprendida aparte; nombres mal escritos encuentran su ficha | ✅ 4/5-oct-2026 (v133–v136) |
+| WhatsApp automático por la API de Meta (avisos y respuestas dentro del pedido) | ⏳ Plan acordado 5-oct-2026; espera el número exclusivo de Irrigar y la cuenta Meta Business |
 | Técnicos de Irrigar: rol técnico (solo Asistencia técnica), la oficina asigna técnico y orden de ruta, aviso al técnico, ruta por WhatsApp, Cómo llegar, funciona sin señal | ✅ 5-oct-2026 |
 | Lo que SAFIA aprendió: nivel 1 (ciclo, cierre del surco, rango de la meta), nivel 2 (modelo de rinde) y nivel 3 (recomendaciones) | ✅ 4-oct-2026 (aprende a medida que entran cosechas) |
 | Suplementación de luz en el pivot (ficha, uso por campaña, comparación con y sin, energía separada) | ✅ 4-oct-2026 |
