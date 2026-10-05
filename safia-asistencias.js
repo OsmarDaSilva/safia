@@ -509,7 +509,7 @@
         })() : '') +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">' +
         (!p.tomadoPor || String(p.tomadoPor.id) !== String(yo().id) ? '<button data-a="tomar" style="' + BV + '">' + (p.tomadoPor ? 'Tomarlo yo' : 'Tomar el pedido') + '</button>' : '') +
-        '<div style="flex:1;min-width:190px;"><label style="' + LB + 'margin-top:0;">Visita prevista (día y hora)</label><input id="asVisita" type="datetime-local" value="' + esc(p.visita || '') + '" style="' + IN + '"></div>' +
+        '<div style="flex:1 1 100%;min-width:0;max-width:100%;"><label style="' + LB + 'margin-top:0;">Visita prevista (día y hora)</label><input id="asVisita" type="datetime-local" value="' + esc(p.visita || '') + '" style="' + IN + 'display:block;max-width:100%;min-width:0;min-height:44px;-webkit-appearance:none;appearance:none;"></div>' +
         '<button data-a="visita" style="' + BG + '">Guardar la visita</button></div>' +
         '<div style="border-top:1px solid #EEF0F2;margin-top:14px;padding-top:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Cerrar con el informe</div>' +
         '<label style="' + LB + '">Qué se encontró</label><input id="asCausa" type="text" placeholder="Ejemplo: fusible del tablero quemado" style="' + IN + '">' +
