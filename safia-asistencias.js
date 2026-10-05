@@ -520,7 +520,10 @@
         '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '"' + (k === 'visita' ? ' selected' : '') + '>' + CANALES[k] + '</option>'; }).join('') + '</select>' +
         '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button></div>';
-      else h += '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
+      else h += (function () {
+          var wa = window.SafiaAsistencia && SafiaAsistencia.enlace ? SafiaAsistencia.enlace({ equipoId: p.equipoId, motivo: p.motivo, fecha: p.fechaProblema, observaciones: p.descripcion, parado: p.parado }) : '';
+          return wa ? '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #EEF0F2;"><a href="' + esc(wa) + '" target="_blank" rel="noopener" style="' + BV + 'display:inline-block;text-decoration:none;">Avisar también por WhatsApp</a><div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Abre WhatsApp con el mensaje ya escrito para el soporte de Irrigar.</div></div>' : '';
+        })() + '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
         '<label style="' + LB + '">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +
         '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
         '<button data-a="cerrarCampo" style="' + BR + 'margin-top:10px;">Cerrar el pedido</button>' +
@@ -644,7 +647,12 @@
       var fotos = elegidos('asFoto'), parado = document.getElementById('asParado').checked;
       var p = crear({ equipoId: eqId, motivo: val('asMotivo'), descripcion: desc, parado: parado });
       if (parado) { var evp = cargarParada(p); if (evp) cambiar(p.id, function (x) { x.paradaId = evp.id; }); }
-      setTimeout(function () { invocar('pedir', { equipoId: eqId, motivo: p.motivo, fecha: p.fechaProblema, nota: desc, pedidoId: p.id, parado: parado }).catch(function () {}); }, 2500);
+      var avisarIrrigar = function () {
+        var ev = { equipoId: eqId, motivo: p.motivo, fecha: p.fechaProblema, observaciones: desc, parado: parado, guardado: 'El pedido ya quedó guardado' + (parado ? ' y el pivot figura parado.' : '.'), enElPedido: true };
+        if (window.SafiaAsistencia && SafiaAsistencia.pedir) setTimeout(function () { SafiaAsistencia.pedir(ev, p); }, 1500);   // avisa a Irrigar y ofrece el WhatsApp
+        else setTimeout(function () { invocar('pedir', { equipoId: eqId, motivo: p.motivo, fecha: p.fechaProblema, nota: desc, pedidoId: p.id, parado: parado }).catch(function () {}); }, 2500);
+      };
+      avisarIrrigar();
       if (fotos.length) { b.disabled = true; b.textContent = 'Subiendo…'; return notaVarios(p.id, '', fotos).then(function () { ir('detalle', p.id, 'Pedido enviado a Irrigar con ' + (fotos.length === 1 ? 'el archivo.' : 'los ' + fotos.length + ' archivos.'), true); }, function (e) { ir('detalle', p.id, 'El pedido se envió, pero ' + e.message + '. Subilo de nuevo desde acá.'); }); }
       return ir('detalle', p.id, 'Pedido enviado a Irrigar. Cuando un técnico lo tome te va a llegar el aviso.', true);
     }

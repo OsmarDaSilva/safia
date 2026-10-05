@@ -6,7 +6,7 @@
 (function () {
   'use strict';
   var CLAVE = 'safia_soporte_wa';
-  var MOTIVOS = { electrica: 'falla eléctrica', mecanica: 'falla mecánica', bomba: 'falla de la bomba', energia: 'corte de energía (ANDE)', agua: 'falta de agua en la fuente', mantenimiento: 'mantenimiento programado', otro: 'otro motivo' };
+  var MOTIVOS = { electrica: 'falla eléctrica', mecanica: 'falla mecánica', bomba: 'falla de la bomba', energia: 'corte de energía (ANDE)', agua: 'falta de agua en la fuente', mantenimiento: 'mantenimiento programado', consulta: 'consulta o ajuste', otro: 'otro motivo' };
   var SIN_PEDIDO = { energia: 1, agua: 1, mantenimiento: 1 };   // motivos que no son una rotura: el pedido no va marcado de entrada
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
@@ -41,7 +41,7 @@
     if (cliente.nombre) l.push('Cliente: ' + cliente.nombre);
     if (campo.nombre) l.push('Estancia: ' + campo.nombre);
     l.push('Equipo: ' + (eq.nombre || 'pivot'));
-    l.push('Parado desde el ' + fc(ev.fecha) + ' por ' + (MOTIVOS[ev.motivo] || 'motivo sin indicar'));
+    l.push(ev.parado === false ? 'Consulta (el pivot anda): ' + (MOTIVOS[ev.motivo] || 'consulta o ajuste') : 'Parado desde el ' + fc(ev.fecha) + ' por ' + (MOTIVOS[ev.motivo] || 'motivo sin indicar'));
     if (ev.observaciones) l.push('Nota: ' + ev.observaciones);
     if (isFinite(parseFloat(lat)) && isFinite(parseFloat(lon))) l.push('Ubicación: https://maps.google.com/?q=' + (+lat).toFixed(5) + ',' + (+lon).toFixed(5));
     if (u && u.nombre) l.push('Avisa: ' + u.nombre);
@@ -57,9 +57,9 @@
     var btn = 'display:block;width:100%;box-sizing:border-box;text-align:center;padding:13px 14px;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none;';
     d.innerHTML = '<div style="background:#fff;border-radius:14px;padding:22px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">' +
       '<div style="font-size:17px;font-weight:800;color:#2E3236;margin-bottom:6px;">Asistencia técnica de Irrigar</div>' +
-      '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:12px;">La parada ya quedó guardada.</div>' +
+      '<div style="font-size:13px;color:#41464B;line-height:1.5;margin-bottom:12px;">' + (ev.guardado || 'La parada ya quedó guardada.') + '</div>' +
       '<div id="safiaAsisEstado" style="font-size:13px;line-height:1.45;padding:10px 12px;border-radius:8px;background:#F4F5F6;color:#41464B;margin-bottom:12px;">Avisando a los técnicos de Irrigar…</div>' +
-      (pedido ? '<a href="asistencias.html?p=' + encodeURIComponent(pedido.id) + '" style="' + btn + 'border:1.5px solid #22A93A;background:#fff;color:#178029;margin-bottom:8px;">Ver el pedido, escribir o mandar foto o video</a>' : '') +
+      (pedido && !ev.enElPedido ? '<a href="asistencias.html?p=' + encodeURIComponent(pedido.id) + '" style="' + btn + 'border:1.5px solid #22A93A;background:#fff;color:#178029;margin-bottom:8px;">Ver el pedido, escribir o mandar foto o video</a>' : '') +
       '<div id="safiaAsisAdjunto" style="display:none;font-size:13px;font-weight:600;color:#6B7075;margin-bottom:8px;line-height:1.4;"></div>' +
       '<div id="safiaAsisWa"></div>' +
       '<button id="safiaAsisCerrar" style="' + btn + 'border:1.5px solid #e1e4e7;background:#fff;color:#41464B;margin-top:8px;">Cerrar</button></div>';
@@ -73,7 +73,7 @@
     pintarWa();
     function estado(t, ok) { var e = document.getElementById('safiaAsisEstado'); if (!e) return; e.textContent = t; e.style.background = ok ? '#E7F6EA' : '#FDF3E3'; e.style.color = ok ? '#178029' : '#8A5A00'; }
     function intentar(vez) {
-      invocar('pedir', { equipoId: ev.equipoId, motivo: ev.motivo, fecha: String(ev.fecha).slice(0, 10), nota: ev.observaciones || '', pedidoId: pedido ? pedido.id : '' }).then(function (r) {
+      invocar('pedir', { equipoId: ev.equipoId, motivo: ev.motivo, fecha: String(ev.fecha).slice(0, 10), nota: ev.observaciones || '', pedidoId: pedido ? pedido.id : '', parado: ev.parado !== false }).then(function (r) {
         recordar(r.whatsapp); pintarWa();
         if (r.enviados) estado('Aviso enviado al celular de ' + r.tecnicos + (r.tecnicos === 1 ? ' persona' : ' personas') + ' de Irrigar.', true);
         else estado('El pedido quedó anotado para Irrigar, pero en este momento nadie de Irrigar tiene los avisos activados en su celular.' + (numero() ? ' Mandalo por WhatsApp con el botón de abajo.' : ' Llamá a Irrigar para avisar.'), false);
