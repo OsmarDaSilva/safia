@@ -359,7 +359,7 @@
   function aviso(t, ok) { return t ? '<div style="margin:10px 0;padding:10px 12px;border-radius:8px;font-size:13.5px;font-weight:600;line-height:1.45;background:' + (ok ? '#E7F6EA' : '#FBECEA') + ';color:' + (ok ? '#178029' : '#B5371C') + ';">' + esc(t) + '</div>' : ''; }
   function sinSenalHtml() { return navigator.onLine === false ? '<div style="margin:0 0 10px;padding:10px 12px;border-radius:8px;background:#FFF4DC;color:#8A5A00;font-size:13px;font-weight:600;line-height:1.45;">Sin señal: lo que escribas o cierres queda guardado en el celular y se manda solo cuando vuelva la señal. Las fotos y la orden de servicio necesitan señal.</div>' : ''; }
   function mapaHtml(p, chico) { var m = mapaUrl(p); return m ? '<a href="' + esc(m) + '" target="_blank" rel="noopener" style="display:inline-block;' + (chico ? 'margin-top:8px;padding:6px 10px;font-size:12.5px;' : 'padding:8px 12px;font-size:13px;') + 'border-radius:8px;border:1.5px solid #CFE3D2;background:#F2FAF3;color:#178029;font-weight:700;text-decoration:none;">Cómo llegar</a>' : ''; }
-  function ir(modo, id, msg, ok) { vista.editando = false; vista.borrando = false; if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
+  function ir(modo, id, msg, ok) { if (String(id || '') !== String(vista.id || '')) vista.pliegues = {}; vista.editando = false; vista.borrando = false; if (modo === 'lista' || modo === 'detalle') vista.formCliente = ''; vista.modo = modo; vista.id = id || null; vista.msg = msg || ''; vista.msgOk = !!ok; pintar(); window.scrollTo(0, 0); }
 
   function htmlLista() {
     var todos = pedidos(), irr = esIrrigar();
@@ -492,64 +492,39 @@
           (!abierto ? '<button data-a="reabrir" style="' + BG + 'padding:7px 11px;font-size:12.5px;">Reabrir el pedido</button>' : '') +
           (esOficina() ? '<button data-a="borrar" style="' + BR + 'padding:7px 11px;font-size:12.5px;margin-left:auto;">Borrar</button>' : '') + '</div>') + '</div>';
 
-    // acciones
-    if (abierto) {
-      h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;">';
-      if (irr) h += '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Irrigar</div>' +
-        (esOficina() ? (function () {
-          var ts = tecnicos(), sel = p.asignado ? String(p.asignado.id) : (ts[0] ? String(ts[0].id) : ''), sig = sel ? rutaDe(sel).filter(function (x) { return String(x.id) !== String(p.id); }).length + 1 : 1, t = p.asignado ? tecnico(p.asignado.id) : null;
-          var wa = p.asignado && t && t.telefono ? waUrl(t.telefono, 'SAFIA · Visita asignada\n\n' + textoPedidoRuta(p, p.ordenRuta)) : '';
-          return '<div style="padding:10px 12px;border-radius:10px;background:#F4F7FB;margin-bottom:12px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">' + (p.asignado ? 'Técnico asignado: ' + esc(p.asignado.nombre) : 'Asignar un técnico') + '</div>' +
-            (ts.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:6px;"><div style="flex:1;min-width:170px;"><label style="' + LB + 'margin-top:0;">Técnico</label><select id="asTec" style="' + IN + '">' + ts.map(function (x) { return '<option value="' + esc(x.id) + '"' + (String(x.id) === sel ? ' selected' : '') + '>' + esc(x.nombre) + (x.rol === 'tecnico' ? '' : ' (oficina)') + ' · ' + rutaDe(x.id).length + ' en ruta</option>'; }).join('') + '</select></div>' +
-              '<div style="width:110px;"><label style="' + LB + 'margin-top:0;">Orden en su ruta</label><input id="asOrden" type="number" min="1" step="1" value="' + (p.ordenRuta || sig) + '" style="' + IN + '"></div>' +
-              '<button data-a="asignar" style="' + BV + '">' + (p.asignado ? 'Cambiar' : 'Asignar') + '</button></div>' +
-              '<div style="font-size:12px;color:#6B7075;margin-top:6px;line-height:1.4;">Al técnico le llega el aviso con el orden y cómo llegar; al campo, que ya tiene técnico. 1 = va primero.</div>' +
-              (wa ? '<a href="' + esc(wa) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;' + BG + 'padding:7px 11px;font-size:12.5px;text-decoration:none;">Mandarle este pedido por WhatsApp</a>' : p.asignado && t && !t.telefono ? '<div style="font-size:12px;color:#8C9196;margin-top:6px;">Para mandárselo por WhatsApp, cargale el teléfono en Usuarios.</div>' : '')
-            : '<div style="font-size:13px;color:#6B7075;margin-top:4px;line-height:1.45;">Todavía no hay técnicos cargados. En Usuarios, creá un acceso con el rol "Técnico de Irrigar" y su teléfono.</div>') + '</div>';
-        })() : '') +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">' +
-        (!p.tomadoPor || String(p.tomadoPor.id) !== String(yo().id) ? '<button data-a="tomar" style="' + BV + '">' + (p.tomadoPor ? 'Tomarlo yo' : 'Tomar el pedido') + '</button>' : '') +
-        '<div style="flex:1 1 100%;min-width:0;max-width:100%;"><label style="' + LB + 'margin-top:0;">Visita prevista (día y hora)</label><input id="asVisita" type="datetime-local" value="' + esc(p.visita || '') + '" style="' + IN + 'display:block;max-width:100%;min-width:0;min-height:44px;-webkit-appearance:none;appearance:none;"></div>' +
-        '<button data-a="visita" style="' + BG + '">Guardar la visita</button></div>' +
-        '<div style="border-top:1px solid #EEF0F2;margin-top:14px;padding-top:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Cerrar con el informe</div>' +
-        '<label style="' + LB + '">Qué se encontró</label><input id="asCausa" type="text" placeholder="Ejemplo: fusible del tablero quemado" style="' + IN + '">' +
-        '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" placeholder="Ejemplo: se cambió el fusible y se probó una vuelta" style="' + IN + '">' +
-        '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" style="' + IN + '">' +
-        '<label style="' + LB + '">Repuestos que faltan o quedan pendientes (uno por renglón)</label><textarea id="asPend" rows="2" placeholder="Ejemplo: rulemán 6306 de la bomba&#10;contactor de la torre 4" style="' + IN + '"></textarea>' +
-        '<select id="asPendDestino" style="' + IN + 'margin-top:6px;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select>' +
-        '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '"' + (k === 'visita' ? ' selected' : '') + '>' + CANALES[k] + '</option>'; }).join('') + '</select>' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
-        '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button></div>';
-      else h += (function () {
-          var wa = window.SafiaAsistencia && SafiaAsistencia.enlace ? SafiaAsistencia.enlace({ equipoId: p.equipoId, motivo: p.motivo, fecha: p.fechaProblema, observaciones: p.descripcion, parado: p.parado, pedidoId: p.id }) : '';
-          return wa ? '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #EEF0F2;"><a href="' + esc(wa) + '" target="_blank" rel="noopener" style="' + BV + 'display:inline-block;text-decoration:none;">Avisar también por WhatsApp</a><div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Abre WhatsApp con el mensaje ya escrito para el soporte de Irrigar.</div></div>' : '';
-        })() + '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">¿Ya está resuelto?</div>' +
-        '<label style="' + LB + '">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
-        '<button data-a="cerrarCampo" style="' + BR + 'margin-top:10px;">Cerrar el pedido</button>' +
-        '<div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Al cerrar, la conversación de este pedido termina. Si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando se cargue el próximo riego de este pivot.</div>';
-      h += '</div>';
-    } else {
-      h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">' + (p.orden && p.orden.foto ? 'Cambiar la orden de servicio' : 'Subir la orden de servicio') + '</div>' +
-        '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>' +
-        '<button data-a="orden" style="' + BG + 'margin-top:10px;">Guardar la orden</button></div>';
-      if (irr) h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;"><div style="font-size:13.5px;font-weight:700;color:#2E3236;">Informe técnico (se puede completar después de cerrar)</div>' +
-        '<label style="' + LB + '">Qué se encontró</label><input id="asCausa" type="text" value="' + esc(inf.causa || '') + '" style="' + IN + '">' +
-        '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" value="' + esc(inf.solucion || '') + '" style="' + IN + '">' +
-        '<label style="' + LB + '">Repuestos usados</label><input id="asRepuestos" type="text" value="' + esc(inf.repuestos || '') + '" style="' + IN + '">' +
-        '<button data-a="informe" style="' + BG + 'margin-top:10px;">Guardar el informe</button></div>';
-    }
+    // Orden del pedido (5-oct-2026, pedido de Osmar: en el celular ocupaba casi 3 pantallas): arriba lo de siempre (datos,
+    // técnico, WhatsApp y la conversación); abajo, plegado, lo que se usa una vez (visita, cierre con el informe, orden de
+    // servicio, repuestos). Lo que cada uno abrió queda abierto aunque la pantalla se repinte con datos nuevos.
+    var CAJA = 'background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;';
+    var pliegue = function (k, titulo, porDefecto, cuerpo, extra) {
+      var ab = vista.pliegues && vista.pliegues[k] != null ? vista.pliegues[k] : porDefecto;
+      return '<details data-pl="' + k + '"' + (ab ? ' open' : '') + ' style="' + CAJA + 'padding:0;"><summary style="list-style:none;cursor:pointer;padding:13px 16px;font-size:14px;font-weight:700;color:#2E3236;display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
+        '<span>' + titulo + (extra ? ' <span style="font-weight:600;font-size:12.5px;color:#B5371C;">' + extra + '</span>' : '') + '</span><span class="pl-flecha" style="flex:none;color:#8C9196;font-size:12.5px;font-weight:600;">' + (ab ? 'cerrar ▴' : 'abrir ▾') + '</span></summary>' +
+        '<div style="padding:0 16px 14px;">' + cuerpo + '</div></details>';
+    };
+    h += '<style>details[data-pl] > summary::-webkit-details-marker{display:none}</style>';
+    var miPedido = p.asignado && String(p.asignado.id) === String(yo().id);
 
-    // repuestos y pendientes: siguen abiertos aunque el pedido esté cerrado
-    var pens = pendientesDe(p.id);
-    h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;margin-bottom:10px;">' +
-      '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Repuestos y pendientes</div>' +
-      (pens.length ? pens.map(htmlPendiente).join('') : '<div style="font-size:13.5px;color:#8C9196;">Nada pendiente.</div>') +
-      '<div style="border-top:1px solid #EEF0F2;margin-top:10px;padding-top:10px;"><textarea id="asPendNuevo" rows="2" placeholder="Qué falta (uno por renglón). Ejemplo: fusible de 20 A del tablero" style="' + IN + '"></textarea>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"><select id="asPendNuevoDestino" style="' + IN + 'flex:1;min-width:190px;width:auto;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select><button data-a="pendAgregar" style="' + BG + '">Agregar a pendientes</button></div></div></div>';
+    // 1. arriba, a la vista: el técnico (oficina), tomar (técnico) o el WhatsApp a Irrigar (campo)
+    if (abierto && esOficina()) h += '<div style="' + CAJA + '">' + (function () {
+      var ts = tecnicos(), sel = p.asignado ? String(p.asignado.id) : (ts[0] ? String(ts[0].id) : ''), sig = sel ? rutaDe(sel).filter(function (x) { return String(x.id) !== String(p.id); }).length + 1 : 1, t = p.asignado ? tecnico(p.asignado.id) : null;
+      var wa = p.asignado && t && t.telefono ? waUrl(t.telefono, 'SAFIA · Visita asignada\n\n' + textoPedidoRuta(p, p.ordenRuta)) : '';
+      return '<div style="font-size:13.5px;font-weight:700;color:#2E3236;">' + (p.asignado ? 'Técnico asignado: ' + esc(p.asignado.nombre) : 'Asignar un técnico') + '</div>' +
+        (ts.length ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:6px;"><div style="flex:1;min-width:170px;"><label style="' + LB + 'margin-top:0;">Técnico</label><select id="asTec" style="' + IN + '">' + ts.map(function (x) { return '<option value="' + esc(x.id) + '"' + (String(x.id) === sel ? ' selected' : '') + '>' + esc(x.nombre) + (x.rol === 'tecnico' ? '' : ' (oficina)') + ' · ' + rutaDe(x.id).length + ' en ruta</option>'; }).join('') + '</select></div>' +
+          '<div style="width:110px;"><label style="' + LB + 'margin-top:0;">Orden en su ruta</label><input id="asOrden" type="number" min="1" step="1" value="' + (p.ordenRuta || sig) + '" style="' + IN + '"></div>' +
+          '<button data-a="asignar" style="' + BV + '">' + (p.asignado ? 'Cambiar' : 'Asignar') + '</button></div>' +
+          '<div style="font-size:12px;color:#6B7075;margin-top:6px;line-height:1.4;">Al técnico le llega el aviso con el orden y cómo llegar; al campo, que ya tiene técnico. 1 = va primero.</div>' +
+          (wa ? '<a href="' + esc(wa) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;' + BG + 'padding:7px 11px;font-size:12.5px;text-decoration:none;">Mandarle este pedido por WhatsApp</a>' : p.asignado && t && !t.telefono ? '<div style="font-size:12px;color:#8C9196;margin-top:6px;">Para mandárselo por WhatsApp, cargale el teléfono en Usuarios.</div>' : '')
+        : '<div style="font-size:13px;color:#6B7075;margin-top:4px;line-height:1.45;">Todavía no hay técnicos cargados. En Usuarios, creá un acceso con el rol "Técnico de Irrigar" y su teléfono.</div>');
+    })() + '</div>';
+    if (abierto && esTecnico() && !miPedido) h += '<div style="' + CAJA + 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><button data-a="tomar" style="' + BV + '">' + (p.asignado ? 'Tomarlo yo' : 'Tomar el pedido') + '</button><span style="font-size:12.5px;color:#6B7075;line-height:1.4;flex:1;min-width:160px;">' + (p.asignado ? 'Está asignado a ' + esc(p.asignado.nombre) + '. Si lo tomás, pasa a tu ruta y se avisa a la oficina.' : 'La oficina todavía no lo asignó. Si lo tomás, pasa a tu ruta y se avisa a la oficina.') + '</span></div>';
+    if (abierto && !irr) h += (function () {
+      var wa = window.SafiaAsistencia && SafiaAsistencia.enlace ? SafiaAsistencia.enlace({ equipoId: p.equipoId, motivo: p.motivo, fecha: p.fechaProblema, observaciones: p.descripcion, parado: p.parado, pedidoId: p.id }) : '';
+      return wa ? '<div style="' + CAJA + '"><a href="' + esc(wa) + '" target="_blank" rel="noopener" style="' + BV + 'display:inline-block;text-decoration:none;">Avisar también por WhatsApp</a><div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Abre WhatsApp con el mensaje ya escrito para el soporte de Irrigar.</div></div>' : '';
+    })();
 
-    // conversación
-    h += '<div style="background:#fff;border:1px solid #E1E4E7;border-radius:12px;padding:14px 16px;">' +
+    // 2. la conversación, arriba
+    h += '<div style="' + CAJA + '">' +
       '<div style="font-size:12px;font-weight:700;color:#6B7075;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Conversación de este pedido</div>';
     h += ns.length ? ns.map(function (n) {
       if (n.sistema) return '<div style="text-align:center;font-size:12px;color:#8C9196;margin:8px 0;">' + esc(n.autor && n.autor.nombre) + ' · ' + esc(n.texto) + ' · ' + fh(n.creado) + '</div>';
@@ -559,10 +534,48 @@
         (n.texto ? '<div style="font-size:14px;color:#2E3236;line-height:1.45;white-space:pre-wrap;margin-top:2px;">' + esc(n.texto) + '</div>' : '') +
         (n.foto ? '<a data-foto="' + esc(n.foto) + '" target="_blank" rel="noopener" style="display:block;margin-top:6px;font-size:12.5px;color:#178029;font-weight:700;">Cargando foto…</a>' : '') + '</div></div>';
     }).join('') : '<div style="font-size:13.5px;color:#8C9196;">Todavía no hay notas.</div>';
-    h += abierto ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><textarea id="asNota" rows="2" placeholder="Escribí acá… Abajo podés elegir una foto o un video corto." style="' + IN + '"></textarea>' +
+    h += (abierto ? '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;"><textarea id="asNota" rows="2" placeholder="Escribí acá… Abajo podés elegir una foto o un video corto." style="' + IN + '"></textarea>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-top:8px;">' + selector('asNotaFoto') + '<button data-a="nota" style="' + BV + '">Enviar</button></div></div>'
-      : '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;font-size:13px;color:#6B7075;line-height:1.45;">Pedido cerrado: la conversación terminó. Si hay otro problema en este pivot, se pide una asistencia nueva.</div>';
-    return h + '</div>';
+      : '<div style="border-top:1px solid #EEF0F2;margin-top:12px;padding-top:10px;font-size:13px;color:#6B7075;line-height:1.45;">Pedido cerrado: la conversación terminó. Si hay otro problema en este pivot, se pide una asistencia nueva.</div>') + '</div>';
+
+    // 3. abajo, plegado: lo que se usa una vez
+    var ordenCampos = '<label style="' + LB + '">Orden de servicio: número (si tiene) y foto de la orden firmada</label><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;"><input id="asOrdenNro" type="text" placeholder="N.º de orden" style="' + IN + 'width:130px;">' + selector('asOrdenFoto', true) + '</div>';
+    if (abierto && irr) {
+      h += pliegue('visita', 'Visita prevista', false,
+        '<label style="' + LB + 'margin-top:0;">Día y hora</label><input id="asVisita" type="datetime-local" value="' + esc(p.visita || '') + '" style="' + IN + 'display:block;max-width:100%;min-width:0;min-height:44px;-webkit-appearance:none;appearance:none;">' +
+        '<button data-a="visita" style="' + BG + 'margin-top:10px;">Guardar la visita</button><div style="font-size:12px;color:#8C9196;margin-top:6px;">Al campo le llega el aviso con el día y la hora.</div>',
+        p.visita ? '· ' + fh(p.visita) : '');
+      h += pliegue('cierre', 'Cerrar con el informe', esTecnico() && miPedido,
+        '<label style="' + LB + 'margin-top:0;">Qué se encontró</label><input id="asCausa" type="text" placeholder="Ejemplo: fusible del tablero quemado" style="' + IN + '">' +
+        '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" placeholder="Ejemplo: se cambió el fusible y se probó una vuelta" style="' + IN + '">' +
+        '<label style="' + LB + '">Repuestos usados (si hubo)</label><input id="asRepuestos" type="text" style="' + IN + '">' +
+        '<label style="' + LB + '">Repuestos que faltan o quedan pendientes (uno por renglón)</label><textarea id="asPend" rows="2" placeholder="Ejemplo: rulemán 6306 de la bomba&#10;contactor de la torre 4" style="' + IN + '"></textarea>' +
+        '<select id="asPendDestino" style="' + IN + 'margin-top:6px;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select>' +
+        '<label style="' + LB + '">Cómo se atendió</label><select id="asCanal" style="' + IN + '">' + Object.keys(CANALES).map(function (k) { return '<option value="' + k + '"' + (k === 'visita' ? ' selected' : '') + '>' + CANALES[k] + '</option>'; }).join('') + '</select>' +
+        ordenCampos + '<button data-a="cerrarIrrigar" style="' + BR + 'margin-top:12px;">Cerrar el pedido</button>');
+    } else if (abierto) {
+      h += pliegue('cierre', '¿Ya está resuelto? Cerrar el pedido', false,
+        '<label style="' + LB + 'margin-top:0;">Contá en una línea cómo quedó (opcional)</label><input id="asCierre" type="text" placeholder="Ejemplo: vino el técnico y ya anda" style="' + IN + '">' +
+        ordenCampos + '<button data-a="cerrarCampo" style="' + BR + 'margin-top:10px;">Cerrar el pedido</button>' +
+        '<div style="font-size:12px;color:#8C9196;margin-top:6px;line-height:1.4;">Al cerrar, la conversación de este pedido termina. Si aparece otro problema, se pide una asistencia nueva. Si nadie lo cierra, se cierra solo cuando se cargue el próximo riego de este pivot.</div>');
+    } else {
+      h += pliegue('orden', p.orden && p.orden.foto ? 'Orden de servicio' : 'Subir la orden de servicio', false,
+        ordenCampos + '<button data-a="orden" style="' + BG + 'margin-top:10px;">Guardar la orden</button>', p.orden && (p.orden.foto || p.orden.nro) ? '' : '· sin cargar');
+      if (irr) h += pliegue('informe', 'Informe técnico', false,
+        '<div style="font-size:12px;color:#8C9196;margin-bottom:4px;">Se puede completar después de cerrar.</div>' +
+        '<label style="' + LB + 'margin-top:0;">Qué se encontró</label><input id="asCausa" type="text" value="' + esc(inf.causa || '') + '" style="' + IN + '">' +
+        '<label style="' + LB + '">Qué se hizo</label><input id="asSolucion" type="text" value="' + esc(inf.solucion || '') + '" style="' + IN + '">' +
+        '<label style="' + LB + '">Repuestos usados</label><input id="asRepuestos" type="text" value="' + esc(inf.repuestos || '') + '" style="' + IN + '">' +
+        '<button data-a="informe" style="' + BG + 'margin-top:10px;">Guardar el informe</button>');
+    }
+    // repuestos y pendientes: siguen abiertos aunque el pedido esté cerrado
+    var pens = pendientesDe(p.id), sinEntregar = pens.filter(function (x) { return x.estado !== 'entregado'; }).length;
+    h += pliegue('repuestos', 'Repuestos y pendientes', false,
+      (pens.length ? pens.map(htmlPendiente).join('') : '<div style="font-size:13.5px;color:#8C9196;">Nada pendiente.</div>') +
+      '<div style="border-top:1px solid #EEF0F2;margin-top:10px;padding-top:10px;"><textarea id="asPendNuevo" rows="2" placeholder="Qué falta (uno por renglón). Ejemplo: fusible de 20 A del tablero" style="' + IN + '"></textarea>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"><select id="asPendNuevoDestino" style="' + IN + 'flex:1;min-width:190px;width:auto;">' + Object.keys(DESTINOS).map(function (k) { return '<option value="' + k + '">' + DESTINOS[k] + '</option>'; }).join('') + '</select><button data-a="pendAgregar" style="' + BG + '">Agregar a pendientes</button></div></div>',
+      sinEntregar ? '· ' + sinEntregar + (sinEntregar === 1 ? ' sin entregar' : ' sin entregar') : '');
+    return h;
   }
 
   function htmlPendiente(x) {
@@ -729,6 +742,7 @@
   }
   function montar(c) {
     cont = c; cont.addEventListener('click', alClic); cont.addEventListener('change', alCambio);
+    cont.addEventListener('toggle', function (ev) { var d = ev.target; if (!d || !d.getAttribute || !d.getAttribute('data-pl')) return; vista.pliegues = vista.pliegues || {}; vista.pliegues[d.getAttribute('data-pl')] = d.open; var f = d.querySelector('.pl-flecha'); if (f) f.textContent = d.open ? 'cerrar ▴' : 'abrir ▾'; }, true);
     var q = new URLSearchParams(location.search);
     if (q.get('equipo')) vista.equipo = q.get('equipo');
     if (esTecnico()) vista.filtro = 'mias';   // el técnico arranca en sus visitas, en orden
