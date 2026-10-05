@@ -11,6 +11,11 @@
       https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf
       Eso es la MADUREZ FISIOLÓGICA. Para la fecha de cosecha se suman los días de secado en la planta que aprendió
       SafiaAprende de las cosechas de maíz de la región (Embrapa no publica cuánto tarda: depende del clima y de la secadora).
+   Soja en zafriña (siembra de enero a abril): el fotoperíodo corto acorta el ciclo (Embrapa Soja: "quanto mais tardia
+      a semeadura, menor o ciclo"; Vaz Bisneta et al., Embrapa Soja/UFG 2012, épocas de semeadura en Goiás). Embrapa no
+      publica cuántos días para Paraguay: hasta tener cosechas propias de zafriña se usa la referencia de campo de Irrigar
+      (Osmar, 5-oct-2026): soja sembrada del 15/01 al 15/02 se cosecha entre 100 y 115 días como máximo. Las cosechas de
+      zafriña se aprenden aparte ("· zafriña" en el nombre): verano y zafriña no se mezclan.
    4. Material sin nada de lo anterior: el ciclo propio que aprendió SafiaAprende (días reales de siembra a cosecha en
       las cosechas del banco), diciendo con cuántas cosechas.
    Lo que no se puede estimar con fuente ni con cosechas propias queda vacío: nunca se inventa un ciclo.
@@ -23,6 +28,10 @@
   function cultivoClave(c) { var n = String(c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); return n.indexOf('soj') === 0 ? 'soja' : (n.indexOf('maiz') === 0 ? 'maiz' : n.split(/[\s(\/]/)[0]); }
   function sumarDias(iso, n) { var d = new Date(String(iso).slice(0, 10) + 'T12:00:00'); d.setDate(d.getDate() + Math.round(n)); return d.toISOString().slice(0, 10); }
   function fmtF(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
+  // Soja en zafriña: siembra de enero a abril (la misma época 'Verano/Otoño' de SafiaCasos); se aprende aparte
+  var ZAFRINA_SOJA = { min: 100, max: 115, n: 'referencia de campo de Irrigar: soja sembrada del 15/01 al 15/02 se cosecha entre 100 y 115 días como máximo', url: 'https://www.alice.cnptia.embrapa.br/alice/bitstream/doc/929362/1/309s206.pdf' };
+  function zafrina(cultivo, fecha) { var m = parseInt(String(fecha || '').slice(5, 7), 10); return cultivoClave(cultivo) === 'soja' && m >= 1 && m <= 4; }
+  function nombreAprendido(cultivo, nombre, fecha) { return zafrina(cultivo, fecha) ? nombre + ' · zafriña' : nombre; }
   var EMBRAPA_GDU = { n: 'Embrapa Milho e Sorgo, Sistemas de Produção 2 (Plantio): grados-día con 30 °C y 10 °C como temperaturas de referencia', url: 'https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf' };
 
   // Nombre corto de la fuente: el dominio de la página o el catálogo PDF (url 'catalogo:archivo.pdf#page=N')
@@ -106,7 +115,7 @@
   /* ---------- 4) ciclo propio: lo que duró el material en las cosechas del banco ---------- */
   function propio(o, d) {
     if (o.sinAprender || !window.SafiaAprende || !SafiaAprende.cicloPropio) return null;   // al aprender no se usa lo ya aprendido
-    var r = SafiaAprende.cicloPropio({ cultivo: o.cultivo, variedad: d && d.nombre ? d.nombre : o.variedad, lat: o.lat, lon: o.lon }); if (!r) return null;
+    var r = SafiaAprende.cicloPropio({ cultivo: o.cultivo, variedad: nombreAprendido(o.cultivo, d && d.nombre ? d.nombre : o.variedad, o.fechaSiembra), lat: o.lat, lon: o.lon }); if (!r) return null;
     return { dias: r.dias, metodo: 'propio', confianza: r.n >= 3 ? 'media' : 'baja', propio: r,
       texto: 'ciclo propio: lo que duró en ' + r.n + (r.n === 1 ? ' cosecha' : ' cosechas') + ' de SAFIA, de siembra a cosecha' + (r.n > 1 ? ' (' + r.min + ' a ' + r.max + ' días)' : '') + '; el obtentor no publica los días',
       fuente: { n: 'Lo que SAFIA aprendió (cosechas del banco)', url: '' } };
@@ -130,10 +139,14 @@
     var fin = function (r) {
       if (!r) r = propio(o, d);
       if (!r) return null;
+      if (zafrina(o.cultivo, o.fechaSiembra) && r.metodo !== 'propio' && r.dias > ZAFRINA_SOJA.max) {
+        r.diasVerano = r.dias; r.dias = ZAFRINA_SOJA.max; r.zafrina = true; r.confianza = 'baja';
+        r.texto = 'sembrada en zafriña: el ciclo de verano (' + r.diasVerano + ' días, ' + r.texto + ') se acorta con el día más corto (Embrapa Soja); se usa el máximo de la ' + ZAFRINA_SOJA.n + ', hasta tener cosechas propias de zafriña';
+      }
       // lo aprendido de las cosechas propias corrige la estimación (SafiaAprende, nivel 1); al aprender se pide sin corregir
-      var ap = !o.sinAprender && r.metodo !== 'propio' && r.metodo !== 'gdu' && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: (d && d.nombre) || o.variedad, lat: o.lat, lon: o.lon }) : null;
+      var ap = !o.sinAprender && r.metodo !== 'propio' && r.metodo !== 'gdu' && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: nombreAprendido(o.cultivo, (d && d.nombre) || o.variedad, o.fechaSiembra), lat: o.lat, lon: o.lon }) : null;
       if (ap && ap.dias) { r.diasFuente = r.dias; r.dias += ap.dias; r.aprendido = ap; r.texto += ' · corregido con ' + ap.n + ' cosechas propias (' + (ap.dias > 0 ? '+' : '') + ap.dias + ' días)'; }
-      r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d ? d.nombre : o.variedad; return r;
+      r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = nombreAprendido(o.cultivo, d ? d.nombre : o.variedad, o.fechaSiembra); return r;
     };
     if (!d) return Promise.resolve(fin(null));
     if (p) return Promise.resolve(fin(p));
@@ -163,5 +176,5 @@
     return 'Estimada por SAFIA: ' + r.dias + ' días desde la siembra → ' + fmtF(r.fechaFin) + ' (' + r.texto + ').' + (r.nota ? ' ' + r.nota : '') + ' Podés corregirla.';
   }
 
-  window.SafiaCiclo = { estimar: estimar, fichaMaterial: fichaMaterial, textoEstimacion: textoEstimacion, gduDia: gduDia, EMBRAPA_GDU: EMBRAPA_GDU };
+  window.SafiaCiclo = { estimar: estimar, zafrina: zafrina, nombreAprendido: nombreAprendido, ZAFRINA_SOJA: ZAFRINA_SOJA, fichaMaterial: fichaMaterial, textoEstimacion: textoEstimacion, gduDia: gduDia, EMBRAPA_GDU: EMBRAPA_GDU };
 })();

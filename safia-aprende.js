@@ -38,7 +38,8 @@
   function regionDe(x) { try { return window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region(x) : null; } catch (e) { return null; } }
   function clave(cultivo, variedad, region) { return cultivoK(cultivo) + '|' + norm(variedad) + '|' + (region || ''); }
   // nombre de la ficha del material ("Pioner 3322" y "P3322 PWU" son el mismo): así se juntan las cosechas del mismo híbrido
-  function material(cultivo, variedad) { try { var d = variedad && window.SafiaMateriales ? SafiaMateriales.buscar(cultivo, variedad) : null; return d && d.nombre ? d.nombre : variedad; } catch (e) { return variedad; } }
+  function material(cultivo, variedad) { var suf = '', mz = String(variedad || '').match(/^(.*) · zafriña$/); if (mz) { variedad = mz[1]; suf = ' · zafriña'; } return materialBase(cultivo, variedad) + suf; }
+  function materialBase(cultivo, variedad) { try { var d = variedad && window.SafiaMateriales ? SafiaMateriales.buscar(cultivo, variedad) : null; return d && d.nombre ? d.nombre : variedad; } catch (e) { return variedad; } }
 
   /* ================= LEER lo aprendido (lo usan los motores) ================= */
   function datos() { var l = lista('aprendizaje'); for (var i = 0; i < l.length; i++) if (l[i] && l[i].id === ID) return l[i]; return null; }
@@ -142,7 +143,7 @@
         avisar('Comparando ciclos reales (' + (i + 1) + ' de ' + conCiclo.length + ')…');
         if (!window.SafiaCiclo) return;
         return SafiaCiclo.estimar({ cultivo: c.cultivo, variedad: c.variedad, fechaSiembra: c.siembra, lat: c.lat, lon: c.lon, sinAprender: true }).then(function (r) {
-          var mat = material(c.cultivo, c.variedad);
+          var mat = material(c.cultivo, c.variedad); if (SafiaCiclo.nombreAprendido) mat = SafiaCiclo.nombreAprendido(c.cultivo, mat, c.siembra);   // la soja de zafriña se aprende aparte
           if (!r || !r.dias) {   // sin ciclo publicado: lo que duró de verdad pasa a ser el ciclo propio del material
             sinFicha++;
             [c._region, ''].forEach(function (reg) { sumar(P.propios, clave(c.cultivo, mat, reg), { v: c.dias, cultivo: c.cultivo, variedad: mat, region: reg }); });
@@ -315,8 +316,9 @@
   function paraCampana(cu, campo, equipo) {
     if (!cu) return null;
     var reg = campo ? regionDe({ departamento: campo.departamento, lat: campo.latitud, lon: campo.longitud }) : null, o = {};
-    var c = ajusteCiclo({ cultivo: cu.cultivo, variedad: cu.variedad, region: reg }); if (c) o.ciclo = 'el ciclo de ' + cu.variedad + ' sale ' + (c.dias >= 0 ? c.dias + ' días más largo' : -c.dias + ' días más corto') + ' que lo estimado, según ' + c.n + ' cosechas propias';
-    var cp = !c ? cicloPropio({ cultivo: cu.cultivo, variedad: cu.variedad, region: reg }) : null; if (cp) o.ciclo = cu.variedad + ' no tiene ciclo publicado por el obtentor: en las cosechas de SAFIA duró ' + cp.dias + ' días de siembra a cosecha (' + cp.n + (cp.n === 1 ? ' cosecha' : ' cosechas') + ')';
+    var vAp = window.SafiaCiclo && SafiaCiclo.nombreAprendido ? SafiaCiclo.nombreAprendido(cu.cultivo, cu.variedad, cu.fechaSiembra) : cu.variedad;
+    var c = ajusteCiclo({ cultivo: cu.cultivo, variedad: vAp, region: reg }); if (c) o.ciclo = 'el ciclo de ' + cu.variedad + ' sale ' + (c.dias >= 0 ? c.dias + ' días más largo' : -c.dias + ' días más corto') + ' que lo estimado, según ' + c.n + ' cosechas propias';
+    var cp = !c ? cicloPropio({ cultivo: cu.cultivo, variedad: vAp, region: reg }) : null; if (cp) o.ciclo = cu.variedad + ' no tiene ciclo publicado por el obtentor: en las cosechas de SAFIA duró ' + cp.dias + ' días de siembra a cosecha (' + cp.n + (cp.n === 1 ? ' cosecha' : ' cosechas') + ')';
     if (cultivoK(cu.cultivo) === 'maiz') { var sc = secado({ cultivo: cu.cultivo, region: reg }); if (sc) o.secado_del_maiz = 'después de la madurez fisiológica, el maíz quedó en promedio ' + sc.dias + ' días secándose en la planta hasta la cosecha (' + sc.n + (sc.n === 1 ? ' cosecha' : ' cosechas') + ' de SAFIA); la fecha de cosecha estimada ya lo suma'; }
     if (cultivoK(cu.cultivo) === 'soja') { var d = diasCierre('soja', cu.variedad, reg); if (d) o.cierre_del_surco = 'cierra cerca del día ' + d.dias + ' según ' + d.n + ' campañas propias'; }
     var f = factorMeta(cu.cultivo, reg); if (f) o.rango_de_la_meta = 'se cosechó en promedio el ' + Math.round((f.f) * 100) + ' % del centro del rango que anunciaba la meta (' + f.n + ' campañas): el rango se ajusta por eso';
