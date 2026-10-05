@@ -9,6 +9,8 @@
       10 años del lugar (Open-Meteo, reanálisis ERA5). Fórmula de Embrapa Milho e Sorgo (Sistemas de
       Produção 2, "Plantio"): GDU del día = (Tmáx + Tmín)/2 − 10, con Tmáx tope 30 °C y Tmín piso 10 °C.
       https://ainfo.cnptia.embrapa.br/digital/bitstream/item/27037/1/Plantio.pdf
+      Eso es la MADUREZ FISIOLÓGICA. Para la fecha de cosecha se suman los días de secado en la planta que aprendió
+      SafiaAprende de las cosechas de maíz de la región (Embrapa no publica cuánto tarda: depende del clima y de la secadora).
    4. Material sin nada de lo anterior: el ciclo propio que aprendió SafiaAprende (días reales de siembra a cosecha en
       las cosechas del banco), diciendo con cuántas cosechas.
    Lo que no se puede estimar con fuente ni con cosechas propias queda vacío: nunca se inventa un ciclo.
@@ -110,6 +112,17 @@
       fuente: { n: 'Lo que SAFIA aprendió (cosechas del banco)', url: '' } };
   }
 
+  // maíz: madurez fisiológica + días de secado en la planta aprendidos de las cosechas propias = fecha de cosecha
+  function conSecado(r, o) {
+    if (!r || r.metodo !== 'gdu') return r;
+    r.diasMadurez = r.dias;
+    var sc = !o.sinAprender && window.SafiaAprende && SafiaAprende.secado ? SafiaAprende.secado({ cultivo: o.cultivo, lat: o.lat, lon: o.lon }) : null;
+    if (!sc) { r.nota = 'Es la madurez fisiológica: la cosecha viene después, cuando el grano baja a 18–20 % de humedad (Embrapa). SAFIA va a sumar el secado cuando haya cosechas de maíz de la zona.'; return r; }
+    r.secado = sc; r.dias += sc.dias;
+    r.texto = 'madurez fisiológica a los ' + r.diasMadurez + ' días (' + r.texto.replace(/^madurez fisiológica estimada: /, '') + ') + ' + sc.dias + ' días de secado en la planta hasta la cosecha, promedio de ' + sc.n + (sc.n === 1 ? ' cosecha' : ' cosechas') + ' de maíz de SAFIA';
+    r.nota = ''; return r;
+  }
+
   function estimar(o) {
     o = o || {}; var cu = cultivoClave(o.cultivo), d = material(o.cultivo, o.variedad);
     if (!o.fechaSiembra || !o.variedad) return Promise.resolve(null);
@@ -118,14 +131,14 @@
       if (!r) r = propio(o, d);
       if (!r) return null;
       // lo aprendido de las cosechas propias corrige la estimación (SafiaAprende, nivel 1); al aprender se pide sin corregir
-      var ap = !o.sinAprender && r.metodo !== 'propio' && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: (d && d.nombre) || o.variedad, lat: o.lat, lon: o.lon }) : null;
+      var ap = !o.sinAprender && r.metodo !== 'propio' && r.metodo !== 'gdu' && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: (d && d.nombre) || o.variedad, lat: o.lat, lon: o.lon }) : null;
       if (ap && ap.dias) { r.diasFuente = r.dias; r.dias += ap.dias; r.aprendido = ap; r.texto += ' · corregido con ' + ap.n + ' cosechas propias (' + (ap.dias > 0 ? '+' : '') + ap.dias + ' días)'; }
       r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = d ? d.nombre : o.variedad; return r;
     };
     if (!d) return Promise.resolve(fin(null));
     if (p) return Promise.resolve(fin(p));
     if (cu === 'soja') return Promise.resolve(fin(porGM(d)));
-    if (cu === 'maiz') return porGDU(d, o.fechaSiembra, num(o.lat), num(o.lon)).then(fin);
+    if (cu === 'maiz') return porGDU(d, o.fechaSiembra, num(o.lat), num(o.lon)).then(function (r) { return fin(conSecado(r, o)); });
     return Promise.resolve(null);
   }
 
