@@ -154,7 +154,7 @@
         if (!cu || !cu.fechaSiembra) return;
         var cos = (c.cosechas && c.cosechas[i] && c.cosechas[i].fecha) || (i === 0 && c.cosecha && c.cosecha.fecha) || null;
         var cosObj = (c.cosechas && c.cosechas[i]) || (i === 0 ? c.cosecha : null) || {};
-        salida.push({ id: c.id + '_' + i, nombre: c.nombre || '', cultivo: cu.cultivo || '—', siembra: String(cu.fechaSiembra).slice(0, 10), cosecha: cos ? String(cos).slice(0, 10) : null, cosechaEstimada: cu.fechaCosecha ? String(cu.fechaCosecha).slice(0, 10) : null, rinde: num(cu.rendimientoReal), riegoDeclarado: num(cosObj.riegoMM), lluviaDeclarada: num(cosObj.lluviaMM), abierta: !cos });
+        salida.push({ id: c.id + '_' + i, nombre: c.nombre || '', cultivo: cu.cultivo || '—', variedad: cu.variedad || '', siembra: String(cu.fechaSiembra).slice(0, 10), cosecha: cos ? String(cos).slice(0, 10) : null, cosechaEstimada: cu.fechaCosecha ? String(cu.fechaCosecha).slice(0, 10) : null, rinde: num(cu.rendimientoReal), riegoDeclarado: num(cosObj.riegoMM), lluviaDeclarada: num(cosObj.lluviaMM), abierta: !cos });
       });
     });
     return salida.sort(function (a, b) { return b.siembra.localeCompare(a.siembra); });

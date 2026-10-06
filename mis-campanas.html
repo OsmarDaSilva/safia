@@ -1979,7 +1979,7 @@
       if (campo === 'cultivoAnterior') c.cultivoAnteriorAuto = false;   // lo escribió el usuario: se respeta
       if (campo === 'superficie') { c.superficieAuto = false; const sa = document.getElementById('supAyuda-' + idTemp); if (sa) sa.textContent = ''; }
       if (CAMPOS_MANEJO.indexOf(campo) !== -1) { c._manejoAuto = false; const sub = document.getElementById('antSub-' + idTemp); if (sub) sub.textContent = 'qué había en el lote y cómo se sembró'; const linea = document.getElementById('antLinea-' + idTemp); if (linea) linea.innerHTML = lineaAntecesorHTML(c); }
-      if (campo === 'cultivo' || campo === 'fechaSiembra') refrescarResumenCampana();
+      if (campo === 'cultivo' || campo === 'fechaSiembra' || campo === 'variedad') refrescarResumenCampana();
       if (campo === 'fechaCosecha') { c.fechaCosechaAuto = false; const a = document.getElementById('cosAyuda-' + idTemp); if (a) a.textContent = valor ? 'Fecha cargada a mano.' : ''; }   // la escribió el usuario: no se pisa
       if (campo === 'variedad' || campo === 'fechaSiembra' || campo === 'cultivo') programarMaterial(idTemp);
       if (campo === 'fechaSiembra' || campo === 'cultivo') { autoCompletarAntecesores(); refrescarAntecesoresEnPantalla(); }
@@ -2042,7 +2042,8 @@
         zafra = pastura ? String(y) : (m >= 8 ? y + '/' + String(y + 1).slice(-2) : (m <= 4 ? 'zafriña ' + y : 'invierno ' + y));
       }
       const eq = equipoActual();
-      return (cs.map(c => c.cultivo).join(' + ') + (zafra ? ' ' + zafra : '') + (eq ? ' · ' + eq.nombre : '')).trim();
+      const nom = c => (window.SafiaPasturas && SafiaPasturas.esPastura(c.cultivo)) ? SafiaPasturas.nombreCorto(c.cultivo, c.variedad) : c.cultivo;
+      return (cs.map(nom).join(' + ') + (zafra ? ' ' + zafra : '') + (eq ? ' · ' + eq.nombre : '')).trim();
     }
     function refrescarResumenCampana() {
       const inp = document.getElementById('nombre'), est = document.getElementById('estado'), r = document.getElementById('resumenCampana');

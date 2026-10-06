@@ -43,6 +43,31 @@
     if (typeof x === 'object') return !!x.pastura || RE_PASTURA.test(norm(x.nombre || x.cultivo));
     return RE_PASTURA.test(norm(x));
   }
+  // Nombre corto: la categoría "Pastura tropical (Brachiaria, Mombaça, Tifton)" es genérica; lo que identifica al pasto es la variedad.
+  // "Pastura tropical (...)" + "BRS Zuri" → "Pastura BRS Zuri". Otros cultivos: "Soja · DM 66i68".
+  function nombreCorto(cultivo, variedad) {
+    var c = String(cultivo || ''), v = String(variedad || '').trim();
+    if (!esPastura(c)) return c + (v ? ' · ' + v : '');
+    return v ? 'Pastura ' + v : c.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  }
+  // Nombre de la campaña sin la categoría larga (también los nombres armados antes del 6-oct-2026)
+  function nombreCampana(c) {
+    var n = String((c && c.nombre) || '');
+    ((c && c.cultivos) || []).forEach(function (cu) { if (cu && cu.cultivo && /\(/.test(cu.cultivo) && esPastura(cu.cultivo) && n.indexOf(cu.cultivo) >= 0) n = n.split(cu.cultivo).join(nombreCorto(cu.cultivo, cu.variedad)); });
+    return n;
+  }
+  // Los nombres viejos se corrigen una vez en los datos (solo propietario o admin, que pueden guardar cualquier campaña); la nube los sube sola.
+  function arreglarNombres() {
+    try {
+      var u = window.SafiaSync && SafiaSync.usuario ? SafiaSync.usuario() : null;
+      if (!u || ['propietario', 'admin'].indexOf(u.rol) < 0) return;
+      var l = JSON.parse(localStorage.getItem('campanas') || '[]'), cambio = false;
+      l.forEach(function (c) { if (!c || !c.nombre) return; var n = nombreCampana(c); if (n !== c.nombre) { c.nombre = n; cambio = true; } });
+      if (cambio) localStorage.setItem('campanas', JSON.stringify(l));
+    } catch (e) { /* sin datos todavía */ }
+  }
+  window.addEventListener('safia:datos', arreglarNombres);
+  window.addEventListener('safia:usuario', function () { setTimeout(arreglarNombres, 0); });
   var SISTEMAS = [
     { k: 'rotativo_intensivo', n: 'Pastoreo rotativo intensivo (piquetes bajo el pivote)' },
     { k: 'rotativo', n: 'Pastoreo rotativo' },
@@ -293,5 +318,5 @@
     cargarReferencia().then(function (filas) { el.innerHTML = htmlBanco(c, filas); });
   }
 
-  window.SafiaPasturas = { alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, clasificarAltura: clasificarAltura, lecturasLote: lecturasLote, promedio: promedio, estadoPiquetes: estadoPiquetes, htmlPiquetes: htmlPiquetes, htmlGuia: htmlGuia, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
+  window.SafiaPasturas = { nombreCorto: nombreCorto, nombreCampana: nombreCampana, arreglarNombres: arreglarNombres, alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, clasificarAltura: clasificarAltura, lecturasLote: lecturasLote, promedio: promedio, estadoPiquetes: estadoPiquetes, htmlPiquetes: htmlPiquetes, htmlGuia: htmlGuia, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
 })();
