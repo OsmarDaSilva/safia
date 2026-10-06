@@ -348,10 +348,17 @@
     naranja:  { n: 'Naranja',     ece: [1.7, 2.3, 3.3, 4.8], ecw: [1.1, 1.6, 2.2, 3.2], hoja: 3, boro: [0.5, 0.75], psi: '<15' },
     girasol:  { n: 'Girasol',     clase: 'moderadamente sensible', hoja: 20, boro: [0.75, 1.0], psi: null },
     rhodes:   { n: 'Grama Rhodes (Chloris gayana)', clase: 'moderadamente tolerante', hoja: null, boro: null, psi: '>40' },
-    buffel:   { n: 'Buffel grass', clase: 'moderadamente sensible', hoja: null, boro: null, psi: null }
+    buffel:   { n: 'Buffel grass', clase: 'moderadamente sensible', hoja: null, boro: null, psi: null },
+    // Panicum maximum y Brachiaria (Urochloa) NO están en las Tablas 4 y 5 de FAO 29 (solo Panicum antidotale, otra especie, como
+    // moderadamente tolerante). Se muestran sin números de tolerancia, con la nota de lo que se sabe. Leído el 6-oct-2026.
+    panicum:  { n: 'Pasto Panicum (Zuri, Mombaça, Tanzania)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no lo tiene en sus tablas de tolerancia (solo el Panicum antidotale, otra especie, moderadamente tolerante). Estudios: Zuri regado en invernadero con agua de hasta 3,0 dS/m y RAS cerca de 10, apto para el ganado (Univ. Federal de Ceará, 2020); en germinación, Tanzania tolera más la sal que Mombaça (UNA, 2013). Ninguno con agua de sodio alto.' },
+    brachiaria: { n: 'Brachiaria (Urochloa)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no la tiene en sus tablas de tolerancia a la sal.' }
   };
   function claveCultivo(c) {
-    var n = norm(c);
+    // lo que va entre paréntesis es la lista de ejemplos de la categoría ("Pastura tropical (Brachiaria, Mombaça, Tifton)"): no decide
+    var n = norm(String(c || '').replace(/\([^)]*\)/g, ' '));
+    if (/zuri|mombac|mombas|tanzan|massai|quenia|panicum|coloniao|guinea|gatton|aruana|megathyrsus/.test(n)) return 'panicum';
+    if (/brachiaria|braquiaria|urochloa|marandu|piata|xaraes|mulato|ruziz|humidicola|decumbens|brizantha|paiagua|ipypora|cayman|sabia/.test(n)) return 'brachiaria';
     if (/^so[jy]a/.test(n)) return 'soja';
     if (/^maiz/.test(n)) return /forraj|silo|ensil/.test(n) ? 'maizfor' : 'maiz';
     if (/^trigo/.test(n)) return 'trigo'; if (/^sorgo/.test(n)) return 'sorgo';
@@ -365,7 +372,7 @@
   // Un cultivo frente a esta agua: sales (Tabla 4), lavado (ec. 9), hoja con pivot (Tabla 18), boro (Tabla 16)
   function evaluarCultivo(clave, r, a, aspersion) {
     var cu = CULTIVOS[clave]; if (!cu) return null;
-    var o = { clave: clave, n: cu.n, motivos: [], estado: 'ok', clase: cu.clase || null, psi: cu.psi };
+    var o = { clave: clave, n: cu.n, motivos: [], estado: 'ok', clase: cu.clase || null, psi: cu.psi, nota: cu.nota || null };
     var sube = function (e) { if (e === 'grave' || (e === 'cuidado' && o.estado === 'ok')) o.estado = e; };
     var ecw = r.ecw;
     if (cu.ecw && ecw != null) {
@@ -673,7 +680,7 @@
       var s = SEM[x.estado] || SEM.sin;
       var hoja = x.hojaUmbral == null ? '<span class="sub">sin dato FAO</span>' : (x.hojaDano ? '<b style="color:#B8731A;">se quema de día</b>' : 'sin daño') + '<div class="sub">daño desde ' + (x.hojaUmbral === 3 ? '< 5' : x.hojaUmbral) + ' meq/L</div>';
       var boro = !x.boroRango ? '<span class="sub">sin dato FAO</span>' : fmt(x.boroRango[0], 2) + '–' + fmt(x.boroRango[1], 2) + ' <span class="sub">mg/L</span>';
-      return '<tr><td><b style="color:' + s.c + ';">' + esc(x.n) + '</b>' + (x.clase ? '<div class="sub">' + esc(x.clase) + ' (FAO Tabla 5)</div>' : '') + '</td>' +
+      return '<tr><td><b style="color:' + s.c + ';">' + esc(x.n) + '</b>' + (x.clase ? '<div class="sub">' + esc(x.clase) + ' (FAO Tabla 5)</div>' : '') + (x.nota ? '<div class="sub" style="max-width:340px;">' + esc(x.nota) + '</div>' : '') + '</td>' +
         '<td class="r">' + (x.potencial ? '<b>' + esc(x.potencial) + '</b><div class="sub">aguanta ' + fmt(x.umbralEcw, 1) + ' dS/m</div>' : '<span class="sub">sin dato</span>') + '</td>' +
         '<td class="r">' + (x.lr != null ? fmt(x.lr * 100, 0) + ' %' : '—') + '</td>' + (L.aspersion ? '<td class="r">' + hoja + '</td>' : '') + '<td class="r">' + boro + '</td></tr>';
     }).join('') + '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px;">FAO 29: Tabla 4 (sales), ec. 9 (agua extra de lavado), Tabla 18 (hoja con aspersión, riego de día en verano), Tabla 16 (boro que tolera sin perder rinde) [1].</div>' +
@@ -719,7 +726,7 @@
   function lotesDelCampo() { var c = B().campoActual(); return c ? B().leer('equipos').filter(function (e) { return String(e.campoId) === String(c.id); }) : []; }
   function cultivosDelCampo() {
     var c = B().campoActual(), set = {};
-    if (c) { var eqs = lotesDelCampo().map(function (e) { return String(e.id); }); B().leer('campanas').filter(function (x) { return eqs.indexOf(String(x.equipoId)) >= 0 || String(x.campoId) === String(c.id); }).forEach(function (x) { (x.cultivos || []).forEach(function (cu) { if (cu && cu.cultivo) set[cu.cultivo] = 1; }); }); }
+    if (c) { var eqs = lotesDelCampo().map(function (e) { return String(e.id); }); B().leer('campanas').filter(function (x) { return eqs.indexOf(String(x.equipoId)) >= 0 || String(x.campoId) === String(c.id); }).forEach(function (x) { (x.cultivos || []).forEach(function (cu) { if (cu && cu.cultivo) set[cu.cultivo + (cu.variedad ? ' · ' + cu.variedad : '')] = 1; }); }); }
     var l = Object.keys(set); if (!l.length) l = ['Soja', 'Maíz']; return l;
   }
   function esAspersion(item) {
