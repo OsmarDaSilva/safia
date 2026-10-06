@@ -1,4 +1,5 @@
-// SAFIA · Edge Function: safia-leer-analisis (v12)
+// SAFIA · Edge Function: safia-leer-analisis (v13)
+// v13 (suelo, 6-oct-2026): sodio intercambiable, PSI y CE del extracto de saturación (Embrapa CPATSA: salino/sódico).
 // v12 (agua, 6-oct-2026): alcalinidad total y P, y dureza como campos propios; la app deriva CO3/HCO3 de la alcalinidad (SM 2320 B).
 // v11 (agua, 5-oct-2026): carbonatos y bicarbonatos se deciden con números (alcalinidad P/T, CSR del laboratorio); el método
 //      SM 2320 o "Cálculo" ya no alcanza para decir CaCO3 (INYMA informa los iones: caso Tres Tigre).
@@ -37,6 +38,9 @@ const ESQUEMA = `{
   "arena": "arena en % como número, o null",
   "limo": "limo en % como número, o null",
   "arcilla": "arcilla en % como número, o null",
+  "sodio": "sodio intercambiable Na+ en cmolc/dm³ como número, o null",
+  "psi": "PSI / PST (porcentaje de sodio intercambiable) en % si el informe lo trae, o null",
+  "ce_extracto": "conductividad eléctrica del extracto de saturación (CEe) en dS/m, o null",
   "aluminio": "aluminio intercambiable Al3+ en cmolc/dm³ como número, o null",
   "saturacion_aluminio": "saturación de aluminio m% como número, o null",
   "azufre": "azufre S-SO4 en mg/dm³ como número, o null",
@@ -65,6 +69,7 @@ CÓMO RECONOCER CADA DATO (sinónimos habituales):
 - aluminio: "Al", "Al3+", "Al trocável", "Alumínio". saturacion_aluminio: "m", "m%", "Sat. Al", "Saturação por alumínio".
 - azufre: "S", "S-SO4", "SO4", "Enxofre", "Azufre" en mg/dm³. boro: "B". zinc: "Zn". cobre: "Cu". manganeso: "Mn". Fe va a observaciones.
 - arcilla / limo / arena: "Argila", "Silte", "Areia"; en g/kg dividí por 10 para llevar a %.
+- sodio: "Na", "Na+", "Na trocável", "Sódio", "Sodio intercambiable". Si viene en mg/dm³ o ppm, cmolc = mg / 230. Si viene en mmolc/dm³, dividí por 10. psi: "PST", "PSI", "ISNa", "% Na", "Sat. Na". ce_extracto: "CEe", "CE extrato de saturação", "CE pasta saturada" en dS/m (= mS/cm = mmhos/cm); en µS/cm dividí por 1000. La CE 1:2,5 o 1:5 NO es la CEe: anotala en observaciones.
 - Ojo con las tablas desalineadas de PDF: cada valor pertenece a la fila de su elemento; verificá con S = Ca + Mg + K y CIC = S + (H+Al) cuando esos datos existan; si no cuadra, revisá la asignación.
 
 REGLAS:

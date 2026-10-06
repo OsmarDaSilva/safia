@@ -38,6 +38,9 @@
     { k: 'hierro', re: /^fe$|^fe ?\(|^hierro|^ferro/ },
     { k: 'manganeso', re: /^mn$|^mn ?\(|^manganeso|^manganes/ },
     { k: 'zinc', re: /^zn$|^zn ?\(|^zinc|^zinco/ },
+    { k: 'sodio', re: /^na$|^na ?\(|^na\+|^sodio/ },
+    { k: 'psi', re: /^pst|^psi$|^psi ?\(|^isna|^sat\.? ?(de |por )?(na|sodio)/ },
+    { k: 'ce_extracto', re: /^cee|^ce ?(do |del )?extra|^ce ?\(?pasta|^ce ?es$/ },
     { k: 'arena', re: /^areia|^arena|^sand/ },
     { k: 'limo', re: /^silte|^limo|^silt/ },
     { k: 'arcilla', re: /^argila|^arcilla|^clay/ },
@@ -80,7 +83,7 @@
     // si dos encabezados dan la misma determinación, gana el de mayor prioridad (pH CaCl2 sobre pH agua; Descrição sobre Cod. Lab.)
     var prioDe = function (k, h) { var c = COLUMNAS.find(function (x) { return x.k === k; }); return c && c.prioridad ? c.prioridad(norm(h)) : 1; };
     enc.forEach(function (h, j) { var k = claveDeEncabezado(h); if (!k) return; var p = prioDe(k, h); if (!usados[k] || p > prioUsada[k]) { Object.keys(mapa).forEach(function (jj) { if (mapa[jj] === k) delete mapa[jj]; }); mapa[j] = k; usados[k] = String(h); prioUsada[k] = p; } });
-    var muestras = [], avisos = [], kEnMg = 0, moEnG = 0;
+    var muestras = [], avisos = [], kEnMg = 0, moEnG = 0, naEnMg = 0, ceEnUs = 0;
     for (var i = iH + 1; i < filas.length; i++) {
       var f = filas[i] || []; if (!f.some(function (c) { return c !== '' && c != null; })) continue;
       var m = {}, valores = 0;
@@ -91,6 +94,8 @@
       });
       if (!valores) continue;
       if (m.potasio != null && m.potasio > 3) { m.potasio = Math.round(m.potasio / 391 * 1000) / 1000; kEnMg++; }   // mg/dm³ → cmolc/dm³
+      if (m.sodio != null && m.sodio > 10) { m.sodio = Math.round(m.sodio / 230 * 1000) / 1000; naEnMg++; }   // mg/dm³ → cmolc/dm³ (Na 23 g/mol)
+      if (m.ce_extracto != null && m.ce_extracto > 100) { m.ce_extracto = Math.round(m.ce_extracto) / 1000; ceEnUs++; }   // µS/cm → dS/m
       if (m.materia_organica != null && m.materia_organica > 12) { m.materia_organica = Math.round(m.materia_organica / 10 * 100) / 100; moEnG++; }   // g/dm³ (laboratorios de Brasil) → %
       if (m.profundidad) m.profundidad = m.profundidad.replace(/\s*cm$/i, ' cm');
       if (m.fecha && /^\d+(\.\d+)?$/.test(m.fecha)) { var d = new Date(Math.round((parseFloat(m.fecha) - 25569) * 86400000)); m.fecha = d.toISOString().slice(0, 10); }
@@ -98,6 +103,8 @@
     }
     if (!muestras.length) return { error: 'La planilla tiene encabezados pero ninguna fila con valores.' };
     if (kEnMg) avisos.push('K venía en mg/dm³ en ' + kEnMg + ' muestra(s): se convirtió a cmolc/dm³ (÷ 391).');
+    if (naEnMg) avisos.push('Na venía en mg/dm³ en ' + naEnMg + ' muestra(s): se convirtió a cmolc/dm³ (÷ 230).');
+    if (ceEnUs) avisos.push('CEe venía en µS/cm en ' + ceEnUs + ' muestra(s): se pasó a dS/m (÷ 1000).');
     if (moEnG) avisos.push('Materia orgánica en g/dm³ en ' + moEnG + ' muestra(s): se pasó a % (÷ 10).');
     var faltan = ['ph', 'fosforo', 'potasio', 'calcio', 'magnesio', 'cic', 'saturacion_bases', 'materia_organica'].filter(function (k) { return !usados[k]; });
     if (faltan.length) avisos.push('Sin columna para: ' + faltan.join(', ') + '.');
@@ -141,7 +148,7 @@
   function leerPlanilla(archivo) { return leerArchivo(archivo).then(interpretar); }
 
   // promedio de varias muestras (para Evaluar proyecto: el suelo del proyecto es el promedio de la grilla)
-  var NUM = ['ph', 'ph_smp', 'materia_organica', 'fosforo', 'potasio', 'calcio', 'magnesio', 'aluminio', 'h_al', 'sb', 'cic', 'saturacion_bases', 'saturacion_aluminio', 'azufre', 'boro', 'cobre', 'hierro', 'manganeso', 'zinc', 'arena', 'limo', 'arcilla'];
+  var NUM = ['ph', 'ph_smp', 'materia_organica', 'fosforo', 'potasio', 'calcio', 'magnesio', 'aluminio', 'h_al', 'sb', 'cic', 'saturacion_bases', 'saturacion_aluminio', 'azufre', 'boro', 'cobre', 'hierro', 'manganeso', 'zinc', 'arena', 'limo', 'arcilla', 'sodio', 'psi', 'ce_extracto'];
   function promedio(muestras) {
     var o = { muestra: 'Promedio de ' + muestras.length + ' muestras', n: muestras.length };
     NUM.forEach(function (k) { var v = muestras.map(function (m) { return m[k]; }).filter(function (x) { return x != null; }); if (v.length) o[k] = Math.round(v.reduce(function (s, x) { return s + x; }, 0) / v.length * 100) / 100; });

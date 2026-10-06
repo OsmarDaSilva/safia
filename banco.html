@@ -317,6 +317,8 @@
               <div class="field"><label>Arena (%)</label><input type="number" id="aArena" step="0.1" min="0" max="100"></div>
               <div class="field"><label>Limo (%)</label><input type="number" id="aLimo" step="0.1" min="0" max="100"></div>
               <div class="field"><label>Arcilla (%)</label><input type="number" id="aArcilla" step="0.1" min="0" max="100"></div>
+              <div class="field"><label>Sodio Na (cmolc/dm³) <span class="hint">intercambiable: da el PSI</span></label><input type="number" id="aNa" step="0.01" min="0"></div>
+              <div class="field"><label>CE del extracto (dS/m) <span class="hint">pasta saturada (CEe)</span></label><input type="number" id="aCe" step="0.01" min="0"></div>
               <div class="field full">
                 <label>Archivo del laboratorio <span class="hint">PDF o foto (lo lee la IA) · Excel o CSV (planilla de resultados o muestreo en grilla, se lee al instante)</span></label>
                 <input type="file" id="aArchivo" accept=".pdf,image/*,.xlsx,.xls,.xlsm,.csv,.txt">
@@ -1350,7 +1352,11 @@
     { k: 'phSmp',   n: 'pH SMP',             dec: 1 },
     { k: 'arena',   n: 'Arena %',            dec: 1 },
     { k: 'limo',    n: 'Limo %',             dec: 1 },
-    { k: 'arcilla', n: 'Arcilla %',          dec: 1 }
+    { k: 'arcilla', n: 'Arcilla %',          dec: 1 },
+    // sodio y sales del suelo (Embrapa CPATSA): solo se muestran si alguna muestra los tiene; que suban es peor, no mejor
+    { k: 'na',      n: 'Sodio Na',           dec: 2, opcional: true, inverso: true },
+    { k: 'psi',     n: 'PSI (sodio, % CIC)', dec: 1, opcional: true, inverso: true },
+    { k: 'ceExtracto', n: 'CEe (dS/m)',      dec: 2, opcional: true, inverso: true }
   ];
 
   function analisisDelCampo() {
@@ -1362,7 +1368,7 @@
     var rep = lista.filter(function (a) { return !a.enPromedio; });
     return rep.length ? rep : lista;
   }
-  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'hAl', 'phSmp', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso'];
+  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'hAl', 'phSmp', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso', 'na', 'ceExtracto'];
   // Promedio aritmético de cada valor (solo los que están cargados). Es lo que usan los laboratorios al informar la "media" de una gleba.
   function promediarAnalisis(items) {
     var out = {};
@@ -1377,6 +1383,7 @@
   }
   function valoresDelPromedio(prom, items) {
     Object.assign(prom, promediarAnalisis(items));
+    prom.psi = psiDe(prom);
     var profs = {}; items.forEach(function (a) { if (a.profundidad) profs[a.profundidad] = 1; });
     prom.profundidad = Object.keys(profs).join(' / ');
     prom.fecha = items.map(function (a) { return a.fecha; }).sort().slice(-1)[0];
@@ -1438,19 +1445,32 @@
     if (typeof pintarEvolucion === 'function') pintarEvolucion();
   });
 
+  // El cultivo de la última campaña del campo (la pastura se lee con Embrapa, no con las tablas de grano)
+  function cultivoDeLectura() {
+    var eqs = leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); }).map(function (e) { return String(e.id); });
+    var cs = []; leer('campanas').forEach(function (c) { if (eqs.indexOf(String(c.equipoId)) < 0) return; (c.cultivos || []).forEach(function (cu) { if (cu && cu.cultivo) cs.push({ f: String(cu.fechaSiembra || c.fechaSiembra || ''), t: cu.cultivo + ' ' + (cu.variedad || '') }); }); });
+    if (!cs.length) return 'Soja';
+    var t = cs.sort(function (a, b) { return a.f.localeCompare(b.f); }).pop().t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (window.SafiaAgro && SafiaAgro.perfilCultivo(t).pastura) return 'Pastura';
+    return /^maiz/.test(t) ? 'Maíz' : (/^trigo/.test(t) ? 'Trigo' : (/^girasol/.test(t) ? 'Girasol' : 'Soja'));
+  }
   function pintarLecturaAnalisis(lista) {
     var cont = document.getElementById('lecturaAnalisis');
     if (!cont) return;
     if (!lista.length || !window.SafiaAgro) { cont.innerHTML = ''; return; }
     var rep = analisisRepresentativos(lista);
-    var ult = rep[rep.length - 1];
-    var cultivo = (document.getElementById('lecturaCultivo') || {}).value || 'Soja';
+    // la fertilidad sale del último análisis que la tenga; el sodio y la CEe, del último que los tenga (un análisis solo de sodio no tapa al de fertilidad)
+    var conFert = rep.filter(function (a) { return num(a.ca) != null || num(a.p) != null || num(a.k) != null; });
+    var conNa = rep.filter(function (a) { return num(a.psi) != null || num(a.ceExtracto) != null; });
+    var ult = conFert.length ? conFert[conFert.length - 1] : rep[rep.length - 1], ultNa = conNa.length ? conNa[conNa.length - 1] : null;
+    if (ultNa && ultNa !== ult) ult = Object.assign({}, ult, { na: ultNa.na, psi: ultNa.psi, ceExtracto: ultNa.ceExtracto, fechaNa: ultNa.fecha });
+    var cultivo = (document.getElementById('lecturaCultivo') || {}).value || cultivoDeLectura();
     var recs = SafiaAgro.recomendaciones(ult, cultivo, null);
     cont.innerHTML = '<div class="card" style="margin-top:14px;"><div class="card-h"><h3>🧠 Lectura agronómica del último análisis</h3>' +
-      '<span class="muted">' + fmtFecha(ult.fecha) + (ult.esPromedio ? ' · promedio de ' + ult.nMuestras + ' muestras' + (ult.parcela ? ' (' + esc(ult.parcela) + ')' : '') : (ult.equipoId ? ' · ' + esc(nombreLote(ult.equipoId)) : '')) + ' · interpretado para <select id="lecturaCultivo" style="font-size:12px;padding:2px 6px;">' + ['Soja', 'Maíz', 'Trigo', 'Girasol'].map(function (c) { return '<option' + (c === cultivo ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></span></div>' +
+      '<span class="muted">' + fmtFecha(ult.fecha) + (ult.fechaNa ? ' (sodio y sales del ' + fmtFecha(ult.fechaNa) + ')' : '') + (ult.esPromedio ? ' · promedio de ' + ult.nMuestras + ' muestras' + (ult.parcela ? ' (' + esc(ult.parcela) + ')' : '') : (ult.equipoId ? ' · ' + esc(nombreLote(ult.equipoId)) : '')) + ' · interpretado para <select id="lecturaCultivo" style="font-size:12px;padding:2px 6px;">' + ['Soja', 'Maíz', 'Trigo', 'Girasol', 'Pastura'].map(function (c) { return '<option' + (c === cultivo ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></span></div>' +
       SafiaAgro.tablaInterpretacion(SafiaAgro.interpretarSuelo(ult, cultivo)) +
       '<div style="font-weight:700;margin-top:12px;">Qué hacer</div>' + SafiaAgro.listaRecomendaciones(recs) +
-      '<div class="muted" style="font-size:11px;margin-top:8px;">Tablas de CAPECO/IPTA (Cubilla & Wendling 2012), Manual RS/SC 2016, Embrapa y Scientia Agricola. La prescripción final la define el agrónomo.</div></div>';
+      '<div class="muted" style="font-size:11px;margin-top:8px;">' + (cultivo === 'Pastura' ? 'Pastura: Embrapa (folder BRS Zuri 2014; yeso para perennes, Embrapa Cerrados). Sodio del suelo: Embrapa CPATSA e INTA.' : 'Tablas de CAPECO/IPTA (Cubilla & Wendling 2012), Manual RS/SC 2016, Embrapa y Scientia Agricola.') + ' La prescripción final la define el agrónomo.</div></div>';
     document.getElementById('lecturaCultivo').addEventListener('change', function () { pintarLecturaAnalisis(lista); });
   }
 
@@ -1466,7 +1486,7 @@
       return '<th class="r">' + fmtFecha(a.fecha) + (a.equipoId ? '<div style="font-weight:600;text-transform:none;color:var(--green);">' + esc(nombreLote(a.equipoId)) + '</div>' : (a.esPromedio ? '' : a.muestra ? '<div style="font-weight:600;text-transform:none;" title="Nombre de la muestra en el laboratorio (sin lote asignado en SAFIA)">' + esc(etiquetaMuestra(a.muestra)) + '</div>' : '<div style="font-weight:500;text-transform:none;">todo el campo</div>')) + (a.profundidad ? '<div style="font-weight:500;text-transform:none;">' + esc(a.profundidad) + '</div>' : '') + (a.esPromedio ? '<div style="font-weight:700;text-transform:none;color:var(--green);">Promedio de ' + a.nMuestras + ' muestras' + (a.parcela ? ' · ' + esc(a.parcela) : '') + '</div>' : (a.enPromedio ? '<div style="font-weight:500;text-transform:none;font-size:10px;opacity:.7;">muestra dentro de un promedio</div>' : '')) + '</th>';
     }).join('') + '</tr></thead>';
 
-    var filas = PARAMS.map(function (p) {
+    var filas = PARAMS.filter(function (p) { return !p.opcional || lista.some(function (a) { return a[p.k] != null && a[p.k] !== ''; }); }).map(function (p) {
       var celdas = lista.map(function (a, i) {
         var v = a[p.k];
         if (v === null || v === undefined || v === '') return '<td class="r muted">—</td>';
@@ -1476,7 +1496,7 @@
           if (ant !== null && ant !== undefined && ant !== '') {
             var d = Number(v) - Number(ant);
             if (Math.abs(d) > 0.0001) {
-              delta = d > 0 ? ' <span class="evo-mejor">▲</span>' : ' <span class="evo-peor">▼</span>';
+              delta = (d > 0) !== !!p.inverso ? ' <span class="evo-mejor">' + (d > 0 ? '▲' : '▼') + '</span>' : ' <span class="evo-peor">' + (d > 0 ? '▲' : '▼') + '</span>';
             }
             break;
           }
@@ -1535,7 +1555,7 @@
     editandoAnalisisId = null; extrasIA = null;
     document.getElementById('tituloFormAnalisis').textContent = 'Nuevo análisis de suelo';
     document.getElementById('aArchivoActual').textContent = '';
-    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aHal','aSmp','aArena','aLimo','aArcilla','aObs','aArchivo'].forEach(function (i) {
+    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aHal','aSmp','aArena','aLimo','aArcilla','aNa','aCe','aObs','aArchivo'].forEach(function (i) {
       document.getElementById(i).value = '';
     });
   }
@@ -1552,7 +1572,7 @@
     document.getElementById('aProf').value = a.profundidad || '';
     llenarLotesAnalisis();
     document.getElementById('aEquipo').value = a.equipoId ? String(a.equipoId) : '';
-    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','hAl|aHal','phSmp|aSmp','arena|aArena','limo|aLimo','arcilla|aArcilla'].forEach(function (par) {
+    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','hAl|aHal','phSmp|aSmp','arena|aArena','limo|aLimo','arcilla|aArcilla','na|aNa','ceExtracto|aCe'].forEach(function (par) {
       var pp = par.split('|');
       document.getElementById(pp[1]).value = a[pp[0]] != null ? a[pp[0]] : '';
     });
@@ -1678,6 +1698,9 @@
   // Datos que la IA lee pero el formulario no tiene casillero: se guardan igual en el análisis y en Observaciones.
   var EXTRAS_IA = [['h_al', 'hAl', 'H+Al', 'cmolc/dm³'], ['ph_smp', 'phSmp', 'pH SMP', ''], ['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³'], ['hierro', 'hierro', 'Fe', 'mg/dm³'], ['sb', 'sb', 'SB', 'cmolc/dm³']];
   var extrasIA = null;
+  // Sodio intercambiable: si el laboratorio solo informa el PSI (PST), se recupera con la CIC. PSI = Na / CIC × 100.
+  function naDe(m) { var na = num(m.sodio); if (na == null && num(m.psi) != null && num(m.cic)) na = Math.round(num(m.psi) * num(m.cic) * 10) / 1000; return na; }
+  function psiDe(a) { var na = num(a.na), cic = num(a.cic); return na != null && cic ? Math.round(na / cic * 1000) / 10 : null; }
   function extrasDeMuestra(m) {
     var o = {}, hay = false;
     EXTRAS_IA.forEach(function (e) { var v = num(m[e[0]]); if (v !== null) { o[e[1]] = v; hay = true; } });
@@ -1721,10 +1744,11 @@
         var item = {
           id: base + i, campoId: campoActual.id, equipoId: equipoId, fecha: fecha, profundidad: m.profundidad || '', origen: 'ia',
           ph: num(m.ph), mo: num(m.materia_organica), p: num(m.fosforo), k: num(m.potasio), ca: num(m.calcio), mg: num(m.magnesio), cic: num(m.cic), satBases: num(m.saturacion_bases),
-          arena: num(m.arena), limo: num(m.limo), arcilla: num(m.arcilla),
+          arena: num(m.arena), limo: num(m.limo), arcilla: num(m.arcilla), na: naDe(m), ceExtracto: num(m.ce_extracto),
           observaciones: obsDeMuestra(m, i), archivoRuta: ruta || null, archivoNombre: archivo ? archivo.name : null, fechaCreacion: new Date().toISOString()
         };
         var ex = extrasDeMuestra(m); if (ex) Object.assign(item, ex);
+        item.psi = psiDe(item);
         if (window.SafiaFertilidad) { var chkM = SafiaFertilidad.consistencia(item); if (!chkM.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkM.avisos.join('; '); inconsistentes = (inconsistentes || 0) + 1; } if (item.extractorP && !/mehlich/i.test(item.extractorP)) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Extractor de P "' + item.extractorP + '": las clases del manual valen para Mehlich-1'; } }
         lista.push(item); creados++;
       });
@@ -1765,6 +1789,7 @@
     set('aLimo', d.limo);
     set('aArcilla', d.arcilla);
     set('aHal', d.h_al); set('aSmp', d.ph_smp);
+    set('aNa', naDe(d)); set('aCe', d.ce_extracto);
     document.getElementById('aObs').value = obsDeMuestra(d);
     extrasIA = extrasDeMuestra(d);
     var loteIA = loteParaMuestra(d.muestra);
@@ -1807,8 +1832,11 @@
       item.arena = num(document.getElementById('aArena').value);
       item.limo = num(document.getElementById('aLimo').value);
       item.arcilla = num(document.getElementById('aArcilla').value);
+      item.na = num(document.getElementById('aNa').value);
+      item.ceExtracto = num(document.getElementById('aCe').value);
       item.observaciones = document.getElementById('aObs').value.trim();
       if (extrasIA) { Object.assign(item, extrasIA); item.origen = 'ia'; extrasIA = null; }
+      item.psi = psiDe(item);
       if (window.SafiaFertilidad) { var chkA = SafiaFertilidad.consistencia(item); if (!chkA.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkA.avisos.join('; '); toast('Ojo: el análisis no cierra (' + chkA.avisos[0] + '). Revisá los valores.', true); } }
       if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
       if (!editandoAnalisisId) lista.push(item);

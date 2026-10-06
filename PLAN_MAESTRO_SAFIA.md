@@ -283,6 +283,7 @@ Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador d
 | Mejor receta: igualar al líder, materiales, fertilidad, época | ✅ Paraguay |
 | Pasturas bajo riego con carga animal (balance de materia seca, % del peso vivo, carga por mes) | ✅ 3-oct-2026 |
 | Asistente IA agronómico sobre el banco (responde con la fuente y el N de casos) | ✅ 30-sep-2026 |
+| Sodio del suelo (PSI, CEe) y yeso al suelo por Embrapa CPATSA; lectura de fertilidad para pasturas (Embrapa BRS Zuri) | ✅ 6-oct-2026 (v152) |
 
 ## 12. Próximos pasos (al 4-oct-2026)
 

@@ -61,6 +61,29 @@
    [12] Nicolodi et al. (2008): la soja empieza a perder rinde con más de
        3 mmolc/dm³ de Al y 5 % de saturación de Al; Ribeiro (1999): 20 %
        como límite tolerable. CESB: campeones con Al ≈ 0 en 0–20 cm.
+   [13] Embrapa Gado de Corte / Unipasto (2014), folder BRS Zuri: V% 45–50
+       en 0–20 cm (implantar y mantener); P Mehlich-1 por arcilla < 15 % →
+       18–21, 16–35 → 12–17, 36–60 → 8–11, > 60 → 4–7 mg/dm³ (mantener ~80 %);
+       K ≥ 50 mg/dm³; 30 kg/ha de S; N ≥ 50 kg/ha al implantar si MO < 1,6 %;
+       FTE 40–50 kg/ha; dolomítico si Ca < 1,5 o Mg < 0,5 cmolc; reposición
+       40–80 kg/ha de P₂O₅ por año; 120–150 kg N/ha/año ≈ 20 @/ha/año.
+   [14] Embrapa Cerrados (Sousa, Lobato y Rein 2005), yeso para perennes:
+       75 × % de arcilla (kg/ha) cuando en 20–40 cm Ca < 0,5, Al > 0,5 o
+       m > 20 % (citado por Vitti y Priori 2010 y en la revisión de Martins
+       et al. 2024, Rev. Multidisc. Nordeste Mineiro, que trajo Osmar).
+   [15] Embrapa CPATSA (Pereira, Valdivieso y Cordeiro 1985), Recuperação de
+       solos afetados por sódio através do uso de gesso: salino CEe > 4 dS/m
+       y PST < 15; sódico PST > 15 (pH > 8,5, CEe < 4); salino-sódico CEe > 4
+       y PST > 15. Yeso (t/ha) = 0,00086 × Dap × (PST1 − PST2) × CTC × p (cm),
+       × 1,25 (Richards 1954); con la CTC por volumen (cmolc/dm³) la densidad
+       ya está incluida. Aplicar fino, con suelo húmedo, lavar 50–70 mm;
+       actúa en 10–20 cm; dura 3–4 años; mejor con materia orgánica; yeso +
+       ácido sulfúrico al 25 % del Na; las gramíneas forrajeras toleran el
+       sodio mucho más que las leguminosas (CSSRI 1981, Tablas 7 y 8).
+   [16] INTA (IPG 1999) en Torres Duggan et al. (2017): PSI 5 % = alerta.
+   [17] Andrade et al. (2014), Univ. Federal de Tocantins, Revista Verde 9(5):
+       reemplazar K por Na en el abono del Mombaça bajó altura, clorofila y
+       producción. Estudio universitario: se usa como respaldo, no como regla.
    ------------------------------------------------------------------- */
 (function () {
   'use strict';
@@ -77,7 +100,10 @@
     trigo:   { n: 'Trigo',   v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 15, mK: 10, expP: 10, expK: 6 },
     girasol: { n: 'Girasol', v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 15, mK: 15, expP: 14, expK: 6 },
     sorgo:   { n: 'Sorgo',   v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 15, mK: 10, expP: 8,  expK: 4 },
-    otro:    { n: 'Cultivo', v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 15, mK: 15, expP: 10, expK: 8 }
+    otro:    { n: 'Cultivo', v: 65, phMin: 5.5, phOpt: [5.8, 6.5], mP: 15, mK: 15, expP: 10, expK: 8 },
+    // Pastura perenne (Panicum, Brachiaria): Embrapa, folder BRS Zuri [13], V% 45–50. pH: rango general de disponibilidad (PPI [5]).
+    // mP/mK/expP/expK iguales a "otro" para no cambiar las cuentas de la meta de rinde.
+    pastura: { n: 'Pastura', pastura: true, v: 50, phMin: 5.5, phOpt: [5.5, 7.0], mP: 15, mK: 15, expP: 10, expK: 8 }
   };
   // Suelo objetivo para 6.000–7.000 kg/ha de soja (y maíz de alto rinde), 0–20 cm: lo que tenían los lotes
   // de más de 4.200–6.000 kg/ha auditados por CESB [7] acotado por los rangos de Embrapa [8][11] y UNL [9].
@@ -94,6 +120,7 @@
     if (n.indexOf('trigo') === 0) return CULTIVOS.trigo;
     if (n.indexOf('girasol') === 0) return CULTIVOS.girasol;
     if (n.indexOf('sorgo') === 0) return CULTIVOS.sorgo;
+    if (/pastur|pasto|forraj|zuri|mombac|tanzan|massai|panicum|megathyrsus|brachi|braqui|urochloa|marandu|piata|xaraes|tifton|bermuda|humidicola|decumbens/.test(n)) return CULTIVOS.pastura;
     return CULTIVOS.otro;
   }
   function num(v) { if (v === '' || v == null) return null; var x = parseFloat(v); return isNaN(x) ? null : x; }
@@ -257,12 +284,91 @@
       out.push({ k: 'arcilla', n: 'Arcilla', valor: arc, unidad: '%', categoria: arc > 60 ? 'muy arcilloso' : (arc > 40 ? 'arcilloso' : (arc > 20 ? 'franco' : 'arenoso')), estado: 'ok', limitacion: 0, peso: 0,
         texto: arc > 40 ? 'Suelo pesado: fija más fósforo (por eso el crítico de P es 12 y no 15) y guarda más agua; con riego responde muy bien.' : 'Suelo liviano: menos fijación de P pero menos agua guardada; el riego es más determinante.', fuente: '[1]' });
     }
+    itemSodio(s).forEach(function (x) { out.push(x); });
+    if (cu.pastura) ajustarPastura(out, s);
     return out;
+  }
+
+  /* ---------- sodio del suelo (PSI) y salinidad (CEe): Embrapa CPATSA 1985 [15] e INTA [16] ---------- */
+  function psiDe(s) { var p = num(s && s.psi); if (p != null) return p; var na = num(s && s.na), cic = num(s && s.cic); return na != null && cic ? na / cic * 100 : null; }
+  function claseSodica(psi, ce) {
+    var sod = psi != null && psi > 15, sal = ce != null && ce > 4;
+    return sod && sal ? 'salino-sódico' : (sod ? 'sódico' : (sal ? 'salino' : null));
+  }
+  // Yeso al suelo (t/ha) para bajar el PSI: Richards (1954) por Embrapa CPATSA [15]; CIC en cmolc/dm³ (por volumen), × 1,25.
+  function yesoSueloTHa(psi, cic, objetivo, profCm) { return psi != null && cic ? Math.max(0, 0.00086 * (psi - objetivo) * cic * profCm * 1.25) : null; }
+  function itemSodio(s) {
+    var psi = psiDe(s), ce = num(s && s.ceExtracto), out = [];
+    if (psi != null) out.push({ k: 'psi', n: 'Sodio intercambiable (PSI)', valor: psi, unidad: '% de la CIC' + (num(s.na) != null ? ' (Na ' + fmt(num(s.na), 2) + ' cmolc/dm³)' : ''), categoria: psi > 15 ? (claseSodica(psi, ce) || 'sódico') : (psi >= 5 ? 'alerta' : 'normal'),
+      estado: psi > 15 ? 'limita' : (psi >= 5 ? 'atencion' : 'ok'), limitacion: psi > 15 ? 0.8 : (psi >= 5 ? 0.25 : 0), peso: 0.8,
+      texto: psi > 15 ? 'Más de 15 %: suelo ' + (claseSodica(psi, ce) || 'sódico') + ' (Embrapa CPATSA). El sodio dispersa la arcilla, el suelo se sella y el agua no entra; se corrige con yeso al suelo y lavado.' : (psi >= 5 ? 'Entre 5 y 15 %: alerta (INTA). El sodio se está acumulando; con agua de riego con sodio, usar yeso y repetir el análisis cada año.' : 'Menos de 5 %: sin acumulación de sodio.'),
+      fuente: '[15][16]', objetivo: '< 5 %', alcanzaAlto: psi < 5 });
+    if (ce != null) out.push({ k: 'cee', n: 'Salinidad del suelo (CEe)', valor: ce, unidad: 'dS/m', categoria: ce > 4 ? 'salino' : 'normal', estado: ce > 4 ? 'limita' : 'ok', limitacion: ce > 4 ? 0.6 : 0, peso: 0.6,
+      texto: ce > 4 ? 'Más de 4 dS/m en el extracto de saturación: suelo salino (Embrapa CPATSA). Se corrige lavando con riego extra y buen drenaje.' : 'Hasta 4 dS/m en el extracto de saturación: no es suelo salino (Embrapa CPATSA).', fuente: '[15]', objetivo: '≤ 4 dS/m', alcanzaAlto: ce <= 4 });
+    return out;
+  }
+  function recSodio(s) {
+    var psi = psiDe(s), cic = num(s.cic), ce = num(s.ceExtracto), r = [];
+    if (ce != null && ce > 4) r.push({ k: 'salino', titulo: 'Suelo salino (CEe ' + fmt(ce, 1) + ' dS/m): lavar las sales', detalle: 'Embrapa CPATSA: más de 4 dS/m en el extracto de saturación es suelo salino. Las sales se sacan con agua: regar por encima de lo que pide el cultivo, con buen drenaje (ver Análisis de agua, agua extra para lavar).', fuente: '[15]' });
+    if (psi == null || psi < 5) return r;
+    var ng = yesoSueloTHa(psi, cic, 5, 20);
+    var formula = 'Embrapa CPATSA (Richards 1954): yeso (t/ha) = 0,00086 × (PSI actual − PSI buscado) × CIC × profundidad (cm) × 1,25' + (ng != null ? '; con PSI ' + fmt(psi, 1) + ' → 5 %, CIC ' + fmt(cic, 2) + ' cmolc/dm³ y 20 cm da ' + fmt(ng, 1) + ' t/ha' : '; falta la CIC para la cuenta') + '. Con la CIC por volumen (cmolc/dm³, como la informan los laboratorios) la densidad del suelo ya está incluida; el 1,25 corrige que no todo el calcio reemplaza al sodio.';
+    if (psi <= 15) r.push({ k: 'sodio', titulo: 'Sodio del suelo en alerta: PSI ' + fmt(psi, 1) + ' %', detalle: 'INTA: más de 5 % es alerta; todavía no es suelo sódico (Embrapa CPATSA: más de 15 %). Si se riega con agua con sodio, seguir el yeso del plan de Análisis de agua y repetir el análisis cada año, en un lote regado y en otro sin regar.' + (ng != null ? ' Para bajarlo a 5 % de una vez harían falta ' + fmt(ng, 1) + ' t/ha de yeso al suelo. ' + formula : ''), fuente: '[16][15]' });
+    else r.push({ k: 'sodio', titulo: 'Suelo sódico (PSI ' + fmt(psi, 1) + ' %): ' + (ng != null ? fmt(ng, 1) + ' t/ha de yeso al suelo' : 'yeso al suelo'), detalle: formula + ' Cómo: yeso fino, al voleo con el suelo húmedo después de un riego, y lavar con 50–70 mm; sin subsolar actúa sobre todo en los primeros 10–20 cm y dura 3–4 años. Rinde más junto con abono verde o estiércol: los ácidos de la materia orgánica disuelven más yeso. Otra opción con buen efecto residual: yeso más ácido sulfúrico por el 25 % del sodio a reemplazar. Las gramíneas forrajeras toleran el sodio mucho más que las leguminosas.', fuente: '[15]' });
+    return r;
+  }
+
+  /* ---------- pastura perenne (Panicum, Brachiaria): Embrapa, folder BRS Zuri 2014 [13] ---------- */
+  var P_PASTURA = [[15, 18, 21, '< 15'], [35, 12, 17, '16–35'], [60, 8, 11, '36–60'], [Infinity, 4, 7, '> 60']];   // arcilla hasta (%), P Mehlich-1 para implantar
+  function pPastura(arc) { var a = arc == null ? 25 : arc; for (var i = 0; i < P_PASTURA.length; i++) if (a <= P_PASTURA[i][0]) return { min: P_PASTURA[i][1], max: P_PASTURA[i][2], clase: P_PASTURA[i][3], asumida: arc == null }; }
+  function ajustarPastura(out, s) {
+    var v = num(s.satBases), p = num(s.p), k = num(s.k), ca = num(s.ca), mg = num(s.mg), mo = num(s.mo), arc = num(s.arcilla), por = {};
+    out.forEach(function (i) { por[i.k] = i; i.perfil = 'pastura'; if (i.k !== 'psi' && i.k !== 'cee') { i.objetivo = '—'; i.alcanzaAlto = null; } });
+    if (por.satBases && v != null) { var i1 = por.satBases; i1.estado = v >= 45 ? 'ok' : (v >= 40 ? 'atencion' : 'limita'); i1.categoria = v >= 45 ? 'adecuada' : (v >= 40 ? 'media' : 'baja'); i1.limitacion = v >= 45 ? 0 : clamp((45 - v) / 30, 0.15, 1) * 0.9;
+      i1.texto = 'V% ' + fmt(v, 1) + (v >= 45 ? ': dentro de lo que pide Embrapa para el pasto (45–50 % en 0–20 cm, al implantar y durante el uso).' : ': por debajo del 45–50 % que pide Embrapa para implantar y mantener el pasto; se corrige con calcáreo dolomítico.'); i1.fuente = '[13]'; i1.objetivo = '45–50 %'; i1.alcanzaAlto = v >= 45; }
+    if (por.p && p != null) { var pp = pPastura(arc), man = Math.round(pp.min * 8) / 10, i2 = por.p;
+      i2.estado = p >= pp.min ? 'ok' : (p >= man ? 'atencion' : 'limita'); i2.categoria = p >= pp.min ? 'adecuado' : (p >= man ? 'para mantener' : 'bajo'); i2.limitacion = p >= pp.min ? 0 : (p >= man ? 0.15 : clamp((man - p) / man, 0.3, 1));
+      i2.texto = 'Embrapa (BRS Zuri), P Mehlich-1 con arcilla ' + pp.clase + ' %' + (pp.asumida ? ' (arcilla no medida: se asume 16–35 %)' : '') + ': ' + pp.min + '–' + pp.max + ' mg/dm³ para implantar; en la pastura formada, mantener cerca del 80 % (' + fmt(man, 1) + ').' + (p >= pp.min ? ' Este suelo lo cumple.' : (p >= man ? ' Alcanza para mantener la pastura, no para implantar.' : ' Falta fósforo: el pasto arranca y rebrota con menos fuerza.'));
+      i2.fuente = '[13]'; i2.objetivo = pp.min + '–' + pp.max + ' (implantar) · ≥ ' + fmt(man, 1) + ' (mantener)'; i2.alcanzaAlto = p >= man; }
+    if (por.k && k != null) { var kmg = k * K_MG_POR_CMOL, i3 = por.k; i3.estado = kmg >= 50 ? 'ok' : 'limita'; i3.categoria = kmg >= 50 ? 'adecuado' : 'bajo'; i3.limitacion = kmg >= 50 ? 0 : clamp((50 - kmg) / 50, 0.3, 1) * 0.8;
+      i3.texto = fmt(kmg, 0) + ' mg/dm³: Embrapa pide no bajar de 50 mg/dm³ (Mehlich-1), al implantar y en el mantenimiento.' + (kmg >= 50 ? '' : ' Reponer potasio.') + ' Con agua de riego con sodio el potasio pesa más: el sodio compite con él.'; i3.fuente = '[13][17]'; i3.objetivo = '≥ 50 mg/dm³'; i3.alcanzaAlto = kmg >= 50; }
+    if (por.ca && ca != null) { var i4 = por.ca; i4.estado = ca >= 1.5 ? 'ok' : 'limita'; i4.categoria = ca >= 1.5 ? 'adecuado' : 'bajo'; i4.limitacion = ca >= 1.5 ? 0 : 0.5; i4.texto = ca >= 1.5 ? 'Por encima de 1,5 cmolc/dm³: no hace falta reponer.' : 'Menos de 1,5 cmolc/dm³: Embrapa indica reponer con calcáreo dolomítico.'; i4.fuente = '[13]'; i4.objetivo = '≥ 1,5 cmolc'; i4.alcanzaAlto = ca >= 1.5; }
+    if (por.mg && mg != null) { var i5 = por.mg; i5.estado = mg >= 0.5 ? 'ok' : 'limita'; i5.categoria = mg >= 0.5 ? 'adecuado' : 'bajo'; i5.limitacion = mg >= 0.5 ? 0 : 0.5; i5.texto = mg >= 0.5 ? 'Por encima de 0,5 cmolc/dm³: no hace falta reponer.' : 'Menos de 0,5 cmolc/dm³: Embrapa indica reponer con calcáreo dolomítico.'; i5.fuente = '[13]'; i5.objetivo = '≥ 0,5 cmolc'; i5.alcanzaAlto = mg >= 0.5; }
+    if (por.mo && mo != null && mo < 1.6) por.mo.texto += ' Con menos de 1,6 % Embrapa pide al menos 50 kg/ha de nitrógeno al implantar el pasto [13].';
+    if (por.s) { por.s.texto = 'S ' + fmt(num(s.azufre), 1) + ' mg/dm³. Embrapa pide aplicar 30 kg/ha de azufre al implantar el pasto.'; por.s.fuente = '[13]'; }
+    if (por.al) por.al.texto = por.al.estado === 'ok' ? 'Sin aluminio tóxico.' : 'Hay aluminio (' + fmt(por.al.valor, 1) + ' ' + por.al.unidad + '): el calcáreo lo neutraliza en 0–20 cm; si también hay en 20–40 cm, el yeso (ver Qué hacer).';
+    if (por.rel_bk) por.rel_bk.texto = por.rel_bk.texto.replace('la soja muestra', 'la planta muestra');
+    // Ca/Mg alta: Embrapa solo pide Mg ≥ 0,5 para el pasto; con pH alto encalar con dolomítico subiría más el pH
+    var ph = num(s.ph);
+    if (por.rel_camg && por.rel_camg.estado !== 'ok' && mg != null && mg >= 0.5) { por.rel_camg.estado = 'atencion'; por.rel_camg.limitacion = 0.1;
+      por.rel_camg.texto = 'Ca/Mg ' + fmt(por.rel_camg.valor, 1) + ': mucho calcio frente al magnesio, pero el Mg (' + fmt(mg, 2) + ') supera el 0,5 cmolc/dm³ que pide Embrapa para el pasto. ' + (ph != null && ph >= 6.5 ? 'Con pH ' + fmt(ph, 1) + ' no encalar por esto; si el Mg baja, usar una fuente de magnesio sin cal.' : 'En el próximo encalado, usar dolomítico.'); por.rel_camg.fuente = '[4][13]'; }
+    return out;
+  }
+  function recomendacionesPastura(s) {
+    var v = num(s.satBases), ca = num(s.ca), mg = num(s.mg), cic = num(s.cic), p = num(s.p), k = num(s.k), arc = num(s.arcilla), mo = num(s.mo), al = num(s.aluminio), m = num(s.satAluminio), r = [];
+    var reponer = (ca != null && ca < 1.5) || (mg != null && mg < 0.5);
+    if (v != null && v < 45) { var nc = cic ? (50 - v) * cic / 100 : null;
+      r.push({ k: 'encalado', titulo: 'Encalar' + (nc != null ? ' ' + fmt(nc, 1) + ' t/ha de calcáreo dolomítico (PRNT 100 %)' : ' con calcáreo dolomítico') + ': V% ' + fmt(v, 0) + ' → 50 %', detalle: 'Embrapa (BRS Zuri): saturación de bases de 45–50 % en 0–20 cm para implantar el pasto, y mantenerla durante el uso. ' + (nc != null ? 'Dosis por saturación de bases (Embrapa Cerrados): (50 − ' + fmt(v, 0) + ') × CIC ' + fmt(cic, 2) + ' / 100. Con PRNT menor, dividir por PRNT/100 (80 % → ' + fmt(nc / 0.8, 1) + ' t/ha).' : 'Para la dosis falta la CIC en el análisis.'), fuente: '[13][3]' });
+    } else if (v != null) r.push({ k: 'encalado', titulo: 'No hace falta encalar: V% ' + fmt(v, 0) + (reponer ? ' (pero reponer calcio y magnesio, abajo)' : ''), detalle: 'Embrapa pide 45–50 % en 0–20 cm para el pasto. En el mantenimiento, el calcáreo dolomítico va cuando el calcio baja de 1,5 o el magnesio de 0,5 cmolc/dm³.', fuente: '[13]' });
+    if (reponer) r.push({ k: 'dolomita', titulo: 'Reponer calcio y magnesio con calcáreo dolomítico', detalle: 'Ca ' + fmt(ca, 2) + ' y Mg ' + fmt(mg, 2) + ' cmolc/dm³: Embrapa (mantenimiento del BRS Zuri) indica dolomítico cuando el calcio baja de 1,5 o el magnesio de 0,5 en 0–20 cm.', fuente: '[13]' });
+    if (p != null) { var pp = pPastura(arc), man = Math.round(pp.min * 8) / 10;
+      r.push({ k: 'fosforo', titulo: p < pp.min ? 'Fósforo ' + fmt(p, 1) + ' mg/dm³: para implantar, llevarlo a ' + pp.min + '–' + pp.max : 'Fósforo ' + fmt(p, 1) + ' mg/dm³: mantener ≥ ' + fmt(man, 1) + ' con 40–80 kg/ha de P₂O₅ por año', detalle: 'Embrapa (BRS Zuri), P Mehlich-1 por arcilla: menos de 15 % → 18–21; 16–35 % → 12–17; 36–60 % → 8–11; más de 60 % → 4–7 mg/dm³' + (pp.asumida ? ' (arcilla no medida: se usa 16–35 %)' : ' (este suelo: ' + pp.clase + ' %)') + '. En la pastura formada, sostener cerca del 80 % de esos valores con una reposición anual de 40–80 kg/ha de P₂O₅ según la producción buscada; para producciones altas, más y con análisis más seguido. La dosis para subir el P la define el agrónomo.', fuente: '[13]' }); }
+    if (k != null) { var kmg = k * K_MG_POR_CMOL;
+      r.push({ k: 'potasio', titulo: 'Potasio ' + fmt(kmg, 0) + ' mg/dm³: ' + (kmg < 50 ? 'subirlo a 50 o más' : 'mantener 50 o más'), detalle: 'Embrapa (BRS Zuri): el potasio no debe bajar de 50 mg/dm³ (Mehlich-1), al implantar ni en el mantenimiento. Con agua de riego con sodio pesa más: en Mombaça, reemplazar parte del potasio del abono por sodio bajó la altura, la clorofila y la producción (Universidad Federal de Tocantins, 2014).', fuente: '[13][17]' }); }
+    r.push({ k: 'azufre', titulo: 'Azufre: 30 kg/ha al implantar', detalle: 'Embrapa (BRS Zuri). Con yeso agrícola (15–18 % de S) son unos 170–200 kg/ha; también sirve el sulfato de amonio.' + (num(s.azufre) != null ? ' Hoy: ' + fmt(num(s.azufre), 1) + ' mg/dm³.' : ''), fuente: '[13]' });
+    r.push({ k: 'nitrogeno', titulo: 'Nitrógeno: ' + (mo != null && mo < 1.6 ? 'al menos 50 kg/ha al implantar (MO ' + fmt(mo, 2) + ' %) y ' : '') + '120–150 kg/ha por año en el pasto formado', detalle: 'Embrapa (BRS Zuri): con materia orgánica menor a 1,6 %, mínimo 50 kg/ha de N al implantar. Para unas 20 arrobas de carne por ha por año se usaron 120–150 kg/ha de N por año, repartidos durante la estación de crecimiento.', fuente: '[13]' });
+    r.push({ k: 'micros', titulo: 'Micronutrientes: 40–50 kg/ha de FTE al implantar', detalle: 'Embrapa (BRS Zuri): una fórmula de FTE con cobre, zinc, boro y molibdeno, sobre todo en suelos de cerrado; dura 3–4 años.', fuente: '[13]' });
+    var prof = String(s.profundidad || ''), desde = parseFloat(prof), sub = !isNaN(desde) && desde >= 20;
+    var pideYeso = (ca != null && ca < 0.5) || (al != null && al > 0.5) || (m != null && m > 20);
+    if (pideYeso && arc != null) r.push({ k: 'yeso', titulo: sub ? 'Yeso para el subsuelo: ' + fmt(75 * arc, 0) + ' kg/ha' : 'Yeso: decidirlo con la capa de 20–40 cm', detalle: 'Embrapa Cerrados (Sousa, Lobato y Rein 2005), para cultivos perennes como el pasto: yeso (kg/ha) = 75 × % de arcilla, cuando en 20–40 cm el calcio es menor que 0,5 cmolc/dm³, el aluminio mayor que 0,5 o la saturación de aluminio mayor que 20 %. ' + (sub ? 'Esta muestra es de ' + prof + ' y cumple el criterio.' : 'Esta muestra es de ' + (prof || 'profundidad no informada') + ': el criterio se mira en 20–40 cm; con arcilla ' + fmt(arc, 0) + ' % serían ' + fmt(75 * arc, 0) + ' kg/ha.') + ' El yeso baja al subsuelo, sube el calcio y baja el aluminio: la raíz va más hondo y aguanta mejor la seca. No corrige el pH: eso lo hace el calcáreo.', fuente: '[14]' });
+    recSodio(s).forEach(function (x) { r.push(x); });
+    return r;
   }
 
   /* ---------- recomendaciones (qué hacer) ---------- */
   function recomendaciones(suelo, cultivo, rindeObjetivoKgHa) {
     var cu = perfilCultivo(cultivo), s = suelo || {};
+    if (cu.pastura) return recomendacionesPastura(s);
     var ph = num(s.ph), p = num(s.p), k = num(s.k), mg = num(s.mg), ca = num(s.ca), cic = num(s.cic), v = num(s.satBases), arc = num(s.arcilla), mo = num(s.mo);
     var kmg = k == null ? null : k * K_MG_POR_CMOL;
     var iP = F() ? F().interpretarP(p, arc) : null, iK = F() ? F().interpretarK(k, cic) : null, pc = iP ? { critico: iP.critico, kgPorMg: KG_P2O5_POR_MG[iP.claseArcilla] } : null;
@@ -349,6 +455,7 @@
     if (mo != null && mo < 3) {
       r.push({ k: 'mo', titulo: 'Materia orgánica ' + fmt(mo, 2) + ' %: seguir construyéndola', detalle: 'Rotación con gramíneas (maíz, trigo, avena, brachiaria), cobertura permanente, no quemar rastrojo. En riego, una cobertura de invierno aprovecha el agua y suma carbono.', fuente: '[1][2]' });
     }
+    recSodio(s).forEach(function (x) { r.push(x); });
     return r;
   }
 
@@ -451,13 +558,14 @@
   }
   function tablaInterpretacion(lista) {
     if (!lista.length) return '<div class="muted">Sin análisis de suelo cargado.</div>';
-    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl tbl-interp"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>Objetivo 6–7 t/ha</th><th>Lectura</th></tr></thead><tbody>' +
+    var esPast = lista.some(function (i) { return i.perfil === 'pastura'; });
+    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl tbl-interp"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>' + (esPast ? 'Objetivo para el pasto' : 'Objetivo 6–7 t/ha') + '</th><th>Lectura</th></tr></thead><tbody>' +
       lista.map(function (i) {
         var dec = i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 'arcilla' || i.k === 's' || i.k === 'al' || i.k.indexOf('rel') === 0 ? 1 : 2;
         var obj = i.objetivo && i.objetivo !== '—' ? '<div style="font-size:12px;">' + esc(i.objetivo) + '</div>' + (i.alcanzaAlto === true ? '<div class="sub" style="color:#178029;font-weight:700;">alcanzado</div>' : (i.alcanzaAlto === false ? '<div class="sub" style="color:#B3261E;font-weight:700;">falta</div>' : '')) : '<span class="muted">—</span>';
         return '<tr><td><b>' + esc(i.n) + '</b></td><td class="r"><span class="num">' + fmt(i.valor, dec) + '</span>' + (i.unidad ? '<div class="sub">' + esc(i.unidad) + '</div>' : '') + '</td><td>' + badgeEstado(i.estado) + '<div class="sub">' + esc(i.categoria) + '</div></td><td>' + obj + '</td><td style="font-size:12px;">' + esc(i.texto) + ' <span class="muted">' + esc(i.fuente) + '</span></td></tr>';
       }).join('') + '</tbody></table></div></div>' +
-      '<div class="muted" style="font-size:11px;margin-top:4px;">Objetivo 6–7 t/ha: suelo de los lotes de más de 4.200–6.000 kg/ha auditados por CESB [7], acotado por Embrapa [8][11] y UNL [9]. Es referencia, no receta.</div>';
+      '<div class="muted" style="font-size:11px;margin-top:4px;">' + (esPast ? 'Objetivo para el pasto: Embrapa, folder BRS Zuri 2014 [13] (Panicum; vale como guía para otras pasturas tropicales). Sodio y sales: Embrapa CPATSA [15] e INTA [16].' : 'Objetivo 6–7 t/ha: suelo de los lotes de más de 4.200–6.000 kg/ha auditados por CESB [7], acotado por Embrapa [8][11] y UNL [9].') + ' Es referencia, no receta.</div>';
   }
   function listaRecomendaciones(recs) {
     if (!recs.length) return '';
@@ -537,6 +645,8 @@
     referenciaPara: referenciaPara,
     listaRecomendaciones: listaRecomendaciones,
     perfilCultivo: perfilCultivo,
+    psiDe: psiDe,
+    yesoSueloTHa: yesoSueloTHa,
     TABLAS: { CULTIVOS: CULTIVOS, KG_P2O5_POR_MG: KG_P2O5_POR_MG }
   };
 })();
