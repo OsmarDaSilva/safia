@@ -177,7 +177,7 @@
           </div>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;margin:-4px 0 8px;"><a class="btn green" id="btnInforme" href="informe.html">Informe para el cliente (PDF)</a></div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 8px;"><label for="informeLote" style="font-size:12px;font-weight:600;color:var(--muted,#6B7075);">Informe de</label><select id="informeLote" style="min-width:200px;"><option value="">Todo el campo</option></select><a class="btn green" id="btnInforme" href="informe.html">Informe para el cliente (PDF)</a></div>
         <div class="tabs">
           <button class="on" data-tab="ciclos">Sucesión de cultivos</button>
           <button data-tab="rotacion">Plan de rotación</button>
@@ -819,7 +819,7 @@
     document.getElementById('fLat').textContent = campoActual.latitud || '—';
     document.getElementById('fLng').textContent = campoActual.longitud || '—';
     document.getElementById('fAltitud').value = campoActual.altitud != null ? campoActual.altitud : '';
-    cerrarFormCiclo(); cerrarFormAnalisis();
+    cerrarFormCiclo(); cerrarFormAnalisis(); llenarInformeLote();
     pintarCiclos(); pintarAnalisis(); pintarArchivos(); pintarAgua(); pintarEvolucion();
     if (window.SafiaMapas) SafiaMapas.alCambiarCampo();
     if (window.SafiaNDVI) SafiaNDVI.alCambiarCampo();
@@ -986,7 +986,13 @@
     out.scrollIntoView({ behavior: 'smooth' });
   });
 
-  document.getElementById('btnInforme').addEventListener('click', function () { try { if (campoActual) sessionStorage.setItem('banco_campo', String(campoActual.id)); } catch (e) {} });
+  document.getElementById('btnInforme').addEventListener('click', function () { try { if (campoActual) sessionStorage.setItem('banco_campo', String(campoActual.id)); sessionStorage.setItem('banco_lote', document.getElementById('informeLote').value || ''); } catch (e) {} });
+  // el informe puede ser de todo el campo o de un solo pivot o lote
+  function llenarInformeLote() {
+    var s = document.getElementById('informeLote'); if (!s) return;
+    var eq = campoActual ? leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id); }) : [];
+    s.innerHTML = '<option value="">Todo el campo' + (eq.length ? ' (' + eq.length + ' lotes)' : '') + '</option>' + eq.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + (e.tipo === 'secano' ? ' (secano)' : '') + '</option>'; }).join('');
+  }
   /* ---------- pestañas ---------- */
   // Otra pantalla puede pedir que el Banco abra en una pestaña (por ejemplo, Equipos → "Vigor satelital")
   setTimeout(function () {

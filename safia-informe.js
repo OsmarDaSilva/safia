@@ -405,6 +405,9 @@
     if (pedido && filas.some(function (f) { return String(f.id) === String(pedido); })) sel.value = String(pedido);
     campoActual = campos.find(function (c) { return String(c.id) === String(sel.value); }) || null;
     llenarLotes();
+    // si desde el Banco se eligió un pivot o lote, el informe arranca solo con ese
+    var lotePedido = null; try { lotePedido = sessionStorage.getItem('banco_lote'); sessionStorage.removeItem('banco_lote'); } catch (e) {}
+    if (lotePedido && [].some.call($('selLote').options, function (o) { return o.value === String(lotePedido); })) { $('selLote').value = String(lotePedido); equipoSel = String(lotePedido); llenarCampanas(); }
   }
   function llenarLotes() {
     var sel = $('selLote'); equipoSel = '';
