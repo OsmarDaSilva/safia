@@ -464,7 +464,7 @@
     // 6. Calcio frente al magnesio (FAO 29 §5.4)
     var caR = v(a, 'ca'), mgR = v(a, 'mg');
     if (tiene(a, 'ca') && tiene(a, 'mg') && r.cationes > 0 && (caR / Math.max(mgR, 1e-9) < 1 || caR / r.cationes < 0.15))
-      it('camg', 'Calcio frente al magnesio y al total', caR / r.cationes * 100, '% del total', 'cuidado', 'Ca/Mg ' + fmt(caR / Math.max(mgR, 1e-9), 2) + ' y Ca = ' + fmt(caR / r.cationes * 100, 1) + ' % de los cationes: con Ca/Mg menor que 1 o calcio menor que 15 % del total, FAO pide una evaluación adicional.', '[1] §5.4');
+      it('camg', 'Calcio frente al magnesio y al total', caR / r.cationes * 100, '% del total', 'cuidado', (mgR > 0 ? 'Ca/Mg ' + fmt(caR / mgR, 2) + ' y ' : 'Sin magnesio detectado (la relación Ca/Mg no se calcula); ') + 'Ca = ' + fmt(caR / r.cationes * 100, 1) + ' % de los cationes: con Ca/Mg menor que 1 o calcio menor que 15 % del total, FAO pide una evaluación adicional.', '[1] §5.4');
 
     // cultivos del proyecto
     var claves = (opciones.cultivos || ['Soja', 'Maíz']).map(claveCultivo).filter(function (x, i, arr) { return x && arr.indexOf(x) === i; });
