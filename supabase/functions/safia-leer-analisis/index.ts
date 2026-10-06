@@ -1,4 +1,6 @@
-// SAFIA · Edge Function: safia-leer-analisis (v10)
+// SAFIA · Edge Function: safia-leer-analisis (v11)
+// v11 (agua, 5-oct-2026): carbonatos y bicarbonatos se deciden con números (alcalinidad P/T, CSR del laboratorio); el método
+//      SM 2320 o "Cálculo" ya no alcanza para decir CaCO3 (INYMA informa los iones: caso Tres Tigre).
 // Lee una foto o PDF de un análisis de SUELO, FOLIAR (tejido vegetal) o de AGUA de riego, de CUALQUIER
 // laboratorio, y devuelve los valores normalizados (mismos nombres y unidades) en JSON, una entrada por muestra.
 // v4: varias muestras + parseo robusto + registro de fallas. v5: sinónimos y unidades por laboratorio.
@@ -143,7 +145,11 @@ UNIDADES (muy importante): NO CONVIERTAS NADA. Copiá cada número exactamente c
 - "meq/L": también cuando el informe dice mmolc/L, me/L, meq/l.
 - "mg/L": también ppm, mg/l, g/m³ (el ion como tal: Na, Ca, Cl, SO4, HCO3, NO3…).
 - "mmol/L": milimoles por litro (no mmolc).
-- "mg/L CaCO3": el valor está expresado como carbonato de calcio. Es el caso de la alcalinidad y, MUY a menudo, de carbonatos y bicarbonatos aunque la unidad diga solo "mg/L". Usá "mg/L CaCO3" para carbonatos y bicarbonatos si se cumple cualquiera: (a) el parámetro se llama "Alcalinidad de carbonatos" / "Alcalinidad de bicarbonatos"; (b) el método es SM 2320 o SM 4500-CO2 D; (c) carbonato + bicarbonato da igual (±3 %) a la alcalinidad total informada. Solo si el informe dice explícitamente "como CO3" / "como HCO3" o nada de eso se cumple, usá "mg/L". También para calcio o magnesio informados como dureza en CaCO3.
+- "mg/L CaCO3": el valor está expresado como carbonato de calcio. Es el caso de la alcalinidad y, a menudo, de carbonatos y bicarbonatos aunque la unidad diga solo "mg/L". Para carbonatos y bicarbonatos DECIDÍ CON NÚMEROS, en este orden:
+  1) Si el informe trae alcalinidad total (T) y alcalinidad P o a la fenolftaleína (P), ambas en mg/L CaCO3, calculá cómo serían los IONES: CO3 ion = 2 × P × 0,60 y HCO3 ion = (T − 2 × P) × 0,61. Si los valores informados coinciden (±3 %) con esos iones, están como ion: usá "mg/L" (ejemplo: T = 160, P = 27,2 → CO3 ion 32,6 y HCO3 ion 64,4; si el informe dice CO3 32,6 y HCO3 64,4, son iones aunque el método sea SM 2320 o diga "Cálculo"). Si en cambio coinciden con 2 × P y T − 2 × P (54,4 y 105,6 en el ejemplo), están como CaCO3.
+  2) Si el informe trae el CSR / RSC (carbonato de sodio residual) en meq/L, probá las dos unidades: CSR = CO3 + HCO3 − Ca − Mg en meq/L (ion mg/L: CO3 ÷ 30, HCO3 ÷ 61; CaCO3: ambos ÷ 50; Ca mg/L ÷ 20, Mg mg/L ÷ 12,15). Quedate con la unidad que reproduce el CSR del laboratorio.
+  3) Sin esos datos: usá "mg/L CaCO3" si el parámetro se llama "Alcalinidad de carbonatos" / "Alcalinidad de bicarbonatos", o si carbonato + bicarbonato TAL CUAL suman (±3 %) la alcalinidad total informada. Si no, "mg/L" (el ion). Que el método sea SM 2320 o "Cálculo" NO alcanza por sí solo para decir CaCO3.
+  También "mg/L CaCO3" para calcio o magnesio informados como dureza en CaCO3.
 - "mg/L N": cuando el parámetro se llama "Nitrógeno amoniacal", "N-NH4", "NH3-N", "Nitrógeno de nitratos", "N-NO3" o dice "como N", o el método es SM 4500-NH3 (esos métodos informan nitrógeno). Si dice solo "Amonio"/"NH4+" sin método de nitrógeno, o "Nitrato"/"NO3", usá "mg/L".
 - "mg/L S": azufre de sulfatos (S-SO4).
 - CE: "µS/cm" (también µmho/cm); "dS/m" (también mS/cm y mmho/cm). No la conviertas.
