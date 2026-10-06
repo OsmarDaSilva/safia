@@ -351,7 +351,7 @@
     buffel:   { n: 'Buffel grass', clase: 'moderadamente sensible', hoja: null, boro: null, psi: null },
     // Panicum maximum y Brachiaria (Urochloa) NO están en las Tablas 4 y 5 de FAO 29 (solo Panicum antidotale, otra especie, como
     // moderadamente tolerante). Se muestran sin números de tolerancia, con la nota de lo que se sabe. Leído el 6-oct-2026.
-    panicum:  { n: 'Pasto Panicum (Zuri, Mombaça, Tanzania)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no lo tiene en sus tablas de tolerancia (solo el Panicum antidotale, otra especie, moderadamente tolerante). Estudios: Zuri regado en invernadero con agua de hasta 3,0 dS/m y RAS cerca de 10, apto para el ganado (Univ. Federal de Ceará, 2020); en germinación, Tanzania tolera más la sal que Mombaça (UNA, 2013). Ninguno con agua de sodio alto.' },
+    panicum:  { n: 'Pasto Panicum (Zuri, Mombaça, Tanzania)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no lo tiene en sus tablas de tolerancia (solo el Panicum antidotale, otra especie, moderadamente tolerante). Estudios: Zuri regado en invernadero con agua de hasta 3,0 dS/m y RAS cerca de 10, apto para el ganado (Univ. Federal de Ceará, 2020); en germinación, Tanzania tolera más la sal que Mombaça (UNA, 2013). Embrapa Agroindústria Tropical (Miranda et al., 2008): Tanzania y Mombaça regados por aspersión con 3,6 a 4,5 meq/L de sodio (RAS 3,4–4,5, CE 0,57–0,71 dS/m) produjeron igual, unas 4 a 4,8 t de materia seca por ha en dos cortes de 30 días. Ninguno con agua de RAS alta.', hojaEvidencia: 'Embrapa (Miranda et al., 2008) regó Tanzania y Mombaça por aspersión con hasta 4,5 meq/L de sodio sin pérdida de producción' },
     brachiaria: { n: 'Brachiaria (Urochloa)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no la tiene en sus tablas de tolerancia a la sal.' }
   };
   function claveCultivo(c) {
@@ -529,7 +529,7 @@
       var toleran = claves.filter(function (q) { return CULTIVOS[q].hoja != null && itm.valor < CULTIVOS[q].hoja; }), sinDato = claves.filter(function (q) { return CULTIVOS[q].hoja == null; }), danan = claves.filter(function (q) { return CULTIVOS[q].hoja != null && itm.valor >= CULTIVOS[q].hoja; });
       var nom = function (l) { return l.map(function (q) { return CULTIVOS[q].n.toLowerCase(); }).join(', '); };
       itm.texto += ' Los 3 meq/L son la guía general de FAO, pensada para los cultivos sensibles de la Tabla 18 (almendro, damasco, cítricos, ciruelo: menos de 5 meq/L); maíz, alfalfa y cebada toleran 10–20 y algodón o girasol más de 20. FAO: el daño ocurre sobre todo con temperatura alta, humedad menor que 30 % y viento.' +
-        (danan.length ? ' Se dañan: ' + nom(danan) + '.' : '') + (toleran.length ? ' Con este valor no se dañan: ' + nom(toleran) + '.' : '') + (sinDato.length ? ' Sin dato de FAO para ' + nom(sinDato) + ' (no figura en la Tabla 18).' : '');
+        (danan.length ? ' Se dañan: ' + nom(danan) + '.' : '') + (toleran.length ? ' Con este valor no se dañan: ' + nom(toleran) + '.' : '') + (sinDato.length ? ' Sin dato de FAO para ' + nom(sinDato) + ' (no figura en la Tabla 18).' + sinDato.filter(function (q) { return CULTIVOS[q].hojaEvidencia; }).map(function (q) { return ' ' + CULTIVOS[q].hojaEvidencia + '.'; }).join('') : '');
       if (!danan.length && !sinDato.length) itm.estado = 'ok';
     });
     var cor = correccion(a, r, lamina);
