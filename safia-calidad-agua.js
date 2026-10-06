@@ -425,6 +425,16 @@
     c.precioAcido = pr && num(pr.acidoSulfuricoUSDt) != null ? num(pr.acidoSulfuricoUSDt) : null;
     c.costoYeso = c.precioYeso != null && c.yesoTAno != null ? c.yesoTAno * c.precioYeso : null;
     c.costoAcido = c.precioAcido != null ? c.acidoTAno / 0.98 * c.precioAcido : null;   // ácido comercial 98 %
+    // 3) sin ácido (Irrigar no inyecta ácido en el pivot, Osmar 5-oct-2026): el calcio tiene que cubrir también el bicarbonato en
+    //    exceso (CSR), que precipita el calcio agregado como carbonato de calcio al concentrarse el agua en el suelo (USDA Manual 60
+    //    p. 81, concepto de Eaton). Aproximación: Ca sin ácido = Ca para salir de la franja severa + CSR. Controlar con el PSI del suelo.
+    if (c.acidoMeq > 0 && c.caMeq != null) {
+      c.caMeqSinAcido = Math.round((c.caMeq + Math.max(r.csr || 0, 0)) * 100) / 100;
+      c.yesoSinAcidoKgPor100mm = c.caMeqSinAcido * YESO_KG_POR_MEQ_1000M3;
+      c.yesoSinAcidoTAno = c.yesoSinAcidoKgPor100mm * laminaMm / 100 / 1000;
+      c.yesoSinAcidoEnAgua = c.caMeqSinAcido <= CA_MAX_AGUA && r.ecw <= 1.0;
+      c.costoYesoSinAcido = c.precioYeso != null ? c.yesoSinAcidoTAno * c.precioYeso : null;
+    }
     return c;
   }
 
@@ -469,6 +479,17 @@
     // cultivos del proyecto
     var claves = (opciones.cultivos || ['Soja', 'Maíz']).map(claveCultivo).filter(function (x, i, arr) { return x && arr.indexOf(x) === i; });
     var cultivos = claves.map(function (k) { return evaluarCultivo(k, r, a, aspersion); }).filter(Boolean);
+    // Sodio y cloruro en la hoja: los 3 meq/L de la Tabla 1 son la guía general; qué cultivo se daña lo dice la Tabla 18 (los sensibles son
+    // frutales). Si todos los cultivos del proyecto toleran este valor según la Tabla 18, queda como dato y no como restricción; si alguno
+    // no figura en la tabla (pastos), se dice que no hay dato de FAO en vez de darlo por dañado.
+    if (aspersion && claves.length) ['na', 'cl'].forEach(function (k) {
+      var itm = items.filter(function (x) { return x.k === k; })[0]; if (!itm || itm.estado !== 'cuidado') return;
+      var toleran = claves.filter(function (q) { return CULTIVOS[q].hoja != null && itm.valor < CULTIVOS[q].hoja; }), sinDato = claves.filter(function (q) { return CULTIVOS[q].hoja == null; }), danan = claves.filter(function (q) { return CULTIVOS[q].hoja != null && itm.valor >= CULTIVOS[q].hoja; });
+      var nom = function (l) { return l.map(function (q) { return CULTIVOS[q].n.toLowerCase(); }).join(', '); };
+      itm.texto += ' Los 3 meq/L son la guía general de FAO, pensada para los cultivos sensibles de la Tabla 18 (almendro, damasco, cítricos, ciruelo: menos de 5 meq/L); maíz, alfalfa y cebada toleran 10–20 y algodón o girasol más de 20. FAO: el daño ocurre sobre todo con temperatura alta, humedad menor que 30 % y viento.' +
+        (danan.length ? ' Se dañan: ' + nom(danan) + '.' : '') + (toleran.length ? ' Con este valor no se dañan: ' + nom(toleran) + '.' : '') + (sinDato.length ? ' Sin dato de FAO para ' + nom(sinDato) + ' (no figura en la Tabla 18).' : '');
+      if (!danan.length && !sinDato.length) itm.estado = 'ok';
+    });
     var cor = correccion(a, r, lamina);
 
     // controles del propio análisis: Standard Methods 1030 E (balance) y Hem 1992 (TDS/CE)
@@ -527,6 +548,10 @@
       'Subir el calcio ' + t1(c.caMeq) + ' meq/L lleva la RAS de ' + fmt(r.ras, 1) + ' a ' + fmt(c.rasCorregida, 1) + ' y saca al suelo de la franja severa de infiltración: ' + fmt(c.yesoKgPor100mm, 0) + ' kg de yeso puro por ha cada 100 mm; ' + t1(c.yesoTAno) + ' t/ha con ' + lam + (c.costoYeso != null ? ' (≈ US$ ' + fmt(c.costoYeso, 0) + '/ha por año)' : '') + '. Con yeso de menor pureza, dividir por la pureza (70 % → × 1,43). ' +
       (c.yesoEnAgua ? 'Se puede disolver en el agua de riego (FAO: es raro disolver más de 1 a 4 meq/L).' : 'Conviene aplicarlo al suelo: FAO lo prefiere cuando la CE del agua pasa de 1,0 dS/m o hace falta más de 4 meq/L.') +
       (c.acidoMeq > 0 ? ' Primero el ácido: con el bicarbonato presente el calcio precipita y no sirve.' : '') + (c.caMeqSinRestriccion > c.caMeq ? ' Para dejarlo sin ninguna restricción harían falta ' + t1(c.caMeqSinRestriccion) + ' meq/L.' : ''), '[1] §3.2.1, Tabla 1');
+    if (c && c.caMeqSinAcido != null) p((descartada ? 'Haría falta: ' : '') + 'sin ácido: solo yeso (el calcáreo no lo reemplaza)',
+      'Si inyectar ácido no es viable, el yeso tiene que cubrir también el bicarbonato en exceso (CSR ' + fmt(r.csr, 2) + ' meq/L), que precipita el calcio agregado como carbonato al concentrarse el agua en el suelo: ' + t1(c.caMeqSinAcido) + ' meq/L de calcio = ' + fmt(c.yesoSinAcidoKgPor100mm, 0) + ' kg de yeso puro por ha cada 100 mm; ' + t1(c.yesoSinAcidoTAno) + ' t/ha con ' + lam + (c.costoYesoSinAcido != null ? ' (≈ US$ ' + fmt(c.costoYesoSinAcido, 0) + '/ha por año)' : '') + '. ' +
+      (c.yesoSinAcidoEnAgua ? 'Se puede disolver en el agua de riego (FAO: hasta 1 a 4 meq/L) o aplicar al suelo al voleo en una o dos veces por año (FAO: al suelo van de 5 a 40 t/ha según el caso; más de 10 t/ha por año suele no ser económico).' : 'Es más de lo que se disuelve en el agua (FAO: 1 a 4 meq/L): aplicarlo al suelo al voleo, en una o dos veces por año.') +
+      ' El calcáreo (carbonato de calcio) NO reemplaza al yeso: FAO lo lista como enmienda solo para suelos ácidos (Tabla 12); en un suelo neutro o alcalino casi no se disuelve y no aporta calcio. El azufre elemental al suelo sí sirve cuando el suelo tiene calcáreo propio: al oxidarse libera ese calcio (FAO §3.2.1 ii), pero es lento y no va en el agua. Lo decide el análisis de suelo (pH y carbonatos). Es una aproximación: medir el sodio intercambiable (PSI) cada año y ajustar la dosis.', '[1] §3.2.1, Tabla 12; [2] p. 81');
     if (c && c.caMeq === 0 && est.inf === 'cuidado') p('Infiltración', (r.ecw < 0.7 ? 'Agua con muy pocas sales: FAO advierte que puede dispersar la superficie del suelo y bajar la infiltración aunque tenga poco sodio. ' : 'Con este sodio y esta salinidad el riesgo de perder infiltración es ligero a moderado. ') + 'Si se ve encharcamiento o costra, el yeso lo corrige' + (c.caMeqSinRestriccion > 0 ? ': ' + fmt(c.caMeqSinRestriccion, 2) + ' meq/L de calcio (' + fmt(c.caMeqSinRestriccion * YESO_KG_POR_MEQ_1000M3, 0) + ' kg de yeso puro por ha cada 100 mm) lo deja sin restricción' : '') + '; en aguas de baja salinidad el yeso en el agua es particularmente efectivo. Mantener cobertura y rastrojo.', '[1] Tabla 1, §3.2.1');
     var lr = L.cultivos.filter(function (x) { return x.lr != null && x.lr > 0.005; });
     if (lr.length && (est.sal !== 'ok' || L.cultivos.some(function (x) { return x.umbralEcw != null && L.r.ecw > x.umbralEcw; }))) p('Agua extra para lavar las sales',
@@ -614,6 +639,7 @@
       h += '<h3 style="font-size:14px;margin:14px 0 6px;">Corrección del agua: cantidades' + (c.costoYeso != null || c.costoAcido != null ? ' y costo' : '') + '</h3><div class="tablescroll"><table class="tbl"><thead><tr><th>Producto</th><th class="r">Dosis en el agua</th><th class="r">Cada 100 mm por ha</th><th class="r">Por año (' + fmt(L.lamina, 0) + ' mm)</th><th class="r">Costo por año</th></tr></thead><tbody>' +
         (c.acidoMeq > 0 ? '<tr><td>Ácido sulfúrico (puro) para el bicarbonato</td><td class="r">' + fmt(c.acidoMeq, 2) + ' meq/L</td><td class="r">' + fmt(c.acidoKgPor100mm, 0) + ' kg</td><td class="r">' + fmt(c.acidoTAno, 2) + ' t/ha</td><td class="r">' + (c.costoAcido != null ? 'US$ ' + fmt(c.costoAcido, 0) + '/ha' : '<span class="sub">cargar precio</span>') + '</td></tr>' : '') +
         (c.caMeq == null ? '<tr><td>Yeso para el sodio</td><td class="r" colspan="4">ni con 60 meq/L de calcio sale de la franja severa</td></tr>' : (c.caMeq > 0 ? '<tr><td>Yeso (100 %) para el sodio</td><td class="r">' + fmt(c.caMeq, 2) + ' meq/L de Ca</td><td class="r">' + fmt(c.yesoKgPor100mm, 0) + ' kg</td><td class="r">' + fmt(c.yesoTAno, 2) + ' t/ha</td><td class="r">' + (c.costoYeso != null ? 'US$ ' + fmt(c.costoYeso, 0) + '/ha' : '<span class="sub">cargar precio</span>') + '</td></tr>' : '')) +
+        (c.caMeqSinAcido != null ? '<tr><td>Yeso (100 %) sin ácido: cubre el sodio y el bicarbonato (CSR)</td><td class="r">' + fmt(c.caMeqSinAcido, 2) + ' meq/L de Ca</td><td class="r">' + fmt(c.yesoSinAcidoKgPor100mm, 0) + ' kg</td><td class="r">' + fmt(c.yesoSinAcidoTAno, 2) + ' t/ha</td><td class="r">' + (c.costoYesoSinAcido != null ? 'US$ ' + fmt(c.costoYesoSinAcido, 0) + '/ha' : '<span class="sub">cargar precio</span>') + '</td></tr>' : '') +
         '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px;">Ácido al 90 % del bicarbonato + el carbonato (FAO §5.3); 49 kg de ácido puro por meq/L cada 1000 m³. Yeso: 86 kg de yeso puro por meq/L de calcio cada 1000 m³ (FAO §3.2.1), para salir de la franja severa de la Tabla 1 (se estima que la CE sube 0,1 dS/m por meq/L, USDA Manual 60 p. 79). 100 mm en 1 ha = 1000 m³. Precios: Datos → Precios.' + (L.laminaSupuesta ? ' Riego por año supuesto en 500 mm: cargá el riego previsto en el formulario del análisis.' : '') + '</div>';
     }
     // 5) índices de la planilla
