@@ -1,4 +1,5 @@
-// SAFIA · Edge Function: safia-leer-analisis (v11)
+// SAFIA · Edge Function: safia-leer-analisis (v12)
+// v12 (agua, 6-oct-2026): alcalinidad total y P, y dureza como campos propios; la app deriva CO3/HCO3 de la alcalinidad (SM 2320 B).
 // v11 (agua, 5-oct-2026): carbonatos y bicarbonatos se deciden con números (alcalinidad P/T, CSR del laboratorio); el método
 //      SM 2320 o "Cálculo" ya no alcanza para decir CaCO3 (INYMA informa los iones: caso Tres Tigre).
 // Lee una foto o PDF de un análisis de SUELO, FOLIAR (tejido vegetal) o de AGUA de riego, de CUALQUIER
@@ -128,6 +129,9 @@ const ESQUEMA_AGUA = `{
   "bicarbonatos": {"valor": número de bicarbonatos HCO3- (o alcalinidad de bicarbonatos) TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
   "nitratos": {"valor": número de nitratos NO3- (o nitrógeno de nitratos) TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
   "fosfatos": {"valor": número de fosfatos / ortofosfato TAL CUAL figura en el informe (sin convertir), "unidad": una de "meq/L", "mg/L", "mmol/L", "mg/L CaCO3", "mg/L N", "mg/L S"} o null,
+  "alcalinidad_total": {"valor": alcalinidad total TAL CUAL el informe, "unidad": "mg/L CaCO3" o "meq/L"} o null,
+  "alcalinidad_p": {"valor": alcalinidad P / a la fenolftaleína / F TAL CUAL el informe, "unidad": "mg/L CaCO3" o "meq/L"} o null,
+  "dureza": {"valor": dureza total TAL CUAL el informe, "unidad": "mg/L CaCO3" (también si dice solo mg/L) o "°f" o "°dH"} o null,
   "ph": "pH del agua como número, o null",
   "ce": {"valor": conductividad eléctrica TAL CUAL el informe, "unidad": "µS/cm" o "dS/m"} o null,
   "boro": {"valor": boro TAL CUAL el informe, "unidad": "mg/L" o "µg/L"} o null,
@@ -155,7 +159,8 @@ UNIDADES (muy importante): NO CONVIERTAS NADA. Copiá cada número exactamente c
 - CE: "µS/cm" (también µmho/cm); "dS/m" (también mS/cm y mmho/cm). No la conviertas.
 - Boro: "mg/L" (también ppm) o "µg/L" (también ppb).
 - pH, TDS (mg/L) y temperatura (°C) van como número simple.
-- Anotá en observaciones la alcalinidad total si figura y qué criterio usaste para carbonatos y bicarbonatos.
+- Si el informe trae alcalinidad total y/o P (fenolftaleína, F) como CaCO3, cargalas en alcalinidad_total y alcalinidad_p: la app recalcula carbonatos y bicarbonatos desde ahí (Standard Methods 2320 B), así que en ese caso la unidad que elijas para carbonatos y bicarbonatos no decide nada. Si trae dureza total, cargala en dureza (la app la usa como calcio + magnesio cuando no vienen por separado).
+- Anotá en observaciones qué criterio usaste para carbonatos y bicarbonatos, el propósito del análisis (riego, consumo animal, consumo humano) y qué iones faltan para el riego (sodio, calcio, magnesio, cloruros, sulfatos).
 
 REGLAS:
 - Los números pueden venir con coma decimal: devolvelos con punto.

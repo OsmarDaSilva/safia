@@ -180,6 +180,30 @@
       a[f.k] = convertir(f.k, valor, u).valor;
     });
     a.lab = lab; if (dudas.length) a.unidadesDudosas = dudas;
+    // Alcalinidad total (T) y a la fenolftaleína (P), en mg/L como CaCO3: de ahí salen carbonatos y bicarbonatos sin depender de
+    // cómo los calculó el laboratorio (Standard Methods 2320 B: con P < T/2, CO3 = 2P y HCO3 = T − 2P, ambos como CaCO3; ÷ 50,04 → meq/L).
+    // Caso INYMA 2024/728: informó HCO3 = 64,4 mg/L (105,6 × 0,61) cuando el ion es 105,6 × 1,22 = 128,8; caso LABFIL 49907: informó
+    // CO3 y HCO3 como CaCO3 rotulados mg/L. Con la alcalinidad medida los dos quedan bien.
+    var lee = function (x) { return x == null ? null : (typeof x === 'object' ? num(x.valor) : num(x)); };
+    var T = lee(m.alcalinidad_total), P = lee(m.alcalinidad_p), dureza = lee(m.dureza), notas = [];
+    if (T != null && T > 0) {
+      a.alcalinidadTotal = T; if (P != null) a.alcalinidadP = P;
+      var co3C, hco3C, ohC = 0;
+      if (P == null || P <= 0) { co3C = 0; hco3C = T; notas.push('sin alcalinidad P: toda la alcalinidad como bicarbonato'); }
+      else if (P < T / 2) { co3C = 2 * P; hco3C = T - 2 * P; }
+      else if (P === T / 2) { co3C = T; hco3C = 0; }
+      else { co3C = 2 * (T - P); hco3C = 0; ohC = 2 * P - T; notas.push('hay hidróxidos (' + f2(ohC / 50.04) + ' meq/L), pH muy alto'); }
+      var antes = (lab.co3 ? f2(lab.co3.valor) + ' ' + (UNIDADES[lab.co3.unidad] || lab.co3.unidad) : '—') + ' / ' + (lab.hco3 ? f2(lab.hco3.valor) + ' ' + (UNIDADES[lab.hco3.unidad] || lab.hco3.unidad) : '—');
+      lab.co3 = { valor: Math.round(co3C * 100) / 100, unidad: 'caco3', deAlcalinidad: true }; a.co3 = convertir('co3', co3C, 'caco3').valor;
+      lab.hco3 = { valor: Math.round(hco3C * 100) / 100, unidad: 'caco3', deAlcalinidad: true }; a.hco3 = convertir('hco3', hco3C, 'caco3').valor;
+      notas.unshift('Carbonatos y bicarbonatos calculados desde la alcalinidad (SM 2320 B): total ' + f2(T) + (P != null ? ' y P ' + f2(P) : '') + ' mg/L CaCO3 → CO3 ' + f2(a.co3) + ' y HCO3 ' + f2(a.hco3) + ' meq/L (el laboratorio informaba ' + antes + ')');
+    }
+    // Dureza total (mg/L como CaCO3) = Ca + Mg: si el informe no trae calcio ni magnesio por separado, se usa como calcio (la suma)
+    if (dureza != null && !tiene(a, 'ca') && !tiene(a, 'mg')) {
+      a.dureza = dureza; lab.ca = { valor: dureza, unidad: 'caco3', deDureza: true }; a.ca = convertir('ca', dureza, 'caco3').valor; a.mg = null; a.caMgDeDureza = true;
+      notas.push('Calcio + magnesio tomados de la dureza total (' + f2(dureza) + ' mg/L CaCO3 = ' + f2(a.ca) + ' meq/L), porque el informe no los mide por separado');
+    } else if (dureza != null) a.dureza = dureza;
+    if (notas.length) a.observaciones = (a.observaciones ? a.observaciones + ' · ' : '') + notas.join(' · ');
     return a;
   }
 
