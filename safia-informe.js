@@ -31,7 +31,7 @@
   function nombreCliente(id) { var c = leer('clientes').find(function (x) { return String(x.id) === String(id); }); return c ? (c.nombre || c.razonSocial || '') : ''; }
   function lotesDelCampo() { return leer('equipos').filter(function (e) { return String(e.campoId) === String(campoActual.id) && (!equipoSel || String(e.id) === String(equipoSel)); }); }
   // "Soja 2025/26 · Pivot-1" ya dice el cultivo: no repetirlo ("Soja Soja 2025/26"); si el nombre no lo trae, se antepone
-  function etiquetaCampana(c) { var cu = String(c.cultivo || ''), ca = String(c.campana || ''); if (window.SafiaPasturas) ca = SafiaPasturas.nombreCampana({ nombre: ca, cultivos: [{ cultivo: cu, variedad: c.variedad }] }); var corto = window.SafiaPasturas ? SafiaPasturas.nombreCorto(cu, '') : cu; return !ca ? corto : (norm(ca).indexOf(norm(cu)) === 0 || norm(ca).indexOf(norm(corto)) === 0 || norm(ca).indexOf('pastura') === 0 ? ca : corto + ' ' + ca); }
+  function etiquetaCampana(c) { var cu = String(c.cultivo || ''), ca = String(c.campana || ''); if (window.SafiaPasturas) ca = SafiaPasturas.nombreCampana({ nombre: ca, cultivos: [{ cultivo: cu, variedad: c.variedad }] }); var corto = window.SafiaPasturas ? SafiaPasturas.nombreCorto(cu, '') : cu; return !ca ? corto : (norm(ca).indexOf(norm(cu)) >= 0 || norm(ca).indexOf(norm(corto)) >= 0 || norm(ca).indexOf('pastura') >= 0 ? ca : corto + ' ' + ca); }
   // el cultivo de la última campaña del lote (en curso o cerrada): la pastura se lee con Embrapa, no con las tablas de grano
   function cultivoActualDelLote(equipoId) { var u = null; leer('campanas').forEach(function (c) { if (String(c.equipoId) !== String(equipoId)) return; (c.cultivos || []).forEach(function (cu) { if (cu && cu.cultivo && (!u || String(cu.fechaSiembra || '') > String(u.fechaSiembra || ''))) u = cu; }); }); return u ? u.cultivo : null; }
   function analisisRepresentativos(lista) { var r = lista.filter(function (a) { return !a.enPromedio; }); return r.length ? r : lista; }
@@ -50,7 +50,7 @@
     var conFert = lista.filter(function (a) { return a.ca != null && a.ca !== '' || a.p != null && a.p !== '' || a.k != null && a.k !== ''; });
     var conNa = lista.filter(function (a) { return a.psi != null && a.psi !== '' || a.ceExtracto != null && a.ceExtracto !== ''; });
     var nNa = conNa.length ? conNa[conNa.length - 1] : null;
-    if (conFert.length && nNa && conFert.indexOf(nNa) < 0) { var base = sueloActual(conFert); return Object.assign({}, base, { na: nNa.na, psi: nNa.psi, ceExtracto: nNa.ceExtracto, fechaNa: nNa.fecha }); }
+    if (conFert.length && nNa && conFert.indexOf(nNa) < 0) { var base = sueloActual(conFert); return Object.assign({}, base, { na: nNa.na != null ? nNa.na : base.na, psi: nNa.psi, ceExtracto: nNa.ceExtracto != null ? nNa.ceExtracto : base.ceExtracto, fechaNa: nNa.fecha }); }
     var ult = lista[lista.length - 1], mismos = lista.filter(function (a) { return String(a.fecha) === String(ult.fecha); });
     if (mismos.length < 2 || ult.esPromedio) return ult;
     var out = Object.assign({}, ult, { esPromedio: true, nMuestras: mismos.length, promedioAlVuelo: true, muestra: '' });

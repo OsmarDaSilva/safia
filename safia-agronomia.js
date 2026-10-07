@@ -361,6 +361,7 @@
     var prof = String(s.profundidad || ''), desde = parseFloat(prof), sub = !isNaN(desde) && desde >= 20;
     var pideYeso = (ca != null && ca < 0.5) || (al != null && al > 0.5) || (m != null && m > 20);
     if (pideYeso && arc != null) r.push({ k: 'yeso', titulo: sub ? 'Yeso para el subsuelo: ' + fmt(75 * arc, 0) + ' kg/ha' : 'Yeso: decidirlo con la capa de 20–40 cm', detalle: 'Embrapa Cerrados (Sousa, Lobato y Rein 2005), para cultivos perennes como el pasto: yeso (kg/ha) = 75 × % de arcilla, cuando en 20–40 cm el calcio es menor que 0,5 cmolc/dm³, el aluminio mayor que 0,5 o la saturación de aluminio mayor que 20 %. ' + (sub ? 'Esta muestra es de ' + prof + ' y cumple el criterio.' : 'Esta muestra es de ' + (prof || 'profundidad no informada') + ': el criterio se mira en 20–40 cm; con arcilla ' + fmt(arc, 0) + ' % serían ' + fmt(75 * arc, 0) + ' kg/ha.') + ' El yeso baja al subsuelo, sube el calcio y baja el aluminio: la raíz va más hondo y aguanta mejor la seca. No corrige el pH: eso lo hace el calcáreo.', fuente: '[14]' });
+    if (pideYeso && arc == null) r.push({ k: 'yeso', titulo: 'Yeso para el subsuelo: falta la arcilla para calcular la dosis', detalle: 'Embrapa Cerrados (Sousa, Lobato y Rein 2005), perennes: yeso (kg/ha) = 75 × % de arcilla cuando en 20–40 cm el calcio es menor que 0,5 cmolc/dm³, el aluminio mayor que 0,5 o la saturación de aluminio mayor que 20 %. Este análisis cumple el criterio pero no trae la arcilla: pedirla al laboratorio.', fuente: '[14]' });
     recSodio(s).forEach(function (x) { r.push(x); });
     return r;
   }

@@ -319,6 +319,7 @@
               <div class="field"><label>Arcilla (%)</label><input type="number" id="aArcilla" step="0.1" min="0" max="100"></div>
               <div class="field"><label>Sodio Na (cmolc/dm³) <span class="hint">intercambiable: da el PSI</span></label><input type="number" id="aNa" step="0.01" min="0"></div>
               <div class="field"><label>CE del extracto (dS/m) <span class="hint">pasta saturada (CEe)</span></label><input type="number" id="aCe" step="0.01" min="0"></div>
+              <div class="field"><label>PSI / PST (%) <span class="hint">solo si el laboratorio lo informa; con Na y CIC lo calcula SAFIA</span></label><input type="number" id="aPsi" step="0.1" min="0" max="100"></div>
               <div class="field full">
                 <label>Archivo del laboratorio <span class="hint">PDF o foto (lo lee la IA) · Excel o CSV (planilla de resultados o muestreo en grilla, se lee al instante)</span></label>
                 <input type="file" id="aArchivo" accept=".pdf,image/*,.xlsx,.xls,.xlsm,.csv,.txt">
@@ -1374,7 +1375,7 @@
     var rep = lista.filter(function (a) { return !a.enPromedio; });
     return rep.length ? rep : lista;
   }
-  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'hAl', 'phSmp', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso', 'na', 'ceExtracto'];
+  var CLAVES_PROMEDIO = ['ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'hAl', 'phSmp', 'arena', 'limo', 'arcilla', 'aluminio', 'satAluminio', 'azufre', 'boro', 'zinc', 'cobre', 'manganeso', 'na', 'ceExtracto', 'psi'];
   // Promedio aritmético de cada valor (solo los que están cargados). Es lo que usan los laboratorios al informar la "media" de una gleba.
   function promediarAnalisis(items) {
     var out = {};
@@ -1561,7 +1562,7 @@
     editandoAnalisisId = null; extrasIA = null;
     document.getElementById('tituloFormAnalisis').textContent = 'Nuevo análisis de suelo';
     document.getElementById('aArchivoActual').textContent = '';
-    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aHal','aSmp','aArena','aLimo','aArcilla','aNa','aCe','aObs','aArchivo'].forEach(function (i) {
+    ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aHal','aSmp','aArena','aLimo','aArcilla','aNa','aCe','aPsi','aObs','aArchivo'].forEach(function (i) {
       document.getElementById(i).value = '';
     });
   }
@@ -1578,7 +1579,7 @@
     document.getElementById('aProf').value = a.profundidad || '';
     llenarLotesAnalisis();
     document.getElementById('aEquipo').value = a.equipoId ? String(a.equipoId) : '';
-    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','hAl|aHal','phSmp|aSmp','arena|aArena','limo|aLimo','arcilla|aArcilla','na|aNa','ceExtracto|aCe'].forEach(function (par) {
+    ['ph|aPh','mo|aMo','p|aP','k|aK','ca|aCa','mg|aMg','cic|aCic','satBases|aSat','hAl|aHal','phSmp|aSmp','arena|aArena','limo|aLimo','arcilla|aArcilla','na|aNa','ceExtracto|aCe','psi|aPsi'].forEach(function (par) {
       var pp = par.split('|');
       document.getElementById(pp[1]).value = a[pp[0]] != null ? a[pp[0]] : '';
     });
@@ -1706,7 +1707,8 @@
   var extrasIA = null;
   // Sodio intercambiable: si el laboratorio solo informa el PSI (PST), se recupera con la CIC. PSI = Na / CIC × 100.
   function naDe(m) { var na = num(m.sodio); if (na == null && num(m.psi) != null && num(m.cic)) na = Math.round(num(m.psi) * num(m.cic) * 10) / 1000; return na; }
-  function psiDe(a) { var na = num(a.na), cic = num(a.cic); return na != null && cic ? Math.round(na / cic * 1000) / 10 : null; }
+  // PSI: con Na y CIC lo calcula SAFIA; si no, vale el que informó el laboratorio (PST). Si los dos existen y difieren más de 2 puntos, queda anotado.
+  function psiDe(a) { var na = num(a.na), cic = num(a.cic), inf = num(a.psi); if (na != null && cic) { var calc = Math.round(na / cic * 1000) / 10; if (inf != null && Math.abs(inf - calc) > 2) a.psiAviso = 'El laboratorio informa PSI ' + inf + ' % y con Na/CIC da ' + calc + ' %'; return calc; } return inf; }
   function extrasDeMuestra(m) {
     var o = {}, hay = false;
     EXTRAS_IA.forEach(function (e) { var v = num(m[e[0]]); if (v !== null) { o[e[1]] = v; hay = true; } });
@@ -1750,11 +1752,11 @@
         var item = {
           id: base + i, campoId: campoActual.id, equipoId: equipoId, fecha: fecha, profundidad: m.profundidad || '', origen: 'ia',
           ph: num(m.ph), mo: num(m.materia_organica), p: num(m.fosforo), k: num(m.potasio), ca: num(m.calcio), mg: num(m.magnesio), cic: num(m.cic), satBases: num(m.saturacion_bases),
-          arena: num(m.arena), limo: num(m.limo), arcilla: num(m.arcilla), na: naDe(m), ceExtracto: num(m.ce_extracto),
+          arena: num(m.arena), limo: num(m.limo), arcilla: num(m.arcilla), na: naDe(m), ceExtracto: num(m.ce_extracto), psi: num(m.psi),
           observaciones: obsDeMuestra(m, i), archivoRuta: ruta || null, archivoNombre: archivo ? archivo.name : null, fechaCreacion: new Date().toISOString()
         };
         var ex = extrasDeMuestra(m); if (ex) Object.assign(item, ex);
-        item.psi = psiDe(item);
+        item.psi = psiDe(item); if (item.psiAviso) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + item.psiAviso; delete item.psiAviso; }
         if (window.SafiaFertilidad) { var chkM = SafiaFertilidad.consistencia(item); if (!chkM.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkM.avisos.join('; '); inconsistentes = (inconsistentes || 0) + 1; } if (item.extractorP && !/mehlich/i.test(item.extractorP)) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Extractor de P "' + item.extractorP + '": las clases del manual valen para Mehlich-1'; } }
         lista.push(item); creados++;
       });
@@ -1795,7 +1797,7 @@
     set('aLimo', d.limo);
     set('aArcilla', d.arcilla);
     set('aHal', d.h_al); set('aSmp', d.ph_smp);
-    set('aNa', naDe(d)); set('aCe', d.ce_extracto);
+    set('aNa', naDe(d)); set('aCe', d.ce_extracto); set('aPsi', d.psi);
     document.getElementById('aObs').value = obsDeMuestra(d);
     extrasIA = extrasDeMuestra(d);
     var loteIA = loteParaMuestra(d.muestra);
@@ -1840,9 +1842,10 @@
       item.arcilla = num(document.getElementById('aArcilla').value);
       item.na = num(document.getElementById('aNa').value);
       item.ceExtracto = num(document.getElementById('aCe').value);
+      item.psi = num(document.getElementById('aPsi').value);
       item.observaciones = document.getElementById('aObs').value.trim();
       if (extrasIA) { Object.assign(item, extrasIA); item.origen = 'ia'; extrasIA = null; }
-      item.psi = psiDe(item);
+      item.psi = psiDe(item); if (item.psiAviso) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + item.psiAviso; delete item.psiAviso; }
       if (window.SafiaFertilidad) { var chkA = SafiaFertilidad.consistencia(item); if (!chkA.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkA.avisos.join('; '); toast('Ojo: el análisis no cierra (' + chkA.avisos[0] + '). Revisá los valores.', true); } }
       if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
       if (!editandoAnalisisId) lista.push(item);

@@ -94,16 +94,24 @@
       });
       if (!valores) continue;
       if (m.potasio != null && m.potasio > 3) { m.potasio = Math.round(m.potasio / 391 * 1000) / 1000; kEnMg++; }   // mg/dm³ → cmolc/dm³
-      if (m.sodio != null && m.sodio > 10) { m.sodio = Math.round(m.sodio / 230 * 1000) / 1000; naEnMg++; }   // mg/dm³ → cmolc/dm³ (Na 23 g/mol)
-      if (m.ce_extracto != null && m.ce_extracto > 100) { m.ce_extracto = Math.round(m.ce_extracto) / 1000; ceEnUs++; }   // µS/cm → dS/m
       if (m.materia_organica != null && m.materia_organica > 12) { m.materia_organica = Math.round(m.materia_organica / 10 * 100) / 100; moEnG++; }   // g/dm³ (laboratorios de Brasil) → %
       if (m.profundidad) m.profundidad = m.profundidad.replace(/\s*cm$/i, ' cm');
       if (m.fecha && /^\d+(\.\d+)?$/.test(m.fecha)) { var d = new Date(Math.round((parseFloat(m.fecha) - 25569) * 86400000)); m.fecha = d.toISOString().slice(0, 10); }
       muestras.push(m);
     }
     if (!muestras.length) return { error: 'La planilla tiene encabezados pero ninguna fila con valores.' };
+    // Sodio y CEe: la unidad se decide por columna. Primero el encabezado ("Na (mg/dm³)", "CEe (µS/cm)"); si no la dice, por el rango de
+    // toda la columna: un Na intercambiable en cmolc/dm³ casi nunca pasa de 3 (los laboratorios de Brasil lo dan en mg/dm³: 2–50), y una
+    // CEe en dS/m no pasa de 50. Así un Na de 7 mg/dm³ no se toma como 7 cmolc (sería "suelo sódico" falso) ni un sódico real se achica.
+    var maxDe = function (k) { var vs = muestras.map(function (m) { return m[k]; }).filter(function (v) { return v != null; }); return vs.length ? Math.max.apply(null, vs) : null; };
+    var hNa = norm(usados.sodio || ''), uNa = /mg|ppm/.test(hNa) ? 'mg' : (/mmol/.test(hNa) ? 'mmol' : (/cmol/.test(hNa) ? 'cmol' : null));
+    if (!uNa && maxDe('sodio') != null) uNa = maxDe('sodio') > 3 ? 'mg' : 'cmol';
+    if (uNa === 'mg' || uNa === 'mmol') muestras.forEach(function (m) { if (m.sodio != null) { m.sodio = Math.round(m.sodio / (uNa === 'mg' ? 230 : 10) * 1000) / 1000; naEnMg++; } });
+    var hCe = norm(usados.ce_extracto || ''), uCe = /ds|ms\/cm|mmho/.test(hCe) ? 'ds' : (/us|µs|umho|micro/.test(hCe) ? 'us' : null);
+    if (!uCe && maxDe('ce_extracto') != null) uCe = maxDe('ce_extracto') > 50 ? 'us' : 'ds';
+    if (uCe === 'us') muestras.forEach(function (m) { if (m.ce_extracto != null) { m.ce_extracto = Math.round(m.ce_extracto) / 1000; ceEnUs++; } });
     if (kEnMg) avisos.push('K venía en mg/dm³ en ' + kEnMg + ' muestra(s): se convirtió a cmolc/dm³ (÷ 391).');
-    if (naEnMg) avisos.push('Na venía en mg/dm³ en ' + naEnMg + ' muestra(s): se convirtió a cmolc/dm³ (÷ 230).');
+    if (naEnMg) avisos.push('Na venía en ' + (uNa === 'mmol' ? 'mmolc/dm³' : 'mg/dm³') + ' en ' + naEnMg + ' muestra(s): se convirtió a cmolc/dm³ (' + (uNa === 'mmol' ? '÷ 10' : '÷ 230') + ').');
     if (ceEnUs) avisos.push('CEe venía en µS/cm en ' + ceEnUs + ' muestra(s): se pasó a dS/m (÷ 1000).');
     if (moEnG) avisos.push('Materia orgánica en g/dm³ en ' + moEnG + ' muestra(s): se pasó a % (÷ 10).');
     var faltan = ['ph', 'fosforo', 'potasio', 'calcio', 'magnesio', 'cic', 'saturacion_bases', 'materia_organica'].filter(function (k) { return !usados[k]; });

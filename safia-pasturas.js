@@ -53,7 +53,7 @@
   // Nombre de la campaña sin la categoría larga (también los nombres armados antes del 6-oct-2026)
   function nombreCampana(c) {
     var n = String((c && c.nombre) || '');
-    ((c && c.cultivos) || []).forEach(function (cu) { if (cu && cu.cultivo && /\(/.test(cu.cultivo) && esPastura(cu.cultivo) && n.indexOf(cu.cultivo) >= 0) n = n.split(cu.cultivo).join(nombreCorto(cu.cultivo, cu.variedad)); });
+    ((c && c.cultivos) || []).forEach(function (cu) { if (cu && cu.cultivo && /\(/.test(cu.cultivo) && esPastura(cu.cultivo)) { var pos = n.indexOf(cu.cultivo) === 0 ? 0 : (n.indexOf(' + ' + cu.cultivo) >= 0 ? n.indexOf(' + ' + cu.cultivo) + 3 : -1); if (pos >= 0) n = n.slice(0, pos) + nombreCorto(cu.cultivo, cu.variedad) + n.slice(pos + cu.cultivo.length); } });   // solo el nombre que armó SAFIA (la categoría al inicio o después de ' + '); uno escrito a mano no se toca
     return n;
   }
   // Los nombres viejos se corrigen una vez en los datos (solo propietario o admin, que pueden guardar cualquier campaña); la nube los sube sola.
@@ -66,8 +66,9 @@
       if (cambio) localStorage.setItem('campanas', JSON.stringify(l));
     } catch (e) { /* sin datos todavía */ }
   }
+  // Solo después de bajar de la nube ('safia:datos'): si corriera al entrar, con datos viejos en este navegador, el registro local
+  // marcado como cambiado ganaría sobre lo que otro navegador cargó después (fusionar: "cambio local sin subir: gana lo local").
   window.addEventListener('safia:datos', arreglarNombres);
-  window.addEventListener('safia:usuario', function () { setTimeout(arreglarNombres, 0); });
   var SISTEMAS = [
     { k: 'rotativo_intensivo', n: 'Pastoreo rotativo intensivo (piquetes bajo el pivote)' },
     { k: 'rotativo', n: 'Pastoreo rotativo' },

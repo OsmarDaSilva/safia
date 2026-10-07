@@ -543,7 +543,7 @@
     if (previo && previo === uid) return false;
     if (previo) {
       Object.keys(TABLAS).forEach(function (k) { window.localStorage.removeItem(k); window.localStorage.removeItem(claveSnap(k)); });
-      ['zona', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo', 'informe_meta'].forEach(function (k) { window.localStorage.removeItem(k); });
+      ['zona', 'safia_ver_como', 'propietario_cliente', 'encargado_campo', 'voz_campo', 'operador_equipo', 'informe_meta', 'safia_avisos_cola', 'safia_tecnicos'].forEach(function (k) { window.localStorage.removeItem(k); });
       try { sessionStorage.removeItem('banco_campo'); } catch (e) {}
       console.warn('SAFIA sync: cambió el usuario; se limpiaron los datos del anterior.');
     }

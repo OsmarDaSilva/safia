@@ -511,7 +511,7 @@
       const d = cultivo && variedad && window.SafiaMateriales ? SafiaMateriales.buscar(cultivo, variedad) : null; _material.gm = d && d.gm != null ? d.gm : null;
       const campo = leer('campos').find(c => String(c.id) === String($('fCampo').value)) || {};
       const pedido = ++_pedidoMat;
-      if (!d || !siembra) { if (out.dataset.auto === '1') { out.value = ''; out.dataset.auto = '0'; } _material.ciclo = null; ayuda.textContent = ''; return; }
+      if (!variedad || !siembra) { if (out.dataset.auto === '1') { out.value = ''; out.dataset.auto = '0'; } _material.ciclo = null; ayuda.textContent = ''; return; }
       SafiaCiclo.estimar({ cultivo, variedad, fechaSiembra: siembra, lat: parseFloat(String(campo.latitud || '').replace(',', '.')), lon: parseFloat(String(campo.longitud || '').replace(',', '.')) }).then(r => {
         if (pedido !== _pedidoMat) return;
         if (!r) { if (out.dataset.auto === '1') { out.value = ''; out.dataset.auto = '0'; } _material.ciclo = null; ayuda.textContent = 'SAFIA no tiene el ciclo de este material con fuente: cargá la fecha a mano si la sabés.'; return; }

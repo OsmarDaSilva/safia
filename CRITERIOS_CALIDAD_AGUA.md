@@ -122,3 +122,13 @@ Regla de Osmar: los estudios que trae son para formar mejor el criterio de los a
 - **Embrapa Cerrados (Sousa, Lobato y Rein 2005), yeso para perennes:** 75 × % de arcilla (kg/ha) cuando en 20–40 cm Ca < 0,5, Al > 0,5 o m > 20 %. Llegó citado en la revisión de Martins et al. 2024 (Rev. Multidisc. Nordeste Mineiro, alumnas de grado): la revisión no es fuente; la cifra es de Embrapa. No aplica a Tres Tigre (sin aluminio, calcio alto): ahí el yeso es por el sodio.
 - **Universidad Federal de Tocantins 2014 (Andrade et al., Revista Verde):** reemplazar potasio por sodio en el abono del Mombaça bajó altura, clorofila y producción. Respaldo del texto "cuidar el potasio" en Controlar cada año cuando el agua trae sodio.
 - **UFC 2020 (Zuri hasta 3 dS/m), UNA 2013 (germinación Tanzania > Mombaça), Embrapa Agroindústria Tropical 2008 (Tanzânia y Mombaça por aspersión con RAS 4,5):** notas del cultivo en la tabla (v150–v151).
+
+## Revisión 7-oct-2026 (v156): correcciones tras la auditoría de los cambios del 5 y 6 de octubre
+
+- La alcalinidad informada en meq/L y la dureza en °f o °dH ahora se convierten a mg/L CaCO3 antes de usarlas (antes se tomaban como mg/L CaCO3 siempre).
+- El umbral "severo si CE <" sale de la fila de la Tabla 1 de FAO que corresponde a la RAS (antes estaba fijo en 1,3/2,9).
+- "Pastura" sin variedad entra como pastura genérica (nota: cargar la variedad), no desaparece de la tabla de cultivos.
+- El suelo se toma como arenoso también por la arcilla medida (≤ 20 %), no solo por el texto del campo.
+- Planilla Excel/CSV: la unidad del sodio y la CEe se decide por columna (encabezado o rango de toda la columna), no fila por fila; un Na de 7 mg/dm³ ya no se toma como 7 cmolc.
+- El PSI que informa el laboratorio se guarda aunque no haya Na ni CIC (casillero PSI/PST en el formulario); con Na y CIC lo calcula SAFIA y, si difieren más de 2 puntos, queda anotado.
+- Opción B (solo yeso) avisa cuando pasa de 10 t/ha por año (FAO: no económico).

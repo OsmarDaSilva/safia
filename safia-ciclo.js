@@ -145,14 +145,14 @@
       }
       // lo aprendido de las cosechas propias corrige la estimación (SafiaAprende, nivel 1); al aprender se pide sin corregir
       var ap = !o.sinAprender && r.metodo !== 'propio' && r.metodo !== 'gdu' && window.SafiaAprende ? SafiaAprende.ajusteCiclo({ cultivo: o.cultivo, variedad: nombreAprendido(o.cultivo, (d && d.nombre) || o.variedad, o.fechaSiembra), lat: o.lat, lon: o.lon }) : null;
-      if (ap && ap.dias) { r.diasFuente = r.dias; r.dias += ap.dias; r.aprendido = ap; r.texto += ' · corregido con ' + ap.n + ' cosechas propias (' + (ap.dias > 0 ? '+' : '') + ap.dias + ' días)'; }
+      if (ap && ap.dias) { r.diasFuente = r.dias; r.dias += ap.dias; r.aprendido = ap; if (r.zafrina) r.texto = r.texto.replace(', hasta tener cosechas propias de zafriña', ''); r.texto += ' · corregido con ' + ap.n + ' cosechas propias (' + (ap.dias > 0 ? '+' : '') + ap.dias + ' días)'; }
       r.fechaFin = sumarDias(o.fechaSiembra, r.dias); r.fechaSiembra = String(o.fechaSiembra).slice(0, 10); r.material = nombreAprendido(o.cultivo, d ? d.nombre : o.variedad, o.fechaSiembra); return r;
     };
     if (!d) return Promise.resolve(fin(null));
     if (p) return Promise.resolve(fin(p));
     if (cu === 'soja') return Promise.resolve(fin(porGM(d)));
     if (cu === 'maiz') return porGDU(d, o.fechaSiembra, num(o.lat), num(o.lon)).then(function (r) { return fin(conSecado(r, o)); });
-    return Promise.resolve(null);
+    return Promise.resolve(fin(null));   // otros cultivos con ficha SENAVE sin ciclo publicado: el ciclo propio aprendido, si lo hay
   }
 
   /* ---------- texto corto del material para la pantalla de campañas ---------- */

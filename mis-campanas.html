@@ -2003,7 +2003,7 @@
       c.fichaMaterial = ficha; const fEl = document.getElementById('matFicha-' + idTemp); if (fEl) { fEl.textContent = fichaCorta(ficha); fEl.title = ficha; }
       const d = c.cultivo && c.variedad && window.SafiaMateriales ? SafiaMateriales.buscar(c.cultivo, c.variedad) : null;
       c.gm = d && d.gm != null ? d.gm : null;
-      if (!c.fechaSiembra || !d) { if (c.fechaCosechaAuto) { c.fechaCosecha = ''; c.fechaCosechaAuto = false; c.ciclo = null; const ci = document.getElementById('cosecha-' + idTemp); if (ci) ci.value = ''; const a0 = document.getElementById('cosAyuda-' + idTemp); if (a0) a0.textContent = ''; } return; }
+      if (!c.fechaSiembra || !c.variedad) { if (c.fechaCosechaAuto) { c.fechaCosecha = ''; c.fechaCosechaAuto = false; c.ciclo = null; const ci = document.getElementById('cosecha-' + idTemp); if (ci) ci.value = ''; const a0 = document.getElementById('cosAyuda-' + idTemp); if (a0) a0.textContent = ''; } return; }
       const co = coordDelEquipo(), pedido = ++_pedidoMaterial;
       SafiaCiclo.estimar({ cultivo: c.cultivo, variedad: c.variedad, fechaSiembra: c.fechaSiembra, lat: co.lat, lon: co.lon }).then(r => {
         if (pedido !== _pedidoMaterial) return;   // llegó tarde: ya hay otro pedido

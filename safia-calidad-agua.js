@@ -184,8 +184,9 @@
     // cómo los calculó el laboratorio (Standard Methods 2320 B: con P < T/2, CO3 = 2P y HCO3 = T − 2P, ambos como CaCO3; ÷ 50,04 → meq/L).
     // Caso INYMA 2024/728: informó HCO3 = 64,4 mg/L (105,6 × 0,61) cuando el ion es 105,6 × 1,22 = 128,8; caso LABFIL 49907: informó
     // CO3 y HCO3 como CaCO3 rotulados mg/L. Con la alcalinidad medida los dos quedan bien.
-    var lee = function (x) { return x == null ? null : (typeof x === 'object' ? num(x.valor) : num(x)); };
-    var T = lee(m.alcalinidad_total), P = lee(m.alcalinidad_p), dureza = lee(m.dureza), notas = [];
+    // todo en mg/L CaCO3: la alcalinidad puede venir en meq/L (× 50,04) y la dureza en grados franceses (°f × 10) o alemanes (°dH × 17,85)
+    var lee = function (x, factores) { if (x == null) return null; if (typeof x !== 'object') return num(x); var v = num(x.valor); if (v == null) return null; var u = norm(x.unidad || ''); for (var k in factores) if (u.indexOf(k) >= 0) return v * factores[k]; return v; };
+    var T = lee(m.alcalinidad_total, { meq: 50.04, mmolc: 50.04 }), P = lee(m.alcalinidad_p, { meq: 50.04, mmolc: 50.04 }), dureza = lee(m.dureza, { '°f': 10, 'of': 10, 'f': 10, 'dh': 17.85, '°dh': 17.85 }), notas = [];
     if (T != null && T > 0) {
       a.alcalinidadTotal = T; if (P != null) a.alcalinidadP = P;
       var co3C, hco3C, ohC = 0;
@@ -352,7 +353,8 @@
     // Panicum maximum y Brachiaria (Urochloa) NO están en las Tablas 4 y 5 de FAO 29 (solo Panicum antidotale, otra especie, como
     // moderadamente tolerante). Se muestran sin números de tolerancia, con la nota de lo que se sabe. Leído el 6-oct-2026.
     panicum:  { n: 'Pasto Panicum (Zuri, Mombaça, Tanzania)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no lo tiene en sus tablas de tolerancia (solo el Panicum antidotale, otra especie, moderadamente tolerante). Estudios: Zuri regado en invernadero con agua de hasta 3,0 dS/m y RAS cerca de 10, apto para el ganado (Univ. Federal de Ceará, 2020); en germinación, Tanzania tolera más la sal que Mombaça (UNA, 2013). Embrapa Agroindústria Tropical (Miranda et al., 2008): Tanzania y Mombaça regados por aspersión con 3,6 a 4,5 meq/L de sodio (RAS 3,4–4,5, CE 0,57–0,71 dS/m) produjeron igual, unas 4 a 4,8 t de materia seca por ha en dos cortes de 30 días. Ninguno con agua de RAS alta.', hojaEvidencia: 'Embrapa (Miranda et al., 2008) regó Tanzania y Mombaça por aspersión con hasta 4,5 meq/L de sodio sin pérdida de producción' },
-    brachiaria: { n: 'Brachiaria (Urochloa)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no la tiene en sus tablas de tolerancia a la sal.' }
+    brachiaria: { n: 'Brachiaria (Urochloa)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no la tiene en sus tablas de tolerancia a la sal.' },
+    pastura:  { n: 'Pastura tropical (sin variedad)', hoja: null, boro: null, psi: null, nota: 'FAO 29 no tiene las pasturas tropicales en sus tablas de tolerancia. Cargá la variedad en la campaña (Zuri, Mombaça, Marandu…) para que SAFIA use lo que se sabe de cada una.' }
   };
   function claveCultivo(c) {
     // lo que va entre paréntesis es la lista de ejemplos de la categoría ("Pastura tropical (Brachiaria, Mombaça, Tifton)"): no decide
@@ -367,6 +369,7 @@
     if (/^cebada/.test(n)) return 'cebada'; if (/^poroto|^frijol|^feijao/.test(n)) return 'poroto';
     if (/^papa/.test(n)) return 'papa'; if (/^tomate/.test(n)) return 'tomate'; if (/naranj|citric/.test(n)) return 'naranja';
     if (/^girasol/.test(n)) return 'girasol'; if (/rhodes|chloris/.test(n)) return 'rhodes'; if (/buffel|cenchrus/.test(n)) return 'buffel';
+    if (/pastur|pasto|pastagem|forraj|capim/.test(n)) return 'pastura';
     return null;
   }
   // Un cultivo frente a esta agua: sales (Tabla 4), lavado (ec. 9), hoja con pivot (Tabla 18), boro (Tabla 16)
@@ -409,9 +412,9 @@
     if (ras >= 40) return { estado: 'grave', texto: 'RAS de ' + fmt(ras, 1) + ' (más de 40, por encima de la tabla FAO): el sodio va a sellar el suelo y el agua no va a infiltrar.' };
     var filas = [[3, 0.7, 0.2], [6, 1.2, 0.3], [12, 1.9, 0.5], [20, 2.9, 1.3], [40, 5.0, 2.9]], f = filas.find(function (x) { return ras < x[0]; });
     var rango = { 3: '0–3', 6: '3–6', 12: '6–12', 20: '12–20', 40: '20–40' }[f[0]];
-    if (ecw > f[1]) return { estado: 'ok', texto: 'Con RAS ' + rango + ' y CE de ' + fmt(ecw, 2) + ' dS/m no hay problema de infiltración (FAO: sin restricción si CE > ' + fmt(f[1], 1) + ').' };
-    if (ecw >= f[2]) return { estado: 'cuidado', texto: 'Con RAS ' + rango + ' y CE de ' + fmt(ecw, 2) + ' dS/m hay riesgo ligero a moderado de que el suelo pierda infiltración (FAO: entre ' + fmt(f[2], 1) + ' y ' + fmt(f[1], 1) + ').' };
-    return { estado: 'grave', texto: 'Con RAS ' + rango + ' y CE de solo ' + fmt(ecw, 2) + ' dS/m el sodio va a sellar el suelo: problema severo de infiltración (FAO: severo si CE < ' + fmt(f[2], 1) + ').' };
+    if (ecw > f[1]) return { fila: f, estado: 'ok', texto: 'Con RAS ' + rango + ' y CE de ' + fmt(ecw, 2) + ' dS/m no hay problema de infiltración (FAO: sin restricción si CE > ' + fmt(f[1], 1) + ').' };
+    if (ecw >= f[2]) return { fila: f, estado: 'cuidado', texto: 'Con RAS ' + rango + ' y CE de ' + fmt(ecw, 2) + ' dS/m hay riesgo ligero a moderado de que el suelo pierda infiltración (FAO: entre ' + fmt(f[2], 1) + ' y ' + fmt(f[1], 1) + ').' };
+    return { fila: f, estado: 'grave', texto: 'Con RAS ' + rango + ' y CE de solo ' + fmt(ecw, 2) + ' dS/m el sodio va a sellar el suelo: problema severo de infiltración (FAO: severo si CE < ' + fmt(f[2], 1) + ').' };
   }
   /* ---------- corrección del agua: cuánto ácido y cuánto yeso, y si conviene ----------
      Ácido (FAO 29 §5.3): "agregar ácido sulfúrico al 90 % del equivalente de HCO3"; "un pH no menor de 6,5
@@ -463,6 +466,7 @@
       c.caMeqSinAcido = Math.round((c.caMeq + Math.max(r.csr || 0, 0)) * 100) / 100;
       c.yesoSinAcidoKgPor100mm = c.caMeqSinAcido * YESO_KG_POR_MEQ_1000M3;
       c.yesoSinAcidoTAno = c.yesoSinAcidoKgPor100mm * laminaMm / 100 / 1000;
+      c.sinAcidoNoEconomico = c.yesoSinAcidoTAno > YESO_MAX_T_HA_ANO;
       c.yesoSinAcidoEnAgua = c.caMeqSinAcido <= CA_MAX_AGUA && r.ecw <= 1.0;
       c.costoYesoSinAcido = c.precioYeso != null ? c.yesoSinAcidoTAno * c.precioYeso : null;
     }
@@ -486,7 +490,7 @@
     // si el PSI medido ya muestra suelo sódico (Embrapa CPATSA: más de 15 %), el calcio del suelo no está compensando
     var compensa = !!(S && S.arenoso && S.caPct && S.caPct[0] >= 50 && r.ce != null && r.ce <= 750 && !(S.psi && S.psi[1] > 15));
     var porSuelo = compensa ? ' En este campo el suelo es arenoso y el calcio ocupa el ' + rg(S.caPct, 0) + ' % de la CIC (análisis cargado): la Tabla 1 de FAO supone suelos franco arenosos a franco arcillosos, y el USDA Manual 60 dice que un agua de sodio muy alto con salinidad baja o media se puede usar donde el calcio del suelo lo compense. Por eso el riego puede andar bien; lo que confirma si el sodio se acumula es el sodio intercambiable (PSI) del suelo.' : '';
-    if (inf && compensa && inf.estado === 'grave') inf = { estado: 'cuidado', texto: 'Según la Tabla 1 de FAO, con RAS ' + fmt(r.ras, 1) + ' y CE de ' + fmt(r.ecw, 2) + ' dS/m la infiltración sería un problema severo en un suelo franco (FAO: severo si CE < ' + fmt(r.ras < 20 ? 1.3 : 2.9, 1) + ').' };
+    if (inf && compensa && inf.estado === 'grave') inf = { estado: 'cuidado', texto: 'Según la Tabla 1 de FAO, con RAS ' + fmt(r.ras, 1) + ' y CE de ' + fmt(r.ecw, 2) + ' dS/m la infiltración sería un problema severo en un suelo franco (FAO: severo si CE < ' + fmt(inf.fila ? inf.fila[2] : (r.ras < 20 ? 1.3 : 2.9), 1) + ').' };
     if (inf) it('inf', 'Sodio para el suelo (RAS con CE)', r.ras, 'RAS', inf.estado, inf.texto + (inf.estado !== 'ok' ? ' Con lluvia después de regar con esta agua el problema es aún mayor (FAO §3.2.2).' : '') + (r.ras > 26 ? ' Texas A&M: con RAS de más de 26 el agua es "en general no apta".' : (r.ras > 18 ? ' Texas A&M: con RAS 18–26 "en general no apta para uso continuo".' : '')) + porSuelo, '[1] Tabla 1, §3.2.2; [7]' + (compensa ? '; [2] p. 81' : ''));
     // 3. Clase USSL (USDA Manual 60)
     if (r.clase) it('ussl', 'Clasificación Riverside (USSL)', r.clase.txt, '', r.clase.c === 4 || (r.clase.s === 4 && !(compensa && r.clase.c <= 2)) ? 'grave' : (r.clase.c === 3 || r.clase.s >= 2 ? 'cuidado' : 'ok'), TEXTO_C[r.clase.c] + ' ' + TEXTO_S[r.clase.s] + (compensa && r.clase.s === 4 && r.clase.c <= 2 ? ' Es el caso de este campo: salinidad ' + (r.clase.c === 1 ? 'baja' : 'media') + ' y suelo con mucho calcio (ver Suelo del campo).' : ''), '[2] p. 80–81');
@@ -590,10 +594,10 @@
     if (Sx && Sx.psi) {
       var pMax = Sx.psi[1], cicM = Sx.cicNa ? (Sx.cicNa[0] + Sx.cicNa[1]) / 2 : null;
       var ngS = cicM ? Math.max(0, 0.00086 * (pMax - 5) * cicM * 20 * 1.25) : null;   // Embrapa CPATSA (Richards 1954), CIC por volumen, × 1,25
-      var cuentaS = ngS != null ? fmt(ngS, 1) + ' t/ha de yeso al suelo (Embrapa CPATSA: 0,00086 × (PSI ' + fmt(pMax, 1) + ' − 5) × CIC ' + fmt(cicM, 1) + ' × 20 cm × 1,25; con la CIC por volumen, como la informan los laboratorios, la densidad ya está incluida)' : 'yeso al suelo (falta la CIC para calcular la dosis)';
+      var cuentaS = ngS != null && ngS > 0.05 ? fmt(ngS, 1) + ' t/ha de yeso al suelo (Embrapa CPATSA: 0,00086 × (PSI ' + fmt(pMax, 1) + ' − 5) × CIC ' + fmt(cicM, 1) + ' × 20 cm × 1,25; con la CIC por volumen, como la informan los laboratorios, la densidad ya está incluida)' : 'yeso al suelo (falta la CIC para calcular la dosis)';
       p('Sodio del suelo: PSI ' + rgx(Sx.psi, 1) + ' %' + (Sx.anioNa ? ' (' + Sx.anioNa + ')' : ''),
         (pMax < 5 ? 'Menos de 5 % (alerta del INTA): el suelo no acumula el sodio de esta agua y el yeso del plan es preventivo. Repetir cada año, en un lote regado y en otro sin regar al lado.'
-          : (pMax <= 15 ? 'Entre 5 y 15 %: alerta del INTA. El sodio de esta agua se está acumulando, aunque todavía no es suelo sódico (Embrapa CPATSA: más de 15 %). Empezar con el yeso (opción A o B) y repetir el análisis cada año. Para bajar el suelo a 5 % de una vez: ' + cuentaS + '.'
+          : (pMax <= 15 ? 'Entre 5 y 15 %: alerta del INTA. El sodio de esta agua se está acumulando, aunque todavía no es suelo sódico (Embrapa CPATSA: más de 15 %). Empezar con el yeso del plan y repetir el análisis cada año. Para bajar el suelo a 5 % de una vez: ' + cuentaS + '.'
           : 'Más de 15 %: suelo sódico (Embrapa CPATSA). Además del yeso del agua hay que corregir el suelo: ' + cuentaS + ', para bajarlo a 5 % en 0–20 cm. Yeso fino, al voleo con el suelo húmedo después de un riego, y lavar con 50–70 mm; actúa sobre todo en 10–20 cm y dura 3–4 años. Rinde más con abono verde o estiércol. Otra opción con buen efecto residual: yeso más ácido sulfúrico por el 25 % del sodio a reemplazar. Las gramíneas forrajeras toleran el sodio mucho más que las leguminosas (trébol, alfalfa): en un suelo sódico de pH 10,5 produjeron aun sin yeso.')) +
         (Sx.ceE ? ' CEe ' + rgx(Sx.ceE, 2) + ' dS/m: ' + (Sx.ceE[1] > 4 ? 'suelo salino (más de 4, Embrapa CPATSA); lavar con riego extra y buen drenaje.' : 'no es suelo salino (hasta 4).') : ' Falta la CE del extracto (CEe) para saber si además hay sales.'), '[10]; [14]');
     }
@@ -609,7 +613,7 @@
     if (c && c.caMeqSinAcido != null) p((descartada ? 'Haría falta: ' : '') + 'Opción B · sin ácido: solo yeso (el calcáreo no lo reemplaza)',
       prevPSI + 'Sin ácido, el yeso tiene que cubrir el sodio y también el bicarbonato en exceso (CSR ' + fmt(r.csr, 2) + ' meq/L), que precipita el calcio agregado como carbonato al concentrarse el agua en el suelo: ' + t1(c.caMeqSinAcido) + ' meq/L de calcio = ' + fmt(c.yesoSinAcidoKgPor100mm, 0) + ' kg de yeso puro por ha cada 100 mm; ' + t1(c.yesoSinAcidoTAno) + ' t/ha con ' + lam + (c.costoYesoSinAcido != null ? ' (≈ US$ ' + fmt(c.costoYesoSinAcido, 0) + '/ha por año)' : '') + '. ' +
       (c.yesoSinAcidoEnAgua ? 'Se puede disolver en el agua de riego (FAO: hasta 1 a 4 meq/L) o aplicar al suelo al voleo en una o dos veces por año (FAO: al suelo van de 5 a 40 t/ha según el caso; más de 10 t/ha por año suele no ser económico).' : 'Es más de lo que se disuelve en el agua (FAO: 1 a 4 meq/L): aplicarlo al suelo al voleo, en una o dos veces por año.') +
-      ' El calcáreo (carbonato de calcio) NO reemplaza al yeso: FAO lo lista como enmienda solo para suelos ácidos (Tabla 12); en un suelo neutro o alcalino casi no se disuelve y no aporta calcio. El azufre elemental al suelo sí sirve cuando el suelo tiene calcáreo propio: al oxidarse libera ese calcio (FAO §3.2.1 ii), pero es lento y no va en el agua. Lo decide el análisis de suelo (pH y carbonatos). Es una aproximación: medir el sodio intercambiable (PSI) cada año y ajustar la dosis. Es la opción cuando no se consigue ácido: más yeso, pero sin equipo de inyección ni riesgo para el operador.', '[1] §3.2.1, Tabla 12; [2] p. 81');
+      ' El calcáreo (carbonato de calcio) NO reemplaza al yeso: FAO lo lista como enmienda solo para suelos ácidos (Tabla 12); en un suelo neutro o alcalino casi no se disuelve y no aporta calcio. El azufre elemental al suelo sí sirve cuando el suelo tiene calcáreo propio: al oxidarse libera ese calcio (FAO §3.2.1 ii), pero es lento y no va en el agua. Lo decide el análisis de suelo (pH y carbonatos). Es una aproximación: medir el sodio intercambiable (PSI) cada año y ajustar la dosis. Es la opción cuando no se consigue ácido: más yeso, pero sin equipo de inyección ni riesgo para el operador.' + (c.sinAcidoNoEconomico ? ' Ojo: son más de 10 t/ha por año, que FAO considera no económico; en ese caso conviene la opción A.' : ''), '[1] §3.2.1, Tabla 12; [2] p. 81');
     if (c && c.caMeq === 0 && est.inf === 'cuidado') p('Infiltración', (r.ecw < 0.7 ? 'Agua con muy pocas sales: FAO advierte que puede dispersar la superficie del suelo y bajar la infiltración aunque tenga poco sodio. ' : 'Con este sodio y esta salinidad el riesgo de perder infiltración es ligero a moderado. ') + 'Si se ve encharcamiento o costra, el yeso lo corrige' + (c.caMeqSinRestriccion > 0 ? ': ' + fmt(c.caMeqSinRestriccion, 2) + ' meq/L de calcio (' + fmt(c.caMeqSinRestriccion * YESO_KG_POR_MEQ_1000M3, 0) + ' kg de yeso puro por ha cada 100 mm) lo deja sin restricción' : '') + '; en aguas de baja salinidad el yeso en el agua es particularmente efectivo. Mantener cobertura y rastrojo.', '[1] Tabla 1, §3.2.1');
     // Materia orgánica y cobertura (FAO 29 §3.2.4 y §3.2.1; Embrapa Soja, Circular Técnica 118, 2016; Embrapa Milho e Sorgo, Circular 29, 2003)
     if (est.inf && est.inf !== 'ok') p('Materia orgánica y suelo cubierto',
@@ -777,7 +781,7 @@
     var out = { n: u.length, fecha: f, anio: parseInt(f.slice(0, 4), 10) || null, lab: u[0].laboratorio || '', ph: de('ph'), ca: de('ca'), cic: de('cic'), arcilla: arc, arena: are,
       k: rango(u.map(function (a) { var k = num(a.k); return k != null ? k * 391 : null; })),   // potasio en mg/dm³
       caPct: rango(u.map(function (a) { var ca = num(a.ca), cic = num(a.cic); return ca != null && cic ? ca / cic * 100 : null; })),
-      arenoso: !!((are && are[0] >= 70) || (/aren/.test(norm(c.tipoSuelo || '')) && (!arc || arc[1] <= 20))) };
+      arenoso: !!((are && are[0] >= 70) || (arc && arc[1] <= 20) || (/aren/.test(norm(c.tipoSuelo || '')) && !arc)) };
     // sodio y sales: la última fecha con sodio intercambiable (o PSI) o CE del extracto medidos (Embrapa CPATSA, INTA)
     var psiDe = function (a) { var p = num(a.psi); if (p != null) return p; var na = num(a.na), cic = num(a.cic); return na != null && cic ? na / cic * 100 : null; };
     var conNa = l.filter(function (a) { return psiDe(a) != null || num(a.ceExtracto) != null; });

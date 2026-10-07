@@ -128,6 +128,8 @@
       porUnidad: vars.map(function (v, i) { var u = unidadVar(v); return { variable: v, nombre: nombreVar(v), unidad: u[0], kg: todo.beta[i] / desvio[i] * u[1] }; }) };
   }
 
+  // la cosecha suma en su región y en "todas las regiones"; sin región conocida, solo una vez (antes se contaba doble)
+  function regionesDe(c) { return c._region ? [c._region, ''] : ['']; }
   function aprender(avisar) {
     avisar = avisar || function () {};
     if (!window.SafiaCasos) return Promise.reject(new Error('falta el módulo de casos'));
@@ -146,12 +148,12 @@
           var mat = material(c.cultivo, c.variedad); if (SafiaCiclo.nombreAprendido) mat = SafiaCiclo.nombreAprendido(c.cultivo, mat, c.siembra);   // la soja de zafriña se aprende aparte
           if (!r || !r.dias) {   // sin ciclo publicado: lo que duró de verdad pasa a ser el ciclo propio del material
             sinFicha++;
-            [c._region, ''].forEach(function (reg) { sumar(P.propios, clave(c.cultivo, mat, reg), { v: c.dias, cultivo: c.cultivo, variedad: mat, region: reg }); });
+            regionesDe(c).forEach(function (reg) { sumar(P.propios, clave(c.cultivo, mat, reg), { v: c.dias, cultivo: c.cultivo, variedad: mat, region: reg }); });
             return;
           }
           if (r.metodo === 'gdu') {   // maíz: los grados-día dan la madurez; lo que sigue hasta la cosecha es secado en la planta
             var sec = c.dias - r.dias; if (sec < 0 || sec > 90) return;   // fechas mal cargadas
-            [c._region, ''].forEach(function (reg) {
+            regionesDe(c).forEach(function (reg) {
               sumar(P.secado, cultivoK(c.cultivo) + '|' + (reg || ''), { v: sec, cultivo: c.cultivo, region: reg || '' });
               var m = P.madurez[clave(c.cultivo, r.material || mat, reg)] || (P.madurez[clave(c.cultivo, r.material || mat, reg)] = { n: 0, madurez: 0, real: 0, cultivo: c.cultivo, variedad: r.material || mat, region: reg || '', gdu: r.gdu });
               m.n++; m.madurez += r.dias; m.real += c.dias;
@@ -159,7 +161,7 @@
             return;
           }
           var dif = c.dias - r.dias; if (Math.abs(dif) > 60) return;   // fechas mal cargadas
-          [c._region, ''].forEach(function (reg) { sumar(P.ciclos, clave(c.cultivo, r.material || mat, reg), { v: dif, cultivo: c.cultivo, variedad: r.material || mat, region: reg, estimado: r.dias }); });
+          regionesDe(c).forEach(function (reg) { sumar(P.ciclos, clave(c.cultivo, r.material || mat, reg), { v: dif, cultivo: c.cultivo, variedad: r.material || mat, region: reg, estimado: r.dias }); });
         }).catch(function () {});
       });
     });
@@ -185,7 +187,7 @@
           var d1 = dias(c.siembra, s[i].fecha), d = d1;
           if (i > 0) { var a = s[i - 1], d0 = dias(c.siembra, a.fecha); if (d1 - d0 > 12) return; d = d0 + (NDVI_CIERRE - +a.ndvi_media) / (+s[i].ndvi_media - +a.ndvi_media) * (d1 - d0); }   // entre dos pasadas: se interpola
           else if (d1 > 30) return;   // la primera pasada ya estaba cerrada y es tardía: no se sabe cuándo cerró
-          [c._region, ''].forEach(function (reg) {
+          regionesDe(c).forEach(function (reg) {
             sumar(P.cierre, clave('soja', c.variedad, reg), { v: d, cultivo: 'soja', variedad: c.variedad || '', region: reg });
             sumar(P.cierre, clave('soja', '', reg), { v: d, cultivo: 'soja', variedad: '', region: reg });
           });

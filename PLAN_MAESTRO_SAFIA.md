@@ -284,6 +284,7 @@ Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador d
 | Pasturas bajo riego con carga animal (balance de materia seca, % del peso vivo, carga por mes) | ✅ 3-oct-2026 |
 | Asistente IA agronómico sobre el banco (responde con la fuente y el N de casos) | ✅ 30-sep-2026 |
 | Sodio del suelo (PSI, CEe) y yeso al suelo por Embrapa CPATSA; lectura de fertilidad para pasturas (Embrapa BRS Zuri) | ✅ 6-oct-2026 (v152) |
+| Auditoría de lo hecho el 5 y 6 de octubre (4 revisores + datos reales): 20 correcciones (cola de avisos sin pérdidas, renombre de campañas solo con datos frescos, energía por pivot en una sola moneda, ciclo propio para todo cultivo, unidades de alcalinidad/dureza/sodio) | ✅ 7-oct-2026 (v156) |
 
 ## 12. Próximos pasos (al 4-oct-2026)
 

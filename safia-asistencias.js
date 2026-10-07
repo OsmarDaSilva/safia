@@ -81,20 +81,27 @@
   function cola() { try { var l = JSON.parse(localStorage.getItem(COLA) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
   function encolar(a) { var l = cola(); l.push(a); try { localStorage.setItem(COLA, JSON.stringify(l.slice(-40))); } catch (e) {} }
   function sinSenal(e) { return navigator.onLine === false || /Failed to fetch|NetworkError|sin conexión|Load failed|network/i.test(String(e && e.message || e)); }
-  function avisar(pedidoId, evento, texto, vez) {
-    if (navigator.onLine === false) return encolar({ pedidoId: pedidoId, evento: evento, texto: texto || '' });   // sin señal: sale cuando vuelve
+  // "todavía no está en la nube" y "no tiene técnico asignado" son lo mismo: el sync del pedido no llegó todavía → reintentar, no tirar
+  function esperable(e) { return /todavía no está en la nube|no tiene técnico asignado/.test(String(e && e.message || e)); }
+  function sacarDeCola(item) { var l = cola(), i = -1; l.forEach(function (x, k) { if (i < 0 && x.pedidoId === item.pedidoId && x.evento === item.evento && (x.texto || '') === (item.texto || '')) i = k; }); if (i >= 0) { l.splice(i, 1); try { localStorage.setItem(COLA, JSON.stringify(l)); } catch (e2) {} } }
+  // deCola: el aviso ya está guardado en la cola; se saca recién cuando el servidor lo recibió (así no se pierde si se cierra la pestaña)
+  function avisar(pedidoId, evento, texto, vez, deCola) {
+    var item = { pedidoId: pedidoId, evento: evento, texto: texto || '' };
+    if (navigator.onLine === false) { if (!deCola) encolar(item); return; }   // sin señal: sale cuando vuelve
     setTimeout(function () {
-      invocar('avisar', { pedidoId: pedidoId, evento: evento, texto: texto || '' }).catch(function (e) {
-        if (sinSenal(e) || ((vez || 1) >= 3 && /todavía no está en la nube/.test(e.message))) return encolar({ pedidoId: pedidoId, evento: evento, texto: texto || '' });
-        if ((vez || 1) < 3 && /todavía no está en la nube/.test(e.message)) avisar(pedidoId, evento, texto, (vez || 1) + 1);
+      invocar('avisar', item).then(function () { if (deCola) sacarDeCola(item); }).catch(function (e) {
+        if (sinSenal(e) || ((vez || 1) >= 3 && esperable(e))) { if (!deCola) encolar(item); return; }
+        if ((vez || 1) < 3 && esperable(e)) return avisar(pedidoId, evento, texto, (vez || 1) + 1, deCola);
+        if (deCola) sacarDeCola(item);   // error definitivo del servidor: no tiene sentido reintentarlo
       });
     }, (vez || 1) === 1 ? 2500 : 7000);
   }
-  // al volver la señal: primero sube lo cargado (sync) y después salen los avisos que quedaron en cola
+  // al volver la señal: primero sube lo cargado (sync) y después salen los avisos que quedaron en cola; cada uno se borra de la cola cuando llegó
+  var vaciando = false;
   function vaciarCola() {
-    var l = cola(); if (!l.length || navigator.onLine === false) return;
-    localStorage.setItem(COLA, '[]');
-    l.forEach(function (a, i) { setTimeout(function () { avisar(a.pedidoId, a.evento, a.texto, 2); }, 9000 + i * 1500); });
+    var l = cola(); if (!l.length || navigator.onLine === false || vaciando) return;
+    vaciando = true;
+    l.forEach(function (a, i) { setTimeout(function () { avisar(a.pedidoId, a.evento, a.texto, 2, true); if (i === l.length - 1) vaciando = false; }, 9000 + i * 1500); });
   }
   window.addEventListener('online', vaciarCola);
 
@@ -114,7 +121,7 @@
     var l = lista('eventos'); l.push(ev); localStorage.setItem('eventos', JSON.stringify(l));
     return ev;
   }
-  function tomar(id) { var p = cambiar(id, function (x) { x.tomadoPor = yo(); x.tomadoEn = ahora(); if (esIrrigar()) { x.asignado = yo(); x.asignadoEn = ahora(); } }); if (p) { notaSistema(p, 'Tomó el pedido.'); avisar(id, 'tomado'); } return p; }
+  function tomar(id) { var p = cambiar(id, function (x) { x.tomadoPor = yo(); x.tomadoEn = ahora(); if (esIrrigar()) { if (!x.asignado || String(x.asignado.id) !== String(yo().id)) { x.ordenRuta = null; x.asignadoPor = null; } x.asignado = yo(); x.asignadoEn = ahora(); } }); /* si lo toma otro técnico, el orden de ruta y quién lo asignó ya no valen */ if (p) { notaSistema(p, 'Tomó el pedido.'); avisar(id, 'tomado'); } return p; }
   // Técnicos que la oficina puede asignar (técnicos primero; también la gente de la oficina que sale a campo). Se guardan en el
   // celular para poder asignar aunque se corte la conexión.
   var TEC = 'safia_tecnicos';
@@ -149,7 +156,8 @@
   }
   function mapaUrl(p) { var k = coordsDe(p); return k ? 'https://www.google.com/maps/dir/?api=1&destination=' + k.lat.toFixed(6) + ',' + k.lon.toFixed(6) : ''; }
   // WhatsApp al técnico: el número como lo cargaron (0981…, +595…) pasado a 595…
-  function telWa(t) { var d = String(t || '').replace(/\D/g, ''); if (!d) return ''; if (d.indexOf('00') === 0) d = d.slice(2); if (d.charAt(0) === '0') d = '595' + d.slice(1); else if (d.length === 9 && d.charAt(0) === '9') d = '595' + d; return d.length >= 10 ? d : ''; }
+  function telWa(t) { if (window.SafiaTelefono && SafiaTelefono.wa) return SafiaTelefono.wa(t);   // el mismo criterio que Usuarios y Accesos
+    var d = String(t || '').replace(/\D/g, ''); if (!d) return ''; if (d.indexOf('00') === 0) d = d.slice(2); if (d.charAt(0) === '0') d = '595' + d.slice(1); else if (d.length === 9 && d.charAt(0) === '9') d = '595' + d; return d.length >= 10 ? d : ''; }
   function textoPedidoRuta(p, n) {
     var g = lugar(p), m = mapaUrl(p);
     return (n ? n + '. ' : '') + g.pivot + [g.campo, g.cliente].filter(Boolean).map(function (x) { return ' · ' + x; }).join('') + '\n   ' + (MOTIVOS[p.motivo] || p.motivo) + (p.descripcion ? ': ' + p.descripcion.slice(0, 100) : '') +

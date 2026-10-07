@@ -19,7 +19,7 @@
   var $ = function (id) { return document.getElementById(id); };
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
-  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador' };
+  var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador', tecnico: 'Técnico de Irrigar' };
   // Significado del nombre (un solo lugar para cambiarlo): cada palabra empieza con una letra de SAFIA
   // Definido por Osmar (24-sep-2026): Smart Agricultural Farm Intelligence Assistant
   var SIGNIFICADO = window.SAFIA_SIGNIFICADO || ['Smart', 'Agricultural', 'Farm', 'Intelligence', 'Assistant'];
@@ -78,9 +78,9 @@
         new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) ocultarFuera(n.parentNode || n); }); }); }).observe(document.body, { childList: true, subtree: true });
       }
       // grupos del menú que quedaron sin enlaces visibles
-      document.querySelectorAll('.sidebar-grupo, .nav-title, .grupo').forEach(function (g) {
+      document.querySelectorAll('.sidebar-grupo, .nav-title, .grupo, .navlabel').forEach(function (g) {
         var n = g.nextElementSibling, alguno = false;
-        while (n && !n.classList.contains('sidebar-grupo') && !n.classList.contains('nav-title') && !n.classList.contains('grupo') && !n.classList.contains('sidebar-footer')) {
+        while (n && !n.classList.contains('sidebar-grupo') && !n.classList.contains('nav-title') && !n.classList.contains('grupo') && !n.classList.contains('navlabel') && !n.classList.contains('sidebar-footer')) {
           if (n.tagName === 'A' ? n.style.display !== 'none' : !!n.querySelector('a[href]:not([style*="display: none"])')) alguno = true;
           n = n.nextElementSibling;
         }
