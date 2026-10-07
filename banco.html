@@ -29,6 +29,7 @@
     .ficha-edit input{width:90px;font-family:inherit;font-size:13px;font-weight:700;color:var(--head);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;background:var(--bg);}
     .ficha-edit input:focus{outline:none;border-color:var(--green);background:#fff;}
     .btn.mini{padding:5px 10px;font-size:11.5px;}
+    .rowact .btn.mini{width:auto;height:auto;font-size:11.5px;padding:5px 10px;font-weight:600;}
     .subiendo{opacity:.55;pointer-events:none;}
     .sinlinea{border:none;background:transparent;}
     /* Agua mes a mes */
@@ -1053,8 +1054,8 @@
         '<td class="r">' + fmt(c.encaladoTnHa) + '</td>' +
         '<td>' + (c.fertilizacion ? esc(c.fertilizacion) : '<span class="muted">—</span>') + '</td>' +
         '<td><span class="rowact">' +
-          '<button class="edit" title="Editar">✏️</button>' +
-          '<button class="del" title="Eliminar">🗑</button>' +
+          '<button type="button" class="btn mini edit">Editar</button> ' +
+          '<button type="button" class="btn mini del" style="color:#B3261E;">Borrar</button>' +
         '</span></td></tr>';
     }).join('');
 
@@ -1513,15 +1514,16 @@
       return '<tr><td>' + p.n + '</td>' + celdas + '</tr>';
     }).join('');
 
-    var acciones = '<tr><td class="muted">Acciones</td>' + lista.map(function (a) {
-      return '<td class="r"><span class="rowact">' +
-        (a.archivoRuta ? '<button class="pdf" data-id="' + esc(a.id) + '" title="Ver PDF">📄</button>' : '') +
-        '<button class="edit" data-id="' + esc(a.id) + '" title="Editar">✏️</button>' +
-        '<button class="del" data-id="' + esc(a.id) + '" title="Eliminar">🗑</button>' +
+    // qué hacer con cada análisis: primera fila, con botones de texto (antes eran iconos chicos al final de la tabla y no se encontraban)
+    var acciones = '<tr><td class="muted">Cada análisis</td>' + lista.map(function (a) {
+      return '<td class="r" style="white-space:nowrap;"><span class="rowact">' +
+        (a.archivoRuta ? '<button type="button" class="btn mini pdf" data-id="' + esc(a.id) + '">PDF</button> ' : '') +
+        '<button type="button" class="btn mini edit" data-id="' + esc(a.id) + '">Editar</button> ' +
+        '<button type="button" class="btn mini del" data-id="' + esc(a.id) + '" style="color:#B3261E;">Borrar</button>' +
       '</span></td>';
     }).join('') + '</tr>';
 
-    t.innerHTML = enc + '<tbody>' + filas + acciones + '</tbody>';
+    t.innerHTML = enc + '<tbody>' + acciones + filas + '</tbody>';
 
     t.querySelectorAll('button.pdf').forEach(function (b) {
       b.addEventListener('click', function () { verArchivoDeAnalisis(b.dataset.id); });
@@ -2332,8 +2334,8 @@
             '<td class="r">' + fmtTamano(a.tamano) + '</td>' +
             '<td>' + fmtFecha(a.subido_en) + '</td>' +
             '<td><span class="rowact">' +
-              '<button class="dl" title="Descargar / ver">⬇</button>' +
-              '<button class="del" title="Eliminar">🗑</button>' +
+              '<button type="button" class="btn mini dl">Ver / bajar</button> ' +
+              '<button type="button" class="btn mini del" style="color:#B3261E;">Borrar</button>' +
             '</span></td></tr>';
         }).join('');
 
