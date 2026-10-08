@@ -78,6 +78,7 @@
 <script src="safia-precios.js"></script>
 <script src="safia-foliar.js"></script>
 <script src="safia-calidad-agua.js"></script>
+<script src="safia-pedido-lab.js"></script>
 <script src="safia-sensores.js"></script>
 <script src="safia-balance.js"></script>
 <script src="safia-pasturas.js"></script>
@@ -185,6 +186,7 @@
           <button data-tab="analisis">Análisis de suelo</button>
           <button data-tab="calidadAgua">Análisis de agua</button>
           <button data-tab="foliar">Análisis foliar</button>
+          <button data-tab="pedidoLab">Pedido al laboratorio</button>
           <button data-tab="agua">Agua mes a mes</button>
           <button data-tab="energia">Energía y agua</button>
           <button data-tab="humedad">Humedad de suelo</button>
@@ -655,6 +657,10 @@
         </section>
 
         <!-- ================= TAB ARCHIVOS ================= -->
+        <section class="panel" id="panel-pedidoLab">
+          <div id="pedidoLabCont"></div>
+        </section>
+
         <section class="panel" id="panel-archivos">
           <div class="note info">Acá se guardan los <b>documentos</b> del lote: PDF de análisis, facturas de fertilizantes, fotos y archivos originales de la cosechadora (ISO-XML, imágenes). Para que SAFIA <b>lea</b> un mapa de rinde o una grilla de fertilidad, usá la pestaña <b>Mapas georreferenciados</b>.</div>
           <div class="formcard visible sinlinea" style="display:block;background:#fff;border:1px solid var(--bd);">
@@ -828,6 +834,7 @@
     if (window.SafiaRotacion) SafiaRotacion.alCambiarCampo();
     if (window.SafiaFoliar) SafiaFoliar.alCambiarCampo();
     if (window.SafiaCalidadAgua) SafiaCalidadAgua.alCambiarCampo();
+    if (window.SafiaPedidoLab) SafiaPedidoLab.alCambiarCampo();
     if (window.SafiaEnergia) SafiaEnergia.alCambiarCampo();
     if (window.SafiaSensores) SafiaSensores.activarAgua();
     if (window.SafiaHumedad) SafiaHumedad.alCambiarCampo();
@@ -1015,6 +1022,7 @@
       if (b.dataset.tab === 'rotacion' && window.SafiaRotacion) SafiaRotacion.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaFoliar) SafiaFoliar.activar();
       if (b.dataset.tab === 'calidadAgua' && window.SafiaCalidadAgua) SafiaCalidadAgua.activar();
+      if (b.dataset.tab === 'pedidoLab' && window.SafiaPedidoLab) SafiaPedidoLab.activar();
       if (b.dataset.tab === 'energia' && window.SafiaEnergia) SafiaEnergia.activar();
       if (b.dataset.tab === 'foliar' && window.SafiaSensores) SafiaSensores.activarFoliar();
       if (b.dataset.tab === 'agua' && window.SafiaSensores) SafiaSensores.activarAgua();

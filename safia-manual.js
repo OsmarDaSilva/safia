@@ -155,6 +155,10 @@
         'Cargá la fecha, la superficie cosechada, la producción y la humedad.',
         'Tocá <b>Confirmar y cerrar campaña</b>.',
         'Se abre solo el <b>informe de agua de la campaña</b>: cuánto se regó contra lo que hacía falta, los días de estrés y el gasto de energía. Se puede imprimir.' ] },
+      { t: 'Saber qué pedirle al laboratorio', p: [
+        'En <b>Banco Agronómico</b>, pestaña <b>Pedido al laboratorio</b>: ahí está la lista completa de lo que tiene que medir el laboratorio en el agua de riego y en el suelo (fertilidad, y sales y sodio), en qué unidad y para qué lo usa SAFIA, con cómo tomar cada muestra.',
+        'Arriba dice qué le falta a ese campo según lo que ya está cargado.',
+        'Tocá <b>Copiar texto para WhatsApp</b> y pegalo al cliente, o <b>Imprimir / PDF</b> para mandarlo como archivo.' ] },
       { t: 'Subir un análisis de suelo, de agua o foliar', p: [
         'Abrí <b>Banco Agronómico</b> y elegí el campo.',
         'Entrá en la pestaña que corresponda (<b>Análisis de suelo</b>, <b>Análisis de agua</b> o <b>Análisis foliar</b>) y tocá <b>+ Agregar</b>.',
