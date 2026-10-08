@@ -79,6 +79,7 @@
 <script src="safia-materiales.js"></script>
 <script src="safia-igualar.js"></script>
 <script src="safia-economia-riego.js"></script>
+<script src="safia-lab-formatos.js"></script>
 <script src="safia-calidad-agua.js"></script>
 </head>
 <body>
@@ -450,9 +451,10 @@
     var esPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
     b.disabled=true; b.textContent='✨ Leyendo…'; hint.textContent='Leyendo con IA…';
     (esPdf?aBase64(f):comprimirImagen(f,2000,0.85)).then(function(b64){
-      return window.safiaSupabase.functions.invoke('safia-leer-analisis',{body:{mime:esPdf?'application/pdf':'image/jpeg',data_base64:b64}});
+      return window.safiaSupabase.functions.invoke('safia-leer-analisis',{body:{mime:esPdf?'application/pdf':'image/jpeg',data_base64:b64,formatos: (window.SafiaLabFormatos ? SafiaLabFormatos.contexto('suelo') : '')}});
     }).then(function(r){
       if(r.error) throw r.error; var d=r.data&&r.data.datos; if(!d) throw new Error('sin datos');
+      if(window.SafiaLabFormatos){ SafiaLabFormatos.completarSuelo(d); SafiaLabFormatos.registrar('suelo',(r.data&&r.data.muestras)||[d]); }
       var mapa={ph:'ph',mo:'materia_organica',p:'fosforo',k:'potasio',ca:'calcio',mg:'magnesio',cic:'cic',satBases:'saturacion_bases',arena:'arena',limo:'limo',arcilla:'arcilla'};
       var n=0; Object.keys(mapa).forEach(function(k){ var v=d[mapa[k]]; if(v!==null&&v!==undefined&&v!==''){ document.getElementById('s_'+k).value=v; n++; } });
       hint.textContent='✓ '+n+' valores cargados. Revisalos.';
@@ -503,9 +505,10 @@
     var esPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
     b.disabled=true; b.textContent='Leyendo…'; hint.textContent='Leyendo el análisis de agua con IA, tarda unos segundos…';
     (esPdf?aBase64(f):comprimirImagen(f,2000,0.85)).then(function(b64){
-      return window.safiaSupabase.functions.invoke('safia-leer-analisis',{body:{mime:esPdf?'application/pdf':'image/jpeg',data_base64:b64,tipo:'agua'}});
+      return window.safiaSupabase.functions.invoke('safia-leer-analisis',{body:{mime:esPdf?'application/pdf':'image/jpeg',data_base64:b64,tipo:'agua',formatos: (window.SafiaLabFormatos ? SafiaLabFormatos.contexto('agua') : '')}});
     }).then(function(r){
       if(r.error) throw r.error;
+      if(window.SafiaLabFormatos) SafiaLabFormatos.registrar('agua',(r.data&&r.data.muestras)||[]);
       var ms=((r.data&&r.data.muestras)||[]).map(SafiaCalidadAgua.desdeIA);
       if(!ms.length) throw new Error('sin datos');
       ponerAgua(ms[0]);

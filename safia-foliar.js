@@ -387,10 +387,11 @@
     var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
     boton.disabled = true; boton.textContent = 'Leyendo…'; hint.textContent = 'Leyendo el análisis foliar con IA, esto tarda unos segundos…';
     (esPdf ? archivoABase64(archivo) : comprimirImagen(archivo, 2000, 0.85)).then(function (b64) {
-      return window.safiaSupabase.functions.invoke('safia-leer-analisis', { body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64, tipo: 'foliar' } });
+      return window.safiaSupabase.functions.invoke('safia-leer-analisis', { body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64, tipo: 'foliar', formatos: (window.SafiaLabFormatos ? SafiaLabFormatos.contexto('foliar') : '') } });
     }).then(function (r) {
       if (r.error) throw r.error;
       var muestras = (r.data && r.data.muestras) || [];
+      if (window.SafiaLabFormatos) SafiaLabFormatos.registrar('foliar', muestras);
       if (!muestras.length) throw new Error('La IA no encontró valores de análisis foliar en el archivo');
       muestrasIA = muestras; volcar(muestras[0]); mostrarMuestras(muestras);
       hint.textContent = muestras.length > 1 ? 'El informe tiene ' + muestras.length + ' muestras: elegí cuál revisar y guardá una por una (el mismo archivo queda adjunto).' : 'Valores cargados por IA. Revisalos y corregí si hace falta antes de guardar.';

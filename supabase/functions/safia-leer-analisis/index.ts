@@ -1,4 +1,7 @@
-// SAFIA · Edge Function: safia-leer-analisis (v13)
+// SAFIA · Edge Function: safia-leer-analisis (v14)
+// v14 (8-oct-2026): memoria de laboratorios: la app manda `formatos` (lo que SAFIA ya sabe de cada laboratorio: campos, nombres, correcciones
+//      a mano y reglas) y la IA lo usa; cada muestra devuelve `etiquetas` (nombre y unidad tal cual el informe) para seguir aprendiendo;
+//      H en % de la CTC y CTC efetiva → h_al.
 // v13 (suelo, 6-oct-2026): sodio intercambiable, PSI y CE del extracto de saturación (Embrapa CPATSA: salino/sódico).
 // v12 (agua, 6-oct-2026): alcalinidad total y P, y dureza como campos propios; la app deriva CO3/HCO3 de la alcalinidad (SM 2320 B).
 // v11 (agua, 5-oct-2026): carbonatos y bicarbonatos se deciden con números (alcalinidad P/T, CSR del laboratorio); el método
@@ -48,6 +51,7 @@ const ESQUEMA = `{
   "zinc": "zinc en mg/dm³, o null",
   "cobre": "cobre Cu en mg/dm³, o null",
   "manganeso": "manganeso Mn en mg/dm³, o null",
+  "etiquetas": "objeto {clave: 'nombre y unidad tal cual figura en el informe'} para cada clave que devolviste con valor (ej {\"ph\": \"pH (H2O)\", \"h_al\": \"H (%) 32,64 de la CTC → 4,71 cmolc/dm³\", \"fosforo\": \"P mg.dm-3 (Mehlich)\"}); sirve para aprender el formato de ese laboratorio",
   "observaciones": "otros datos útiles en texto corto: H+Al, S (suma de bases), Fe, relaciones Ca/Mg, pH CaCl2/SMP, unidades originales, avisos de conversión. o null"
 }`;
 
@@ -65,7 +69,7 @@ CÓMO RECONOCER CADA DATO (sinónimos habituales):
 - magnesio: "Mg", "Mg2+", "Mg trocável", "Magnésio". Si viene en mg/dm³, cmolc = mg / 121,5. Si viene en mmolc/dm³, dividí por 10.
 - cic: "CIC", "CTC", "CTC pH 7,0", "CTC (T)", "T", "Capacidad de intercambio catiónico", "CTC total". NO uses la "CTC efetiva" (t) si hay ambas; anotala en observaciones. En mmolc/dm³, dividí por 10.
 - saturacion_bases: "V", "V%", "Sat. de bases", "Saturação por bases", "Sat. bases". Si no figura pero hay S (suma de bases) y CIC, calculala: V% = S / CIC × 100 y anotá "V% calculada".
-- h_al: "H+Al", "H + Al", "Acidez potencial", "Hidrógeno + Aluminio", "Al + H" en cmolc/dm³ (mmolc: dividí por 10). ph_smp: "pH SMP", "índice SMP", "SMP". extractor_p: el método del fósforo que declare el informe (pie de página "Extractores: Mehlich 1: P..." o el encabezado de la columna).
+- h_al: "H+Al", "H + Al", "Acidez potencial", "Hidrógeno + Aluminio", "Al + H" en cmolc/dm³ (mmolc: dividí por 10). Si el informe da "H" o "H+Al" en % (de la CTC), h_al = ese % × CTC pH 7 ÷ 100 (ej. H 32,64 % con CTC 14,43 → 4,71) y anotalo. Si da "CTC efetiva" (t) y CTC pH 7 (T), h_al = T − t. ph_smp: "pH SMP", "índice SMP", "SMP". extractor_p: el método del fósforo que declare el informe (pie de página "Extractores: Mehlich 1: P..." o el encabezado de la columna).
 - aluminio: "Al", "Al3+", "Al trocável", "Alumínio". saturacion_aluminio: "m", "m%", "Sat. Al", "Saturação por alumínio".
 - azufre: "S", "S-SO4", "SO4", "Enxofre", "Azufre" en mg/dm³. boro: "B". zinc: "Zn". cobre: "Cu". manganeso: "Mn". Fe va a observaciones.
 - arcilla / limo / arena: "Argila", "Silte", "Areia"; en g/kg dividí por 10 para llevar a %.
@@ -98,6 +102,7 @@ const ESQUEMA_FOLIAR = `{
   "mn": "manganeso Mn en mg/kg como número, o null",
   "mo": "molibdeno Mo en mg/kg como número, o null",
   "zn": "zinc Zn en mg/kg como número, o null",
+  "etiquetas": "objeto {clave: 'nombre y unidad tal cual figura en el informe'} para cada clave devuelta con valor (sirve para aprender el formato del laboratorio)",
   "observaciones": "otros datos útiles en texto corto: Na, Cl, Si, Ni, relaciones, unidades originales, avisos de conversión. o null"
 }`;
 
@@ -142,6 +147,7 @@ const ESQUEMA_AGUA = `{
   "boro": {"valor": boro TAL CUAL el informe, "unidad": "mg/L" o "µg/L"} o null,
   "tds": "sólidos disueltos totales (TDS / residuo seco) en mg/L como número si el informe los da, o null",
   "temperatura": "temperatura del agua en °C si figura, o null",
+  "etiquetas": "objeto {clave: 'nombre del parámetro y unidad tal cual figura en el informe'} para cada clave devuelta con valor (sirve para aprender el formato del laboratorio)",
   "observaciones": "otros datos útiles en texto corto: dureza, hierro, manganeso, RAS o clase informada por el laboratorio, unidades originales y conversiones hechas. o null"
 }`;
 
@@ -192,7 +198,7 @@ Deno.serve(async (req: Request) => {
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!apiKey) return json({ error: 'Falta ANTHROPIC_API_KEY en el servidor' }, 500);
 
-    let cuerpo: { mime?: string; data_base64?: string; tipo?: string };
+    let cuerpo: { mime?: string; data_base64?: string; tipo?: string; formatos?: string };
     try { cuerpo = await req.json(); }
     catch (e) { console.error('leer-analisis: cuerpo inválido', String(e)); return json({ error: 'No se pudo recibir el archivo (¿demasiado grande?). Probá con un PDF más liviano o una foto.' }, 400); }
 
@@ -203,13 +209,16 @@ Deno.serve(async (req: Request) => {
     const mb = Math.round(data_base64.length * 0.75 / 1048576 * 10) / 10;
     if (data_base64.length > 28 * 1024 * 1024) return json({ error: 'El archivo es muy grande (' + mb + ' MB). Exportá el PDF más liviano o sacá una foto.' }, 413);
 
+    // memoria de laboratorios: lo que SAFIA ya aprendió de lecturas anteriores (campos, nombres, correcciones a mano, reglas de Irrigar)
+    const formatos = String(cuerpo.formatos || '').slice(0, 6000);
+    const memoria = formatos ? '\n\nFORMATOS DE LABORATORIOS QUE SAFIA YA CONOCE (de lecturas anteriores). Si el informe es de uno de estos laboratorios, usá lo que dice: qué campos trae y cómo los llama, qué corrigió el usuario a mano (ahí la lectura anterior se equivocó: fijate bien) y las reglas que cargó Irrigar, que mandan sobre todo lo demás:\n' + formatos : '';
     const tipo = mime || 'image/jpeg';
     const esPdf = tipo === 'application/pdf';
     const bloque = esPdf
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: data_base64 } }
       : { type: 'image', source: { type: 'base64', media_type: tipo, data: data_base64 } };
 
-    console.log('leer-analisis: recibido', agua ? 'AGUA' : (foliar ? 'FOLIAR' : 'SUELO'), tipo, mb + ' MB');
+    console.log('leer-analisis: recibido', agua ? 'AGUA' : (foliar ? 'FOLIAR' : 'SUELO'), tipo, mb + ' MB', formatos ? '· con memoria de ' + (formatos.match(/^- /gm) || []).length + ' laboratorio(s)' : '· sin memoria');
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -221,7 +230,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 6000,
-        system: agua ? SYSTEM_AGUA : (foliar ? SYSTEM_FOLIAR : SYSTEM),
+        system: (agua ? SYSTEM_AGUA : (foliar ? SYSTEM_FOLIAR : SYSTEM)) + memoria,
         messages: [{
           role: 'user',
           content: [bloque, { type: 'text', text: agua

@@ -286,6 +286,7 @@ Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador d
 | Sodio del suelo (PSI, CEe) y yeso al suelo por Embrapa CPATSA; lectura de fertilidad para pasturas (Embrapa BRS Zuri) | ✅ 6-oct-2026 (v152) |
 | Auditoría de lo hecho el 5 y 6 de octubre (4 revisores + datos reales): 20 correcciones (cola de avisos sin pérdidas, renombre de campañas solo con datos frescos, energía por pivot en una sola moneda, ciclo propio para todo cultivo, unidades de alcalinidad/dureza/sodio) | ✅ 7-oct-2026 (v156) |
 | Banco → Pedido al laboratorio: lista de todo lo que hay que medir en agua y suelo (fertilidad, sales y sodio), unidad, para qué lo usa SAFIA, cómo muestrear; qué le falta al campo; WhatsApp e impresión | ✅ 8-oct-2026 (v158) |
+| Memoria de laboratorios (safia-lab-formatos.js + edge v14): por laboratorio, campos y nombres de cada informe, correcciones a mano y reglas de Irrigar; se le pasa a la IA en cada lectura; H+Al deducido de CTC − bases | ✅ 8-oct-2026 (v159) |
 
 ## 12. Próximos pasos (al 4-oct-2026)
 

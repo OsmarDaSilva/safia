@@ -163,7 +163,7 @@
         'Abrí <b>Banco Agronómico</b> y elegí el campo.',
         'Entrá en la pestaña que corresponda (<b>Análisis de suelo</b>, <b>Análisis de agua</b> o <b>Análisis foliar</b>) y tocá <b>+ Agregar</b>.',
         'Subí el PDF, la foto o la planilla del laboratorio y tocá <b>Leer el archivo y completar solo</b>.',
-        '<b>Revisá los valores contra el papel</b> y guardá.' ],
+        '<b>Revisá los valores contra el papel</b> y guardá. Cada corrección que hagas a mano queda anotada para ese laboratorio: SAFIA aprende el formato de cada laboratorio (qué campos trae y cómo los llama) y lo usa en la lectura siguiente. Se ve en <b>Lo que SAFIA aprendió</b> → Formatos de laboratorio, donde Irrigar puede cargar reglas a mano.' ],
         n: 'SAFIA interpreta el análisis y dice qué limita el rinde y qué conviene corregir. Si el campo es de pastura, la lectura usa las recomendaciones de Embrapa para el pasto. Si el laboratorio midió el sodio intercambiable o la CE del extracto, cargalos: SAFIA calcula el PSI, dice si el suelo acumula sodio y cuánto yeso haría falta. La dosis final la define el agrónomo.' },
       { t: 'Subir la factura de energía de cada mes', p: [
         'En el Banco entrá en la pestaña <b>Energía y agua</b> y tocá <b>+ Subir factura de energía</b>.',

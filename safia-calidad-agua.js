@@ -849,9 +849,10 @@
     var esPdf = /pdf$/i.test(archivo.type) || /\.pdf$/i.test(archivo.name);
     boton.disabled = true; boton.textContent = 'Leyendo…'; hint.textContent = 'Leyendo el análisis de agua con IA, esto tarda unos segundos…';
     (esPdf ? archivoABase64(archivo) : comprimirImagen(archivo, 2000, 0.85)).then(function (b64) {
-      return window.safiaSupabase.functions.invoke('safia-leer-analisis', { body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64, tipo: 'agua' } });
+      return window.safiaSupabase.functions.invoke('safia-leer-analisis', { body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64, tipo: 'agua', formatos: (window.SafiaLabFormatos ? SafiaLabFormatos.contexto('agua') : '') } });
     }).then(function (r) {
       if (r.error) throw r.error;
+      if (window.SafiaLabFormatos) SafiaLabFormatos.registrar('agua', (r.data && r.data.muestras) || []);
       var muestras = ((r.data && r.data.muestras) || []).map(desdeIA);
       if (!muestras.length) throw new Error('La IA no encontró valores de análisis de agua en el archivo');
       muestrasIA = muestras; volcar(muestras[0]); mostrarMuestras(muestras);

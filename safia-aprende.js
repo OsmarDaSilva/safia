@@ -249,7 +249,7 @@
       });
     });
   }
-  function publicar(P) { localStorage.setItem('aprendizaje', JSON.stringify([P])); return P; }
+  function publicar(P) { var otros = lista('aprendizaje').filter(function (x) { return x && x.id && x.id !== ID; }); localStorage.setItem('aprendizaje', JSON.stringify(otros.concat([P]))); return P; }   // conserva lab_formatos y lo que venga
 
   /* ================= PANTALLA ================= */
   function esIrrigar() { try { var u = (window.SafiaSync && SafiaSync.usuario && SafiaSync.usuario()) || JSON.parse(localStorage.getItem('safia_usuario') || 'null'); return !!u && (u.rol === 'propietario' || u.rol === 'admin'); } catch (e) { return false; } }
@@ -304,8 +304,9 @@
   }
   function montar(cont) {
     var pintar = function () { cont.querySelector('#aprCuerpo').innerHTML = html(datos()); };
-    cont.innerHTML = (esIrrigar() ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;"><button class="btn green" id="aprCorrer">Aprender con todas las cosechas</button><span class="muted" id="aprEstado" style="font-size:12.5px;"></span></div>' : '') + '<div id="aprCuerpo"></div>';
+    cont.innerHTML = (esIrrigar() ? '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;"><button class="btn green" id="aprCorrer">Aprender con todas las cosechas</button><span class="muted" id="aprEstado" style="font-size:12.5px;"></span></div>' : '') + '<div id="aprCuerpo"></div><div id="aprLabs"></div>';
     pintar();
+    if (window.SafiaLabFormatos) SafiaLabFormatos.montar(cont.querySelector('#aprLabs'));
     var b = cont.querySelector('#aprCorrer'); if (!b) return;
     var correr = function () {
       b.disabled = true; var est = cont.querySelector('#aprEstado');

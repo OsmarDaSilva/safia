@@ -77,6 +77,7 @@
 <script src="safia-igualar.js"></script>
 <script src="safia-precios.js"></script>
 <script src="safia-foliar.js"></script>
+<script src="safia-lab-formatos.js"></script>
 <script src="safia-calidad-agua.js"></script>
 <script src="safia-pedido-lab.js"></script>
 <script src="safia-sensores.js"></script>
@@ -1569,7 +1570,7 @@
   function abrirFormAnalisis() { extrasIA = null; document.getElementById('formAnalisis').classList.add('visible'); }
   function cerrarFormAnalisis() {
     document.getElementById('formAnalisis').classList.remove('visible');
-    editandoAnalisisId = null; extrasIA = null;
+    editandoAnalisisId = null; extrasIA = null; iaVolcado = null;
     document.getElementById('tituloFormAnalisis').textContent = 'Nuevo análisis de suelo';
     document.getElementById('aArchivoActual').textContent = '';
     ['aFecha','aProf','aPh','aMo','aP','aK','aCa','aMg','aCic','aSat','aHal','aSmp','aArena','aLimo','aArcilla','aNa','aCe','aPsi','aObs','aArchivo'].forEach(function (i) {
@@ -1651,6 +1652,7 @@
       SafiaPlanillaSuelo.leerPlanilla(archivo).then(function (r) {
         if (r.error) throw new Error(r.error);
         var ms = r.muestras.map(function (m) { var o = Object.assign({}, m); if (o.codigo_lab && o.muestra) o.observaciones = 'Cód. lab. ' + o.codigo_lab; if (!o.muestra && o.codigo_lab) o.muestra = o.codigo_lab; if (o.localidad && !o.observaciones) o.observaciones = o.localidad; return o; });
+        if (window.SafiaLabFormatos) ms.forEach(SafiaLabFormatos.completarSuelo);
         mostrarMuestrasIA(ms);
         volcarAnalisis(ms.length > 1 ? Object.assign(SafiaPlanillaSuelo.promedio(ms), { laboratorio: r.laboratorio }) : ms[0]);
         if (!document.getElementById('aFecha').value) document.getElementById('aFecha').value = (ms[0] && ms[0].fecha) || new Date().toISOString().slice(0, 10);
@@ -1668,12 +1670,13 @@
     var prep = esPdf ? archivoABase64(archivo) : comprimirImagen(archivo, 2000, 0.85);
     prep.then(function (b64) {
       return window.safiaSupabase.functions.invoke('safia-leer-analisis', {
-        body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64 }
+        body: { mime: esPdf ? 'application/pdf' : 'image/jpeg', data_base64: b64, formatos: (window.SafiaLabFormatos ? SafiaLabFormatos.contexto('suelo') : '') }
       });
     }).then(function (r) {
       if (r.error) throw r.error;
       var muestras = (r.data && r.data.muestras) || (r.data && r.data.datos ? [r.data.datos] : []);
       if (!muestras.length) throw new Error('La IA no encontró valores de análisis de suelo en el archivo');
+      if (window.SafiaLabFormatos) { muestras.forEach(SafiaLabFormatos.completarSuelo); SafiaLabFormatos.registrar('suelo', muestras); }   // memoria de laboratorios + H+Al deducido
       mostrarMuestrasIA(muestras);
       volcarAnalisis(muestras[0]);
       hint.textContent = muestras.length > 1
@@ -1714,7 +1717,15 @@
 
   // Datos que la IA lee pero el formulario no tiene casillero: se guardan igual en el análisis y en Observaciones.
   var EXTRAS_IA = [['h_al', 'hAl', 'H+Al', 'cmolc/dm³'], ['ph_smp', 'phSmp', 'pH SMP', ''], ['aluminio', 'aluminio', 'Al', 'cmolc/dm³'], ['saturacion_aluminio', 'satAluminio', 'Sat. Al', '%'], ['azufre', 'azufre', 'S', 'mg/dm³'], ['boro', 'boro', 'B', 'mg/dm³'], ['zinc', 'zinc', 'Zn', 'mg/dm³'], ['cobre', 'cobre', 'Cu', 'mg/dm³'], ['manganeso', 'manganeso', 'Mn', 'mg/dm³'], ['hierro', 'hierro', 'Fe', 'mg/dm³'], ['sb', 'sb', 'SB', 'cmolc/dm³']];
-  var extrasIA = null;
+  var extrasIA = null, iaVolcado = null;   // iaVolcado: la muestra tal cual la leyó la IA, para anotar las correcciones a mano
+  var CAMPOS_IA = { ph: 'ph', mo: 'materia_organica', p: 'fosforo', k: 'potasio', ca: 'calcio', mg: 'magnesio', cic: 'cic', satBases: 'saturacion_bases', hAl: 'h_al', phSmp: 'ph_smp', arena: 'arena', limo: 'limo', arcilla: 'arcilla', na: 'sodio', ceExtracto: 'ce_extracto', psi: 'psi', aluminio: 'aluminio', satAluminio: 'saturacion_aluminio', azufre: 'azufre', boro: 'boro', zinc: 'zinc', cobre: 'cobre', manganeso: 'manganeso' };
+  function anotarCorrecciones(item) {
+    if (!iaVolcado || !window.SafiaLabFormatos) return;
+    var cambios = [];
+    Object.keys(CAMPOS_IA).forEach(function (k) { var ia = num(iaVolcado[CAMPOS_IA[k]]), v = num(item[k]); if (ia == null || v == null) return; if (Math.abs(ia - v) > 0.005 * Math.max(1, Math.abs(ia))) cambios.push({ clave: CAMPOS_IA[k], ia: ia, usuario: v }); });
+    if (cambios.length) SafiaLabFormatos.corregir('suelo', iaVolcado.laboratorio, cambios);
+    iaVolcado = null;
+  }
   // Sodio intercambiable: si el laboratorio solo informa el PSI (PST), se recupera con la CIC. PSI = Na / CIC × 100.
   function naDe(m) { var na = num(m.sodio); if (na == null && num(m.psi) != null && num(m.cic)) na = Math.round(num(m.psi) * num(m.cic) * 10) / 1000; return na; }
   // PSI: con Na y CIC lo calcula SAFIA; si no, vale el que informó el laboratorio (PST). Si los dos existen y difieren más de 2 puntos, queda anotado.
@@ -1766,6 +1777,7 @@
           observaciones: obsDeMuestra(m, i), archivoRuta: ruta || null, archivoNombre: archivo ? archivo.name : null, fechaCreacion: new Date().toISOString()
         };
         var ex = extrasDeMuestra(m); if (ex) Object.assign(item, ex);
+        if (item.hAl == null && window.SafiaLabFormatos) SafiaLabFormatos.completarSuelo(item);
         item.psi = psiDe(item); if (item.psiAviso) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + item.psiAviso; delete item.psiAviso; }
         if (window.SafiaFertilidad) { var chkM = SafiaFertilidad.consistencia(item); if (!chkM.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkM.avisos.join('; '); inconsistentes = (inconsistentes || 0) + 1; } if (item.extractorP && !/mehlich/i.test(item.extractorP)) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Extractor de P "' + item.extractorP + '": las clases del manual valen para Mehlich-1'; } }
         lista.push(item); creados++;
@@ -1810,6 +1822,7 @@
     set('aNa', naDe(d)); set('aCe', d.ce_extracto); set('aPsi', d.psi);
     document.getElementById('aObs').value = obsDeMuestra(d);
     extrasIA = extrasDeMuestra(d);
+    iaVolcado = d;
     var loteIA = loteParaMuestra(d.muestra);
     if (loteIA && !document.getElementById('aEquipo').value) document.getElementById('aEquipo').value = String(loteIA);
   }
@@ -1855,6 +1868,7 @@
       item.psi = num(document.getElementById('aPsi').value);
       item.observaciones = document.getElementById('aObs').value.trim();
       if (extrasIA) { Object.assign(item, extrasIA); item.origen = 'ia'; extrasIA = null; }
+      anotarCorrecciones(item);
       item.psi = psiDe(item); if (item.psiAviso) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + item.psiAviso; delete item.psiAviso; }
       if (window.SafiaFertilidad) { var chkA = SafiaFertilidad.consistencia(item); if (!chkA.ok) { item.observaciones = (item.observaciones ? item.observaciones + ' · ' : '') + 'Chequeo SAFIA: ' + chkA.avisos.join('; '); toast('Ojo: el análisis no cierra (' + chkA.avisos[0] + '). Revisá los valores.', true); } }
       if (ruta) { item.archivoRuta = ruta; item.archivoNombre = archivo.name; }
