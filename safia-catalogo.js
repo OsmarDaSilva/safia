@@ -77,8 +77,8 @@
     ts_bio:         ['Stimulate (Stoller)', 'Bio-Forge', 'Aminoácidos para semilla', 'Polímero / película (film coating)', 'Trichoderma (Trichodermil)', 'Extracto de algas'],
     ts_otro:        ['Grafito', 'Talco', 'Colorante'],
     // 2. Fertilización
-    fert_base:      ['04-30-10', '05-30-10', '02-20-18', '05-25-25', '08-20-20', '00-20-20', '10-30-10', '12-24-12', '09-42-00', '03-30-00', '02-18-18', 'MAP 11-52-00', 'DAP 18-46-00', 'SSP 00-18-00', 'TSP 00-46-00', 'KCl 00-00-60', 'Yoorin (termofosfato)'],
-    fert_cobertura: ['Urea 46-00-00', 'KCl 00-00-60', 'Sulfato de amonio 21-00-00', 'Nitrato de amonio 33-00-00', '20-00-20', '30-00-10', '25-00-25', 'Urea + KCl mezcla', 'Sulfato de potasio 00-00-50'],
+    fert_base:      ['04-30-10', '05-30-10', '02-20-18', '05-25-25', '08-20-20', '00-20-20', '10-30-10', '12-24-12', '09-42-00', '03-30-00', '02-18-18', 'MAP 11-52-00', 'DAP 18-46-00', 'SSP 00-18-00', 'TSP 00-46-00', 'KCl 00-00-60', 'Yoorin (termofosfato)', 'Boro granulado 10 % B (ulexita)', 'Bórax 11 % B', 'Ácido bórico 17 % B', 'Sulfato de zinc 20 % Zn', 'Azufre elemental 90 % S'],
+    fert_cobertura: ['Urea 46-00-00', 'KCl 00-00-60', 'Sulfato de amonio 21-00-00', 'Nitrato de amonio 33-00-00', '20-00-20', '30-00-10', '25-00-25', 'Urea + KCl mezcla', 'Sulfato de potasio 00-00-50', 'Boro granulado 10 % B (ulexita)', 'Bórax 11 % B', 'Ácido bórico 17 % B', 'Sulfato de zinc 20 % Zn', 'Azufre elemental 90 % S'],
     fertirriego:    ['Urea 46-00-00', 'Nitrato de potasio 13-00-46', 'MAP purificado 12-61-00', 'MKP fosfato monopotásico 00-52-34', 'Nitrato de calcio 15-00-00', 'Nitrato de magnesio 11-00-00', 'Sulfato de magnesio (Epsom)', 'Sulfato de potasio soluble 00-00-50', 'Cloruro de potasio soluble 00-00-60', 'UAN 32-00-00', 'Nitrato de amonio 33-00-00', 'Quelato de micronutrientes (EDTA)', 'Ácido fosfórico'],
     encalado:       ['Calcáreo dolomítico', 'Calcáreo calcítico', 'Cal agrícola', 'Yeso agrícola', 'Calcáreo + yeso (mezcla)'],
     // 3. Ciclo

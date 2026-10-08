@@ -204,6 +204,7 @@
     if (/b[oó]rax/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 11, zn: 0, origen: 'producto' };
     if (/[aá]cido b[oó]rico/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: pv != null ? pv : 17, zn: 0, origen: 'producto' };
     if (/\bboro\b|\bB\s*\d|\d\s*%\s*B\b/i.test(t) && pv != null) return { n: 0, p: 0, k: 0, s: 0, b: pv, zn: 0, origen: 'producto' };
+    if (/\bboro\b/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: 10, zn: 0, origen: 'producto', supuesto: '10 % B (boro granulado / ulexita); si es otro, escribí el %' };   // "boro" a secas: el granulado al voleo más común
     if (/sulfato de zinc/i.test(t)) return { n: 0, p: 0, k: 0, s: pv != null ? 0 : 11, b: 0, zn: pv != null ? pv : 20, origen: 'producto' };
     if (/[oó]xido de zinc/i.test(t)) return { n: 0, p: 0, k: 0, s: 0, b: 0, zn: pv != null ? pv : 50, origen: 'producto' };
     return null;
