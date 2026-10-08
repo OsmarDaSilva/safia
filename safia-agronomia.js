@@ -616,7 +616,7 @@
       html += '<div class="note">Con los datos cargados no aparece ningún factor claro que explique la diferencia: el suelo no limita, y el agua y el clima son parecidos. Mirá manejo fino (fecha, densidad, sanidad, fertilización en cobertura) y cargá esos datos en la campaña para que SAFIA los compare.</div>';
     }
     // 3) Lo que te limita hoy (Liebig)
-    if (mio && mio.suelo) {
+    if (mio && mio.suelo && !opciones.sinTablaSuelo) {
       html += '<div style="font-weight:700;margin-top:14px;">Lectura del análisis de suelo de este lote' + (mio.suelo.fecha ? ' <span class="muted" style="font-weight:500;">(' + esc(String(mio.suelo.fecha).slice(0, 10)) + ')</span>' : '') + '</div>';
       html += tablaInterpretacion(d.interpretacionMio);
       // objetivo: la meta pedida; si no, la referencia solo cuando rinde MÁS que este lote; si no, sostener el rinde propio (nunca un objetivo menor al logrado)
