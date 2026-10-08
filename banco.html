@@ -2055,8 +2055,8 @@
     var etEpoca = function (e) { return e === 'Primavera/Verano' ? 'de verano' : (e === 'Verano/Otoño' ? 'zafriña' : (e === 'Otoño/Invierno' ? 'de invierno' : '')); };
     var grupoDe = function (c) { return c.cultivo + (etEpoca(c.epoca) ? ' ' + etEpoca(c.epoca) : ''); };
     var porGrupo = agrupar(mios, grupoDe);
-    var mejorZonaDe = function (cu) {
-      var otros = todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(cu) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
+    var mejorZonaDe = function (ref) {   // mejor lote de la localidad del mismo cultivo y la MISMA época (regla de Osmar)
+      var otros = todos.filter(function (c) { return String(c.campoId) !== String(campoActual.id) && norm(c.cultivo) === norm(ref.cultivo) && SafiaCasos.mismaEpoca(c, ref) && campoActual.localidad && norm(c.localidad) === norm(campoActual.localidad); });
       return otros.length ? otros.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; }) : null;
     };
     var ultCultivo = mios[mios.length - 1].cultivo;
@@ -2225,21 +2225,22 @@
     function secBenchmark() {
       var html = '';
       filasB = []; diagnosticos = [];
-      Object.keys(porCultivo).forEach(function (cu) {
-        var mioMejor = porCultivo[cu].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+      Object.keys(porGrupo).forEach(function (gk) {
+        var cu = porGrupo[gk][0].cultivo, etiqueta = gk;   // el motor recibe el cultivo; la pantalla muestra el grupo (Soja de verano, Maíz zafriña…)
+        var mioMejor = porGrupo[gk].reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
         var rp = SafiaAgro.referenciaPara(mioMejor, todos, campoActual), ambito = rp.ambito;
         if (!rp.hayOtros) {
-          filasB.push('<tr>' + td(esc(cu)) + '<td colspan="5" class="muted">Todavía no hay otros clientes con ' + esc(cu) + ' en la base: sos la referencia. A medida que se carguen, acá vas a ver contra quién compararte.</td></tr>');
-          diagnosticos.push({ cu: cu, mio: mioMejor, ref: null, opciones: {} });
+          filasB.push('<tr>' + td(esc(etiqueta)) + '<td colspan="5" class="muted">' + (rp.otraEpoca ? 'Hay ' + rp.otraEpoca + ' lote(s) de ' + esc(cu).toLowerCase() + ' de otra época en la base, pero no se comparan: primera zafra con primera zafra y zafriña con zafriña (en zafriña hay menos luz y el rinde es menor). ' : 'Todavía no hay otros clientes con ' + esc(etiqueta).toLowerCase() + ' en la base: sos la referencia. ') + 'A medida que se carguen, acá vas a ver contra quién compararte.</td></tr>');
+          diagnosticos.push({ cu: cu, etiqueta: etiqueta, mio: mioMejor, ref: null, opciones: {} });
           return;
         }
         // referencia: el mejor que rinde más (localidad → departamento → base); si este lote es el mejor, la columna muestra "el siguiente"
         var top = rp.ref || rp.siguiente;
-        diagnosticos.push({ cu: cu, mio: mioMejor, ref: rp.ref, opciones: { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito } });
+        diagnosticos.push({ cu: cu, etiqueta: etiqueta, mio: mioMejor, ref: rp.ref, opciones: { esMejor: rp.esMejor, siguiente: rp.siguiente, ambito: rp.ambito } });
         var difR = mioMejor.rindeKgHa - top.rindeKgHa;
         // Si este lote es el que más rinde, el de la columna pasa a ser "el siguiente" de la zona.
         var otro = difR >= 0 ? 'el siguiente' : 'el mejor';
-        filasB.push('<tr>' + td('<b>' + esc(cu) + '</b><div class="sub">' + esc(ambito) + (rp.riegoDistinto ? ' · no hay lotes ' + (mioMejor.riego === false ? 'de secano' : 'con riego') + ' para comparar: se compara con ' + (mioMejor.riego === false ? 'lotes regados' : 'lotes de secano') : '') + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + (difR >= 0 ? 'el siguiente de la zona' : 'el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0, top.rindeKgHa), 1) + td(difR >= 0 ? '<span class="evo-mejor">Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
+        filasB.push('<tr>' + td('<b>' + esc(etiqueta) + '</b><div class="sub">' + esc(ambito) + (rp.riegoDistinto ? ' · no hay lotes ' + (mioMejor.riego === false ? 'de secano' : 'con riego') + ' para comparar: se compara con ' + (mioMejor.riego === false ? 'lotes regados' : 'lotes de secano') : '') + '</div>') + td('Rinde') + td(fmt(mioMejor.rindeKgHa, 0), 1) + td(fmt(top.rindeKgHa, 0) + '<div class="sub">' + (difR >= 0 ? 'el siguiente de la zona' : 'el mejor de la zona') + '</div>', 1) + td(flecha(difR, 0, top.rindeKgHa), 1) + td(difR >= 0 ? '<span class="evo-mejor">Sos el mejor de la zona (+' + fmt(difR, 0) + ' kg/ha sobre el siguiente)</span>' : 'Te faltan ' + fmt(-difR, 0) + ' kg/ha para ' + otro) + '</tr>');
         filasB.push('<tr>' + td('') + td('Agua total mm') + td(fmt(mioMejor.aguaTotalMM, 0), 1) + td(fmt(top.aguaTotalMM, 0), 1) + td(flecha(mioMejor.aguaTotalMM != null && top.aguaTotalMM != null ? rd(mioMejor.aguaTotalMM, 0) - rd(top.aguaTotalMM, 0) : null, 0, top.aguaTotalMM), 1) + td('') + '</tr>');
         filasB.push('<tr>' + td('') + td('Variedad · época') + td(esc(mioMejor.variedad || '—') + ' · ' + esc(mioMejor.epoca || '—')) + td(esc(top.variedad || '—') + ' · ' + esc(top.epoca || '—')) + td('') + td('') + '</tr>');
         if (mioMejor.suelo && top.suelo) {
@@ -2267,17 +2268,18 @@
     var anio = ultimos.filter(function (u) { return tope && (tope - new Date(String(u.c.siembra).slice(0, 10))) / 86400000 <= 400; }).slice(0, 3).sort(function (a, c) { return String(a.c.siembra).localeCompare(String(c.c.siembra)); });   // la soja (verano) primero, después la zafriña
     html += h3evo('Último año agrícola', 'la soja y la zafriña más recientes, cada una contra su anterior, tu promedio y el mejor de la zona');
     var cards = anio.map(function (u) {
-      var c = u.c, prev = u.l.length >= 2 ? u.l[u.l.length - 2] : null, pm = prom(u.l.map(function (x) { return x.rindeKgHa; })), mz = mejorZonaDe(c.cultivo);
+      var c = u.c, prev = u.l.length >= 2 ? u.l[u.l.length - 2] : null, pm = prom(u.l.map(function (x) { return x.rindeKgHa; })), mz = mejorZonaDe(c);
       return tarjeta(esc(u.g) + ' · ' + esc(c.campana), fmt(c.rindeKgHa, 0) + ' <span style="font-size:12px;font-weight:500;">kg/ha</span>', [
         prev ? 'vs anterior (' + esc(prev.campana) + '): ' + flecha(c.rindeKgHa - prev.rindeKgHa, 0, prev.rindeKgHa) : 'primera campaña de ' + esc(u.g).toLowerCase(),
         'vs tu promedio: ' + (u.l.length > 1 ? flecha(c.rindeKgHa - pm, 0, pm) : '<span class="muted">—</span>'),
         'vs mejor de ' + esc(campoActual.localidad || 'la zona') + ': ' + (mz ? flecha(c.rindeKgHa - mz.rindeKgHa, 0, mz.rindeKgHa) : '<span class="muted">sin otros lotes</span>')]);
     });
     if (sueloResumen) cards.push(sueloResumen.ant ? tarjeta('Suelo', (sueloResumen.mejor >= sueloResumen.peor ? '<span style="color:var(--green-d)">mejoró</span>' : '<span style="color:var(--red)">empeoró</span>'), [sueloResumen.mejor + ' parámetros subieron, ' + sueloResumen.peor + ' bajaron', fmtFecha(sueloResumen.ant.fecha) + ' → ' + fmtFecha(sueloResumen.ult.fecha)]) : tarjeta('Suelo', sueloResumen.n + ' <span style="font-size:12px;font-weight:500;">análisis</span>', [sueloResumen.n ? 'con el próximo se ve qué subió y qué bajó' : 'sin análisis cargado']));
-    var dgUlt = diagnosticos.filter(function (dg) { return norm(dg.cu) === norm(ultCultivo); })[0];
+    var ultGrupo = grupoDe(mios[mios.length - 1]);
+    var dgUlt = diagnosticos.filter(function (dg) { return dg.etiqueta === ultGrupo; })[0] || diagnosticos.filter(function (dg) { return norm(dg.cu) === norm(ultCultivo); })[0];
     if (dgUlt && window.SafiaAgro && SafiaAgro.diagnosticarDiferencia) {
       var dd = SafiaAgro.diagnosticarDiferencia(dgUlt.mio, dgUlt.ref, dgUlt.cu), f0 = dd.factores[0] || dd.limitantes[0];
-      cards.push(tarjeta('Lo primero a mirar · ' + esc(ultCultivo), f0 ? '<span style="font-size:16px;">' + esc(f0.nombre || f0.n) + '</span>' : '<span style="font-size:16px;">sin factor claro</span>', [dgUlt.ref ? 'frente al mejor lote de ' + esc(dgUlt.opciones.ambito || 'la zona') + ' (' + fmt(dgUlt.ref.rindeKgHa, 0) + ' kg/ha)' : 'este lote es la referencia de la zona', 'el detalle está en "Qué hacer, cultivo por cultivo"']));
+      cards.push(tarjeta('Lo primero a mirar · ' + esc(dgUlt.etiqueta || ultCultivo), f0 ? '<span style="font-size:16px;">' + esc(f0.nombre || f0.n) + '</span>' : '<span style="font-size:16px;">sin factor claro</span>', [dgUlt.ref ? 'frente al mejor lote de ' + esc(dgUlt.opciones.ambito || 'la zona') + ' (' + fmt(dgUlt.ref.rindeKgHa, 0) + ' kg/ha)' : 'este lote es la referencia de la zona', 'el detalle está en "Qué hacer, cultivo por cultivo"']));
     }
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;">' + cards.join('') + '</div>';
 
@@ -2285,7 +2287,7 @@
     html += h3evo('Rinde y agua, campaña a campaña', 'por cultivo y época · contra la anterior y tu promedio · con cuánta agua se hizo cada una');
     var reglas = [];
     Object.keys(porGrupo).forEach(function (gk) {
-      var lista = porGrupo[gk], promedio = prom(lista.map(function (c) { return c.rindeKgHa; })), mz = mejorZonaDe(lista[0].cultivo);
+      var lista = porGrupo[gk], promedio = prom(lista.map(function (c) { return c.rindeKgHa; })), mz = mejorZonaDe(lista[lista.length - 1]);
       var conAgua = lista.filter(function (c) { return c.aguaTotalMM != null; }), mejorC = conAgua.length ? conAgua.reduce(function (a, c) { return c.rindeKgHa > a.rindeKgHa ? c : a; }) : null;
       html += '<div style="margin:10px 0 4px;font-weight:700;color:var(--head);">' + esc(gk) + ' <span class="muted" style="font-weight:500;">· ' + lista.length + ' campaña(s)' + (lista.length > 1 ? ' · promedio ' + fmt(promedio, 0) + ' kg/ha' : '') + (mz ? ' · mejor lote de ' + esc(campoActual.localidad) + ': ' + fmt(mz.rindeKgHa, 0) : '') + '</span></div>';
       html += tabla([{ t: 'Campaña' }, { t: 'Rinde kg/ha', r: 1 }, { t: 'vs anterior', r: 1 }, { t: 'vs tu promedio', r: 1 }, { t: 'Lluvia', r: 1 }, { t: 'Riego', r: 1 }, { t: 'Agua total mm', r: 1 }, { t: 'kg por mm', r: 1 }], lista.map(function (c, i) {
@@ -2317,9 +2319,9 @@
     html += h3evo('Qué hacer, cultivo por cultivo', 'por qué rendís más o menos que el mejor y qué corregir · abierto el de la última campaña');
     if (window.SafiaAgro) {
       diagnosticos.forEach(function (dg) {
-        var abierto = norm(dg.cu) === norm(ultCultivo);
+        var abierto = dg === dgUlt;
         var resumen = esc(dg.mio.campana) + ' · ' + fmt(dg.mio.rindeKgHa, 0) + ' kg/ha' + (dg.ref ? ' · vs el mejor lote de ' + esc(dg.opciones.ambito || 'la zona') + ' ' + fmt(dg.ref.rindeKgHa, 0) + ' kg/ha (' + flecha(dg.mio.rindeKgHa - dg.ref.rindeKgHa, 0) + ')' : (dg.opciones && dg.opciones.esMejor ? ' · el mejor lote de ' + esc(dg.opciones.ambito || 'la zona') : ' · sin otros lotes para comparar'));
-        html += '<details class="card" style="margin-bottom:10px;padding:0;"' + (abierto ? ' open' : '') + '><summary style="cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center;"><span style="font-weight:700;">' + esc(dg.cu) + '</span><span class="muted" style="font-size:12px;">' + resumen + '</span></summary><div style="padding:0 14px 14px;">' +
+        html += '<details class="card" style="margin-bottom:10px;padding:0;"' + (abierto ? ' open' : '') + '><summary style="cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:center;"><span style="font-weight:700;">' + esc(dg.etiqueta || dg.cu) + '</span><span class="muted" style="font-size:12px;">' + resumen + '</span></summary><div style="padding:0 14px 14px;">' +
           SafiaAgro.informeHTML(dg.mio, dg.ref, dg.cu, Object.assign({ sinTablaSuelo: true }, dg.opciones || {})) +
           (dg.ref ? '<div style="margin-top:12px;"><button type="button" class="btn green" data-igualar-ref="' + esc(dg.ref.id) + '" data-igualar-base="' + esc(dg.mio.id) + '">Armar el plan para igualar a este lote (con costos)</button></div>' : '') + '</div></details>';
       });

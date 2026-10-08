@@ -27,6 +27,14 @@
   function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isNaN(n) ? null : n; }
   function norm(t) { return String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
 
+  // REGLA DE OSMAR (8-oct-2026): primera zafra con primera zafra, zafriña con zafriña. En zafriña hay menos luz (fotosíntesis) y
+  // una soja rinde sí o sí menos: no se compara con una de verano. Si una de las dos no tiene época conocida, se deja pasar.
+  function mismaEpoca(a, b) {
+    var ea = a && a.epoca, eb = b && b.epoca;
+    if (!ea || !eb) return true;
+    if (/peren/i.test(ea) || /peren/i.test(eb)) return true;   // pasturas perennes no tienen zafra
+    return norm(ea) === norm(eb);
+  }
   function epocaDeSiembra(fecha) {
     var mes = parseInt(String(fecha || '').slice(5, 7), 10);
     if (!mes) return null;
@@ -324,6 +332,8 @@
       if (opciones.riego === false && c.riego !== false) return false;
       return true;
     });
+    // misma época (primera zafra con primera zafra, zafriña con zafriña): regla de Osmar, los de la otra época no entran
+    var otraEpoca = 0; if (prospecto.epoca) candidatos = candidatos.filter(function (x) { if (!mismaEpoca(prospecto, x)) { otraEpoca++; return false; } return true; });
     // misma región (Chaco con Chaco, Oriental con Oriental): los de la otra región no entran ni como información
     var regP = opciones.mismaRegion === false ? null : region(prospecto), otraRegion = 0;
     if (regP) candidatos = candidatos.filter(function (c) { var rc = region(c); if (rc !== regP) { otraRegion++; return false; } return true; });   // sin región conocida tampoco entra (podría ser de la otra)
@@ -738,7 +748,7 @@
     return { riego: suma(tipos[tipo].riego), secano: suma(tipos[tipo].secano), tipo: tipo, exacta: !!exacto, region: region, anio: (tipos[tipo].riego || tipos[tipo].secano || {}).anio || null, n: (tipos[tipo].riego ? 1 : 0) + (tipos[tipo].secano ? 1 : 0) };
   }
 
-  window.SafiaCasos = {
+  window.SafiaCasos = { mismaEpoca: mismaEpoca,
     FINALIDADES: FINALIDADES,
     finalidadClave: finalidadClave,
     finalidadNombre: finalidadNombre,

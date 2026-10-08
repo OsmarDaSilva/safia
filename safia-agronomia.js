@@ -580,15 +580,18 @@
     var grupo = function (c) { return window.SafiaCasos && SafiaCasos.grupoFinalidad ? SafiaCasos.grupoFinalidad(c.cultivo, c.finalidad) : ''; };
     var ajenos = (candidatos || []).filter(function (c) { return String(c.campoId) !== String(campo.id) && norm(c.cultivo) === norm(mio.cultivo) && c.rindeKgHa && grupo(c) === grupo(mio); });
     // un lote regado se compara con regados y uno de secano con secano; si no hay ninguno igual, con todos (y se avisa)
+    // misma época (regla de Osmar): verano con verano, zafriña con zafriña; los de la otra época quedan afuera (se avisa cuántos)
+    var mismaEp = function (x) { return window.SafiaCasos && SafiaCasos.mismaEpoca ? SafiaCasos.mismaEpoca(x, mio) : !(x.epoca && mio.epoca && norm(x.epoca) !== norm(mio.epoca)); };
+    var otraEpoca = ajenos.filter(function (x) { return !mismaEp(x); }).length; ajenos = ajenos.filter(mismaEp);
     var mismoRiego = ajenos.filter(function (c) { return (c.riego !== false) === (mio.riego !== false); }), riegoDistinto = false;
     if (mismoRiego.length) ajenos = mismoRiego; else riegoDistinto = ajenos.length > 0;
     var mejorDe = function (l) { return l.length ? l.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; }) : null; };
     var local = ajenos.filter(function (c) { return campo.localidad && norm(c.localidad) === norm(campo.localidad); });
     var depto = ajenos.filter(function (c) { return campo.departamento && norm(c.departamento) === norm(campo.departamento); });
     var niveles = [[local, campo.localidad], [depto, campo.departamento], [ajenos, 'toda la base SAFIA']];
-    for (var i = 0; i < niveles.length; i++) { var m = mejorDe(niveles[i][0]); if (m && m.rindeKgHa > mio.rindeKgHa) return { ref: m, ambito: niveles[i][1], esMejor: false, siguiente: null, hayOtros: ajenos.length > 0, riegoDistinto: riegoDistinto }; }
+    for (var i = 0; i < niveles.length; i++) { var m = mejorDe(niveles[i][0]); if (m && m.rindeKgHa > mio.rindeKgHa) return { ref: m, ambito: niveles[i][1], esMejor: false, siguiente: null, hayOtros: ajenos.length > 0, riegoDistinto: riegoDistinto, otraEpoca: otraEpoca }; }
     var sig = mejorDe(local) || mejorDe(depto) || mejorDe(ajenos);
-    return { ref: null, ambito: local.length ? campo.localidad : (depto.length ? campo.departamento : 'toda la base SAFIA'), esMejor: !!sig, siguiente: sig, hayOtros: ajenos.length > 0, riegoDistinto: riegoDistinto };
+    return { ref: null, ambito: local.length ? campo.localidad : (depto.length ? campo.departamento : 'toda la base SAFIA'), esMejor: !!sig, siguiente: sig, hayOtros: ajenos.length > 0, riegoDistinto: riegoDistinto, otraEpoca: otraEpoca };
   }
   function informeHTML(mio, ref, cultivo, opciones) {
     opciones = opciones || {};

@@ -140,6 +140,8 @@
     var grupo = function (c) { return window.SafiaCasos && SafiaCasos.grupoFinalidad ? SafiaCasos.grupoFinalidad(c.cultivo, c.finalidad) : ''; };
     var mismos = casos.filter(function (c) { return c !== caso && claveCultivo(c.cultivo) === claveCultivo(caso.cultivo) && c.rindeKgHa && grupo(c) === grupo(caso); });
     // mismo régimen de agua (regado con regado, secano con secano) si hay con quién
+    // misma época (regla de Osmar): la meta de una soja de verano no se mide contra una zafriña ni al revés
+    if (window.SafiaCasos && SafiaCasos.mismaEpoca) mismos = mismos.filter(function (c) { return SafiaCasos.mismaEpoca(c, caso); });
     var mismoRiego = mismos.filter(function (c) { return (c.riego !== false) === (caso.riego !== false); });
     if (mismoRiego.length) mismos = mismoRiego;
     // el productor eligió un lote para igualar: la referencia es ese lote solo
