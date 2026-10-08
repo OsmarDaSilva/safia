@@ -503,7 +503,13 @@
     $('selLote').addEventListener('change', function () { equipoSel = $('selLote').value; llenarCampanas(); armar(); });
     $('selCampana').addEventListener('change', function () { campanaSel = $('selCampana').value; armar(); });
     $('btnActualizar').addEventListener('click', armar);
-    $('btnPdf').addEventListener('click', function () { window.print(); });
+    // el navegador usa el título de la página como nombre del archivo PDF: cliente · campo · lote · campaña · fecha
+    $('btnPdf').addEventListener('click', function () {
+      var titulo = document.title, lote = equipoSel ? lotesDelCampo()[0] : null, cs = campanaSeleccionada();
+      var partes = ['Informe SAFIA', campoActual ? nombreCliente(campoActual.clienteId) : '', campoActual ? campoActual.nombre : '', lote ? lote.nombre : '', cs ? cs.nombre : '', new Date().toISOString().slice(0, 10)];
+      document.title = partes.filter(Boolean).join(' - ').replace(/[\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+      setTimeout(function () { window.print(); setTimeout(function () { document.title = titulo; }, 1500); }, 50);
+    });
     $('btnConfig').addEventListener('click', function () { pintarConfig(); $('cfgInforme').style.display = $('cfgInforme').style.display === 'none' ? '' : 'none'; $('envInforme').style.display = 'none'; });
     $('btnCfgCerrar').addEventListener('click', function () { $('cfgInforme').style.display = 'none'; });
     $('btnCfgGuardar').addEventListener('click', function () { guardarConfig().catch(function (e) { toast('No se pudo guardar: ' + e.message, true); }); });

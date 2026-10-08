@@ -421,7 +421,11 @@
     $('selEval').addEventListener('change', function () { try { sessionStorage.setItem('informe_evaluacion', $('selEval').value); } catch (e) {} preparar(); });
     $('btnActualizar').addEventListener('click', armar);
     $('autor').addEventListener('change', armar);
-    $('btnPdf').addEventListener('click', function () { window.print(); });
+    $('btnPdf').addEventListener('click', function () {   // nombre del PDF: prospecto · campo · fecha
+      var titulo = document.title, partes = ['Evaluación SAFIA', cliente ? (cliente.nombre || cliente.razonSocial || '') : '', campo ? campo.nombre : '', new Date().toISOString().slice(0, 10)];
+      document.title = partes.filter(Boolean).join(' - ').replace(/[\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+      setTimeout(function () { window.print(); setTimeout(function () { document.title = titulo; }, 1500); }, 50);
+    });
     document.querySelectorAll('#secciones input').forEach(function (c) { c.addEventListener('change', armar); });
     $('btnEnviar').addEventListener('click', function () { $('envInforme').style.display = ''; ['btnEnvCopiar', 'btnEnvCorreo', 'btnEnvWhatsapp'].forEach(function (id) { $(id).disabled = true; }); $('envLink').innerHTML = ''; linkActual = null; publicar(); });
     $('btnEnvCerrar').addEventListener('click', function () { $('envInforme').style.display = 'none'; });
