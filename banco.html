@@ -887,10 +887,13 @@
       (c.cultivos || []).forEach(function (cu, i) {
         if (!cu || !cu.cultivo || num(cu.rendimientoReal) > 0) return;
         if (window.SafiaPasturas && SafiaPasturas.esPastura && SafiaPasturas.esPastura(cu.cultivo)) return;   // pasturas: kg MS/ha, sin meta de grano
-        var mismos = mios.filter(function (x) { return String(x.equipoId) === String(c.equipoId) && SafiaMeta.claveCultivo(x.cultivo) === SafiaMeta.claveCultivo(cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
-        var base = mismos[0] || mios.filter(function (x) { return String(x.equipoId) === String(c.equipoId); })[0] || mios[0];
-        if (!base) return;
-        nuevas.push(Object.assign({}, base, { id: 'nueva_' + c.id + '_' + i, campanaId: c.id, campana: c.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: window.SafiaInsumos ? SafiaInsumos.resumen((c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }), [], !!c.manejoCompleto) : null, clima: null }));   // lo ya cargado en ESTA campaña
+        // misma época (regla de Osmar): la soja 2026/27 de verano parte de la soja de verano anterior, no de la zafriña
+        var epN = { epoca: SafiaCasos.epocaDeSiembra(cu.fechaSiembra) }, porFecha = function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); };
+        var delCultivo = mios.filter(function (x) { return SafiaMeta.claveCultivo(x.cultivo) === SafiaMeta.claveCultivo(cu.cultivo) && SafiaCasos.mismaEpoca(x, epN); });
+        var mismos = delCultivo.filter(function (x) { return String(x.equipoId) === String(c.equipoId); }).sort(porFecha);
+        var base = mismos[0] || delCultivo.sort(porFecha)[0];
+        if (!base) return;   // sin cosecha del mismo cultivo y época no hay de dónde partir
+        nuevas.push(Object.assign({}, base, { id: 'nueva_' + c.id + '_' + i, campanaId: c.id, campana: c.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, epoca: SafiaCasos.epocaDeSiembra(cu.fechaSiembra) || base.epoca, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, manejo: window.SafiaInsumos ? SafiaInsumos.resumen((c.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === i; }), [], !!c.manejoCompleto) : null, clima: null }));   // lo ya cargado en ESTA campaña
       });
     });
     metaCasos = metaCasos.concat(nuevas);

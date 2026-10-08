@@ -561,10 +561,13 @@
     var caso = null;
     if (numL(cu.rendimientoReal) > 0) caso = casos.find(function (c) { return String(c.id) === String(camp.id) + '-' + (cultivoIdx || 0); }) || null;
     if (!caso) {
-      var mismos = mios.filter(function (x) { return String(x.equipoId) === String(camp.equipoId) && claveCultivo(x.cultivo) === claveCultivo(cu.cultivo); }).sort(function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); });
-      var base = mismos[0] || mios.filter(function (x) { return String(x.equipoId) === String(camp.equipoId); })[0] || mios[0];
-      if (!base) return { error: 'Este campo todavía no tiene ninguna campaña cosechada con rinde: la meta se arma a partir de un rinde real. Cargá primero una cosecha (o usá la Referencia para comparar).' };
-      caso = Object.assign({}, base, { id: 'nueva_' + camp.id + '_' + (cultivoIdx || 0), campanaId: camp.id, campana: camp.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, clima: null,
+      // misma época (regla de Osmar): primera zafra con primera zafra, zafriña con zafriña; una soja de verano no parte de una zafriña
+      var epN = { epoca: window.SafiaCasos && SafiaCasos.epocaDeSiembra ? SafiaCasos.epocaDeSiembra(cu.fechaSiembra) : null }, porFecha = function (a, b) { return String(b.siembra || '').localeCompare(String(a.siembra || '')); };
+      var delCultivo = mios.filter(function (x) { return claveCultivo(x.cultivo) === claveCultivo(cu.cultivo) && (!window.SafiaCasos || !SafiaCasos.mismaEpoca || SafiaCasos.mismaEpoca(x, epN)); });
+      var mismos = delCultivo.filter(function (x) { return String(x.equipoId) === String(camp.equipoId); }).sort(porFecha);
+      var base = mismos[0] || delCultivo.sort(porFecha)[0];
+      if (!base) { var ep = epN.epoca ? (epN.epoca === 'Primavera/Verano' ? 'de verano (primera zafra)' : (epN.epoca === 'Verano/Otoño' ? 'zafriña' : 'de invierno')) : ''; return { error: 'Este campo no tiene ninguna cosecha de ' + cu.cultivo.toLowerCase() + (ep ? ' ' + ep : '') + ' con rinde: la meta parte de un rinde real de la misma época (primera zafra con primera zafra, zafriña con zafriña). Cargá primero esa cosecha o usá la Referencia para comparar.' }; }
+      caso = Object.assign({}, base, { id: 'nueva_' + camp.id + '_' + (cultivoIdx || 0), campanaId: camp.id, campana: camp.nombre || 'campaña nueva', cultivo: cu.cultivo, variedad: cu.variedad || '', siembra: cu.fechaSiembra || null, epoca: (window.SafiaCasos && SafiaCasos.epocaDeSiembra ? SafiaCasos.epocaDeSiembra(cu.fechaSiembra) : null) || base.epoca, cosecha: null, rindeKgHa: base.rindeKgHa, esNueva: true, baseCampana: base.campana, baseCultivo: base.cultivo, clima: null,
         // el manejo del caso nuevo es lo que YA se cargó en esta campaña (ficha, paso 3), no el de la campaña base
         manejo: window.SafiaInsumos ? SafiaInsumos.resumen((camp.insumos || []).filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === (cultivoIdx || 0); }), [], !!camp.manejoCompleto) : null });
     }
