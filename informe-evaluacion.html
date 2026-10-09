@@ -82,6 +82,8 @@
     .hoja .ca-grid svg{max-width:520px;}
     /* economía y "cómo llegar al líder" en la hoja A4 */
     .hoja .tablewrap{margin:4px 0;} .hoja .tablescroll{overflow:visible;}
+    /* la tabla de riego por cultivo no se sale de la hoja: ancho fijo, celdas que envuelven (9-oct-2026) */
+    .hoja .tbl-riego{table-layout:fixed;width:100%;} .hoja .tbl-riego th:first-child,.hoja .tbl-riego td:first-child{width:17%;} .hoja .tbl-riego td.r{white-space:normal !important;} .hoja .tbl-riego td,.hoja .tbl-riego th{min-width:0 !important;padding:5px 5px !important;}
     .hoja .eco-grid > div{min-width:0;}
     .hoja details > summary{list-style:none;font-weight:700;margin:6px 0;} .hoja details > summary::-webkit-details-marker{display:none;}
     @media print{ .cfgcard{display:none !important;} }
