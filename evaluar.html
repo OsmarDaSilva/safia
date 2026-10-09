@@ -252,6 +252,7 @@
               <div class="form-grid">
                 <div class="field"><label>Inversión</label><select id="pInvModo"><option value="total">Monto total</option><option value="partes">Por partes</option></select></div>
                 <div class="field"><label>Vida útil (años)</label><input type="number" id="pVidaUtil" step="1" min="1" placeholder="Opcional"><span class="hint">Para amortizar la inversión; sin dato, el horizonte es de 10 años.</span></div>
+                <div class="field"><label>Interés del banco (% anual)</label><input type="number" id="pInteres" step="0.5" min="0" value="7"><span class="hint">Si la inversión se financia: cuántos años tarda en pagarse con lo que gana el riego, interés incluido.</span></div>
               </div>
               <div class="form-grid" id="pInvPartes" style="display:none;margin-top:8px;padding:12px;background:var(--bg);border-radius:10px;">
               <div class="field"><label>Equipos de riego (US$)</label><input type="number" class="pInvParte" data-k="equipo" step="1000" min="0" placeholder="Pivots, cañones, goteo"></div>
@@ -685,7 +686,7 @@
   var ultimoRiego=[], riegoListo=false, ultimasRefs=[], refsListas=false, ultimasFilas=[], pintarRiegoOtraVez=null;
   var ultimosResultados=[], ultimaEconomia=null, ultimaAguaK=null, verNombres=false;   // para el veredicto y los vecinos regantes
   document.getElementById('evCampoSup').addEventListener('input',function(){ if(pintarRiegoOtraVez) pintarRiegoOtraVez(); if(typeof syncInversion==='function') syncInversion(); pintarEconomia(); });
-  ['pInversion','pVidaUtil','pEnergiaMm','pSituacion'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ pintarEconomia(); }); });
+  ['pInversion','pVidaUtil','pInteres','pEnergiaMm','pSituacion'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ pintarEconomia(); }); });
   /* Inversión por partes y energía calculada (misma cuenta que la planilla de Irrigar para Carlos Casado:
      costo por día = horas × [(1 − generador) × kW × tarifa + generador × litros por hora × precio del gasoil];
      US$ por mm y por ha = costo por día ÷ (lámina de 24 h × horas/24 × hectáreas del equipo)) */
@@ -732,7 +733,7 @@
     var out=document.getElementById('rEconomia'); if(!out||!window.SafiaEconomiaRiego) return;
     if(!refsListas||!riegoListo) return;
     var r=SafiaEconomiaRiego.calcular({ cultivos: ultimasFilas.map(function(f,i){ var sim=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(f.cultivo) && (l.epoca||null)===(f.epoca||null); })||null; return { cultivo:f.cultivo, finalidad:f.finalidad, epoca:f.epoca, ref:ultimasRefs[i]||null, riego:sim }; }),
-      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), inversionRefHa:invRefHa(), inversionPartes:document.getElementById('pInvModo').value==='partes'?invPartes():null, vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:document.getElementById('pEnergiaModo').value==='base'?null:num(document.getElementById('pEnergiaMm').value), energiaModo:document.getElementById('pEnergiaModo').value, situacion:document.getElementById('pSituacion').value, region:window.SafiaCasos&&SafiaCasos.region?SafiaCasos.region({ departamento:document.getElementById('pDepto').value.trim(), pais:document.getElementById('pPais').value, lat:num(document.getElementById('pLat').value), lon:num(document.getElementById('pLon').value) }):null });
+      superficieHa:num(document.getElementById('evCampoSup').value), inversionUSD:num(document.getElementById('pInversion').value), tasaInteres:num(document.getElementById('pInteres').value), inversionRefHa:invRefHa(), inversionPartes:document.getElementById('pInvModo').value==='partes'?invPartes():null, vidaUtil:num(document.getElementById('pVidaUtil').value), energiaUSDmm:document.getElementById('pEnergiaModo').value==='base'?null:num(document.getElementById('pEnergiaMm').value), energiaModo:document.getElementById('pEnergiaModo').value, situacion:document.getElementById('pSituacion').value, region:window.SafiaCasos&&SafiaCasos.region?SafiaCasos.region({ departamento:document.getElementById('pDepto').value.trim(), pais:document.getElementById('pPais').value, lat:num(document.getElementById('pLat').value), lon:num(document.getElementById('pLon').value) }):null });
     out.innerHTML=SafiaEconomiaRiego.html(r); ultimaEconomia=r; pintarVeredicto();
   }
   function llenarPotAgua(){ document.querySelectorAll('.pot-agua').forEach(function(el){ var x=ultimoRiego.find(function(l){ return l && !l.error && norm(l.cultivo)===norm(el.getAttribute('data-cultivo')); }); el.textContent = x ? Math.round(x.rindeRelSecano*100)+' %' : (ultimoRiego.length ? '—' : '…'); }); }
@@ -822,6 +823,7 @@
       if(V&&V.inversion>0) stats+='<div class="stat"><div class="sl">Inversión</div><div class="sv">'+usd(V.inversion)+'</div><div class="ss">'+(V.inversionRef?'referencia de Irrigar (todavía no cargada)':'US$ '+fmt(V.inversion/(E.superficieHa||1),0)+' por ha')+'</div></div>';
       if(V&&V.recupero!=null) stats+='<div class="stat"><div class="sl">Se recupera en</div><div class="sv">'+fmt(V.recupero,1)+' años</div><div class="ss">'+(E.situacion==='nuevo'?'con el margen completo con riego':'con lo que agrega el riego')+'</div></div>';
       if(V&&V.tir!=null) stats+='<div class="stat"><div class="sl">Tasa de retorno</div><div class="sv">'+fmt(V.tir*100,1)+' %</div><div class="ss">a '+V.horizonte+' años</div></div>';
+      if(V&&V.financiado&&V.financiado.tasa>0) stats+='<div class="stat"><div class="sl">Financiada al '+fmt(V.financiado.tasa,1)+' %</div><div class="sv">'+(V.financiado.imposible?'no se paga':fmt(V.financiado.anios,1)+' años')+'</div><div class="ss">'+(V.financiado.imposible?'la ganancia no cubre el interés':'con lo que gana el riego, interés incluido')+'</div></div>';
     }
     if(agua.length) stats+='<div class="stat"><div class="sl">Agua de riego por año</div><div class="sv blue">'+fmt(mm,0)+' mm</div><div class="ss">'+(ha>0?fmt(mm*10*ha,0)+' m³ en '+fmt(ha,0)+' ha · ':'')+'promedio de 10 años · '+agua.map(function(l){ return esc(l.cultivo)+' '+fmt(l.riegoBruto,0); }).join(' + ')+'</div></div>';
     h+='<div class="statbar" style="margin:0 0 6px;">'+stats+'</div>';
@@ -1007,7 +1009,7 @@
     evActual=ev.id;
     $('evNombre').value=ev.nombre||''; $('evNotas').value=ev.notas||'';
     if(ev.superficieHa!=null) $('evCampoSup').value=ev.superficieHa;
-    $('pInversion').value=ev.inversionUSD!=null?ev.inversionUSD:''; $('pVidaUtil').value=ev.vidaUtil!=null?ev.vidaUtil:''; $('pEnergiaMm').value=ev.energiaUSDmm!=null?ev.energiaUSDmm:''; $('pSituacion').value=ev.situacion==='nuevo'?'nuevo':'secano';
+    $('pInversion').value=ev.inversionUSD!=null?ev.inversionUSD:''; $('pVidaUtil').value=ev.vidaUtil!=null?ev.vidaUtil:''; $('pInteres').value=ev.interesAnual!=null?ev.interesAnual:7; $('pEnergiaMm').value=ev.energiaUSDmm!=null?ev.energiaUSDmm:''; $('pSituacion').value=ev.situacion==='nuevo'?'nuevo':'secano';
     $('pInvModo').value=ev.inversionPartes?'partes':'total';
     document.querySelectorAll('.pInvParte').forEach(function(el){ var k=el.getAttribute('data-k'); el.value=ev.inversionPartes&&ev.inversionPartes[k]!=null?ev.inversionPartes[k]:''; });
     $('pEnergiaModo').value=ev.energiaModo||(ev.energiaUSDmm!=null?'mm':'base');
@@ -1103,7 +1105,7 @@
     // nombre automático (cultivos y objetivos) mientras no se escriba uno propio
     var escrito=$('evNombre').value.trim(), auto=!escrito || (evPrev && evPrev.nombreAuto && escrito===evPrev.nombre);
     var datos={ clienteId:cliente.id, campoId:campo.id, analisisId:analisisId, nombre:auto?(nombreDef||'Estrategia'):escrito, nombreAuto:auto, notas:$('evNotas').value.trim(),
-      superficieHa:sup, inversionUSD:num($('pInversion').value), inversionPartes:$('pInvModo').value==='partes'?invPartes():null, vidaUtil:num($('pVidaUtil').value), energiaModo:$('pEnergiaModo').value, energiaUSDmm:$('pEnergiaModo').value==='base'?null:num($('pEnergiaMm').value), energiaCalc:$('pEnergiaModo').value==='calc'?energiaCalcDatos():null, situacion:$('pSituacion').value, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
+      superficieHa:sup, inversionUSD:num($('pInversion').value), interesAnual:num($('pInteres').value), inversionPartes:$('pInvModo').value==='partes'?invPartes():null, vidaUtil:num($('pVidaUtil').value), energiaModo:$('pEnergiaModo').value, energiaUSDmm:$('pEnergiaModo').value==='base'?null:num($('pEnergiaMm').value), energiaCalc:$('pEnergiaModo').value==='calc'?energiaCalcDatos():null, situacion:$('pSituacion').value, ubicacion:{ pais:pais, departamento:d.depto||null, localidad:d.localidad||null, lat:d.lat, lon:d.lon, altitud:d.altitud },
       cultivos:d.cultivos, suelo:d.suelo, resultados:d.resultados, aguaId:aguaId, agua:d.agua||null, aguaLectura:d.aguaLectura||null, casosEnBanco:casos.length, evaluadoPor:u.nombre||null, fechaModificacion:ahora };
     var ev=evPrev;
     if(ev) Object.assign(ev,datos); else { ev=Object.assign({ id:t0+3, fecha:ahora },datos); evs.push(ev); }

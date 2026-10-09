@@ -261,9 +261,11 @@
         '<div class="stat"><div class="sl">Zona secano</div><div class="sv">' + (x.ref ? U(x.ref.secano, x.u) : '—') + '</div><div class="ss">' + x.u.corto + (x.ref && x.ref.epoca ? ' · época ' + esc(x.ref.epoca) : '') + '</div></div></div>';
       if (SafiaCasos.notaForraje(x.c.cultivo, x.c.finalidad)) h += '<div class="sub" style="margin:4px 0;">' + SafiaCasos.notaForraje(x.c.cultivo, x.c.finalidad) + '</div>';
       if (pot && pot.nCasos < 3) h += '<div class="note warn">Basado en solo ' + pot.nCasos + ' caso(s): es una orientación, no una predicción.</div>';
-      var filas = (r.similares || []).map(function (t, i) { var c = t.caso; return '<tr>' + td('Caso ' + (i + 1)) + td(esc(c.localidad || c.departamento || '—')) + td(t.distanciaKm == null ? '—' : fmt(t.distanciaKm, 0) + ' km', 1) + td(esc(c.campana || '—')) + td(esc(c.variedad || '—')) + td('<b>' + U(c.rindeKgHa, x.u) + '</b>', 1) + td(c.aguaTotalMM == null ? '—' : fmt(c.aguaTotalMM, 0), 1) + td(t.similitud + ' %', 1) + '</tr>'; });
-      if (filas.length) h += tabla([{ t: 'Caso', w: 9 }, { t: 'Localidad', w: 18 }, { t: 'Distancia', r: 1, w: 11 }, { t: 'Campaña', w: 12 }, { t: 'Variedad', w: 16 }, { t: 'Rinde ' + x.u.corto, r: 1, w: 12 }, { t: 'Agua mm', r: 1, w: 10 }, { t: 'Parecido', r: 1, w: 12 }], filas) +
-        '<div class="sub">Casos reales con riego del banco de SAFIA, sin nombres de productores. Parecido = suelo, distancia, altitud y época.' + (r.fueraDeRadio ? ' <b>Ninguno está a menos de 300 km: se muestran solo como información y no entran en el potencial.</b>' : '') + '</div>';
+      var sim = (r.similares || []).filter(function (t) { return t.caso && t.caso.rindeKgHa != null; }), rindes = sim.map(function (t) { return t.caso.rindeKgHa; });
+      if (sim.length && !r.fueraDeRadio) {
+        var mejor = Math.max.apply(null, rindes), prom = rindes.reduce(function (a, b) { return a + b; }, 0) / rindes.length, dist = sim.map(function (t) { return t.distanciaKm; }).filter(function (d) { return d != null; });
+        h += '<div class="sub">Basado en <b>' + sim.length + ' lote(s) reales con riego</b> de la misma región y la misma época' + (dist.length ? ', a ' + fmt(Math.min.apply(null, dist), 0) + '–' + fmt(Math.max.apply(null, dist), 0) + ' km de este campo' : '') + ': el mejor rindió <b>' + U(mejor, x.u) + ' ' + x.u.corto + '</b> y el promedio ' + U(prom, x.u) + '. Los datos de otros productores no se publican: SAFIA los usa para la comparación y para decir qué hacer en este campo (sección siguiente).</div>';
+      } else if (r.fueraDeRadio) h += '<div class="sub">Los lotes con riego de este cultivo están a más de 300 km: no entran en el potencial; manda la referencia de la zona.</div>';
       h += '</div>';
     });
     return h;
@@ -281,13 +283,61 @@
     var u = ubic(), reg = window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region({ departamento: u.depto, pais: u.pais, lat: u.lat, lon: u.lon }) : null;
     return SafiaEconomiaRiego.calcular({
       cultivos: P.map(function (x, i) { return { cultivo: x.c.cultivo, finalidad: x.c.finalidad, epoca: x.c.epoca, ref: x.ref, riego: sims[i] || null }; }),
-      superficieHa: num(ev.superficieHa), inversionUSD: num(ev.inversionUSD), inversionPartes: ev.inversionPartes || null, vidaUtil: num(ev.vidaUtil),
+      superficieHa: num(ev.superficieHa), inversionUSD: num(ev.inversionUSD), tasaInteres: ev.interesAnual != null ? num(ev.interesAnual) : 7, inversionPartes: ev.inversionPartes || null, vidaUtil: num(ev.vidaUtil),
       energiaUSDmm: ev.energiaModo === 'base' ? null : num(ev.energiaUSDmm), energiaModo: ev.energiaModo || (ev.energiaUSDmm != null ? 'mm' : 'base'), situacion: ev.situacion, region: reg,
       inversionRefHa: reg && INV_REF_HA[reg] ? Object.assign({ region: reg }, INV_REF_HA[reg]) : null
     });
   }
+  /* Lo que el riego gana de más y en cuánto tiempo paga la inversión (pedido de Osmar, 9-oct-2026):
+     la cuota es lo que agrega el riego; con el interés del banco, cada año paga el interés y el resto baja la deuda */
+  function secPago(E) {
+    var h = '<h2 class="salto">Lo que gana el riego y cuánto tarda en pagar la inversión</h2>';
+    if (!E || !E.ok || !E.ok.length) return h + '<div class="note">' + (climaEstado === 'cargando' ? 'Calculando con el clima del campo…' : 'Sin la referencia de la zona (rinde y costos con riego) no se puede hacer la cuenta.') + '</div>';
+    var U = function (v) { return v == null || isNaN(v) ? '—' : (v < 0 ? '−' : '') + 'US$ ' + fmt(Math.abs(v), 0); };
+    var filas = E.ok.map(function (f) {
+      var parte = f.parte < 1 ? '<div class="sub">' + fmt(f.parte * 100, 0) + ' % del área</div>' : '';
+      return '<tr>' + td('<b>' + esc(f.cultivo) + '</b>' + (f.epoca ? '<div class="sub">' + esc(f.epoca) + '</div>' : '') + parte) + td(fmt(f.kgR, 0) + ' kg', 1) + td(fmt(f.kgS, 0) + ' kg<div class="sub">' + esc(f.secanoDe) + '</div>', 1) +
+        td('<b style="color:#178029;">+' + fmt(f.kgR - f.kgS, 0) + ' kg</b>', 1) + td(U(f.margenR), 1) + td(U(f.margenS), 1) + td('<b style="color:' + (f.agrega >= 0 ? '#178029' : '#C0392B') + ';">' + (f.agrega >= 0 ? '+' : '') + U(f.agrega) + '</b>', 1) + '</tr>';
+    });
+    h += '<div class="sub" style="margin-bottom:4px;">Por hectárea y por año, con los precios vigentes y los costos de la zona (con riego se suman la energía, el mantenimiento y la reposición de nutrientes de los kilos extra).</div>' +
+      tabla([{ t: 'Cultivo', w: 18 }, { t: 'Rinde con riego', r: 1, w: 12 }, { t: 'Rinde secano', r: 1, w: 16 }, { t: 'Kilos de más', r: 1, w: 11 }, { t: 'Margen con riego', r: 1, w: 14 }, { t: 'Margen secano', r: 1, w: 14 }, { t: 'Gana el riego', r: 1, w: 15 }], filas);
+    if (E.unCultivoSecano) h += '<div class="sub">En el Chaco, sin riego se hace un solo cultivo por año: el secano del proyecto es ' + esc(E.secanoCultivo).toLowerCase() + ' solo.</div>';
+    if (!(E.superficieHa > 0)) return h + '<div class="note">Falta la superficie a regar para pasar a todo el proyecto.</div>';
+    var F = E.financiado, inv = E.inversionUSD, ref = false;
+    if (!(inv > 0) && E.inversionRefHa) { inv = E.inversionRefHa.max * E.superficieHa; ref = true; F = SafiaEconomiaRiego.financiacion(inv, E.anualPaga, E.tasaInteres != null ? E.tasaInteres : 7); }
+    h += '<div class="kpis" style="margin-top:10px;">' +
+      '<div class="kpi"><div class="sl">Gana el riego por año</div><div class="sv" style="color:#178029;">' + U(E.anualPaga) + '</div><div class="ss">' + fmt(E.superficieHa, 0) + ' ha · ' + (E.situacion === 'nuevo' ? 'margen completo con riego (campo nuevo)' : 'de más que seguir en secano') + '</div></div>' +
+      '<div class="kpi"><div class="sl">Inversión</div><div class="sv">' + (inv > 0 ? U(inv) : '—') + '</div><div class="ss">' + (inv > 0 ? U(inv / E.superficieHa) + ' por ha' + (ref ? ' · referencia de Irrigar' : '') : 'sin cargar') + '</div></div>' +
+      '<div class="kpi"><div class="sl">Se paga en</div><div class="sv">' + (F ? (F.imposible ? 'no se paga' : fmt(F.anios, 1) + ' años') : (E.recupero != null ? fmt(E.recupero, 1) + ' años' : '—')) + '</div><div class="ss">' + (F && F.tasa > 0 ? 'financiada al ' + fmt(F.tasa, 1) + ' % anual · sin interés ' + fmt(F.sinInteres, 1) + ' años' : 'sin interés') + '</div></div>' +
+      '<div class="kpi"><div class="sl">Tasa de retorno</div><div class="sv">' + (E.tir != null ? fmt(E.tir * 100, 1) + ' %' : '—') + '</div><div class="ss">' + (E.horizonte ? 'a ' + E.horizonte + ' años' : '') + '</div></div></div>';
+    if (F && !F.imposible && F.tasa > 0) h += '<h3>Año por año, con el interés del banco</h3>' + SafiaEconomiaRiego.cuadroFinanciacionHTML(F);
+    else if (F && F.imposible) h += '<div class="note warn">Financiada al ' + fmt(F.tasa, 1) + ' % anual la deuda no baja: lo que gana el riego (' + U(F.anual) + ' por año) no cubre ni el interés (' + U(F.interesAnual) + '). Hay que bajar la inversión, financiar a menos interés o subir el rinde esperado.</div>';
+    return h;
+  }
+  /* Qué hay que hacer en este campo para llegar a esos rindes: su tierra frente a la de los que más rinden, y las correcciones */
+  function secCampo(P, LS) {
+    var h = '<h2 class="salto">Qué hay que hacer en este campo para llegar a esos rindes</h2>';
+    if (!LS) return h + '<div class="note warn">Falta el análisis de suelo del área del proyecto. Sin él no se puede comparar su tierra con la de los que más rinden ni decir qué corregir antes de la primera campaña.</div>';
+    var s = LS.s;
+    h += '<div class="stats">' + [['pH', s.ph, 1], ['MO %', s.mo, 2], ['P mg/dm³', s.p, 1], ['K cmolc', s.k, 2], ['Ca cmolc', s.ca, 2], ['Mg cmolc', s.mg, 2], ['CIC', s.cic, 2], ['V %', s.satBases, 1], ['Arcilla %', s.arcilla, 1]].filter(function (x) { return num(x[1]) != null; }).map(function (x) { return '<div class="stat"><div class="sl">' + x[0] + '</div><div class="sv">' + fmt(num(x[1]), x[2]) + '</div></div>'; }).join('') + '</div>' +
+      (s.fecha ? '<div class="sub">Análisis del ' + fmtF(s.fecha) + (s.profundidad ? ' · ' + esc(s.profundidad) : '') + '</div>' : '');
+    // su tierra frente a la de los que más rinden (SafiaCasos: los mejores lotes con riego de la región, mismo cultivo y época; sin nombres)
+    P.forEach(function (x) {
+      var comp = (x.r.comparacionSuelo || []).filter(function (c) { return c.mio != null && c.referencia != null; });
+      if (!comp.length) return;
+      var bajo = comp.filter(function (c) { return c.senal === 'bajo'; }), igual = comp.filter(function (c) { return c.senal === 'igual'; });
+      var filas = comp.map(function (c) { var pp = c.param, lect = c.senal === 'bajo' ? '<b style="color:#C0392B;">Por debajo</b>' : (c.senal === 'alto' ? '<span style="color:#1F5FBF;">Por encima</span>' : '<span style="color:#178029;">Similar</span>'); return '<tr>' + td(esc(pp.n) + (pp.unidad ? ' <span class="sub">' + pp.unidad + '</span>' : '')) + td(fmt(c.mio, pp.dec), 1) + td(fmt(c.referencia, pp.dec) + (c.nRef ? '<div class="sub">' + c.nRef + ' lote(s)</div>' : ''), 1) + td(c.diferencia == null ? '—' : (c.diferencia > 0 ? '+' : '') + fmt(c.diferencia, pp.dec), 1) + td(lect) + '</tr>'; });
+      h += '<h3>Su tierra frente a la de los que más rinden en ' + esc(x.c.cultivo.toLowerCase()) + '</h3>' +
+        '<div class="sub" style="margin-bottom:4px;">' + (bajo.length ? 'Es parecida en ' + igual.length + ' de ' + comp.length + ' parámetros y está <b>por debajo en ' + esc(bajo.map(function (c) { return c.param.n; }).join(', ')) + '</b>: eso es lo primero a corregir.' : 'Es la misma clase de tierra que la de los que más rinden (' + igual.length + ' de ' + comp.length + ' parámetros similares): con riego y el manejo de ellos se llega a esos rindes.') + ' Referencia: los ' + (x.r.referenciaSuelo || []).length + ' lote(s) con riego que más rinden en la región, sin nombres.</div>' +
+        tabla([{ t: 'Parámetro', w: 26 }, { t: 'Su tierra', r: 1, w: 16 }, { t: 'Los que más rinden', r: 1, w: 20 }, { t: 'Diferencia', r: 1, w: 16 }, { t: 'Lectura', w: 22 }], filas);
+    });
+    h += '<h3>Lectura del suelo</h3><div class="interp interp-suelo">' + SafiaAgro.tablaInterpretacion(LS.inter) + '</div>' +
+      '<h3>Qué corregir antes de la primera campaña (encalado, yeso, fósforo, potasio, materia orgánica)</h3>' + SafiaAgro.listaRecomendaciones(LS.recs) +
+      '<div class="sub" style="margin-top:6px;">Interpretación para ' + esc(LS.cultivo.toLowerCase()) + ' con el Manual RS/SC 2016, Embrapa y CAPECO/IPTA como contraste. La prescripción final la define el ingeniero agrónomo.</div>';
+    return h;
+  }
   function secEconomia(E) {
-    var h = '<h2 class="salto">Economía e inversión del proyecto</h2>';
+    var h = '<h2 class="salto">Economía completa del proyecto</h2>';
     if (!E) return h + '<div class="note">' + (climaEstado === 'cargando' ? 'Calculando con el clima del campo…' : 'Sin datos suficientes para la economía (hace falta la referencia de la zona con costos y el clima del campo).') + '</div>';
     h += '<div class="sub" style="margin-bottom:6px;">Por hectárea y para todo el proyecto, con riego y en secano, con los precios vigentes de SAFIA. ' + (ev.situacion === 'nuevo' ? 'Campo nuevo: la inversión se paga con el margen completo con riego.' : 'El campo hoy produce en secano: la inversión se paga con lo que agrega el riego.') + '</div>';
     h += SafiaEconomiaRiego.html(E).replace('grid-template-columns:repeat(auto-fit,minmax(560px,1fr))', 'grid-template-columns:minmax(0,1fr)');
@@ -360,11 +410,13 @@
     ECO = E;
     var html = cabecera();
     // mismo orden que la pantalla de Evaluar (9-oct-2026): veredicto y economía primero, después los vecinos, qué hacer, y el clima y el agua al final
+    // orden de venta (Osmar, 9-oct-2026): veredicto → lo que gana el riego y cuánto tarda en pagar → qué hacer en su campo → cómo llegar al líder → el detalle
     if (s.resumen) html += secResumen(P, LA, LS);
+    if (s.pago) html += secPago(E);
+    if (s.suelo) html += secCampo(P, LS);
+    if (s.lider) html += secLider(P, sims);
     if (s.economia) html += secEconomia(E);
     if (s.potencial) html += secPotencial(P);
-    if (s.lider) html += secLider(P, sims);
-    if (s.suelo) html += secSuelo(LS);
     if (s.clima) html += secClima();
     if (s.agua) html += secAgua(LA);
     if (s.zona) html += secZona();

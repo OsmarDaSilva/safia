@@ -128,7 +128,34 @@
       r.acumulado = r.anualPaga * n - inv;
       if (vida > 0) { r.amortizacion = inv / vida; r.resultadoNeto = r.anualPaga - r.amortizacion; }
     }
+    r.tasaInteres = num(o.tasaInteres);
+    if (inv > 0 && ha > 0) r.financiado = financiacion(inv, r.anualPaga, r.tasaInteres != null ? r.tasaInteres : 0);
     return r;
+  }
+
+  /* Cuánto tarda en pagarse la inversión si se financia al interés del banco (pedido de Osmar, 9-oct-2026):
+     cada año lo que gana el riego paga primero el interés del saldo y el resto baja la deuda (cuota = lo que agrega el riego).
+     Ejemplo: US$ 500.000 al 7 % con US$ 165.000 por año → 3,5 años (sin interés serían 3,0). Si la ganancia no cubre
+     ni el interés, la deuda nunca baja. */
+  function financiacion(inv, anual, tasa) {
+    if (!(inv > 0) || !(anual > 0)) return null;
+    var i = tasa != null && !isNaN(tasa) ? Math.max(0, tasa) / 100 : 0, cuadro = [], saldo = inv, interesTotal = 0, anios = 0;
+    if (i > 0 && anual <= inv * i) return { tasa: i * 100, inv: inv, anual: anual, imposible: true, interesAnual: inv * i, sinInteres: inv / anual, cuadro: [] };
+    while (saldo > 0.5 && anios < 60) {
+      var interes = saldo * i, pago = Math.min(anual, saldo + interes), fin = saldo + interes - pago;
+      cuadro.push({ anio: anios + 1, saldoIni: saldo, interes: interes, pago: pago, saldoFin: Math.max(0, fin) });
+      interesTotal += interes; saldo = fin; anios++;
+    }
+    var ult = cuadro[cuadro.length - 1], fraccion = ult && ult.pago < anual ? ult.pago / anual : 1;   // el último año se paga en parte
+    var exacto = i > 0 ? -Math.log(1 - i * inv / anual) / Math.log(1 + i) : inv / anual;
+    return { tasa: i * 100, inv: inv, anual: anual, anios: exacto, aniosEnteros: anios, cuadro: cuadro, interesTotal: interesTotal, sinInteres: inv / anual, fraccionUltimo: fraccion };
+  }
+  function cuadroFinanciacionHTML(f) {
+    if (!f || !f.cuadro || !f.cuadro.length) return '';
+    var U = function (v) { return 'US$ ' + fmt(v, 0); };
+    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Año</th><th class="r">Deuda al empezar</th><th class="r">Interés (' + fmt(f.tasa, 1) + ' %)</th><th class="r">Paga el riego</th><th class="r">Deuda al terminar</th></tr></thead><tbody>' +
+      f.cuadro.map(function (c) { return '<tr><td>' + c.anio + '</td><td class="r">' + U(c.saldoIni) + '</td><td class="r">' + U(c.interes) + '</td><td class="r">' + U(c.pago) + '</td><td class="r"><b>' + (c.saldoFin > 0.5 ? U(c.saldoFin) : 'pagada') + '</b></td></tr>'; }).join('') +
+      '</tbody></table></div></div><div class="muted" style="font-size:11px;margin-top:4px;">Interés total pagado: ' + U(f.interesTotal) + '. Cada año, lo que gana el riego paga primero el interés y el resto baja la deuda.</div>';
   }
 
   function usd(v) { return v == null || isNaN(v) ? '—' : (v < 0 ? '−' : '') + 'US$ ' + fmt(Math.abs(v), 0); }
@@ -168,7 +195,8 @@
       (r.proyecto ? '<div class="stat"><div class="sl">Energía del riego</div><div class="sv">' + usd(r.proyecto.energiaR) + '</div><div class="ss">por año · US$ ' + fmt(r.porHa.energiaR, 0) + ' por ha</div></div>' : '') +
       (r.inversionUSD ? '<div class="stat"><div class="sl">Inversión</div><div class="sv">US$ ' + fmt(r.inversionUSD, 0) + '</div><div class="ss">' + (r.inversionHa ? 'US$ ' + fmt(r.inversionHa, 0) + ' por ha' : '') + '</div></div>' : '') +
       (r.recupero != null ? '<div class="stat"><div class="sl">Se recupera en</div><div class="sv">' + fmt(r.recupero, 1) + ' años</div><div class="ss">' + (r.situacion === 'nuevo' ? 'con el margen completo con riego' : 'con lo que agrega el riego') + '</div></div>' : '') +
-      (r.tir != null ? '<div class="stat"><div class="sl">Tasa interna de retorno</div><div class="sv">' + fmt(r.tir * 100, 1) + ' %</div><div class="ss">a ' + r.horizonte + ' años</div></div>' : '') + '</div>';
+      (r.tir != null ? '<div class="stat"><div class="sl">Tasa interna de retorno</div><div class="sv">' + fmt(r.tir * 100, 1) + ' %</div><div class="ss">a ' + r.horizonte + ' años</div></div>' : '') +
+      (r.financiado && r.financiado.tasa > 0 ? '<div class="stat"><div class="sl">Financiada al ' + fmt(r.financiado.tasa, 1) + ' %</div><div class="sv">' + (r.financiado.imposible ? 'no se paga' : fmt(r.financiado.anios, 1) + ' años') + '</div><div class="ss">' + (r.financiado.imposible ? 'lo que gana el riego no cubre ni el interés' : 'interés total US$ ' + fmt(r.financiado.interesTotal, 0)) + '</div></div>' : '') + '</div>';
     if (r.proyecto) {
       var P = r.proyecto, f2 = function (n, a, b, sub, neg) { var d = a != null && b != null ? a - b : null; return '<tr><td style="white-space:normal;">' + n + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</td><td class="r">' + usd(neg ? -a : a) + '</td><td class="r">' + (b == null ? '—' : usd(neg ? -b : b)) + '</td><td class="r">' + (d == null ? '—' : ((neg ? -d : d) >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(d), 0)) + '</td></tr>'; };
       h += '<div style="font-weight:700;margin:12px 0 6px;">Todo el proyecto por año · ' + fmt(r.superficieHa, 0) + ' ha</div><div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Por año</th><th class="r">Con riego</th><th class="r">Secano</th><th class="r">Diferencia</th></tr></thead><tbody>' +
@@ -219,11 +247,13 @@
       (E.agregaSeco != null && E.superficieHa > 0 && E.situacion !== 'nuevo' ? ' (en un año seco, ' + U(E.agregaSeco * E.superficieHa) + ')' : '') + '. ';
     var laInv = 'La inversión de <b>' + U(inv) + '</b>' + (ref ? ' (referencia de Irrigar: todavía no está cargada)' : '');
     if (!(E.anualPaga > 0)) return Object.assign(base, { k: 'no', titulo: 'No cierra con estos números', detalle: cuanto + 'El riego no deja margen para pagar la inversión: revisá los precios, los costos, la energía y los rindes de la zona.' });
-    var cierre = laInv + ' se recupera en <b>' + fmt(rec, 1) + ' años</b>' + (t != null ? ', con una tasa de retorno de <b>' + fmt(t * 100, 1) + ' %</b> a ' + n + ' años' : '') + '.';
+    var fin = ref ? financiacion(inv, E.anualPaga, E.tasaInteres != null ? E.tasaInteres : 0) : E.financiado; base.financiado = fin;
+    var cierre = laInv + ' se recupera en <b>' + fmt(rec, 1) + ' años</b>' + (t != null ? ', con una tasa de retorno de <b>' + fmt(t * 100, 1) + ' %</b> a ' + n + ' años' : '') + '.' +
+      (fin && fin.tasa > 0 ? (fin.imposible ? ' Financiada al ' + fmt(fin.tasa, 1) + ' % anual no se paga: lo que gana el riego (' + U(fin.anual) + ') no cubre ni el interés (' + U(fin.interesAnual) + ' por año).' : ' Financiada al <b>' + fmt(fin.tasa, 1) + ' % anual</b>, con lo que gana el riego se paga en <b>' + fmt(fin.anios, 1) + ' años</b> (interés total ' + U(fin.interesTotal) + ').') : '');
     if (t != null && t >= UMBRAL_TIR.bien) return Object.assign(base, { k: 'si', titulo: 'Vale la pena', detalle: cuanto + cierre });
     if (t != null && t >= UMBRAL_TIR.ajustado) return Object.assign(base, { k: 'ajustado', titulo: 'Cierra, pero ajustado', detalle: cuanto + cierre + ' El retorno es justo: conviene revisar la inversión, la energía y los precios antes de decidir.' });
     return Object.assign(base, { k: 'no', titulo: 'No cierra con estos números', detalle: cuanto + cierre + ' Con ese retorno no conviene invertir tal como está: hay que bajar la inversión o el costo de la energía, o subir el rinde esperado.' });
   }
 
-  window.SafiaEconomiaRiego = { calcular: calcular, html: html, tir: tir, veredicto: veredicto, UMBRAL_TIR: UMBRAL_TIR };
+  window.SafiaEconomiaRiego = { calcular: calcular, html: html, tir: tir, veredicto: veredicto, UMBRAL_TIR: UMBRAL_TIR, financiacion: financiacion, cuadroFinanciacionHTML: cuadroFinanciacionHTML };
 })();
