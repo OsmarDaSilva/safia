@@ -434,8 +434,10 @@
     }
     return h;
   }
-  function secCierre() {
-    var pasos = ['Confirmar el análisis del agua (y repetirlo si no pasa el control de calidad) y analizar el suelo en 0–20 y 20–40 cm, con sodio intercambiable si el agua tiene sodio.', 'Definir la superficie, la fuente de agua y su caudal, y el equipo (pivot, lámina y energía).', 'Corregir el suelo según las recomendaciones antes de la primera campaña.', 'Con el agua en la franja severa, hacer un lote piloto antes del proyecto completo (FAO 29, §1.4).', 'Una vez en marcha, SAFIA sigue el proyecto: balance de agua diario, satélite, análisis y cosecha, y compara con el potencial de este informe.'];
+  function secCierre(LA) {
+    // los pasos se arman según el caso (Osmar, 9-oct-2026): el lote piloto solo si el agua analizada es muy mala (franja severa)
+    var aguaGrave = !!(LA && LA.L && LA.L.veredicto && LA.L.veredicto.k === 'grave');
+    var pasos = [LA ? 'Repetir el análisis del agua si no pasa el control de calidad, y analizar el suelo en 0–20 y 20–40 cm' + (LA.L.r && LA.L.r.ras > 3 ? ', con sodio intercambiable (el agua tiene sodio)' : '') + '.' : 'Analizar el agua de la fuente de riego y el suelo en 0–20 y 20–40 cm.', 'Definir la superficie, la fuente de agua y su caudal, y el equipo (pivot, lámina y energía).', 'Corregir el suelo según las recomendaciones antes de la primera campaña.'].concat(aguaGrave ? ['Con el agua en la franja severa, hacer un lote piloto antes del proyecto completo (FAO 29, §1.4).'] : []).concat(['Una vez en marcha, SAFIA sigue el proyecto: balance de agua diario, satélite, análisis y cosecha, y compara con el potencial de este informe.']);
     var autor = $('autor').value.trim() || config.agronomo || '';
     var h = '<h2>Próximos pasos</h2><ol>' + pasos.map(function (p) { return '<li>' + p + '</li>'; }).join('') + '</ol>' +
       '<div class="note info" style="font-size:11px;"><b>Supuestos y fuentes.</b> Clima: lluvia CHIRPS (satélite + estaciones, comparada con la Dirección de Meteorología) y evapotranspiración Penman-Monteith FAO-56 (Open-Meteo, reanálisis ERA5), datos diarios de los últimos 10 años completos. Secano: siembra con el perfil cargado (Fundación IDEAGRO 2025). Economía: referencia de costos de la zona (base de Irrigar), precios vigentes de SAFIA y la inversión cargada del proyecto. Zona: referencia agrícola y forrajera de SAFIA (base de Irrigar). Potencial: casos reales con riego del banco de SAFIA a menos de 300 km (con menos de 3 casos es orientación). Suelo: Manual de Calagem e Adubação RS/SC 2016, Embrapa, CAPECO/IPTA. Agua: FAO Riego y Drenaje 29, USDA Manual 60, universidades e INTA (detalle en la sección del agua). SAFIA compara e interpreta; la prescripción y la decisión de inversión las toma el productor con su ingeniero agrónomo.</div>';
@@ -461,7 +463,7 @@
     if (s.clima) html += secClima();
     if (s.agua) html += secAgua(LA);
     if (s.zona) html += secZona(P);
-    html += secCierre();
+    html += secCierre(LA);
     hoja.innerHTML = html;
     if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar(hoja); } catch (e) {}
     toast('Informe armado. "Guardar como PDF" abre la impresión: elegí "Guardar como PDF" como destino.');
