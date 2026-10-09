@@ -35,7 +35,7 @@
     return (lo + hi) / 2;
   }
   var PARTES_INV = [['equipo', 'Equipos de riego'], ['pozos', 'Pozos y bombas'], ['reservorio', 'Reservorio o tajamar'], ['electrica', 'Parte eléctrica'], ['obras', 'Obras y otros']];
-  var CONCEPTOS = [['insumos', 'Insumos'], ['maquinas', 'Maquinaria'], ['fletes', 'Fletes'], ['alquiler', 'Alquiler'], ['energia', 'Energía del riego'], ['mant', 'Mantenimiento del riego'], ['reposicion', 'Reposición de lo que se llevan los kilos extra']];
+  var CONCEPTOS = [['propio', 'Costo de producción propio (todo incluido)'], ['insumos', 'Insumos'], ['maquinas', 'Maquinaria'], ['fletes', 'Fletes'], ['alquiler', 'Alquiler'], ['energia', 'Energía del riego'], ['mant', 'Mantenimiento del riego'], ['reposicion', 'Reposición de lo que se llevan los kilos extra']];
 
   function calcular(o) {
     o = o || {};
@@ -56,7 +56,11 @@
       // Si en ESTE campo el perfil no se carga la mitad de los años o más (se siembra igual y rinde poco o se pierde),
       // manda el campo: el promedio de la zona (del departamento) viene de lugares con más lluvia y no lo representa.
       var fracSinCarga = sim && sim.secano && sim.secano.n ? (sim.secano.nSinCarga || 0) / sim.secano.n : null;
-      if (ref.secano && fracSinCarga != null && fracSinCarga >= 0.5) {
+      // los números del propio productor mandan (calculadora de Irrigar: "tu propiedad" vs "promedio región" vs "con irrigación")
+      var act = c.actual || {};
+      if (ref.secano != null) f.kgSzona = ref.secano;
+      if (act.rinde > 0) { f.kgS = Math.round(act.rinde); f.propio = true; f.secanoDe = 'su propio promedio en secano' + (ref.secano ? ' (la zona da ' + fmt(ref.secano, 0) + ' kg)' : ''); }
+      else if (ref.secano && fracSinCarga != null && fracSinCarga >= 0.5) {
         f.kgS = Math.round(ref.riego * sim.rindeRelSecano); f.secanoCampo = true; f.kgSzona = ref.secano; f.fracSinCarga = fracSinCarga;
         f.secanoDe = 'con el clima de este campo: en ' + sim.secano.nSinCarga + ' de ' + sim.secano.n + ' años se siembra sin el perfil cargado y rinde poco o se pierde; la zona da ' + fmt(ref.secano, 0) + ' kg pero no representa este campo';
       }
@@ -80,6 +84,11 @@
       // costos en secano: los de la zona; si no hay, los de riego sin energía ni mantenimiento
       var cs = ref.costosSecano, cS = cs ? { insumos: cs.insumos || 0, maquinas: cs.maquinas || 0, fletes: cs.fletes || 0, alquiler: cs.alquiler || 0, energia: 0, mant: 0, reposicion: 0 } : { insumos: cR.insumos, maquinas: cR.maquinas, fletes: cR.fletes, alquiler: cR.alquiler, energia: 0, mant: 0, reposicion: 0 };
       f.costosSecanoDe = cs ? 'zona en secano' : 'los de riego sin la energía ni el mantenimiento';
+      var total0 = function (x) { return CONCEPTOS.reduce(function (a, k) { return a + (x[k[0]] || 0); }, 0); };
+      f.totalSzona = total0(cS);   // costo en secano de la zona, para comparar con el propio
+      if (act.costo > 0) { cR = { propio: act.costo, energia: cR.energia, mant: cR.mant, reposicion: cR.reposicion }; cS = { propio: act.costo }; f.costoPropio = true; f.costosSecanoDe = 'su propio costo (US$ ' + fmt(act.costo, 0) + ' por ha); con riego se suman la energía, el mantenimiento y la reposición'; }
+      // margen de la zona en secano (promedio región), para la comparación en tres columnas
+      if (f.kgSzona != null) { f.ingZona = f.kgSzona / 1000 * f.precio; f.margenZona = f.ingZona - f.totalSzona; }
       var total = function (x) { return CONCEPTOS.reduce(function (a, k) { return a + (x[k[0]] || 0); }, 0); };
       f.cR = cR; f.cS = cS; f.totalR = total(cR); f.totalS = total(cS);
       f.ingR = f.kgR / 1000 * f.precio; f.ingS = f.kgS / 1000 * f.precio;
@@ -128,8 +137,10 @@
       r.acumulado = r.anualPaga * n - inv;
       if (vida > 0) { r.amortizacion = inv / vida; r.resultadoNeto = r.anualPaga - r.amortizacion; }
     }
-    r.tasaInteres = num(o.tasaInteres);
+    r.tasaInteres = num(o.tasaInteres); r.plazoAnios = num(o.plazoAnios);
     if (inv > 0 && ha > 0) r.financiado = financiacion(inv, r.anualPaga, r.tasaInteres != null ? r.tasaInteres : 0);
+    if (inv > 0 && ha > 0 && r.plazoAnios > 0) r.credito = credito(inv, r.tasaInteres != null ? r.tasaInteres : 0, r.plazoAnios, r.anualPaga);
+    r.propio = ok.some(function (f) { return f.propio; });
     return r;
   }
 
@@ -149,6 +160,13 @@
     var ult = cuadro[cuadro.length - 1], fraccion = ult && ult.pago < anual ? ult.pago / anual : 1;   // el último año se paga en parte
     var exacto = i > 0 ? -Math.log(1 - i * inv / anual) / Math.log(1 + i) : inv / anual;
     return { tasa: i * 100, inv: inv, anual: anual, anios: exacto, aniosEnteros: anios, cuadro: cuadro, interesTotal: interesTotal, sinInteres: inv / anual, fraccionUltimo: fraccion };
+  }
+  // Crédito a plazo fijo (cuota constante, como la calculadora de Irrigar): ¿lo que gana el riego cubre la cuota?
+  function credito(inv, tasa, plazo, anual) {
+    if (!(inv > 0) || !(plazo > 0)) return null;
+    var i = tasa > 0 ? tasa / 100 : 0, n = Math.round(plazo);
+    var cuota = i > 0 ? inv * i / (1 - Math.pow(1 + i, -n)) : inv / n;
+    return { tasa: i * 100, plazo: n, cuota: cuota, total: cuota * n, interesTotal: cuota * n - inv, anual: anual, cubre: anual != null ? anual >= cuota : null, sobra: anual != null ? anual - cuota : null };
   }
   function cuadroFinanciacionHTML(f) {
     if (!f || !f.cuadro || !f.cuadro.length) return '';
@@ -196,7 +214,8 @@
       (r.inversionUSD ? '<div class="stat"><div class="sl">Inversión</div><div class="sv">US$ ' + fmt(r.inversionUSD, 0) + '</div><div class="ss">' + (r.inversionHa ? 'US$ ' + fmt(r.inversionHa, 0) + ' por ha' : '') + '</div></div>' : '') +
       (r.recupero != null ? '<div class="stat"><div class="sl">Se recupera en</div><div class="sv">' + fmt(r.recupero, 1) + ' años</div><div class="ss">' + (r.situacion === 'nuevo' ? 'con el margen completo con riego' : 'con lo que agrega el riego') + '</div></div>' : '') +
       (r.tir != null ? '<div class="stat"><div class="sl">Tasa interna de retorno</div><div class="sv">' + fmt(r.tir * 100, 1) + ' %</div><div class="ss">a ' + r.horizonte + ' años</div></div>' : '') +
-      (r.financiado && r.financiado.tasa > 0 ? '<div class="stat"><div class="sl">Financiada al ' + fmt(r.financiado.tasa, 1) + ' %</div><div class="sv">' + (r.financiado.imposible ? 'no se paga' : fmt(r.financiado.anios, 1) + ' años') + '</div><div class="ss">' + (r.financiado.imposible ? 'lo que gana el riego no cubre ni el interés' : 'interés total US$ ' + fmt(r.financiado.interesTotal, 0)) + '</div></div>' : '') + '</div>';
+      (r.financiado && r.financiado.tasa > 0 ? '<div class="stat"><div class="sl">Financiada al ' + fmt(r.financiado.tasa, 1) + ' %</div><div class="sv">' + (r.financiado.imposible ? 'no se paga' : fmt(r.financiado.anios, 1) + ' años') + '</div><div class="ss">' + (r.financiado.imposible ? 'lo que gana el riego no cubre ni el interés' : 'interés total US$ ' + fmt(r.financiado.interesTotal, 0)) + '</div></div>' : '') +
+      (r.credito ? '<div class="stat"><div class="sl">Crédito a ' + r.credito.plazo + ' años</div><div class="sv">' + usd(r.credito.cuota) + '</div><div class="ss">cuota por año' + (r.credito.tasa > 0 ? ' al ' + fmt(r.credito.tasa, 1) + ' %' : '') + ' · ' + (r.credito.cubre ? 'el riego la cubre y sobran ' + usd(r.credito.sobra) : 'el riego no la cubre: faltan ' + usd(-r.credito.sobra)) + '</div></div>' : '') + '</div>';
     if (r.proyecto) {
       var P = r.proyecto, f2 = function (n, a, b, sub, neg) { var d = a != null && b != null ? a - b : null; return '<tr><td style="white-space:normal;">' + n + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</td><td class="r">' + usd(neg ? -a : a) + '</td><td class="r">' + (b == null ? '—' : usd(neg ? -b : b)) + '</td><td class="r">' + (d == null ? '—' : ((neg ? -d : d) >= 0 ? '+' : '−') + 'US$ ' + fmt(Math.abs(d), 0)) + '</td></tr>'; };
       h += '<div style="font-weight:700;margin:12px 0 6px;">Todo el proyecto por año · ' + fmt(r.superficieHa, 0) + ' ha</div><div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Por año</th><th class="r">Con riego</th><th class="r">Secano</th><th class="r">Diferencia</th></tr></thead><tbody>' +
@@ -249,11 +268,13 @@
     if (!(E.anualPaga > 0)) return Object.assign(base, { k: 'no', titulo: 'No cierra con estos números', detalle: cuanto + 'El riego no deja margen para pagar la inversión: revisá los precios, los costos, la energía y los rindes de la zona.' });
     var fin = ref ? financiacion(inv, E.anualPaga, E.tasaInteres != null ? E.tasaInteres : 0) : E.financiado; base.financiado = fin;
     var cierre = laInv + ' se recupera en <b>' + fmt(rec, 1) + ' años</b>' + (t != null ? ', con una tasa de retorno de <b>' + fmt(t * 100, 1) + ' %</b> a ' + n + ' años' : '') + '.' +
-      (fin && fin.tasa > 0 ? (fin.imposible ? ' Financiada al ' + fmt(fin.tasa, 1) + ' % anual no se paga: lo que gana el riego (' + U(fin.anual) + ') no cubre ni el interés (' + U(fin.interesAnual) + ' por año).' : ' Financiada al <b>' + fmt(fin.tasa, 1) + ' % anual</b>, con lo que gana el riego se paga en <b>' + fmt(fin.anios, 1) + ' años</b> (interés total ' + U(fin.interesTotal) + ').') : '');
+      (fin && fin.tasa > 0 ? (fin.imposible ? ' Financiada al ' + fmt(fin.tasa, 1) + ' % anual no se paga: lo que gana el riego (' + U(fin.anual) + ') no cubre ni el interés (' + U(fin.interesAnual) + ' por año).' : ' Financiada al <b>' + fmt(fin.tasa, 1) + ' % anual</b>, con lo que gana el riego se paga en <b>' + fmt(fin.anios, 1) + ' años</b> (interés total ' + U(fin.interesTotal) + ').') : '') +
+      (E.credito && !ref ? ' Con un crédito a ' + E.credito.plazo + ' años la cuota es <b>' + U(E.credito.cuota) + ' por año</b>' + (E.credito.cubre ? ' y el riego la cubre (sobran ' + U(E.credito.sobra) + ').' : ' y el riego no la cubre (faltan ' + U(-E.credito.sobra) + ' por año).') : '') +
+      (E.propio ? ' Secano: los números del propio productor.' : '');
     if (t != null && t >= UMBRAL_TIR.bien) return Object.assign(base, { k: 'si', titulo: 'Vale la pena', detalle: cuanto + cierre });
     if (t != null && t >= UMBRAL_TIR.ajustado) return Object.assign(base, { k: 'ajustado', titulo: 'Cierra, pero ajustado', detalle: cuanto + cierre + ' El retorno es justo: conviene revisar la inversión, la energía y los precios antes de decidir.' });
     return Object.assign(base, { k: 'no', titulo: 'No cierra con estos números', detalle: cuanto + cierre + ' Con ese retorno no conviene invertir tal como está: hay que bajar la inversión o el costo de la energía, o subir el rinde esperado.' });
   }
 
-  window.SafiaEconomiaRiego = { calcular: calcular, html: html, tir: tir, veredicto: veredicto, UMBRAL_TIR: UMBRAL_TIR, financiacion: financiacion, cuadroFinanciacionHTML: cuadroFinanciacionHTML };
+  window.SafiaEconomiaRiego = { calcular: calcular, html: html, tir: tir, veredicto: veredicto, UMBRAL_TIR: UMBRAL_TIR, financiacion: financiacion, cuadroFinanciacionHTML: cuadroFinanciacionHTML, credito: credito };
 })();

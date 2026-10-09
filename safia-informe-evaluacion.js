@@ -282,8 +282,8 @@
     if (!window.SafiaEconomiaRiego || !ev) return null;
     var u = ubic(), reg = window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region({ departamento: u.depto, pais: u.pais, lat: u.lat, lon: u.lon }) : null;
     return SafiaEconomiaRiego.calcular({
-      cultivos: P.map(function (x, i) { return { cultivo: x.c.cultivo, finalidad: x.c.finalidad, epoca: x.c.epoca, ref: x.ref, riego: sims[i] || null }; }),
-      superficieHa: num(ev.superficieHa), inversionUSD: num(ev.inversionUSD), tasaInteres: ev.interesAnual != null ? num(ev.interesAnual) : 7, inversionPartes: ev.inversionPartes || null, vidaUtil: num(ev.vidaUtil),
+      cultivos: P.map(function (x, i) { return { cultivo: x.c.cultivo, finalidad: x.c.finalidad, epoca: x.c.epoca, ref: x.ref, riego: sims[i] || null, actual: x.c.actual || null }; }),
+      superficieHa: num(ev.superficieHa), inversionUSD: num(ev.inversionUSD), tasaInteres: ev.interesAnual != null ? num(ev.interesAnual) : 7, plazoAnios: ev.plazoAnios != null ? num(ev.plazoAnios) : 10, inversionPartes: ev.inversionPartes || null, vidaUtil: num(ev.vidaUtil),
       energiaUSDmm: ev.energiaModo === 'base' ? null : num(ev.energiaUSDmm), energiaModo: ev.energiaModo || (ev.energiaUSDmm != null ? 'mm' : 'base'), situacion: ev.situacion, region: reg,
       inversionRefHa: reg && INV_REF_HA[reg] ? Object.assign({ region: reg }, INV_REF_HA[reg]) : null
     });
@@ -299,6 +299,19 @@
       return '<tr>' + td('<b>' + esc(f.cultivo) + '</b>' + (f.epoca ? '<div class="sub">' + esc(f.epoca) + '</div>' : '') + parte) + td(fmt(f.kgR, 0) + ' kg', 1) + td(fmt(f.kgS, 0) + ' kg<div class="sub">' + esc(f.secanoDe) + '</div>', 1) +
         td('<b style="color:#178029;">+' + fmt(f.kgR - f.kgS, 0) + ' kg</b>', 1) + td(U(f.margenR), 1) + td(U(f.margenS), 1) + td('<b style="color:' + (f.agrega >= 0 ? '#178029' : '#C0392B') + ';">' + (f.agrega >= 0 ? '+' : '') + U(f.agrega) + '</b>', 1) + '</tr>';
     });
+    // Su campo hoy · promedio de la zona · con riego (tres columnas, como la calculadora de Irrigar), con barras
+    var tres = E.ok.filter(function (f) { return f.kgR != null; });
+    if (tres.length) {
+      var maxKg = Math.max.apply(null, tres.map(function (f) { return Math.max(f.kgR || 0, f.kgS || 0, f.kgSzona || 0); })) || 1;
+      var barra = function (v, color, etiqueta) { return v == null ? '' : '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;"><div style="width:92px;font-size:10px;color:#5B6167;">' + etiqueta + '</div><div style="flex:1;background:#EEF0F2;border-radius:4px;height:14px;"><div style="width:' + Math.max(2, Math.round(v / maxKg * 100)) + '%;height:14px;border-radius:4px;background:' + color + ';-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div></div><div style="width:70px;text-align:right;font-size:11px;font-weight:700;">' + fmt(v, 0) + ' kg</div></div>'; };
+      h += '<h3 style="margin-top:0;">Su campo hoy, el promedio de la zona y con riego</h3><div style="display:grid;grid-template-columns:repeat(' + Math.min(2, tres.length) + ',1fr);gap:14px;">' + tres.map(function (f) {
+        return '<div><div style="font-weight:700;margin-bottom:4px;">' + esc(f.cultivo) + (f.epoca ? ' <span class="sub">· ' + esc(f.epoca) + '</span>' : '') + '</div>' +
+          barra(f.propio ? f.kgS : null, '#8C9196', 'Su campo hoy') + barra(f.kgSzona != null ? f.kgSzona : (f.propio ? null : f.kgS), '#B8731A', f.kgSzona != null ? 'Zona en secano' : 'Secano estimado') + barra(f.kgR, '#178029', 'Con riego') + '</div>';
+      }).join('') + '</div>';
+      var sumaR = tres.reduce(function (a, f) { return a + f.kgR; }, 0), sumaS = tres.reduce(function (a, f) { return a + f.kgS; }, 0);
+      h += '<div style="margin:8px 0 10px;">Aumento de productividad: <b>' + tres.map(function (f) { return '+' + fmt(f.kgR - f.kgS, 0) + ' kg/ha en ' + esc(f.cultivo.toLowerCase()); }).join(' y ') + '</b>' + (sumaS > 0 ? ' (' + fmt((sumaR - sumaS) / sumaS * 100, 0) + ' % más que ' + (E.propio ? 'lo que el campo produce hoy' : 'el secano') + ')' : '') + '.' +
+        (E.propio ? ' Comparado contra los números del propio productor; la zona queda como referencia.' : ' Comparado contra el promedio de la zona o el clima del campo: si el productor carga sus propios promedios, SAFIA compara contra ellos.') + '</div>';
+    }
     h += '<div class="sub" style="margin-bottom:4px;">Por hectárea y por año, con los precios vigentes y los costos de la zona (con riego se suman la energía, el mantenimiento y la reposición de nutrientes de los kilos extra).</div>' +
       tabla([{ t: 'Cultivo', w: 18 }, { t: 'Rinde con riego', r: 1, w: 12 }, { t: 'Rinde secano', r: 1, w: 16 }, { t: 'Kilos de más', r: 1, w: 11 }, { t: 'Margen con riego', r: 1, w: 14 }, { t: 'Margen secano', r: 1, w: 14 }, { t: 'Gana el riego', r: 1, w: 15 }], filas);
     if (E.unCultivoSecano) h += '<div class="sub">En el Chaco, sin riego se hace un solo cultivo por año: el secano del proyecto es ' + esc(E.secanoCultivo).toLowerCase() + ' solo.</div>';
@@ -312,6 +325,18 @@
       '<div class="kpi"><div class="sl">Tasa de retorno</div><div class="sv">' + (E.tir != null ? fmt(E.tir * 100, 1) + ' %' : '—') + '</div><div class="ss">' + (E.horizonte ? 'a ' + E.horizonte + ' años' : '') + '</div></div></div>';
     if (F && !F.imposible && F.tasa > 0) h += '<h3>Año por año, con el interés del banco</h3>' + SafiaEconomiaRiego.cuadroFinanciacionHTML(F);
     else if (F && F.imposible) h += '<div class="note warn">Financiada al ' + fmt(F.tasa, 1) + ' % anual la deuda no baja: lo que gana el riego (' + U(F.anual) + ' por año) no cubre ni el interés (' + U(F.interesAnual) + '). Hay que bajar la inversión, financiar a menos interés o subir el rinde esperado.</div>';
+    // en 10 años (misma lógica que la calculadora de Irrigar: mismos precios, sin reinvertir) y el crédito a plazo fijo
+    if (E.anualR != null && E.anualS != null) {
+      var dif10 = (E.anualR - E.anualS) * 10;
+      h += '<h3>En 10 años</h3><div style="line-height:1.55;">Si se mantienen los precios, en 10 años el campo deja <b>' + U(E.anualR * 10) + '</b> con riego contra <b>' + U(E.anualS * 10) + '</b> siguiendo como hoy: <b>' + U(dif10) + ' más</b>' +
+        (inv > 0 ? ', que descontando la inversión de ' + U(inv) + ' son <b>' + U(dif10 - inv) + '</b> de retorno' + (F && !F.imposible && F.tasa > 0 ? ' (' + U(dif10 - inv - F.interesTotal) + ' si se financia al ' + fmt(F.tasa, 1) + ' %)' : '') : '') + '.</div>';
+    }
+    var C = E.credito || (inv > 0 && E.plazoAnios > 0 ? SafiaEconomiaRiego.credito(inv, E.tasaInteres != null ? E.tasaInteres : 7, E.plazoAnios, E.anualPaga) : null);
+    if (C) h += '<h3>Si se financia con un crédito a ' + C.plazo + ' años' + (C.tasa > 0 ? ' al ' + fmt(C.tasa, 1) + ' % anual' : '') + '</h3><div class="kpis">' +
+      '<div class="kpi"><div class="sl">Cuota por año</div><div class="sv">' + U(C.cuota) + '</div><div class="ss">cuota fija</div></div>' +
+      '<div class="kpi"><div class="sl">Gana el riego por año</div><div class="sv" style="color:#178029;">' + U(C.anual) + '</div><div class="ss">' + (C.cubre ? 'cubre la cuota y sobran ' + U(C.sobra) : 'no cubre la cuota: faltan ' + U(-C.sobra)) + '</div></div>' +
+      '<div class="kpi"><div class="sl">Interés total</div><div class="sv">' + U(C.interesTotal) + '</div><div class="ss">en ' + C.plazo + ' años</div></div>' +
+      '<div class="kpi"><div class="sl">Total a pagar</div><div class="sv">' + U(C.total) + '</div><div class="ss">inversión más interés</div></div></div>';
     return h;
   }
   /* Qué hay que hacer en este campo para llegar a esos rindes: su tierra frente a la de los que más rinden, y las correcciones */
