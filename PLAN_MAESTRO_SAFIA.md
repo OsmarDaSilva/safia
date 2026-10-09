@@ -290,6 +290,7 @@ Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador d
 | Banco → Evolución y decisiones reordenada: último año agrícola en tarjetas (soja y zafriña), una tabla por cultivo y época con rinde y agua, suelo por fechas, qué hacer plegado por cultivo (la tabla del suelo una sola vez), lo que falta cargar al final; 40 % más corta | ✅ 8-oct-2026 (v162) |
 | Regla de comparación por época (Osmar): primera zafra con primera zafra, zafriña con zafriña, en Evolución, Frente al mejor, Meta de rinde y Evaluar proyecto (SafiaCasos.mismaEpoca) | ✅ 8-oct-2026 (v164) |
 | Campañas → Nutrientes de la campaña (ex Balance N/P/K): lo que se lleva el grano, lo que aporta el suelo (clases RS/SC, fijación de la soja, MO para N) y lo que hace falta aplicar; % cubierto contra lo que hace falta, no contra la extracción | ✅ 9-oct-2026 (v166) |
+| Evaluar proyecto → resultado como pantalla de venta: veredicto arriba en una pantalla (vale la pena / cierra ajustado / no cierra / falta información; regla TIR 15 % / 8 %, agua grave frena todo, sin inversión usa la referencia de Irrigar), rinde con riego vs secano por cultivo, lo que agrega, inversión, repago, tasa y agua por año; tabla de vecinos regantes sin nombres (con nombres solo uso interno); economía, qué hacer por cultivo y clima/agua plegados; lectura del objetivo conservador/en línea/exigente; informe PDF en el mismo orden con el veredicto | ✅ 9-oct-2026 (v170) |
 
 ## 12. Próximos pasos (al 4-oct-2026)
 
