@@ -388,34 +388,50 @@
     });
     return h;
   }
-  function secZona() {
-    var a = ambitoRef(), h = '<h2>La zona: referencia agrícola y forrajera</h2>';
-    if (!a) h += '<div class="note">No hay registros de la referencia agrícola para esta localidad ni su departamento.</div>';
-    else {
-      var grupos = {};
-      a.filas.forEach(function (x) { var k = x.cultivo + '|' + (x.finalidad || '') + '|' + (x.epoca_siembra || ''); (grupos[k] = grupos[k] || []).push(x); });
-      var filas = Object.keys(grupos).sort().map(function (k) {
-        var g = grupos[k], p = k.split('|'), rie = promedio(g.filter(function (x) { return x.riego; })), sec = promedio(g.filter(function (x) { return !x.riego; }));
-        if (rie == null && sec == null) return null;
-        var anios = g.map(function (x) { return x.anio; }).filter(Boolean), aa = anios.length ? Math.min.apply(null, anios) + (Math.max.apply(null, anios) !== Math.min.apply(null, anios) ? '–' + Math.max.apply(null, anios) : '') : '—';
-        var uz = SafiaCasos.unidadDe(p[0], p[1]);
-        return '<tr>' + td('<b>' + esc(p[0]) + '</b>') + td(esc(p[1] || '—')) + td(esc(p[2] || '—')) + td(uz.corto) + td(U(sec, uz), 1) + td('<b>' + U(rie, uz) + '</b>', 1) + td(rie != null && sec != null ? '<span style="color:#178029;font-weight:700;">+' + U(rie - sec, uz) + '</span>' : '—', 1) + td(g.length, 1) + td(aa) + '</tr>';
-      }).filter(Boolean);
-      h += '<div class="sub" style="margin-bottom:4px;">' + (a.nivel === 'localidad' ? 'Localidad ' : 'Departamento ') + '<b>' + esc(a.nombre) + '</b> · producción promedio por finalidad: grano en kg/ha, ensilaje en toneladas de materia verde por ha</div>' +
-        tabla([{ t: 'Cultivo', w: 14 }, { t: 'Finalidad', w: 15 }, { t: 'Época', w: 13 }, { t: 'Unidad', w: 9 }, { t: 'Secano', r: 1, w: 10 }, { t: 'Con riego', r: 1, w: 10 }, { t: 'Diferencia', r: 1, w: 10 }, { t: 'Registros', r: 1, w: 9 }, { t: 'Año', w: 10 }], filas);
-    }
-    // forraje por región (la base de Irrigar: Chaco / Oriental)
-    var u = ubic(), chaco = /boquer|alto paraguay|hayes/.test(norm(u.depto)), region = chaco ? 'Occidental/Chaco' : 'Oriental/Centro';
-    var kg = function (v) { return v == null ? 0 : Number(v) / 100; }, M = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-    var fr = (refForraje || []).filter(function (x) { return x.region === region; }), tipos = {};
-    fr.forEach(function (x) { (tipos[x.tipo_pastura] = tipos[x.tipo_pastura] || {})[/rega/i.test(x.forma_producida || '') ? 'riego' : 'secano'] = x; });
-    var filasF = Object.keys(tipos).sort().map(function (t) {
-      var s = tipos[t].secano, r = tipos[t].riego, ts = s ? M.reduce(function (a, m) { return a + kg(s[m]); }, 0) : null, tr = r ? M.reduce(function (a, m) { return a + kg(r[m]); }, 0) : null;
-      var minS = s ? Math.min.apply(null, M.map(function (m) { return kg(s[m]); })) : null, minR = r ? Math.min.apply(null, M.map(function (m) { return kg(r[m]); })) : null;
-      return '<tr>' + td('<b>' + esc(t) + '</b>') + td(fmt(ts, 0), 1) + td('<b>' + fmt(tr, 0) + '</b>', 1) + td(ts && tr ? '<span style="color:#178029;font-weight:700;">×' + fmt(tr / ts, 1) + '</span>' : '—', 1) + td(fmt(minS, 0) + ' / ' + fmt(minR, 0), 1) + '</tr>';
+  /* La zona, corta (Osmar, 9-oct-2026: "el PDF ya es demasiado largo"): solo los cultivos del proyecto, con el promedio
+     de la localidad o del departamento y el mejor lote del ranking departamental (sin nombres), con riego y en secano.
+     La tabla de pasto solo si el proyecto tiene pastura. */
+  function mejorDe(casos, c, riego) {
+    var u = ubic(), dep = norm(u.depto), reg = window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region({ departamento: u.depto, pais: u.pais, lat: u.lat, lon: u.lon }) : null;
+    var grupo = function (x) { return window.SafiaCasos && SafiaCasos.grupoFinalidad ? SafiaCasos.grupoFinalidad(x.cultivo, x.finalidad) : ''; };
+    var mio = { cultivo: c.cultivo, finalidad: c.finalidad, epoca: c.epoca || null };
+    var lista = casos.filter(function (x) { return x.rindeKgHa > 0 && norm(x.cultivo) === norm(c.cultivo) && (x.riego !== false) === riego && grupo(x) === grupo(mio) && (!window.SafiaCasos || !SafiaCasos.mismaEpoca || SafiaCasos.mismaEpoca(x, mio)); });
+    var enDep = dep ? lista.filter(function (x) { return norm(x.departamento) === dep; }) : [];
+    var ambito = 'departamento';
+    if (!enDep.length && reg && window.SafiaCasos && SafiaCasos.region) { enDep = lista.filter(function (x) { return SafiaCasos.region(x) === reg; }); ambito = 'región'; }
+    if (!enDep.length) return null;
+    var m = enDep.reduce(function (a, b) { return b.rindeKgHa > a.rindeKgHa ? b : a; });
+    return { caso: m, ambito: ambito, n: enDep.length };
+  }
+  function secZona(P) {
+    var a = ambitoRef(), u = ubic(), h = '<h2>La zona: el promedio y el mejor</h2>';
+    var casos = window.SafiaCasos ? SafiaCasos.armarCasos() : [];
+    var filas = (P || []).map(function (x) {
+      var c = x.c, uu = x.u, ref = x.ref, mr = mejorDe(casos, c, true), ms = mejorDe(casos, c, false);
+      var celdaMejor = function (m) { if (!m) return '<span class="sub">sin lotes</span>'; var k = m.caso; return '<b>' + U(k.rindeKgHa, uu) + '</b><div class="sub">regante de ' + esc(k.localidad || k.departamento || 'la zona') + (k.campana ? ' · ' + esc(k.campana) : '') + (m.ambito === 'región' ? ' · región' : '') + '</div>'; };
+      return '<tr>' + td('<b>' + esc(c.cultivo) + '</b><div class="sub">' + esc(finTxt(c)) + (c.epoca ? ' · ' + esc(c.epoca) : '') + ' · ' + uu.corto + '</div>') +
+        td(ref && ref.secano != null ? U(ref.secano, uu) : '—', 1) + td(ref && ref.riego != null ? '<b>' + U(ref.riego, uu) + '</b>' : '—', 1) +
+        td(ref && ref.riego != null && ref.secano != null ? '<span style="color:#178029;font-weight:700;">+' + U(ref.riego - ref.secano, uu) + '</span>' : '—', 1) +
+        td(celdaMejor(ms), 1) + td(celdaMejor(mr), 1) + '</tr>';
     });
-    if (filasF.length) h += '<h3>Producción de pasto (materia seca) · región ' + esc(region) + '</h3>' + tabla([{ t: 'Pastura', w: 26 }, { t: 'Secano kg MS/ha/año', r: 1, w: 18 }, { t: 'Con riego kg MS/ha/año', r: 1, w: 20 }, { t: 'Con riego rinde', r: 1, w: 14 }, { t: 'Mes más flojo secano / riego', r: 1, w: 22 }], filasF) +
-      '<div class="sub">Base forrajera de Irrigar' + (fr[0] && fr[0].anio ? ' (' + fr[0].anio + ')' : '') + '. El pasto regado sostiene la producción en los meses secos, que es cuando falta comida en secano.</div>';
+    var amb = a ? (a.nivel === 'localidad' ? 'Localidad ' : 'Departamento ') + '<b>' + esc(a.nombre) + '</b>' : 'Sin referencia agrícola para esta localidad ni su departamento';
+    h += '<div class="sub" style="margin-bottom:4px;">' + amb + ' · promedio de la referencia agrícola de SAFIA (misma finalidad y época) y el mejor lote del banco de casos del departamento, sin nombres de productores.</div>' +
+      tabla([{ t: 'Cultivo del proyecto', w: 22 }, { t: 'Zona secano', r: 1, w: 12 }, { t: 'Zona con riego', r: 1, w: 12 }, { t: 'Diferencia', r: 1, w: 11 }, { t: 'Mejor del departamento en secano', r: 1, w: 21 }, { t: 'Mejor del departamento con riego', r: 1, w: 22 }], filas);
+    // forraje por región, solo si el proyecto tiene pastura
+    var hayPasto = (P || []).some(function (x) { return window.SafiaCasos && SafiaCasos.esPasto(x.c.cultivo); });
+    if (hayPasto) {
+      var chaco = /boquer|alto paraguay|hayes/.test(norm(u.depto)), region = chaco ? 'Occidental/Chaco' : 'Oriental/Centro';
+      var kg = function (v) { return v == null ? 0 : Number(v) / 100; }, M = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      var fr = (refForraje || []).filter(function (x) { return x.region === region; }), tipos = {};
+      fr.forEach(function (x) { (tipos[x.tipo_pastura] = tipos[x.tipo_pastura] || {})[/rega/i.test(x.forma_producida || '') ? 'riego' : 'secano'] = x; });
+      var filasF = Object.keys(tipos).sort().map(function (t) {
+        var s = tipos[t].secano, r = tipos[t].riego, ts = s ? M.reduce(function (a, m) { return a + kg(s[m]); }, 0) : null, tr = r ? M.reduce(function (a, m) { return a + kg(r[m]); }, 0) : null;
+        var minS = s ? Math.min.apply(null, M.map(function (m) { return kg(s[m]); })) : null, minR = r ? Math.min.apply(null, M.map(function (m) { return kg(r[m]); })) : null;
+        return '<tr>' + td('<b>' + esc(t) + '</b>') + td(fmt(ts, 0), 1) + td('<b>' + fmt(tr, 0) + '</b>', 1) + td(ts && tr ? '<span style="color:#178029;font-weight:700;">×' + fmt(tr / ts, 1) + '</span>' : '—', 1) + td(fmt(minS, 0) + ' / ' + fmt(minR, 0), 1) + '</tr>';
+      });
+      if (filasF.length) h += '<h3>Producción de pasto (materia seca) · región ' + esc(region) + '</h3>' + tabla([{ t: 'Pastura', w: 26 }, { t: 'Secano kg MS/ha/año', r: 1, w: 18 }, { t: 'Con riego kg MS/ha/año', r: 1, w: 20 }, { t: 'Con riego rinde', r: 1, w: 14 }, { t: 'Mes más flojo secano / riego', r: 1, w: 22 }], filasF) +
+        '<div class="sub">Base forrajera de Irrigar' + (fr[0] && fr[0].anio ? ' (' + fr[0].anio + ')' : '') + '. El pasto regado sostiene la producción en los meses secos, que es cuando falta comida en secano.</div>';
+    }
     return h;
   }
   function secCierre() {
@@ -444,7 +460,7 @@
     if (s.potencial) html += secPotencial(P);
     if (s.clima) html += secClima();
     if (s.agua) html += secAgua(LA);
-    if (s.zona) html += secZona();
+    if (s.zona) html += secZona(P);
     html += secCierre();
     hoja.innerHTML = html;
     if (window.SafiaIconos && SafiaIconos.procesar) try { SafiaIconos.procesar(hoja); } catch (e) {}
