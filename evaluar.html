@@ -47,7 +47,28 @@
     details.pliegue summary .pliegue-sub{font-size:12px;font-weight:500;color:var(--label);}
     details.pliegue .pliegue-cuerpo{padding:4px 0 6px;}
     .formcard > details.pliegue:first-child{border-top:none;}
-    .form-actions{margin-top:12px;}
+    .form-actions{margin-top:8px;}
+    /* Carga más compacta (Osmar, 9-oct-2026): menos aire, textos de ayuda de una línea, sin tarjetas altas */
+    #panel-evaluar .formcard{padding:12px 14px;margin-bottom:8px;}
+    #panel-evaluar .formcard h3{font-size:14px;margin-bottom:2px;}
+    #panel-evaluar .formcard .formsub{font-size:12px;margin-bottom:6px;line-height:1.4;}
+    #panel-evaluar .form-grid{gap:6px 10px;}
+    #panel-evaluar .field{gap:2px;}
+    #panel-evaluar .field label{font-size:10.5px;}
+    #panel-evaluar .field input,#panel-evaluar .field select{padding:6px 10px;font-size:13px;}
+    #panel-evaluar .field .hint{font-size:10.5px;line-height:1.3;}
+    #panel-evaluar .fila-cultivo{padding:8px 10px !important;margin-bottom:6px !important;}
+    #panel-evaluar .fila-cultivo .fc-siembra-ayuda{display:none;}
+    #panel-evaluar .fila-cultivo .fc-ayuda:empty{display:none;}
+    #panel-evaluar .fila-cultivo .fc-ayuda{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #panel-evaluar .auto-strip{padding:5px 10px;margin:6px 0 2px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;line-height:1.4;}
+    #panel-evaluar .auto-strip .auto-t{margin:0;}
+    #panel-evaluar details.pliegue summary{padding:7px 2px;}
+    #panel-evaluar details.pliegue .pliegue-cuerpo{padding:2px 0 4px;}
+    #panel-evaluar #tablaActual .tbl td,#panel-evaluar #tablaActual .tbl th{padding:5px 8px;}
+    #panel-evaluar #tablaActual input{padding:4px 8px;}
+    #panel-evaluar #notaCasos{padding:6px 12px;font-size:12px;margin-bottom:8px;}
+    #panel-evaluar .btn{padding:7px 12px;font-size:12.5px;}
     table.tbl td.num-c{font-variant-numeric:tabular-nums;text-align:right;}
     @media print{
       .side,.side-overlay,.menu-toggle,.tabs,.toolbar,.no-print,#safiaSyncBarra,.crumb{display:none !important;}
@@ -151,7 +172,7 @@
 
         <div class="formcard" id="cardProspecto">
           <h3>Proyecto</h3>
-          <div class="formsub">Con el prospecto, las hectáreas, el punto del campo y los cultivos ya se evalúa. Suelo, agua e inversión detallada, si los tenés, van abajo. La evaluación se guarda sola al tocar <b>Evaluar proyecto</b>.</div>
+          <div class="formsub">Prospecto, hectáreas, punto del campo y cultivos alcanzan para evaluar; suelo, agua e inversión, si los tenés, van abajo. Se guarda solo al tocar <b>Evaluar proyecto</b>.</div>
           <div class="form-grid">
             <div class="field"><label>Cliente o prospecto</label><select id="evCliente"></select></div>
             <div class="field ev-nuevo-cli" style="display:none;"><label>Nombre del prospecto</label><input id="evCliNombre" placeholder="Ej: Juan Pérez"></div>
@@ -185,12 +206,12 @@
 
         <div class="formcard">
           <h3>Cultivos y objetivos</h3>
-          <div class="formsub">Todos los cultivos del proyecto (por ejemplo soja y maíz en rotación), con la producción esperada. Sin objetivo, SAFIA muestra el potencial de la zona.</div>
+          <div class="formsub">Los cultivos del año (soja de primera y después la zafriña) con la producción esperada; sin objetivo se usa el potencial de la zona.</div>
           <div id="filasCultivos"></div>
           <div id="avisoSecuencia" class="muted" style="font-size:12px;margin:-2px 0 8px;"></div>
           <!-- Los números del propio productor (calculadora de Irrigar): el riego se compara contra SU promedio, no solo contra la zona -->
           <details class="pliegue" id="pliegueActual" open>
-            <summary>Lo que el campo produce hoy en secano <span class="pliegue-sub">su promedio de los últimos 5 años y su costo por ha: el riego se compara contra esos números, la zona queda de referencia</span></summary>
+            <summary>Lo que el campo produce hoy en secano <span class="pliegue-sub">su promedio de 5 años y su costo por ha; el riego se compara contra esos números</span></summary>
             <div class="pliegue-cuerpo"><div id="tablaActual"></div></div>
           </details>
           <button type="button" class="btn" id="btnAgregarCultivo">➕ Agregar otro cultivo</button>
@@ -243,8 +264,7 @@
         </div>
 
         <div class="formcard">
-          <h3>Inversión y energía</h3>
-          <div class="formsub">Para la economía: en cuántos años se recupera, cuánto deja y cuánto cuesta la energía.</div>
+          <h3>Inversión y energía <span class="muted" style="font-weight:500;font-size:12px;">· en cuántos años se recupera y cuánto cuesta la energía</span></h3>
           <div class="form-grid">
             <div class="field"><label>El campo hoy</label><select id="pSituacion"><option value="secano">Produce en secano</option><option value="nuevo">No produce todavía (campo nuevo)</option></select><span class="hint">En secano, la inversión se paga con lo que agrega el riego; en un campo nuevo, con el margen completo con riego.</span></div>
             <div class="field"><label>Inversión total (US$)</label><input type="number" id="pInversion" step="1000" min="0" placeholder="Ej: 250000"><span class="hint" id="pInvHint"></span></div>
@@ -595,7 +615,7 @@
       '<div class="field"><label>Cultivo</label><select class="fc-cultivo">'+opcionesCultivo(cultivo)+'</select></div>'+
       '<div class="field"><label>Finalidad</label><select class="fc-finalidad">'+opcionesFinalidad(cultivo, finalidad)+'</select></div>'+
       '<div class="field"><label>Época de siembra</label><select class="fc-epoca"><option value="">Cualquiera</option><option'+(epoca==='Primavera/Verano'?' selected':'')+'>Primavera/Verano</option><option'+(epoca==='Verano/Otoño'?' selected':'')+'>Verano/Otoño</option><option'+(epoca==='Otoño/Invierno'?' selected':'')+'>Otoño/Invierno</option></select></div>'+
-      '<div class="field"><label>Siembra (día/mes)</label><input type="text" class="fc-siembra" inputmode="numeric" maxlength="5" value="'+esc(siembra||'')+'"><div class="fc-siembra-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;">sin año: se simula en cada uno de los últimos 10 años</div></div>'+
+      '<div class="field"><label>Siembra (día/mes)</label><input type="text" class="fc-siembra" inputmode="numeric" maxlength="5" title="Sin año: se simula en cada uno de los últimos 10 años" value="'+esc(siembra||'')+'"><div class="fc-siembra-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;">sin año: se simula en cada uno de los últimos 10 años</div></div>'+
       '<div class="field"><label>Producción esperada (<span class="fc-unidad" style="text-transform:none;"></span>)</label><input type="number" step="any" class="fc-objetivo" value="'+obj0+'"><div class="fc-ayuda" style="font-size:11px;color:var(--muted);margin-top:3px;"></div></div>'+
       '<div class="field"><label>&nbsp;</label><button type="button" class="btn danger fc-quitar" title="Quitar este cultivo">Quitar</button></div>';
     fila.querySelector('.fc-cultivo').addEventListener('change',function(){ fila.querySelector('.fc-finalidad').innerHTML=opcionesFinalidad(this.value, fila.querySelector('.fc-finalidad').value); rotularFila(fila); });
@@ -660,7 +680,7 @@
           '<td class="r"><input type="number" step="10" min="0" data-clave="'+esc(k)+'" data-k="rinde" value="'+(a.rinde!=null?a.rinde:'')+'" placeholder="promedio 5 años" style="width:150px;text-align:right;"></td>'+
           '<td class="r"><input type="number" step="1" min="0" data-clave="'+esc(k)+'" data-k="costo" value="'+(a.costo!=null?a.costo:'')+'" placeholder="todo incluido" style="width:130px;text-align:right;"></td>'+
           '<td class="r muted">'+(ref&&ref.secano!=null?fmt(ref.secano,0)+' kg/ha':'<span style="font-size:11px;">se ve al evaluar</span>')+'</td></tr>'; }).join('')+
-      '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:4px;">Opcional. Si lo cargás, la economía, el veredicto y el informe comparan el riego contra <b>sus</b> números (como la calculadora de Irrigar); si no, contra la zona o el clima del campo. El costo propio reemplaza al de la zona: con riego se le suman la energía, el mantenimiento y la reposición de nutrientes.</div>';
+      '</tbody></table></div><div class="muted" style="font-size:11px;margin-top:3px;">Opcional: si lo cargás, todo se compara contra <b>sus</b> números y la zona queda de referencia; su costo reemplaza al de la zona (con riego se suman energía, mantenimiento y reposición).</div>';
     out.querySelectorAll('input[data-clave]').forEach(function(i){ i.addEventListener('input',function(){ var k=i.getAttribute('data-clave'); actualPorClave[k]=actualPorClave[k]||{}; actualPorClave[k][i.getAttribute('data-k')]=num(i.value); ultimasFilas.forEach(function(f){ if(f && f.clave===k) f.actual=actualPorClave[k]; }); pintarEconomia(); }); });
   }
   function leerFilasCultivo(){
