@@ -100,7 +100,11 @@
   // Fecha de siembra por época cuando no se indica otra (día/mes)
   var SIEMBRA_EPOCA = { 'primavera/verano': '01/10', 'verano/otono': '10/02', 'otono/invierno': '15/05' };
   function siembraPorDefecto(cultivo, epoca) {
-    var e = SIEMBRA_EPOCA[norm(epoca)]; if (e) return e;
+    var ne = norm(epoca), nc = norm(cultivo);
+    // calendario de Osmar (9-oct-2026): la soja de primera se siembra sep–oct (20/09); el maíz de primera 15/09; maíz o soja zafriña ene–feb (25/01)
+    if (ne === 'primavera/verano') return /soja|soya/.test(nc) ? '20/09' : (/maiz/.test(nc) ? '15/09' : '01/10');
+    if (ne === 'verano/otono') return '25/01';
+    var e = SIEMBRA_EPOCA[ne]; if (e) return e;
     return /trigo|avena|cebada|canola|nabo/.test(norm(cultivo)) ? '15/05' : '01/10';
   }
   // Época según la fecha de siembra (Paraguay): ago–dic primavera/verano (zafra), ene–mar verano/otoño (zafriña), abr–jul otoño/invierno

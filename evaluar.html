@@ -187,6 +187,7 @@
           <h3>Cultivos y objetivos</h3>
           <div class="formsub">Todos los cultivos del proyecto (por ejemplo soja y maíz en rotación), con la producción esperada. Sin objetivo, SAFIA muestra el potencial de la zona.</div>
           <div id="filasCultivos"></div>
+          <div id="avisoSecuencia" class="muted" style="font-size:12px;margin:-2px 0 8px;"></div>
           <button type="button" class="btn" id="btnAgregarCultivo">➕ Agregar otro cultivo</button>
         </div>
 
@@ -585,7 +586,11 @@
     fila.querySelector('.fc-finalidad').addEventListener('change',function(){ rotularFila(fila); });
     // fecha de siembra sugerida por la época (se usa si no se escribe otra)
     var ponerSiembraSug=function(){ if(!window.SafiaClimaProyecto) return; var cv=fila.querySelector('.fc-cultivo').value, pasto=SafiaCasos.esPasto(cv); fila.querySelector('.fc-siembra').placeholder=pasto?'todo el año':SafiaClimaProyecto.siembraPorDefecto(cv, fila.querySelector('.fc-epoca').value); fila.querySelector('.fc-siembra').disabled=pasto; };
-    fila.querySelector('.fc-epoca').addEventListener('change',function(){ fila.dataset.epocaAuto=''; ponerSiembraSug(); }); fila.querySelector('.fc-cultivo').addEventListener('change',ponerSiembraSug); ponerSiembraSug();
+    fila.querySelector('.fc-epoca').addEventListener('change',function(){ fila.dataset.epocaAuto=''; ponerSiembraSug();
+      // si la fecha que había es de otra época, se cambia por la fecha típica de la época elegida (soja de primera 20/09, zafriña 25/01)
+      var sv=fila.querySelector('.fc-siembra'), sel=fila.querySelector('.fc-epoca'), ef=window.SafiaClimaProyecto&&SafiaClimaProyecto.epocaPorSiembra?SafiaClimaProyecto.epocaPorSiembra(sv.value):null;
+      if(sel.value && (!sv.value || (ef && ef!==sel.value))){ sv.value=SafiaClimaProyecto.siembraPorDefecto(fila.querySelector('.fc-cultivo').value, sel.value); sv.dispatchEvent(new Event('input')); }
+      ordenarFilasCultivo(); }); fila.querySelector('.fc-cultivo').addEventListener('change',ponerSiembraSug); ponerSiembraSug();
     // la época sale de la fecha de siembra si quedó en "Cualquiera" (o si la puso SAFIA): soja 20/09 = primavera/verano, maíz 25/01 = zafriña (verano/otoño)
     var AYUDA_SIEMBRA='sin año: se simula en cada uno de los últimos 10 años';
     // si la época elegida a mano no corresponde a la fecha, se avisa (no se cambia sola)
@@ -596,11 +601,35 @@
     rotularFila(fila);
     fila.querySelector('.fc-quitar').addEventListener('click',function(){
       if(document.querySelectorAll('.fila-cultivo').length<=1){ toast('Dejá al menos un cultivo',true); return; }
-      fila.remove();
+      fila.remove(); avisoSecuencia();
     });
     cont.appendChild(fila);
+    fila.querySelector('.fc-cultivo').addEventListener('change',avisoSecuencia);
+    fila.querySelector('.fc-siembra').addEventListener('change',ordenarFilasCultivo);
+    avisoSecuencia();
+  }
+  /* Año agrícola (regla de Osmar, 9-oct-2026): primero la primera zafra (soja sep–oct; maíz de primera también se puede), después la
+     zafriña (maíz o soja, ene–feb) o el trigo; maíz sobre maíz es raro. Las filas se ordenan así y se avisa si la secuencia no cierra. */
+  var RANGO_EPOCA = { 'Primavera/Verano': 1, 'Verano/Otoño': 2, 'Otoño/Invierno': 3 };
+  function epocaFila(f){ var e=f.querySelector('.fc-epoca').value; if(!e && window.SafiaClimaProyecto && SafiaClimaProyecto.epocaPorSiembra) e=SafiaClimaProyecto.epocaPorSiembra(f.querySelector('.fc-siembra').value)||''; return e; }
+  function ordenarFilasCultivo(){
+    var cont=document.getElementById('filasCultivos'), filas=[...cont.querySelectorAll('.fila-cultivo')];
+    var orden=filas.map(function(f,i){ return { f:f, i:i, r:RANGO_EPOCA[epocaFila(f)]||9 }; }).sort(function(a,b){ return a.r-b.r || a.i-b.i; });
+    if(orden.some(function(o,i){ return o.f!==filas[i]; })) orden.forEach(function(o){ cont.appendChild(o.f); });
+    avisoSecuencia();
+  }
+  function avisoSecuencia(){
+    var out=document.getElementById('avisoSecuencia'); if(!out) return;
+    var filas=[...document.querySelectorAll('.fila-cultivo')].map(function(f){ var cv=f.querySelector('.fc-cultivo').value; return { cultivo:cv, n:norm(cv), epoca:epocaFila(f), pasto:SafiaCasos.esPasto(cv) }; }).filter(function(x){ return x.cultivo && !x.pasto; });
+    var avisos=[], primera=filas.filter(function(x){ return x.epoca==='Primavera/Verano'; }), zafrina=filas.filter(function(x){ return x.epoca==='Verano/Otoño'; });
+    if(primera.length>1) avisos.push('Hay '+primera.length+' cultivos de primera zafra (primavera/verano): en el mismo año solo entra uno; el otro va en zafriña (enero–febrero).');
+    if(primera.some(function(x){ return /maiz/.test(x.n); }) && zafrina.some(function(x){ return /maiz/.test(x.n); })) avisos.push('Maíz de primera y maíz zafriña en el mismo lote es poco común: después del maíz de verano lo habitual es soja zafriña o trigo.');
+    if(primera.length===1 && !zafrina.length && !filas.some(function(x){ return x.epoca==='Otoño/Invierno'; })) avisos.push('Con riego se hace también la zafriña (maíz o soja, enero–febrero): agregala para evaluar el año completo.');
+    if(!primera.length && zafrina.length) avisos.push('Falta la primera zafra: la soja se siembra entre septiembre y octubre, y después viene la zafriña.');
+    out.innerHTML=avisos.length?avisos.map(function(a){ return '<div style="color:#8B6F00;">'+esc(a)+'</div>'; }).join(''):'';
   }
   function leerFilasCultivo(){
+    ordenarFilasCultivo();
     return [...document.querySelectorAll('.fila-cultivo')].map(function(f){
       var u=unidadFila(f), o=num(f.querySelector('.fc-objetivo').value);
       return { cultivo:f.querySelector('.fc-cultivo').value.trim(), finalidad:f.querySelector('.fc-finalidad').value||SafiaCasos.finalidadNombre(SafiaCasos.finalidadesPara(f.querySelector('.fc-cultivo').value)[0]), epoca:f.querySelector('.fc-epoca').value||(window.SafiaClimaProyecto&&SafiaClimaProyecto.epocaPorSiembra?SafiaClimaProyecto.epocaPorSiembra(f.querySelector('.fc-siembra').value):null)||null, siembra:f.querySelector('.fc-siembra').value.trim()||null, objetivoKgHa:o==null?null:Math.round(o*u.factor), unidad:u.corto };
@@ -1113,8 +1142,11 @@
   armarListaCultivos();
   // Arrancamos con una fila por cada cultivo que ya tiene casos (típico: soja y maíz);
   // si no hay ninguno, una fila vacía.
+  // año agrícola típico (Osmar): soja de primera (20/09) y después maíz zafriña (25/01); si el banco no tiene maíz, soja zafriña
   var conDatos=listaCultivos.filter(function(x){return casosPorCultivo[norm(x)];});
-  if(conDatos.length){ conDatos.forEach(function(x){ agregarFilaCultivo(x,'','',''); }); } else { agregarFilaCultivo('','','',''); }
+  var nomSoja=listaCultivos.filter(function(x){ return /^soja/.test(norm(x)); })[0]||'Soja', nomMaiz=listaCultivos.filter(function(x){ return /^maiz/.test(norm(x)); })[0]||'Maíz';
+  agregarFilaCultivo(nomSoja,'Primavera/Verano','','','20/09');
+  agregarFilaCultivo(casosPorCultivo[norm(nomMaiz)]||!conDatos.length?nomMaiz:nomSoja,'Verano/Otoño','','','25/01');
   document.getElementById('fCasoCultivo').innerHTML='<option value="">Todos</option>'+listaCultivos.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
   document.getElementById('notaCasos').innerHTML = casos.length
     ? 'El banco tiene <b>'+casos.length+' caso(s) reales</b> cosechados. '+(casos.length<5?'Con pocos casos el resultado es una <b>orientación</b>; se vuelve confiable a medida que cargás clientes.':'')
