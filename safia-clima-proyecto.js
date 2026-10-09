@@ -453,6 +453,7 @@
   }
   function metodosHTML(hist, cultivos) {
     var c = comparacionMetodos(hist, cultivos); if (!c) return '';
+    var o0 = (cultivos && cultivos[0]) || {}, chaco = window.SafiaCasos && SafiaCasos.region ? SafiaCasos.region({ departamento: o0.departamento, lat: o0.lat != null ? o0.lat : hist.lat, lon: o0.lon != null ? o0.lon : hist.lon, pais: 'Paraguay' }) === 'occidental' : /boquer|alto paraguay|hayes/i.test(String(o0.departamento || ''));
     var dif = function (pm, th) { return pm > 0 ? fmt((th / pm - 1) * 100, 0) + ' %' : '—'; };
     var fila = function (nombre, sub, pm, th) { return '<tr><td><b>' + esc(nombre) + '</b>' + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</td><td class="r"><b>' + fmt(pm, 0) + ' mm</b></td><td class="r">' + fmt(th, 0) + ' mm</td><td class="r">' + dif(pm, th) + '</td></tr>'; };
     return '<h3 style="font-size:15px;margin:16px 0 6px;">Evaporación según el método de cálculo</h3>' +
@@ -462,9 +463,9 @@
       c.cultivos.map(function (x) { return fila('Riego neto · ' + x.cultivo, x.epoca ? x.epoca : 'promedio por zafra', x.pm, x.th); }).join('') +
       '</tbody></table></div></div>' +
       '<div class="note info" style="font-size:12px;margin-top:8px;"><b>Por qué dan distinto.</b> Thornthwaite calcula la evaporación solo con la temperatura. Penman-Monteith usa además el sol, la sequedad del aire y el viento. ' +
-      'En el Chaco el invierno es fresco pero muy seco, con sol y viento norte: Thornthwaite ve el fresco y no ve la sequedad, por eso queda corto, sobre todo de mayo a septiembre. ' +
+      (chaco ? 'En el Chaco el invierno es fresco pero muy seco, con sol y viento norte: Thornthwaite ve el fresco y no ve la sequedad, por eso queda corto, sobre todo de mayo a septiembre. ' : 'En los meses de poca lluvia, con sol y viento, Thornthwaite ve solo la temperatura y no la sequedad del aire, por eso queda corto. ') +
       'La FAO (Riego y Drenaje 56) recomienda Penman-Monteith como el único método estándar; los métodos de temperatura necesitan calibración local. ' +
-      'Comprobado con los anuarios de la Dirección de Meteorología (DMH) en Mariscal Estigarribia, 2021–2025: con los mismos datos de la estación, Thornthwaite da entre 1.380 y 1.570 mm por año y Penman-Monteith entre 1.700 y 2.020 mm. ' +
+      (chaco ? 'Comprobado con los anuarios de la Dirección de Meteorología (DMH) en Mariscal Estigarribia, 2021–2025: con los mismos datos de la estación, Thornthwaite da entre 1.380 y 1.570 mm por año y Penman-Monteith entre 1.700 y 2.020 mm. ' : 'En este campo, con los mismos datos de clima, la diferencia por año es la de la tabla de arriba. ') +
       '<b>El riego, los volúmenes de agua y la economía de este proyecto se calculan con Penman-Monteith</b>; la columna de Thornthwaite sirve para comparar con un balance hídrico hecho con ese método.</div>';
   }
 
