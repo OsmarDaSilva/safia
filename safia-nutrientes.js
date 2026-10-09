@@ -217,7 +217,17 @@
     var filas = [], fuentes = ['IPNI / Fertilizar (datos INTA): kg exportados por tonelada de grano'];
     // N
     var fN = { k: 'n', n: 'Nitrógeno (N)', demanda: dem.n, aplicado: ap.n };
-    if (ex.fija) { fN.necesita = 0; fN.suelo = 'La soja fija su nitrógeno del aire con el rizobio: no se aplica N (Embrapa CT 75). Lo que importa es inocular bien.'; fN.estado = 'no hace falta'; fuentes.push('Embrapa Soja, Circular Técnica 75: la soja no lleva N'); }
+    if (ex.fija) {
+      // Verificado el 9-oct-2026 a pedido de Osmar ("todo depende, Embrapa tiene estudios con N en floración"): Embrapa SÍ lo probó, en R1 y R5.
+      // Embrapa Soja, Comunicado Técnico 75 (Crispino, Franchini, Campo, Hungria et al., 2001): 9 ensayos en Londrina, Ponta Grossa y Jaciara
+      // con 30 kg N a la siembra, 50 kg N en pre-floración y 50 kg N al inicio del llenado: sin aumento de rinde en ninguno (promedio 3.200 kg/ha
+      // sin N); conclusión textual: "desnecessária e, portanto, não é recomendada". Embrapa Cerrados + Soja, Mendes et al., PAB 2008: 15 ensayos
+      // 2000/01–2005/06 con 50 kg N en R1 y R5 y 200 kg N: respuesta en 2 de 15, +154 a +216 kg/ha en el análisis conjunto, sin ventaja
+      // económica; 200 kg N bajó la nodulación 21–41 %. La soja fija 109–250 kg N/ha (70–85 % de lo que acumula); el resto lo da la MO.
+      fN.necesita = 0; fN.estado = 'no hace falta';
+      fN.suelo = 'La soja toma del aire, con el rizobio, el 70–85 % de su nitrógeno (109–250 kg/ha); el resto lo da la materia orgánica del suelo. Embrapa probó agregar N en floración (R1) y en el llenado (R5): en 9 ensayos de Paraná y Mato Grosso no subió el rinde, y en 15 del Cerrado solo 2 respondieron, con +154 a +216 kg/ha que no pagan el fertilizante, y 200 kg de N bajaron la nodulación 21–41 %. Por eso Embrapa no lo recomienda en ningún estadio. Lo que sí rinde: inocular bien (1 millón de células por semilla) con cobalto y molibdeno. Si igual querés probar N en R1 o R5, cargalo en Manejo e insumos: SAFIA compara las campañas con y sin.';
+      fuentes.push('Embrapa Soja, Comunicado Técnico 75 (2001) y Embrapa Cerrados, Mendes et al., PAB 43(8), 2008: N en siembra, R1 y R5 sin ventaja');
+    }
     else if (F && an && num(an.mo) != null) { var rN = F.nitrogeno(cu.cultivo, an.mo, cu.cultivoAnterior, tUsada); fN.necesita = rN.n; fN.suelo = 'Materia orgánica ' + fmt(an.mo, 1) + ' % (' + (rN.claseMO || F.claseMO(an.mo)) + ')' + (cu.cultivoAnterior ? ', antecesor ' + cu.cultivoAnterior : '') + ': el manual indica ' + fmt(rN.n, 0) + ' kg N/ha' + (rN.regla ? ' (' + rN.regla + ')' : '') + '. El resto lo pone el suelo al mineralizar la materia orgánica.'; fuentes.push(rN.fuente || 'RS/SC 2016'); }
     else { fN.necesita = dem.n; fN.suelo = an ? 'El análisis no trae materia orgánica: se muestra lo que se lleva el grano.' : 'Sin análisis de suelo del lote: se muestra lo que se lleva el grano. Con el análisis, SAFIA descuenta lo que aporta el suelo.'; }
     filas.push(fN);
@@ -250,7 +260,7 @@
       h += '<div style="border:1px solid #E1E4E7;border-radius:10px;padding:10px 12px;margin-bottom:10px;">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700;"><span style="color:' + color[f.k] + ';">' + f.n + '</span><span>' + (f.necesita === 0 ? 'no hace falta aplicar' : fmt(f.aplicado, 0) + ' aplicado / ' + fmt(f.necesita, 0) + ' kg/ha a aplicar') + '</span></div>' +
         '<div style="height:8px;background:rgba(0,0,0,0.06);border-radius:100px;overflow:hidden;margin:6px 0 4px;"><div style="height:100%;width:' + (f.necesita === 0 ? 100 : pct) + '%;background:' + (ok ? '#178029' : (f.pct >= 50 ? '#B8731A' : '#B3261E')) + ';border-radius:100px;"></div></div>' +
-        '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#5C6166;"><span>' + (f.necesita === 0 ? 'cubierto por el suelo o por la planta' : (f.pct >= 100 ? 'cubierto' : f.pct + ' % cubierto · faltan ' + fmt(f.falta, 0) + ' kg/ha')) + '</span><span>se lleva el grano: ' + fmt(f.demanda, 0) + ' kg/ha</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#5C6166;"><span>' + (f.necesita === 0 ? (f.k === 'n' ? 'lo cubre la fijación del rizobio (Embrapa)' : 'lo cubre el suelo') : (f.pct >= 100 ? 'cubierto' : f.pct + ' % cubierto · faltan ' + fmt(f.falta, 0) + ' kg/ha')) + '</span><span>se lleva el grano: ' + fmt(f.demanda, 0) + ' kg/ha</span></div>' +
         '<div style="font-size:12px;color:#2E3236;margin-top:6px;"><b>Aporta el suelo:</b> ' + esc(f.suelo) + '</div></div>';
     });
     h += '<div class="muted" style="font-size:11px;margin-top:6px;">Fuentes: ' + esc(D.fuentes.join(' · ')) + '. El % cubierto se mide contra lo que hace falta aplicar según el suelo, no contra toda la extracción. La dosis final la define el agrónomo.</div>';
