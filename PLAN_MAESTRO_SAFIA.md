@@ -289,6 +289,7 @@ Qué ya está y qué falta para llegar al agrónomo inteligente y al evaluador d
 | Memoria de laboratorios (safia-lab-formatos.js + edge v14): por laboratorio, campos y nombres de cada informe, correcciones a mano y reglas de Irrigar; se le pasa a la IA en cada lectura; H+Al deducido de CTC − bases | ✅ 8-oct-2026 (v159) |
 | Banco → Evolución y decisiones reordenada: último año agrícola en tarjetas (soja y zafriña), una tabla por cultivo y época con rinde y agua, suelo por fechas, qué hacer plegado por cultivo (la tabla del suelo una sola vez), lo que falta cargar al final; 40 % más corta | ✅ 8-oct-2026 (v162) |
 | Regla de comparación por época (Osmar): primera zafra con primera zafra, zafriña con zafriña, en Evolución, Frente al mejor, Meta de rinde y Evaluar proyecto (SafiaCasos.mismaEpoca) | ✅ 8-oct-2026 (v164) |
+| Campañas → Nutrientes de la campaña (ex Balance N/P/K): lo que se lleva el grano, lo que aporta el suelo (clases RS/SC, fijación de la soja, MO para N) y lo que hace falta aplicar; % cubierto contra lo que hace falta, no contra la extracción | ✅ 9-oct-2026 (v166) |
 
 ## 12. Próximos pasos (al 4-oct-2026)
 

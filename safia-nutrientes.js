@@ -121,12 +121,14 @@
     var eq = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }), campoId = eq ? eq.campoId : null;
     var lista = leer('analisis_suelo').filter(function (a) { return a.fecha && !(a.enPromedio) && (String(a.equipoId || '') === String(equipoId) || (!a.equipoId && campoId != null && String(a.campoId) === String(campoId))); });
     lista.sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)) || ((b.esPromedio ? 1 : 0) - (a.esPromedio ? 1 : 0)) || ((String(b.equipoId || '') === String(equipoId) ? 1 : 0) - (String(a.equipoId || '') === String(equipoId) ? 1 : 0)); });
+    // un análisis solo de sodio o sales (sin P, K, Ca, MO ni micros) no sirve para la fertilidad: se salta al último que sí los tenga
+    var conFert = lista.filter(function (a) { return ['p', 'k', 'ca', 'mg', 'mo', 'boro', 'zinc', 'cobre', 'manganeso', 'azufre'].some(function (k) { return num(a[k]) != null; }); }); if (conFert.length) lista = conFert;
     if (!lista.length) return null;
     // varias muestras de la misma fecha sin promedio guardado: se promedian acá (como en Análisis de suelo)
     var f = String(lista[0].fecha), grupo = lista.filter(function (a) { return String(a.fecha) === f && !!a.equipoId === !!lista[0].equipoId; });
     if (grupo.length === 1 || grupo.some(function (a) { return a.esPromedio; })) return grupo.find(function (a) { return a.esPromedio; }) || grupo[0];
     var prom = { fecha: f, equipoId: lista[0].equipoId || null, campoId: lista[0].campoId, esPromedio: true, nMuestras: grupo.length };
-    ['boro', 'zinc', 'cobre', 'manganeso', 'azufre'].forEach(function (k) { var vs = grupo.map(function (a) { return num(a[k]); }).filter(function (v) { return v != null; }); if (vs.length) prom[k] = vs.reduce(function (x, y) { return x + y; }, 0) / vs.length; });
+    ['boro', 'zinc', 'cobre', 'manganeso', 'azufre', 'ph', 'mo', 'p', 'k', 'ca', 'mg', 'cic', 'satBases', 'arcilla', 'na', 'psi', 'ceExtracto'].forEach(function (k) { var vs = grupo.map(function (a) { return num(a[k]); }).filter(function (v) { return v != null; }); if (vs.length) prom[k] = vs.reduce(function (x, y) { return x + y; }, 0) / vs.length; });
     return prom;
   }
   function htmlMicros(bal) {
@@ -196,5 +198,64 @@
     if (!el) return; el.innerHTML = c ? htmlCampo(c, 3) : '';
   }
 
-  window.SafiaNutrientes = { EXPORT: EXPORT, ABSORCION: ABSORCION, exportado: exportado, aplicado: aplicado, cerrar: cerrar, balanceCampana: balanceCampana, ultimoBalanceDelLote: ultimoBalanceDelLote, analisisPosterior: analisisPosterior, reposicionPendiente: reposicionPendiente, htmlBalance: htmlBalance, htmlCampo: htmlCampo, htmlMicros: htmlMicros, analisisDelLote: analisisDelLote, alCambiarCampo: alCambiarCampo, clave: clave };
+  /* ---------- Disponibilidad para la planta (pedido de Osmar, 9-oct-2026): el balance no es "fertilizante contra extracción".
+     Por nutriente: 1) lo que se lleva el grano con el rinde objetivo; 2) lo que aporta el suelo según el último análisis del lote
+     (clase del manual RS/SC para P y K; para N la fijación de la soja o la materia orgánica); 3) lo que hace falta aplicar (dosis del
+     manual para esa clase: solo manutención si el suelo está "alto", corrección + manutención si está bajo, nada si "muy alto" al doble);
+     4) lo aplicado (Manejo e insumos + aplicaciones del Operador) y el % cubierto CONTRA LO QUE HACE FALTA, no contra la extracción.
+     Fuentes: manual RS/SC 2016 (CAPECO/IPTA lo adopta) vía SafiaFertilidad; Embrapa CT75 (soja no lleva N); IPNI/INTA (extracción). */
+  function disponibilidad(camp, idx, legacy) {
+    var F = window.SafiaFertilidad; idx = idx || 0;
+    var cu = camp && camp.cultivos && camp.cultivos[idx]; if (!cu || !cu.cultivo) return null;
+    var k = clave(cu.cultivo), ex = EXPORT[k] || EXPORT.otro, meta = num(cu.rendimientoObj), metaT = meta ? meta / 1000 : null;
+    var an = analisisDelLote(camp.equipoId);
+    var ap = { n: 0, p2o5: 0, k2o: 0, items: 0 };
+    if (window.SafiaInsumos && camp.insumos && camp.insumos.length) { var t = SafiaInsumos.totalesNPK(camp.insumos.filter(function (it) { return it.cultivoIdx == null || it.cultivoIdx === idx; })); ap.n += t.n; ap.p2o5 += t.p2o5; ap.k2o += t.k2o; ap.items += t.items; }
+    (legacy || []).forEach(function (ev) { ap.n += num(ev.n_kg_ha) || 0; ap.p2o5 += (num(ev.p_kg_ha) || 0) * P2O5; ap.k2o += (num(ev.k_kg_ha) || 0) * K2O; ap.items++; });
+    var refT = F ? (F.manutencion(cu.cultivo, null).ref) : 3, tUsada = metaT || refT;
+    var dem = { n: ex.n * tUsada, p2o5: ex.p * P2O5 * tUsada, k2o: ex.k * K2O * tUsada };
+    var filas = [], fuentes = ['IPNI / Fertilizar (datos INTA): kg exportados por tonelada de grano'];
+    // N
+    var fN = { k: 'n', n: 'Nitrógeno (N)', demanda: dem.n, aplicado: ap.n };
+    if (ex.fija) { fN.necesita = 0; fN.suelo = 'La soja fija su nitrógeno del aire con el rizobio: no se aplica N (Embrapa CT 75). Lo que importa es inocular bien.'; fN.estado = 'no hace falta'; fuentes.push('Embrapa Soja, Circular Técnica 75: la soja no lleva N'); }
+    else if (F && an && num(an.mo) != null) { var rN = F.nitrogeno(cu.cultivo, an.mo, cu.cultivoAnterior, tUsada); fN.necesita = rN.n; fN.suelo = 'Materia orgánica ' + fmt(an.mo, 1) + ' % (' + (rN.claseMO || F.claseMO(an.mo)) + ')' + (cu.cultivoAnterior ? ', antecesor ' + cu.cultivoAnterior : '') + ': el manual indica ' + fmt(rN.n, 0) + ' kg N/ha' + (rN.regla ? ' (' + rN.regla + ')' : '') + '. El resto lo pone el suelo al mineralizar la materia orgánica.'; fuentes.push(rN.fuente || 'RS/SC 2016'); }
+    else { fN.necesita = dem.n; fN.suelo = an ? 'El análisis no trae materia orgánica: se muestra lo que se lleva el grano.' : 'Sin análisis de suelo del lote: se muestra lo que se lleva el grano. Con el análisis, SAFIA descuenta lo que aporta el suelo.'; }
+    filas.push(fN);
+    // P y K
+    [['p2o5', 'Fósforo (P₂O₅)', 'p', 'arcilla'], ['k2o', 'Potasio (K₂O)', 'k', 'cic']].forEach(function (d) {
+      var f = { k: d[0], n: d[1], demanda: dem[d[0]], aplicado: ap[d[0]] };
+      var val = an ? num(an[d[2]]) : null;
+      if (F && val != null) {
+        var i = d[0] === 'p2o5' ? F.interpretarP(val, an.arcilla) : F.interpretarK(val, an.cic);
+        var rel = i.limites && i.limites[3] ? (d[0] === 'p2o5' ? val : i.valorMg) / i.limites[3] : null;
+        var ds = F.dosisPK(i.clase, cu.cultivo, tUsada, d[0], false, rel);
+        f.necesita = ds.total; f.clase = i.clase;
+        f.suelo = (d[0] === 'p2o5' ? 'P ' + fmt(val, 1) + ' mg/dm³, clase "' + i.clase + '" (crítico ' + i.critico + ', arcilla ' + i.arcillaTexto + (i.asumida ? ', no medida' : '') + ')' : 'K ' + fmt(i.valorMg, 0) + ' mg/dm³, clase "' + i.clase + '" (crítico ' + i.critico + ', CTC ' + i.ctcTexto + (i.asumida ? ', no informada' : '') + ')') +
+          (i.clase === 'alto' || i.clase === 'muy alto' ? ': el suelo cubre lo que pide el cultivo; ' + (ds.total ? 'se aplica solo la ' + ds.regla + ': ' + fmt(ds.total, 0) + ' kg/ha' : 'no hace falta aplicar') + '.' : ': el suelo no alcanza; ' + ds.regla + ' = ' + fmt(ds.total, 0) + ' kg/ha.');
+        if (!ds.total) f.estado = 'no hace falta';
+      } else { f.necesita = f.demanda; f.suelo = an ? 'El análisis no trae este dato: se muestra lo que se lleva el grano.' : 'Sin análisis de suelo del lote: se muestra lo que se lleva el grano. Con el análisis, SAFIA descuenta lo que aporta el suelo.'; }
+      filas.push(f);
+    });
+    if (F) fuentes.push(F.FUENTE + ' (clases, corrección y manutención; CAPECO/IPTA 2012 lo adopta)');
+    filas.forEach(function (f) { f.pct = f.necesita > 0 ? Math.round(f.aplicado / f.necesita * 100) : (f.aplicado > 0 || f.estado === 'no hace falta' ? 100 : 0); f.falta = Math.max(0, (f.necesita || 0) - f.aplicado); });
+    return { cultivo: cu.cultivo, variedad: cu.variedad || '', metaT: metaT, tUsada: tUsada, metaSupuesta: !metaT, analisis: an, aplicado: ap, filas: filas, fuentes: fuentes.filter(function (x, i, a) { return a.indexOf(x) === i; }) };
+  }
+  function htmlDisponibilidad(camp, idx, legacy) {
+    var D = disponibilidad(camp, idx, legacy); if (!D) return '<div class="muted">La campaña no tiene cultivo cargado.</div>';
+    var color = { n: '#1565C0', p2o5: '#2E7D32', k2o: '#B8731A' };
+    var h = '<div style="font-size:13px;color:#5C6166;margin-bottom:10px;">' + esc(D.cultivo) + (D.variedad ? ' (' + esc(D.variedad) + ')' : '') + ' · objetivo ' + (D.metaT ? fmt(D.metaT * 1000, 0) + ' kg/ha' : '<b>sin cargar</b>: se usa la referencia del manual, ' + fmt(D.tUsada * 1000, 0) + ' kg/ha') + '</div>';
+    h += '<div style="font-size:12px;border-radius:8px;padding:8px 12px;margin-bottom:12px;background:' + (D.analisis ? '#E7F6EA' : '#FFF6D6') + ';">' + (D.analisis ? 'Suelo: análisis del ' + fechaLarga(D.analisis.fecha) + (D.analisis.nMuestras > 1 ? ' (promedio de ' + D.analisis.nMuestras + ' muestras)' : '') + '. El balance descuenta lo que aporta el suelo.' : 'Sin análisis de suelo del lote: solo se ve lo que se lleva el grano. Cargá el análisis en Banco → Análisis de suelo para saber cuánto aporta el suelo y cuánto hay que aplicar de verdad.') + '</div>';
+    D.filas.forEach(function (f) {
+      var pct = Math.min(100, f.pct), ok = f.necesita === 0 || f.pct >= 100;
+      h += '<div style="border:1px solid #E1E4E7;border-radius:10px;padding:10px 12px;margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:13px;font-weight:700;"><span style="color:' + color[f.k] + ';">' + f.n + '</span><span>' + (f.necesita === 0 ? 'no hace falta aplicar' : fmt(f.aplicado, 0) + ' aplicado / ' + fmt(f.necesita, 0) + ' kg/ha a aplicar') + '</span></div>' +
+        '<div style="height:8px;background:rgba(0,0,0,0.06);border-radius:100px;overflow:hidden;margin:6px 0 4px;"><div style="height:100%;width:' + (f.necesita === 0 ? 100 : pct) + '%;background:' + (ok ? '#178029' : (f.pct >= 50 ? '#B8731A' : '#B3261E')) + ';border-radius:100px;"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11.5px;color:#5C6166;"><span>' + (f.necesita === 0 ? 'cubierto por el suelo o por la planta' : (f.pct >= 100 ? 'cubierto' : f.pct + ' % cubierto · faltan ' + fmt(f.falta, 0) + ' kg/ha')) + '</span><span>se lleva el grano: ' + fmt(f.demanda, 0) + ' kg/ha</span></div>' +
+        '<div style="font-size:12px;color:#2E3236;margin-top:6px;"><b>Aporta el suelo:</b> ' + esc(f.suelo) + '</div></div>';
+    });
+    h += '<div class="muted" style="font-size:11px;margin-top:6px;">Fuentes: ' + esc(D.fuentes.join(' · ')) + '. El % cubierto se mide contra lo que hace falta aplicar según el suelo, no contra toda la extracción. La dosis final la define el agrónomo.</div>';
+    return h;
+  }
+
+  window.SafiaNutrientes = { disponibilidad: disponibilidad, htmlDisponibilidad: htmlDisponibilidad, EXPORT: EXPORT, ABSORCION: ABSORCION, exportado: exportado, aplicado: aplicado, cerrar: cerrar, balanceCampana: balanceCampana, ultimoBalanceDelLote: ultimoBalanceDelLote, analisisPosterior: analisisPosterior, reposicionPendiente: reposicionPendiente, htmlBalance: htmlBalance, htmlCampo: htmlCampo, htmlMicros: htmlMicros, analisisDelLote: analisisDelLote, alCambiarCampo: alCambiarCampo, clave: clave };
 })();

@@ -696,6 +696,7 @@
 <script src="safia-cultivos-fao.js"></script>
 <script src="safia-pasturas.js"></script>
 <script src="safia-insumos.js"></script>
+<script src="safia-fertilidad.js"></script>
 <script src="safia-nutrientes.js"></script>
 <script src="safia-meta.js"></script>
 <script src="safia-precios.js"></script>
@@ -927,9 +928,9 @@
   <!-- MODAL BALANCE NPK -->
   <div class="modal-overlay" id="modalNPKOverlay" onclick="cerrarNPKSiClickFuera(event)">
     <div class="modal" onclick="event.stopPropagation()" style="max-width:560px;">
-      <div style="font-size:20px;font-weight:700;color:#0F3D14;margin-bottom:4px;" id="npkTitulo">🧪 Balance N/P/K</div>
+      <div style="font-size:20px;font-weight:700;color:#0F3D14;margin-bottom:4px;" id="npkTitulo">Nutrientes de la campaña</div>
       <div id="npkCuerpo" style="margin-bottom:8px;"></div>
-      <button class="boton-cancelar-modal" onclick="cerrarModalNPK()" style="width:100%;margin-top:16px;">✓ Cerrar</button>
+      <button class="boton-cancelar-modal" onclick="cerrarModalNPK()" style="width:100%;margin-top:16px;">Cerrar</button>
     </div>
   </div>
 
@@ -1145,119 +1146,19 @@
       const campana = campanas.find(c => c.id === campanaId);
       if (!campana) return;
 
-      const cultivo = campana.cultivos && campana.cultivos[0];
-      const cultivoNombre = cultivo ? cultivo.cultivo : '?';
-      const rendObj = cultivo && cultivo.rendimientoObj ? parseFloat(cultivo.rendimientoObj) : 0;
-      const sup = cultivo && cultivo.superficie ? parseFloat(cultivo.superficie) : 0;
-
-      // Buscar extracción para este cultivo
-      // Intenta match parcial (ej: "Maíz Pioner" → "Maíz")
-      let ext = null;
-      for (const key of Object.keys(EXTRACCION_NPK)) {
-        if (cultivoNombre.toLowerCase().startsWith(key.toLowerCase())) {
-          ext = EXTRACCION_NPK[key];
-          break;
-        }
-      }
-
-      // Calcular demanda total
-      let demandaN = 0, demandaP = 0, demandaK = 0;
-      const rendTon = rendObj / 1000;
-      if (ext && rendTon > 0) {
-        demandaN = rendTon * ext.N;
-        demandaP = rendTon * ext.P;
-        demandaK = rendTon * ext.K;
-      }
-
-      // Calcular aplicado desde eventos
+      // Lo que se lleva el grano, lo que aporta el suelo y lo que hace falta aplicar (SafiaNutrientes.disponibilidad; pedido de Osmar 9-oct-2026)
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
-      const equipos = JSON.parse(localStorage.getItem('equipos') || '[]');
-      const equipo = equipos.find(e => e.id === campana.equipoId);
-
-      let aplicadoN = 0, aplicadoP = 0, aplicadoK = 0;
-      const aplicaciones = [];
-
-      eventos.forEach(ev => {
-        if (ev.equipoId !== campana.equipoId) return;
-        if (ev.tipo !== 'aplicacion') return;
-        if (ev.n_kg_ha || ev.p_kg_ha || ev.k_kg_ha) {
-          aplicadoN += ev.n_kg_ha || 0;
-          aplicadoP += ev.p_kg_ha || 0;
-          aplicadoK += ev.k_kg_ha || 0;
-          aplicaciones.push(ev);
-        }
-      });
-
-      // Sumar la fertilización cargada en "Manejo e insumos" (N, P2O5 y K2O → P y K elementales)
-      let npkInsumos = null;
-      if (window.SafiaInsumos && campana.insumos && campana.insumos.length) {
-        npkInsumos = SafiaInsumos.totalesNPK(campana.insumos);
-        if (npkInsumos.items) { aplicadoN += npkInsumos.n; aplicadoP += npkInsumos.p2o5 * 0.436; aplicadoK += npkInsumos.k2o * 0.83; }
-      }
-
-      // Renderizar modal
-      const titulo = document.getElementById('npkTitulo');
+      const legacy = eventos.filter(ev => ev.equipoId === campana.equipoId && ev.tipo === 'aplicacion' && (ev.n_kg_ha || ev.p_kg_ha || ev.k_kg_ha));
+      document.getElementById('npkTitulo').textContent = 'Nutrientes de la campaña — ' + campana.nombre;
       const cuerpo = document.getElementById('npkCuerpo');
-      titulo.textContent = `🧪 Balance N/P/K — ${campana.nombre}`;
-
-      let html = '';
-
-      // Info cultivo
-      html += `<div style="font-size:13px;color:#6B6356;margin-bottom:16px;">
-        ${cultivoNombre}${cultivo && cultivo.variedad ? ' (' + cultivo.variedad + ')' : ''}
-        · ${sup > 0 ? sup + ' ha' : '? ha'}
-        · Objetivo: ${rendObj > 0 ? rendObj.toLocaleString('es-PY') + ' kg/ha' : 'no definido'}
-      </div>`;
-
-      if (!ext) {
-        html += `<div style="background:rgba(212,162,76,0.12);border-radius:10px;padding:14px;font-size:13px;color:#8B6F00;margin-bottom:16px;">
-          ⚠️ No hay tabla de extracción registrada para <strong>${cultivoNombre}</strong>.
-          La demanda N/P/K no puede calcularse automáticamente para este cultivo.
-        </div>`;
-      } else if (rendObj === 0) {
-        html += `<div style="background:rgba(212,162,76,0.12);border-radius:10px;padding:14px;font-size:13px;color:#8B6F00;margin-bottom:16px;">
-          ⚠️ Cargá el <strong>rendimiento objetivo</strong> en la campaña para calcular la demanda.
-        </div>`;
-      }
-
-      if (npkInsumos && npkInsumos.items) {
-        html += `<div style="font-size:12px;color:#2E3236;background:#E7F6EA;border-radius:8px;padding:8px 12px;margin-bottom:12px;">Desde <b>Manejo e insumos</b>: N <b>${Math.round(npkInsumos.n)}</b> · P₂O₅ <b>${Math.round(npkInsumos.p2o5)}</b> · K₂O <b>${Math.round(npkInsumos.k2o)}</b> kg/ha (${npkInsumos.items} fertilización(es)); se suman al aplicado como P y K elementales.</div>`;
-      }
-
-      if (ext && rendObj > 0) {
-        // Barras NPK
-        html += renderBarraNPK('N — Nitrógeno', aplicadoN, demandaN, '#1565C0', sup);
-        html += renderBarraNPK('P — Fósforo', aplicadoP, demandaP, '#2E7D32', sup);
-        html += renderBarraNPK('K — Potasio', aplicadoK, demandaK, '#D4A24C', sup);
-
-        html += `<div style="font-size:11px;color:#6B6356;margin-top:8px;font-style:italic;">
-          Fuente extracción: FAO/INTA · ${ext.ref} · Kc: ${ext.N}N / ${ext.P}P / ${ext.K}K por tonelada
-        </div>`;
-      }
-
-      // Tabla de aplicaciones con NPK
-      if (aplicaciones.length > 0) {
-        html += `<div style="margin-top:20px;">
-          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6B6356;margin-bottom:10px;">Aplicaciones con datos N/P/K</div>`;
-        aplicaciones.forEach(ev => {
-          const fecha = new Date(ev.fecha + 'T12:00:00').toLocaleDateString('es-PY', {day:'2-digit',month:'2-digit'});
-          html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FAF6EC;border-radius:8px;margin-bottom:6px;font-size:12px;">
-            <span style="flex:1;font-weight:600;">${ev.producto}</span>
-            <span style="color:#6B6356;">${ev.dosis} ${ev.unidad}</span>
-            <span style="color:#1565C0;">N: ${ev.n_kg_ha || 0}</span>
-            <span style="color:#2E7D32;">P: ${ev.p_kg_ha || 0}</span>
-            <span style="color:#D4A24C;">K: ${ev.k_kg_ha || 0}</span>
-            <span style="color:#6B6356;">${fecha}</span>
-          </div>`;
+      let html = window.SafiaNutrientes && SafiaNutrientes.htmlDisponibilidad ? SafiaNutrientes.htmlDisponibilidad(campana, 0, legacy) : '<div class="muted">Falta el módulo de nutrientes.</div>';
+      if (legacy.length) {
+        html += '<div style="margin-top:14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#6B6356;margin-bottom:8px;">Aplicaciones cargadas en el Operador</div>';
+        legacy.forEach(ev => {
+          const fecha = new Date(ev.fecha + 'T12:00:00').toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit' });
+          html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#FAF6EC;border-radius:8px;margin-bottom:6px;font-size:12px;"><span style="flex:1;font-weight:600;">' + ev.producto + '</span><span style="color:#6B6356;">' + ev.dosis + ' ' + ev.unidad + '</span><span>N ' + (ev.n_kg_ha || 0) + ' · P ' + (ev.p_kg_ha || 0) + ' · K ' + (ev.k_kg_ha || 0) + '</span><span style="color:#6B6356;">' + fecha + '</span></div>';
         });
-        html += '</div>';
-      } else {
-        html += `<div style="margin-top:16px;background:#FAF6EC;border-radius:10px;padding:14px;font-size:13px;color:#6B6356;text-align:center;">
-          💡 Aún no hay aplicaciones con datos N/P/K registrados.
-          Al cargar una aplicación en <strong>Operador</strong>, seleccioná el producto del catálogo para que se registre el aporte de nutrientes.
-        </div>`;
       }
-
       cuerpo.innerHTML = html;
       document.getElementById('modalNPKOverlay').classList.add('visible');
     }
