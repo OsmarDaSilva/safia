@@ -1,5 +1,5 @@
 # PLAN MAESTRO — SAFIA
-## Smart Agro Intelligence · Inteligencia agronómica para riego
+## Smart Agro Farms Inteligencia · Inteligencia agronómica para riego
 
 > Documento de referencia del proyecto. Ubicar en la raíz del repositorio.
 > Toda decisión de producto, diseño y código debe ser coherente con este documento.
@@ -25,8 +25,8 @@ SAFIA es un producto de riego que, mientras ayuda a regar, **construye un banco 
 
 ## 2. Identidad de marca
 
-- **Nombre:** SAFIA — Smart Agro Intelligence
-- **Significado (definido por Osmar, 24-sep-2026):** SAFIA = **Smart Agricultural Farm Intelligence Assistant** (asistente inteligente para la gestión del campo). Lema corto: SMART · AGRO · INTELLIGENCE. Vive en UN solo lugar: la constante SIGNIFICADO de safia-cuenta.js; se muestra en el login y en "Qué significa SAFIA" del menú de la cuenta.
+- **Nombre:** SAFIA — Smart Agro Farms Inteligencia
+- **Significado (definido por Osmar, 24-sep-2026):** SAFIA = **Smart Agricultural Farm Intelligence Assistant** (asistente inteligente para la gestión del campo). Lema corto: SMART · AGRO · FARMS · INTELIGENCIA. Vive en UN solo lugar: la constante SIGNIFICADO de safia-cuenta.js; se muestra en el login y en "Qué significa SAFIA" del menú de la cuenta.
 - **Símbolo:** gota / hoja en verde sobre gris oscuro
 - **Color primario:** Verde `#22A93A` (oscuro `#178029`, tinte `#E7F6EA`)
 - **Gris institucional:** `#3A3E41` (barra lateral)

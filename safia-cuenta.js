@@ -24,7 +24,7 @@
   // Definido por Osmar (24-sep-2026): Smart Agricultural Farm Intelligence Assistant
   var SIGNIFICADO = window.SAFIA_SIGNIFICADO || ['Smart', 'Agricultural', 'Farm', 'Intelligence', 'Assistant'];
   var TRADUCCION = 'Asistente inteligente para la gestión del campo';
-  var LEMA = 'Smart Agro Intelligence';
+  var LEMA = 'Smart Agro Farms Inteligencia';
   window.SafiaMarca = { significado: SIGNIFICADO, traduccion: TRADUCCION, lema: LEMA, frase: function () { return SIGNIFICADO.join(' '); } };
   var usuario = null, abierto = false;
 
