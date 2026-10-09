@@ -21,7 +21,7 @@
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
   var ROL = { propietario: 'Propietario', admin: 'Administrador', cliente: 'Cliente', encargado: 'Encargado', operador: 'Operador', tecnico: 'Técnico de Irrigar' };
   // Significado del nombre (un solo lugar para cambiarlo): cada palabra empieza con una letra de SAFIA
-  // Definido por Osmar (24-sep-2026): Smart Agricultural Farm Intelligence Assistant
+  // Definido por Osmar (24-sep-2026): Smart Agro Farms Inteligencia Artificial
   var SIGNIFICADO = window.SAFIA_SIGNIFICADO || ['Smart', 'Agricultural', 'Farm', 'Intelligence', 'Assistant'];
   var TRADUCCION = 'Asistente inteligente para la gestión del campo';
   var LEMA = 'Smart Agro Farms Inteligencia';
