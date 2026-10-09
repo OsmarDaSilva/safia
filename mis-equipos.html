@@ -1534,7 +1534,9 @@
         return;
       }
 
-      const filas = equipos.map(equipo => {
+      const campoForm = campos.find(c => String(c.id) === String((document.getElementById('campo') || {}).value || ''));
+      const clienteAbierto = editandoId ? (function () { const e = equipos.find(x => x.id === editandoId), c = e && campos.find(x => x.id === e.campoId); return c ? String(c.clienteId) : ''; })() : (campoForm ? String(campoForm.clienteId) : '');
+      const filaDe = equipo => {
         const campo = campos.find(c => c.id === equipo.campoId);
         const cliente = campo ? clientes.find(c => c.id === campo.clienteId) : null;
         const nombreCampo = campo ? campo.nombre : 'Campo eliminado';
@@ -1556,8 +1558,17 @@
               <button class="del" onclick="borrarEquipo(${equipo.id})" title="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
             </span></td>
           </tr>`;
+      };
+      // agrupado por cliente y cerrado (pedido de Osmar 9-oct-2026: la lista abierta de todos los clientes quedaba muy larga)
+      const grupos = {};
+      equipos.forEach(e => { const campo = campos.find(c => c.id === e.campoId), cli = campo ? clientes.find(c => c.id === campo.clienteId) : null; const k = cli ? String(cli.id) : 'sin'; (grupos[k] = grupos[k] || { nombre: cli ? cli.nombre : 'Sin cliente', lista: [], ha: 0 }).lista.push(e); grupos[k].ha += parseFloat(e.superficie) || 0; });
+      const claves = Object.keys(grupos).sort((a, b) => grupos[a].nombre.localeCompare(grupos[b].nombre));
+      const cab = '<thead><tr><th>Equipo</th><th>Tipo</th><th>Cliente</th><th>Campo</th><th class="r">Superficie</th><th>Mapa</th><th>Mantenimiento</th><th class="r">Acciones</th></tr></thead>';
+      lista.innerHTML = '<div class="muted" style="font-size:12px;margin-bottom:8px;">' + equipos.length + ' equipos y lotes de ' + claves.length + ' cliente' + (claves.length === 1 ? '' : 's') + '. Tocá un cliente para ver y editar los suyos.</div>' + claves.map(k => {
+        const g = grupos[k], abierto = k === clienteAbierto;
+        return '<details class="card" style="padding:0;margin-bottom:8px;"' + (abierto ? ' open' : '') + '><summary style="cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center;"><span style="font-weight:700;">' + g.nombre + '</span><span class="muted" style="font-size:12px;">' + g.lista.length + ' equipo' + (g.lista.length === 1 ? '' : 's') + ' · ' + (Math.round(g.ha * 10) / 10) + ' ha · ' + g.lista.filter(e => e.poligono).length + ' con polígono</span></summary>' +
+          '<div style="padding:0 10px 10px;"><div class="tablewrap"><div class="tablescroll"><table class="tbl">' + cab + '<tbody>' + g.lista.map(filaDe).join('') + '</tbody></table></div></div></div></details>';
       }).join('');
-      lista.innerHTML = `<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th>Equipo</th><th>Tipo</th><th>Cliente</th><th>Campo</th><th class="r">Superficie</th><th>Mapa</th><th>Mantenimiento</th><th class="r">Acciones</th></tr></thead><tbody>${filas}</tbody></table></div></div>`;
     }
 
     function borrarEquipo(id) {
