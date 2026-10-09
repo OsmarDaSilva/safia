@@ -560,12 +560,14 @@
   function tablaInterpretacion(lista) {
     if (!lista.length) return '<div class="muted">Sin análisis de suelo cargado.</div>';
     var esPast = lista.some(function (i) { return i.perfil === 'pastura'; });
-    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl tbl-interp"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>' + (esPast ? 'Objetivo para el pasto' : 'Objetivo 6–7 t/ha') + '</th><th>Lectura</th></tr></thead><tbody>' +
+    return '<div class="tablewrap"><div class="tablescroll"><table class="tbl tbl-interp"><thead><tr><th>Parámetro</th><th class="r">Valor</th><th>Categoría</th><th>' + (esPast ? 'Objetivo para el pasto' : 'Objetivo 6–7 t/ha') + '</th></tr></thead>' +
       lista.map(function (i) {
         var dec = i.k === 'ph' || i.k === 'p' || i.k === 'satBases' || i.k === 'arcilla' || i.k === 's' || i.k === 'al' || i.k.indexOf('rel') === 0 ? 1 : 2;
         var obj = i.objetivo && i.objetivo !== '—' ? '<div style="font-size:12px;">' + esc(i.objetivo) + '</div>' + (i.alcanzaAlto === true ? '<div class="sub" style="color:#178029;font-weight:700;">alcanzado</div>' : (i.alcanzaAlto === false ? '<div class="sub" style="color:#B3261E;font-weight:700;">falta</div>' : '')) : '<span class="muted">—</span>';
-        return '<tr><td><b>' + esc(i.n) + '</b></td><td class="r"><span class="num">' + fmt(i.valor, dec) + '</span>' + (i.unidad ? '<div class="sub">' + esc(i.unidad) + '</div>' : '') + '</td><td>' + badgeEstado(i.estado) + '<div class="sub">' + esc(i.categoria) + '</div></td><td>' + obj + '</td><td style="font-size:12px;">' + esc(i.texto) + ' <span class="muted">' + esc(i.fuente) + '</span></td></tr>';
-      }).join('') + '</tbody></table></div></div>' +
+        // dos renglones por parámetro (un tbody por parámetro para que no se corten al imprimir): la lectura va a todo el ancho
+        return '<tbody class="interp-fila"><tr><td><b>' + esc(i.n) + '</b></td><td class="r"><span class="num">' + fmt(i.valor, dec) + '</span>' + (i.unidad ? '<div class="sub">' + esc(i.unidad) + '</div>' : '') + '</td><td>' + badgeEstado(i.estado) + '<div class="sub">' + esc(i.categoria) + '</div></td><td>' + obj + '</td></tr>' +
+          '<tr class="interp-lectura"><td colspan="4" style="font-size:12px;line-height:1.45;padding-top:0;border-top:none;color:#3A3F44;">' + esc(i.texto) + ' <span class="muted">' + esc(i.fuente) + '</span></td></tr></tbody>';
+      }).join('') + '</table></div></div>' +
       '<div class="muted" style="font-size:11px;margin-top:4px;">' + (esPast ? 'Objetivo para el pasto: Embrapa, folder BRS Zuri 2014 [13] (Panicum; vale como guía para otras pasturas tropicales). Sodio y sales: Embrapa CPATSA [15] e INTA [16].' : 'Objetivo 6–7 t/ha: suelo de los lotes de más de 4.200–6.000 kg/ha auditados por CESB [7], acotado por Embrapa [8][11] y UNL [9].') + ' Es referencia, no receta.</div>';
   }
   function listaRecomendaciones(recs) {
