@@ -197,5 +197,33 @@
     return h;
   }
 
-  window.SafiaEconomiaRiego = { calcular: calcular, html: html, tir: tir };
+  /* Veredicto de la inversión (regla de Irrigar, 9-oct-2026): tasa interna de retorno de 15 % o más → vale la pena;
+     entre 8 y 15 % → cierra ajustado; menos → no cierra con estos números. Sin inversión cargada se usa la referencia
+     de Irrigar por ha (el tope del rango). El agua que no sirve para regar frena todo. Los umbrales se cambian acá. */
+  var UMBRAL_TIR = { bien: 0.15, ajustado: 0.08 };
+  function veredicto(E, o) {
+    o = o || {};
+    var U = function (v) { return 'US$ ' + fmt(v, 0); };
+    if (o.aguaGrave) return { k: 'no', titulo: 'No, hasta resolver el agua', detalle: 'El agua analizada no sirve para regar tal como está: los rindes con riego no se alcanzan hasta cambiar la fuente, mezclar o tratar el agua.' };
+    if (!E || !E.ok || !E.ok.length) return { k: 'falta', titulo: 'Falta información', detalle: 'Sin un cultivo de grano con referencia de la zona (rinde y costos con riego) y el clima del campo no se puede hacer la cuenta.' };
+    if (!(E.superficieHa > 0)) return { k: 'falta', titulo: 'Falta la superficie', detalle: 'Cargá las hectáreas a regar para pasar de US$ por ha a todo el proyecto.' };
+    var inv = E.inversionUSD, ref = false, rec = E.recupero, t = E.tir, n = E.horizonte || (E.vidaUtil > 0 ? Math.round(E.vidaUtil) : 10);
+    if (!(inv > 0)) {
+      var rf = E.inversionRefHa;
+      if (!rf) return { k: 'falta', titulo: 'Falta la inversión', detalle: 'Cargá la inversión del proyecto de riego para saber en cuántos años se recupera.' };
+      inv = rf.max * E.superficieHa; ref = true;
+      if (E.anualPaga > 0) { rec = inv / E.anualPaga; var fl = [-inv]; for (var i = 1; i <= n; i++) fl.push(E.anualPaga); t = tir(fl); } else { rec = null; t = null; }
+    }
+    var base = { inversion: inv, inversionRef: ref, recupero: rec, tir: t, horizonte: n, anualPaga: E.anualPaga };
+    var cuanto = 'Con ' + fmt(E.superficieHa, 0) + ' ha, ' + (E.situacion === 'nuevo' ? 'con riego el campo deja <b>' + U(E.anualR) + ' por año</b>' : 'el riego agrega <b>' + U(E.anualAgrega) + ' por año</b> frente a seguir en secano') +
+      (E.agregaSeco != null && E.superficieHa > 0 && E.situacion !== 'nuevo' ? ' (en un año seco, ' + U(E.agregaSeco * E.superficieHa) + ')' : '') + '. ';
+    var laInv = 'La inversión de <b>' + U(inv) + '</b>' + (ref ? ' (referencia de Irrigar: todavía no está cargada)' : '');
+    if (!(E.anualPaga > 0)) return Object.assign(base, { k: 'no', titulo: 'No cierra con estos números', detalle: cuanto + 'El riego no deja margen para pagar la inversión: revisá los precios, los costos, la energía y los rindes de la zona.' });
+    var cierre = laInv + ' se recupera en <b>' + fmt(rec, 1) + ' años</b>' + (t != null ? ', con una tasa de retorno de <b>' + fmt(t * 100, 1) + ' %</b> a ' + n + ' años' : '') + '.';
+    if (t != null && t >= UMBRAL_TIR.bien) return Object.assign(base, { k: 'si', titulo: 'Vale la pena', detalle: cuanto + cierre });
+    if (t != null && t >= UMBRAL_TIR.ajustado) return Object.assign(base, { k: 'ajustado', titulo: 'Cierra, pero ajustado', detalle: cuanto + cierre + ' El retorno es justo: conviene revisar la inversión, la energía y los precios antes de decidir.' });
+    return Object.assign(base, { k: 'no', titulo: 'No cierra con estos números', detalle: cuanto + cierre + ' Con ese retorno no conviene invertir tal como está: hay que bajar la inversión o el costo de la energía, o subir el rinde esperado.' });
+  }
+
+  window.SafiaEconomiaRiego = { calcular: calcular, html: html, tir: tir, veredicto: veredicto, UMBRAL_TIR: UMBRAL_TIR };
 })();

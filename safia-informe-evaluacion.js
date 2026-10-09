@@ -148,9 +148,17 @@
         td(pot != null ? '<b>' + U(pot, x.u) + '</b><div class="sub">' + x.r.potencial.nCasos + ' caso(s) cercanos</div>' : '<span class="sub">' + (x.r.fueraDeRadio ? 'sin casos a menos de 300 km' : 'sin casos') + '</span>', 1) +
         td(x.ref ? U(rie, x.u) : '<span class="sub">sin referencia</span>', 1) + td(x.ref ? U(sec, x.u) : '—', 1) + td(gana != null ? '<b style="color:#178029;">+' + U(gana, x.u) + '</b><div class="sub">+' + fmt(gana / sec * 100, 0) + ' %</div>' : '—', 1) + '</tr>';
     });
-    return '<h2>Resumen ejecutivo</h2>' + kpis + tabla([{ t: 'Cultivo · finalidad', w: 18 }, { t: 'Objetivo', r: 1, w: 13 }, { t: 'Potencial con riego (casos)', r: 1, w: 19 }, { t: 'Zona con riego', r: 1, w: 15 }, { t: 'Zona secano', r: 1, w: 15 }, { t: 'Lo que suma el riego', r: 1, w: 20 }], filas) +
+    return '<h2>Resumen ejecutivo</h2>' + veredictoHTML(LA) + kpis + tabla([{ t: 'Cultivo · finalidad', w: 18 }, { t: 'Objetivo', r: 1, w: 13 }, { t: 'Potencial con riego (casos)', r: 1, w: 19 }, { t: 'Zona con riego', r: 1, w: 15 }, { t: 'Zona secano', r: 1, w: 15 }, { t: 'Lo que suma el riego', r: 1, w: 20 }], filas) +
       '<div class="sub" style="margin-top:4px;">' + notaUnidades(P) + ' Cada cultivo se compara con la misma finalidad y la misma época de siembra. Zona: referencia agrícola de SAFIA' + (refAgr(P) ? ' (' + esc(refAgr(P).ambito) + ', ' + (refAgr(P).nivel === 'localidad' ? 'localidad' : 'promedio del departamento') + ')' : '') + (P.some(function (x) { return x.ref && x.ref.forraje; }) ? '; pastos: referencia forrajera de la región' : '') + '. Lo que suma el riego = potencial con riego (o la zona con riego si no hay casos cercanos) menos la zona en secano.</div>' +
       '<h3>Conclusión</h3><ul>' + conclusiones(P, LA, LS).map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>';
+  }
+  // el mismo veredicto que la pantalla de Evaluar (SafiaEconomiaRiego.veredicto): arriba de todo, antes de los números
+  function veredictoHTML(LA) {
+    if (!window.SafiaEconomiaRiego || !SafiaEconomiaRiego.veredicto) return '';
+    if (!ECO && climaEstado === 'cargando') return '<div class="note">Veredicto: calculando con el clima del campo…</div>';
+    var V = SafiaEconomiaRiego.veredicto(ECO, { aguaGrave: !!(LA && LA.L.veredicto.k === 'grave') });
+    var col = { si: '#178029', ajustado: '#B8731A', no: '#C0392B', falta: '#5B6167' }[V.k] || '#5B6167';
+    return '<div class="note" style="border-left:4px solid ' + col + ';margin:8px 0;"><b style="color:' + col + ';font-size:14px;">Veredicto: ' + esc(V.titulo) + '.</b> ' + V.detalle + '</div>';
   }
   function refAgr(P) { var x = P.find(function (y) { return y.ref && !y.ref.forraje; }); return x ? x.ref : null; }
   // qué unidad usa cada tipo de producción del proyecto
@@ -244,7 +252,7 @@
     return '<h2>Agua de riego</h2><div class="sub" style="margin-bottom:6px;">' + esc([a.fuente, a.fuenteNombre].filter(Boolean).join(' · ') || 'Fuente') + (a.fecha ? ' · análisis del ' + fmtF(a.fecha) : '') + (a.laboratorio ? ' · ' + esc(a.laboratorio) : '') + '</div>' + SafiaCalidadAgua.tarjeta(a, LA.op);
   }
   function secPotencial(P) {
-    var h = '<h2>Potencial productivo por cultivo</h2>';
+    var h = '<h2>Vecinos regantes y potencial por cultivo</h2>';
     P.forEach(function (x) {
       var r = x.r, pot = r.potencial;
       h += '<div class="seccion"><h3>' + esc(x.c.cultivo) + ' · ' + esc(finTxt(x.c).toLowerCase()) + (x.c.epoca ? ' · ' + esc(x.c.epoca) : '') + (num(x.c.objetivoKgHa) ? ' · objetivo ' + U(num(x.c.objetivoKgHa), x.u) + ' ' + x.u.corto : '') + '</h3>';
@@ -351,13 +359,14 @@
     var s = secciones(), P = potenciales(), LA = lecturaAgua(), LS = lecturaSuelo(), sims = simulaciones(), E = hist ? economia(P, sims) : null;
     ECO = E;
     var html = cabecera();
+    // mismo orden que la pantalla de Evaluar (9-oct-2026): veredicto y economía primero, después los vecinos, qué hacer, y el clima y el agua al final
     if (s.resumen) html += secResumen(P, LA, LS);
-    if (s.clima) html += secClima();
-    if (s.suelo) html += secSuelo(LS);
-    if (s.agua) html += secAgua(LA);
+    if (s.economia) html += secEconomia(E);
     if (s.potencial) html += secPotencial(P);
     if (s.lider) html += secLider(P, sims);
-    if (s.economia) html += secEconomia(E);
+    if (s.suelo) html += secSuelo(LS);
+    if (s.clima) html += secClima();
+    if (s.agua) html += secAgua(LA);
     if (s.zona) html += secZona();
     html += secCierre();
     hoja.innerHTML = html;
