@@ -531,6 +531,11 @@
       setTimeout(function () { window.print(); setTimeout(function () { document.title = titulo; }, 1500); }, 50);
     });
     document.querySelectorAll('#secciones input').forEach(function (c) { c.addEventListener('change', armar); });
+    // dos armados (Osmar, 10-oct-2026): para el productor (corto: veredicto, lo que gana, qué hacer) y técnico (todo)
+    var preset = function (lista) { document.querySelectorAll('#secciones input').forEach(function (c) { c.checked = !lista || lista.indexOf(c.dataset.s) >= 0; }); armar(); };
+    var bP = $('btnPresetProductor'), bT = $('btnPresetTecnico');
+    if (bP) bP.addEventListener('click', function () { preset(['resumen', 'pago', 'suelo']); });
+    if (bT) bT.addEventListener('click', function () { preset(null); });
     $('btnEnviar').addEventListener('click', function () { $('envInforme').style.display = ''; ['btnEnvCopiar', 'btnEnvCorreo', 'btnEnvWhatsapp'].forEach(function (id) { $(id).disabled = true; }); $('envLink').innerHTML = ''; linkActual = null; publicar(); });
     $('btnEnvCerrar').addEventListener('click', function () { $('envInforme').style.display = 'none'; });
     $('btnEnvCopiar').addEventListener('click', function () { if (linkActual && navigator.clipboard) navigator.clipboard.writeText(linkActual).then(function () { toast('Link copiado'); }); });

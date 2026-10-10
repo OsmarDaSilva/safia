@@ -48,6 +48,11 @@
     details.pliegue .pliegue-cuerpo{padding:4px 0 6px;}
     .formcard > details.pliegue:first-child{border-top:none;}
     .form-actions{margin-top:8px;}
+    .subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;}
+    .subtabs button{font-family:inherit;font-size:13px;font-weight:700;padding:8px 16px;border-radius:100px;border:1px solid var(--bd);background:#fff;color:var(--label);cursor:pointer;}
+    .subtabs button.on{background:var(--head);border-color:var(--head);color:#fff;}
+    .subpanel{display:none;} .subpanel.on{display:block;}
+    @media print{ .subpanel{display:block !important;} }
     /* Carga más compacta (Osmar, 9-oct-2026): menos aire, textos de ayuda de una línea, sin tarjetas altas */
     #panel-evaluar .formcard{padding:12px 14px;margin-bottom:8px;}
     #panel-evaluar .formcard h3{font-size:14px;margin-bottom:2px;}
@@ -321,29 +326,40 @@
             </div>
           </div>
 
-          <div class="card" id="rVecinosCard" style="margin-bottom:14px;">
-            <div class="card-h"><h3>Vecinos regantes</h3><span class="muted" id="rVecinosSub"></span><label class="no-print" id="lblNombres" style="display:none;font-size:12px;margin-left:auto;cursor:pointer;"><input type="checkbox" id="verNombres"> ver nombres (solo uso interno)</label></div>
-            <div id="rVecinos"></div>
+          <!-- Solapas del resultado (Osmar, 10-oct-2026): el veredicto queda arriba; lo demás en Negocio · Campo · Clima y agua -->
+          <div class="subtabs no-print" id="rSubtabs"><button type="button" class="on" data-sub="negocio">Negocio</button><button type="button" data-sub="campo">Campo</button><button type="button" data-sub="clima">Clima y agua</button></div>
+
+          <div class="subpanel on" data-sub="negocio">
+            <div class="card" id="rVecinosCard" style="margin-bottom:14px;">
+              <div class="card-h"><h3>Vecinos regantes</h3><span class="muted" id="rVecinosSub"></span><label class="no-print" id="lblNombres" style="display:none;font-size:12px;margin-left:auto;cursor:pointer;"><input type="checkbox" id="verNombres"> ver nombres (solo uso interno)</label></div>
+              <div id="rVecinos"></div>
+            </div>
+            <div class="card formcard" style="margin-bottom:14px;">
+              <details class="pliegue" id="rEconomiaCard" style="border-top:none;">
+                <summary>Economía completa <span class="pliegue-sub" id="rEconomiaSub">por cultivo y para todo el proyecto, con los precios vigentes de SAFIA</span></summary>
+                <div class="pliegue-cuerpo" id="rEconomia"><div class="muted" style="padding:8px 0;">Calculando…</div></div>
+              </details>
+            </div>
           </div>
 
-          <div class="card formcard" style="margin-bottom:14px;">
-            <details class="pliegue" id="rEconomiaCard">
-              <summary>Economía completa <span class="pliegue-sub" id="rEconomiaSub">por cultivo y para todo el proyecto, con los precios vigentes de SAFIA</span></summary>
-              <div class="pliegue-cuerpo" id="rEconomia"><div class="muted" style="padding:8px 0;">Calculando…</div></div>
-            </details>
-            <details class="pliegue" id="rHacerCard">
-              <summary>Qué hacer en este campo, cultivo por cultivo <span class="pliegue-sub">tu suelo frente al de los que más rinden, correcciones y cómo llegar al líder</span></summary>
-              <div class="pliegue-cuerpo" id="bloquesCultivo"></div>
-            </details>
-            <details class="pliegue" id="rClimaCard">
-              <summary>Clima del campo y riego que lleva cada cultivo <span class="pliegue-sub" id="rClimaSub"></span></summary>
-              <div class="pliegue-cuerpo" id="rClima"></div>
-            </details>
-            <details class="pliegue" id="rAguaCard" style="display:none;">
-              <summary>Agua de riego del proyecto <span class="pliegue-sub" id="rAguaSub"></span></summary>
-              <div class="pliegue-cuerpo" id="rAgua"></div>
-            </details>
+          <div class="subpanel" data-sub="campo">
+            <div class="card" id="rHacerCard" style="margin-bottom:14px;">
+              <div class="card-h"><h3>Qué hacer en este campo, cultivo por cultivo</h3><span class="muted">tu suelo frente al de los que más rinden, correcciones y cómo llegar al líder · tocá cada cultivo</span></div>
+              <div id="bloquesCultivo"></div>
+            </div>
           </div>
+
+          <div class="subpanel" data-sub="clima">
+            <div class="card" id="rClimaCard" style="margin-bottom:14px;">
+              <div class="card-h"><h3>Clima del campo y riego que lleva cada cultivo</h3><span class="muted" id="rClimaSub"></span></div>
+              <div id="rClima"></div>
+            </div>
+            <div class="card" id="rAguaCard" style="margin-bottom:14px;display:none;">
+              <div class="card-h"><h3>Agua de riego del proyecto</h3><span class="muted" id="rAguaSub"></span></div>
+              <div id="rAgua"></div>
+            </div>
+          </div>
+
 
           <div class="note warn" style="margin-bottom:14px;">
             SAFIA <b>compara</b> tu suelo con el de los casos reales que más rinden en cada cultivo. Cuánto encalar o fertilizar lo define el agrónomo: esto es la señal, no la receta.
@@ -877,6 +893,12 @@
     h+='<div class="muted" style="font-size:11px;line-height:1.5;">Regla del veredicto (Irrigar): tasa de retorno de 15 % o más, vale la pena; entre 8 y 15 %, cierra ajustado; menos, no cierra con estos números. El agua que no sirve para regar frena todo. Rindes y costos: referencia de la zona (misma finalidad y época) y clima del campo; el detalle está en los pliegues de abajo.</div>';
     out.innerHTML=h;
   }
+  // solapas del resultado
+  document.querySelectorAll('#rSubtabs button').forEach(function(b){ b.addEventListener('click',function(){
+    document.querySelectorAll('#rSubtabs button').forEach(function(x){ x.classList.toggle('on', x===b); });
+    document.querySelectorAll('#resultados .subpanel').forEach(function(p){ p.classList.toggle('on', p.getAttribute('data-sub')===b.getAttribute('data-sub')); });
+    if(b.getAttribute('data-sub')==='clima' && typeof pintarRiegoOtraVez==='function' && pintarRiegoOtraVez) pintarRiegoOtraVez();
+  }); });
   // imprimir con todos los pliegues abiertos (lo cerrado no sale en el papel) y volver a dejarlos como estaban
   window.imprimirPantalla=function(){
     var ds=[].slice.call(document.querySelectorAll('#resultados details:not([open])')); ds.forEach(function(d){ d.open=true; });
@@ -957,8 +979,8 @@
     var lecturaAgua=pintarAgua(agua, filas.map(function(x){ return x.cultivo; }), base.suelo);
     // el potencial con riego supone agua apta: si el agua tiene problemas se avisa arriba de todo
     var aviso=document.getElementById('rAguaAviso');
-    if(lecturaAgua && lecturaAgua.veredicto.k==='grave') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;border-left:4px solid #C0392B;"><b>El agua analizada no sirve para regar tal como está'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+(lecturaAgua.r.ras!=null?', RAS '+fmt(lecturaAgua.r.ras,1):'')+')':'')+'.</b> Los rindes con riego de esta tabla suponen agua apta: no se alcanzan hasta resolver el agua (otra fuente, mezcla o tratamiento). Detalle en <b>Agua de riego del proyecto</b>, más abajo.</div>';
-    else if(lecturaAgua && lecturaAgua.veredicto.k==='cuidado') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;">Los rindes con riego suponen manejar los cuidados que pide el agua analizada'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+')':'')+'. Detalle en <b>Agua de riego del proyecto</b>, más abajo.</div>';
+    if(lecturaAgua && lecturaAgua.veredicto.k==='grave') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;border-left:4px solid #C0392B;"><b>El agua analizada no sirve para regar tal como está'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+(lecturaAgua.r.ras!=null?', RAS '+fmt(lecturaAgua.r.ras,1):'')+')':'')+'.</b> Los rindes con riego de esta tabla suponen agua apta: no se alcanzan hasta resolver el agua (otra fuente, mezcla o tratamiento). Detalle en la solapa <b>Clima y agua</b>.</div>';
+    else if(lecturaAgua && lecturaAgua.veredicto.k==='cuidado') aviso.innerHTML='<div class="note warn" style="margin:0 0 10px;">Los rindes con riego suponen manejar los cuidados que pide el agua analizada'+(lecturaAgua.r.clase?' ('+esc(lecturaAgua.r.clase.txt)+')':'')+'. Detalle en la solapa <b>Clima y agua</b>.</div>';
     else aviso.innerHTML=agua?'':'<div class="note" style="margin:0 0 10px;">Sin análisis de agua: los rindes con riego suponen agua apta. Cargalo en el paso 4.</div>';
 
     pintarClimaRiego(base, filas);
@@ -967,6 +989,7 @@
     resumen.innerHTML=''; bloques.innerHTML='';
     ultimosResultados=[]; ultimaEconomia=null; ultimaAguaK=lecturaAgua?lecturaAgua.veredicto.k:null; document.getElementById('rVecinos').innerHTML=''; document.getElementById('rVecinosSub').textContent=''; pintarVeredicto();
     document.getElementById('resultados').style.display='';
+    var b0=document.querySelector('#rSubtabs button[data-sub="negocio"]'); if(b0 && !b0.classList.contains('on')) b0.click();
     document.getElementById('rResumenSub').textContent=filas.length+' cultivo(s) · '+(localidad||depto||(base.lat!=null&&base.lon!=null?'punto '+base.lat+', '+base.lon:'sin ubicación'));
 
     var cadena=Promise.resolve(), paraGuardar=[];
