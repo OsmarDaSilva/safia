@@ -359,11 +359,12 @@
   }
 
   /* ---------- por qué el material importa ---------- */
-  function notaHTML(cultivo) {
+  function notaHTML(cultivo, caso) {
     var cu = cultivoClave(cultivo), items;
+    var z = caso ? zonaGM(caso) : null, aqui = caso && coord(caso.lat) != null ? ' <b>' + ubicacionTexto(caso).replace(/^Tu campo/, 'Este campo') + '</b>' + (z && z.min ? ' Le corresponde GM ' + fmt(z.min, 1) + (z.max ? ' a ' + fmt(z.max, 1) : ' en adelante') + '.' : '') : '';
     if (cu === 'soja') items = [
       ['Grupo de madurez y latitud.', 'Cada variedad florece según el largo del día (fotoperíodo): rinde bien en una franja de latitud y época, y fuera de ella florece antes o después de lo ideal.', F.embrapaSoja],
-      ['En Paraguay.', 'INBIO recomienda GM 5.8 a 6.4 al sur del paralelo 25 (arrancar con ciclo largo y cerrar con ciclo corto) y variedades rústicas de GM 6.2 en adelante al norte, donde se siembra desde fines de septiembre con más calor y suelos más arenosos; en los suelos arcillosos (Alto Paraná, este de Canindeyú) pide variedades de alto rendimiento.', F.inbio],
+      ['En Paraguay.', aqui + ' INBIO recomienda GM 5.8 a 6.4 al sur del paralelo 25 (arrancar con ciclo largo y cerrar con ciclo corto) y variedades rústicas de GM 6.2 en adelante al norte, donde se siembra desde fines de septiembre con más calor y suelos más arenosos; en los suelos arcillosos (Alto Paraná, este de Canindeyú) pide variedades de alto rendimiento.', F.inbio],
       ['Época × variedad.', 'No todas responden igual a la fecha: en Maracaju (Fundação MS), pasar la siembra de septiembre a octubre subió 406 kg/ha en M 6410 IPRO y bajó 728 kg/ha en TEC 7849 IPRO.', F.fundacaoMS],
       ['Hábito de crecimiento.', 'Las indeterminadas toleran mejor adelantar la siembra; en siembras tardías convienen las menos sensibles al fotoperíodo.', F.embrapaSoja],
       ['Sanidad.', 'Hay variedades resistentes a roya asiática o a nematodo de quiste y otras susceptibles; en lotes con esos problemas, la variedad pesa mucho en el rinde.', F.embrapaSoja],

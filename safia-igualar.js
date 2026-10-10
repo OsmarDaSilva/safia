@@ -176,7 +176,7 @@
       '<div class="tablewrap"><div class="tablescroll"><table class="tbl"><thead><tr><th></th><th class="r">' + (esProy ? 'Tu campo (proyecto)' : 'Tu lote (' + esc(mio.campana || '') + ')') + '</th><th class="r">Lote elegido</th><th class="r">Diferencia</th><th>Lectura</th></tr></thead><tbody>' + filas.join('') + '</tbody></table></div></div>' +
       (prac.length ? '<div class="note warn" style="margin-top:8px;">El lote elegido hizo y el tuyo no registró: <b>' + prac.map(esc).join(', ') + '</b>.</div>' : '') +
       (fac.length ? '<div style="font-weight:700;margin-top:12px;">Lo que más explica la diferencia, en orden</div><ol style="margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.5;">' + fac.map(function (x) { var t = String(x.texto || ''), n = String(x.nombre || ''); if (t.indexOf(n + ':') === 0) t = t.slice(n.length + 1).trim(); return '<li style="margin-bottom:4px;"><b>' + esc(n) + ':</b> ' + esc(t) + '</li>'; }).join('') + '</ol>' : '') +
-      (window.SafiaMateriales ? SafiaMateriales.ensayosHTML(mio, ref) + SafiaMateriales.notaHTML(mio.cultivo) : '') +
+      (window.SafiaMateriales ? SafiaMateriales.ensayosHTML(mio, ref) + SafiaMateriales.notaHTML(mio.cultivo, mio) : '') +
       '</div>';
   }
 
