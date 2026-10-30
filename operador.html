@@ -984,6 +984,10 @@
           <input type="number" id="modalCabezas" placeholder="Ej: 120" min="0">
         </div>
         <div class="campo">
+          <label>Peso promedio al entrar (kg por animal) <span style="color:#aaa;font-weight:400;font-size:11px;">(opcional; con esto SAFIA calcula la carga en UA/ha)</span></label>
+          <input type="number" id="modalPesoKg" placeholder="Ej: 320" min="0" step="0.1">
+        </div>
+        <div class="campo">
           <label>Forraje ofrecido (kg MS/ha) <span style="color:#aaa;font-weight:400;font-size:11px;">(medido con regla o plato, o estimado; opcional)</span></label>
           <input type="number" id="modalKgMs" placeholder="Ej: 2500" min="0" step="10">
         </div>
@@ -1043,15 +1047,17 @@
           <select id="pesMotivo">
             <option value="control">Pesada de control (el mismo lote)</option>
             <option value="ingreso">Ingreso de un lote nuevo al pivot</option>
-            <option value="salida">Salida del lote (venta o retiro)</option>
+            <option value="agregado">Se agregaron animales al lote</option>
+            <option value="sacado">Se sacaron algunos animales (no todo el lote)</option>
+            <option value="salida">Salida de todo el lote (venta o retiro)</option>
           </select>
         </div>
         <div class="campo">
-          <label>Cabezas</label>
+          <label>Cabezas <span id="pesCabezasNota" style="color:#aaa;font-weight:400;font-size:11px;">(del lote)</span></label>
           <input type="number" id="pesCabezas" placeholder="Ej: 450" min="0">
         </div>
         <div class="campo">
-          <label>Peso promedio (kg por animal)</label>
+          <label>Peso promedio (kg por animal) <span id="pesPesoNota" style="color:#aaa;font-weight:400;font-size:11px;"></span></label>
           <input type="number" id="pesPeso" placeholder="Ej: 320" min="0" step="0.1">
           <div class="ayuda" id="pesAyuda" style="margin-top:4px;"></div>
         </div>
@@ -1629,7 +1635,7 @@
       document.getElementById('camposLectura').style.display = 'none';
       document.getElementById('camposPesada').style.display = 'none'; document.getElementById('camposCalibracion').style.display = 'none'; document.getElementById('camposParada').style.display = 'none'; document.getElementById('parHasta').value = ''; document.getElementById('parMotivo').value = 'electrica'; document.getElementById('parAsistencia').checked = true; document.getElementById('parAdjuntoCaja').innerHTML = window.SafiaAsistencias ? SafiaAsistencias.selector('parAdjunto') : ''; ajustarParada();
       ['pesCabezas', 'pesPeso', 'calPiquete', 'calAltura', 'calVerde', 'calMs'].forEach(id => { document.getElementById(id).value = ''; }); document.getElementById('pesMotivo').value = 'control';
-      document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
+      document.getElementById('modalPiquete').value = ''; document.getElementById('modalCabezas').value = ''; document.getElementById('modalPesoKg').value = ''; document.getElementById('modalKgMs').value = ''; document.getElementById('modalAltura').value = '';
       document.getElementById('modalFecha').value = SafiaBalance.hoyLocal();
 
       document.getElementById('modalSinLluvia').style.display = 'none';
@@ -1817,6 +1823,8 @@
       pintarForraje(camp, eqHoy);
     }
     // La ficha del piquete (safia-piquetes.js) manda acá: abre el modal que corresponde con el piquete ya cargado
+    // Pesada: las notas de cabezas y peso cambian según lo que pasó
+    (function () { const sel = document.getElementById('pesMotivo'); if (!sel) return; const nota = function () { const m = sel.value, nc = document.getElementById('pesCabezasNota'), np = document.getElementById('pesPesoNota'); nc.textContent = m === 'agregado' ? '(las que entran ahora)' : m === 'sacado' ? '(las que se sacan)' : '(del lote)'; np.textContent = m === 'agregado' ? '(de los que entran)' : m === 'sacado' ? '(de los que salen; opcional)' : ''; }; sel.addEventListener('change', nota); nota(); })();
     window.SafiaPiqueteAccion = function (accion, piquete, extra) {
       // lo que vio el satélite: confirmar crea los eventos de pastoreo reales; descartar lo guarda para no volver a proponerlo
       if (accion === 'confirmar-sat' || accion === 'descartar-sat') {
@@ -1904,10 +1912,11 @@
 
       } else if (tipoEventoActual === 'pesada') {
         const cab = parseFloat(document.getElementById('pesCabezas').value), peso = parseFloat(document.getElementById('pesPeso').value);
-        if (!(cab > 0)) { mostrarToast('Cargá cuántas cabezas se pesaron.'); return; }
-        if (!(peso > 0)) { mostrarToast('Cargá el peso promedio en kg.'); return; }
-        if (peso < 30 || peso > 1200) { mostrarToast('Revisá el peso promedio: ' + peso + ' kg por animal no parece correcto.'); return; }
-        evento.motivo = document.getElementById('pesMotivo').value; evento.cabezas = cab; evento.pesoKg = peso;
+        const motivoPes = document.getElementById('pesMotivo').value;
+        if (!(cab > 0)) { mostrarToast(motivoPes === 'agregado' ? 'Cargá cuántas cabezas entraron.' : motivoPes === 'sacado' ? 'Cargá cuántas cabezas se sacaron.' : 'Cargá cuántas cabezas se pesaron.'); return; }
+        if (!(peso > 0) && motivoPes !== 'sacado') { mostrarToast('Cargá el peso promedio en kg.'); return; }
+        if (peso > 0 && (peso < 30 || peso > 1200)) { mostrarToast('Revisá el peso promedio: ' + peso + ' kg por animal no parece correcto.'); return; }
+        evento.motivo = motivoPes; evento.cabezas = cab; if (peso > 0) evento.pesoKg = peso;
 
       } else if (tipoEventoActual === 'calibracion') {
         const c = calibracionLeida();
@@ -1924,6 +1933,7 @@
         evento.piquete = piquete;
         const cab = parseFloat(document.getElementById('modalCabezas').value), kg = parseFloat(document.getElementById('modalKgMs').value), alt = parseFloat(document.getElementById('modalAltura').value);
         if (cab > 0) evento.cabezas = cab;
+        const pesoEnt = parseFloat(document.getElementById('modalPesoKg').value); if (pesoEnt > 0) { if (pesoEnt < 30 || pesoEnt > 1200) { mostrarToast('Revisá el peso promedio: ' + pesoEnt + ' kg por animal no parece correcto.'); return; } evento.pesoKg = pesoEnt; }
         if (kg > 0) evento.kgMsHa = kg;
         if (alt > 0) evento.alturaCm = alt;
 
@@ -2055,7 +2065,7 @@
           { const pf = SafiaParte.finDe(ev); detalle = `${ev.asistencia ? 'se pidió asistencia a Irrigar · ' : ''}desde ${diaSemana} ${fechaStr}${pf.hasta ? ' hasta el ' + pf.hasta.slice(8, 10) + '/' + pf.hasta.slice(5, 7) + (pf.porRiego ? ' (se cerró sola al cargar un riego)' : '') : ' · sigue parado'}${ev.observaciones ? ' · ' + ev.observaciones : ''}`; }
         } else if (ev.tipo === 'pesada') {
           icono = '🐄';
-          titulo = (ev.motivo === 'ingreso' ? 'Ingreso del lote' : ev.motivo === 'salida' ? 'Salida del lote' : 'Pesada') + ': ' + ev.cabezas + ' cab. de ' + ev.pesoKg + ' kg';
+          titulo = (ev.motivo === 'ingreso' ? 'Ingreso del lote' : ev.motivo === 'salida' ? 'Salida del lote' : ev.motivo === 'agregado' ? 'Se agregaron animales' : ev.motivo === 'sacado' ? 'Se sacaron animales' : 'Pesada') + ': ' + ev.cabezas + ' cab.' + (ev.pesoKg ? ' de ' + ev.pesoKg + ' kg' : '');
           detalle = `${diaSemana} ${fechaStr}${ev.observaciones ? ' · ' + ev.observaciones : ''}`;
         } else if (ev.tipo === 'calibracion') {
           icono = '📏';

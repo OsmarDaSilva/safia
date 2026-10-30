@@ -137,13 +137,28 @@
 
   /* ---------- 4. animales: lote, carga y carne ---------- */
   function pesadas(equipoId) { return eventos(equipoId, 'pesada').filter(function (e) { return e.pesoKg > 0; }); }
+  /* El lote que hay hoy en el pivot, recorriendo lo cargado en orden (pedido de Osmar, 30-oct-2026):
+     - pesada 'ingreso': arranca un lote (cabezas y peso promedio); 'salida': se va todo el lote;
+     - pesada 'agregado': entran más animales (se suman; el peso promedio se pondera si lo trae);
+     - pesada 'sacado': salen algunos (se restan; si trae el peso de los que salen, el promedio del resto se recalcula);
+     - pesada 'control': peso nuevo del mismo lote (y recuento de cabezas si lo trae);
+     - entrada de pastoreo con cabezas (y peso promedio opcional): si no hay lote cargado, lo define. */
   function loteActual(equipoId) {
-    var ps = pesadas(equipoId), ult = ps[ps.length - 1] || null;
-    var ent = eventos(equipoId, 'pastoreo').filter(function (e) { return e.accion === 'entrada' && e.cabezas > 0; }).slice(-1)[0] || null;
-    if (ult && ult.motivo === 'salida') return { cabezas: null, pesoKg: null, fecha: ult.fecha, salio: true };
-    var cab = ult && ult.cabezas > 0 ? +ult.cabezas : null;
-    if (ent && (!ult || dia(ent.fecha) > dia(ult.fecha) || !cab)) cab = +ent.cabezas;
-    return { cabezas: cab, pesoKg: ult ? +ult.pesoKg : null, fecha: ult ? ult.fecha : null };
+    var todos = eventos(equipoId, 'pesada').filter(function (e) { return e.cabezas > 0 || e.pesoKg > 0; }).map(function (e) { return { f: dia(e.fecha), id: e.id || 0, tipo: 'pesada', motivo: e.motivo || 'control', cab: +e.cabezas || 0, peso: +e.pesoKg || 0 }; })
+      .concat(eventos(equipoId, 'pastoreo').filter(function (e) { return e.accion === 'entrada' && e.cabezas > 0; }).map(function (e) { return { f: dia(e.fecha), id: e.id || 0, tipo: 'entrada', cab: +e.cabezas, peso: +e.pesoKg || 0 }; }))
+      .sort(function (a, b) { return a.f.localeCompare(b.f) || a.id - b.id; });
+    var lote = { cabezas: null, pesoKg: null, fecha: null, salio: false, ajustes: [] };
+    todos.forEach(function (e) {
+      if (e.tipo === 'entrada') { if (!lote.cabezas) { lote.cabezas = e.cab; lote.fecha = e.f; lote.salio = false; } if (e.peso > 0 && (!lote.pesoKg || !lote.fecha || e.f >= lote.fecha)) lote.pesoKg = e.peso; return; }
+      if (e.motivo === 'ingreso') { lote = { cabezas: e.cab || null, pesoKg: e.peso || null, fecha: e.f, salio: false, ajustes: [] }; return; }
+      if (e.motivo === 'salida') { lote = { cabezas: null, pesoKg: null, fecha: e.f, salio: true, ajustes: [] }; return; }
+      if (e.motivo === 'agregado') { var c0 = lote.cabezas || 0; if (e.peso > 0) lote.pesoKg = lote.pesoKg && c0 ? Math.round((c0 * lote.pesoKg + e.cab * e.peso) / (c0 + e.cab)) : e.peso; lote.cabezas = c0 + e.cab; lote.fecha = e.f; lote.salio = false; lote.ajustes.push({ fecha: e.f, cabezas: +e.cab, peso: e.peso || null }); return; }
+      if (e.motivo === 'sacado') { var c1 = lote.cabezas || 0, resto = Math.max(0, c1 - e.cab); if (e.peso > 0 && lote.pesoKg && resto > 0) lote.pesoKg = Math.round((c1 * lote.pesoKg - e.cab * e.peso) / resto); lote.cabezas = resto || null; lote.fecha = e.f; lote.ajustes.push({ fecha: e.f, cabezas: -e.cab, peso: e.peso || null }); return; }
+      // control
+      if (e.peso > 0) lote.pesoKg = e.peso; if (e.cab > 0) lote.cabezas = e.cab; lote.fecha = e.f; lote.salio = false;
+    });
+    lote.ajustes = lote.ajustes.slice(-4);
+    return lote;
   }
   // Carne producida con las pesadas de los últimos 'dias' días. Entre dos pesadas seguidas del mismo lote:
   // (peso 2 − peso 1) × cabezas. Una pesada de 'ingreso' arranca un lote nuevo (no se compara con la anterior).
@@ -151,7 +166,7 @@
     var desde = sumar(hoy(), -(dias || 365)), ps = pesadas(equipoId).filter(function (e) { return dia(e.fecha) >= desde; });
     var kg = 0, dd = 0, periodos = [];
     for (var i = 1; i < ps.length; i++) {
-      var a = ps[i - 1], b = ps[i]; if (b.motivo === 'ingreso' || a.motivo === 'salida') continue;
+      var a = ps[i - 1], b = ps[i]; if (b.motivo === 'ingreso' || b.motivo === 'agregado' || b.motivo === 'sacado' || a.motivo === 'salida' || a.motivo === 'sacado' || a.motivo === 'agregado') continue;
       var d = diasEntre(a.fecha, b.fecha); if (!(d > 0)) continue;
       var cab = Math.min(+a.cabezas || +b.cabezas || 0, +b.cabezas || +a.cabezas || 0), gmd = (b.pesoKg - a.pesoKg) / d;
       var k = (b.pesoKg - a.pesoKg) * cab; kg += k; dd += d;
@@ -235,7 +250,7 @@
       subC = 'el pasto aguanta <b>' + fmt(R.uaCapacidad, 1) + ' UA/ha</b>' + (R.cabezasCapacidad != null ? ' (unas ' + fmt(R.cabezasCapacidad) + ' cabezas de ' + fmt(R.lote.pesoKg) + ' kg)' : '') + (rel > 1.1 ? ' · <b style="color:#B5371C;">hay más animales que pasto: sacar o suplementar</b>' : rel < 0.7 ? ' · <b style="color:#8a5713;">sobra pasto: se pueden sumar animales</b>' : ' · carga ajustada');
     } else if (R.uaCapacidad != null) subC = 'el pasto aguanta <b>' + fmt(R.uaCapacidad, 1) + ' UA/ha</b>' + (R.ha ? ' = ' + fmt(R.uaCapacidad * UA_KG * R.ha) + ' kg de peso vivo en las ' + fmt(R.ha, 1) + ' ha' : '') + '. Cargá una <b>Pesada</b> (cabezas y peso) para comparar con la carga real';
     else subC = 'faltan datos';
-    var t3 = tarjeta('Carga', R.uaReal != null ? fmt(R.uaReal, 1) + ' UA/ha hoy' : (R.lote.cabezas ? fmt(R.lote.cabezas) + ' cabezas, sin peso' : 'Sin pesada'), subC + (R.lote.cabezas && R.lote.pesoKg ? ' · ' + fmt(R.lote.cabezas) + ' cab. de ' + fmt(R.lote.pesoKg) + ' kg (' + fmtF(R.lote.fecha) + ')' : ''), colC);
+    var t3 = tarjeta('Carga', R.uaReal != null ? fmt(R.uaReal, 1) + ' UA/ha hoy' : (R.lote.cabezas ? fmt(R.lote.cabezas) + ' cabezas, sin peso' : 'Sin pesada'), subC + (R.lote.cabezas && R.lote.pesoKg ? ' · ' + fmt(R.lote.cabezas) + ' cab. de ' + fmt(R.lote.pesoKg) + ' kg (' + fmtF(R.lote.fecha) + ')' : '') + (R.lote.ajustes && R.lote.ajustes.length ? ' · ajustes: ' + R.lote.ajustes.map(function (a) { return (a.cabezas > 0 ? '+' : '') + fmt(a.cabezas) + ' el ' + fmtF(a.fecha); }).join(', ') : ''), colC);
     // carne
     var c = R.carne, t4;
     if (c.periodos && c.periodos.length) {
