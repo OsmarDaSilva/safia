@@ -1796,14 +1796,16 @@
       panel.style.display = esPast ? '' : 'none'; if (!esPast) return;
       const ref = SafiaPasturas.alturasReferencia((camp.variedad || '') + ' ' + (camp.cultivo || ''));
       const eqHoy = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
-      const stHoy = SafiaPasturas.estadoPiquetes(equipoSeleccionadoId, camp), ocup = stHoy.piquetes.find(p => p.estado === 'ocupado');
+      const stHoy = SafiaPasturas.estadoPiquetes(equipoSeleccionadoId, camp); let ocup = stHoy.piquetes.find(p => p.estado === 'ocupado');
       const sinR = window.SafiaPiquetes && eqHoy ? SafiaPiquetes.sectoresSinRiego(eqHoy, camp, 3) : null;
       const diasOcup = parseFloat(camp.diasOcupacion) || null, movs = SafiaPasturas.eventosLote(equipoSeleccionadoId), ultEnt = movs.filter(m => m.accion === 'entrada').slice(-1)[0];
       const diasAdentro = ultEnt ? SafiaBalance.diasEntre(ultEnt.fecha, SafiaBalance.hoyLocal()) : null;
       const proximo = stHoy.listos.filter(p => p !== stHoy.ocupado)[0] || null;
       const gHoy = window.SafiaPiquetes && eqHoy ? SafiaPiquetes.sectores(eqHoy, camp) : null, acceso = (piq) => { const a = gHoy && piq ? SafiaPiquetes.accesosDe(gHoy, piq) : null; return a && a.texto ? ' · ' + a.texto : ''; };
       const casi = stHoy.piquetes.filter(p => p.estado === 'casi').sort((a, b) => (b.altura || 0) - (a.altura || 0))[0];
-      const satHoy = !ocup && window.SafiaRotacion && eqHoy ? SafiaRotacion.textoHoy(SafiaRotacion.analizar(eqHoy, camp)) : null;
+      const anHoy = window.SafiaRotacion && eqHoy ? SafiaRotacion.analizar(eqHoy, camp) : null;
+      const satHoy = anHoy && (!ocup || anHoy.entradaVieja) ? SafiaRotacion.textoHoy(anHoy) : null;
+      if (anHoy && anHoy.entradaVieja && satHoy) ocup = null;   // la entrada cargada ya quedó vieja: manda lo que ve el satélite
       const tarjeta = (t, v, sub, color) => '<div style="flex:1 1 150px;min-width:140px;border:1px solid #E1E4E7;border-left:4px solid ' + color + ';border-radius:8px;padding:8px 10px;background:#fff;"><div style="font-size:11px;color:#8C9196;text-transform:uppercase;letter-spacing:.04em;">' + t + '</div><div style="font-size:15px;font-weight:700;color:#2E3236;margin-top:2px;">' + v + '</div><div style="font-size:11px;color:#3A3E41;margin-top:2px;line-height:1.35;">' + sub + '</div></div>';
       const hoyHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">' +
         tarjeta('Animales hoy', ocup ? 'Piquete ' + ocup.piquete : (satHoy ? satHoy.titulo : 'Sin entrada cargada'), ocup ? (diasAdentro != null ? 'día ' + (diasAdentro + 1) + (diasOcup ? ' de ' + diasOcup : '') + (diasOcup && diasAdentro + 1 >= diasOcup ? ' · <b style=\'color:#8a5713;\'>hoy toca rotar</b>' : '') : '') + (ocup.altura && stHoy.ref && ocup.altura <= stHoy.ref.salida ? ' · <b style=\'color:#B5371C;\'>en altura de salida: sacarlos</b>' : '') + acceso(ocup.piquete) : (satHoy ? satHoy.sub : 'Cargá la entrada con el botón Pastoreo'), ocup ? '#2E72C8' : (satHoy ? (satHoy.fuente === 'satelite' ? '#8a5713' : '#8C9196') : '#8C9196')) +

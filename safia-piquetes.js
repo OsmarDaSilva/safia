@@ -261,7 +261,7 @@
   function sectoresSinRiego(equipo, cultivo, saltar) {
     var g = sectores(equipo, cultivo); if (!g || !window.SafiaPasturas) return null;
     var st = SafiaPasturas.estadoPiquetes(equipo.id, cultivo), ocupado = st.ocupado, segunSatelite = false;
-    if (!ocupado && window.SafiaRotacion) { var an0 = SafiaRotacion.analizar(equipo, cultivo); if (an0 && an0.posicionHoy && an0.posicionHoy.fuente !== 'operador') { ocupado = an0.posicionHoy.piquete; segunSatelite = an0.posicionHoy.fuente; } }
+    if (window.SafiaRotacion) { var an0 = SafiaRotacion.analizar(equipo, cultivo); if (an0 && an0.posicionHoy) { ocupado = an0.posicionHoy.piquete; segunSatelite = an0.posicionHoy.fuente !== 'operador' ? an0.posicionHoy.fuente : false; } else if (an0 && an0.entradaVieja) ocupado = null; }
     if (!ocupado) return { ocupado: null, piquetes: [], grados: [], arcos: [], comparten: [], texto: '' };
     var k = g.lista.findIndex(function (s) { return s.piquete === String(ocupado); }); if (k < 0) return { ocupado: ocupado, piquetes: [], grados: [], arcos: [], comparten: [], texto: '' };
     var N = g.param.n, cuantos = Math.min(N - 1, (saltar || 3) + 1), piqs = [], BIN = 720, tapa = [], i, b;
@@ -368,7 +368,7 @@
   function rgb(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
   function pt(cx, cy, r, ang) { var t = ang * RAD; return (Math.round((cx + r * Math.sin(t)) * 10) / 10) + ' ' + (Math.round((cy - r * Math.cos(t)) * 10) / 10); }
   function svgPivot(g, colorDe, etiquetaDe, sinRiego, seleccionado) {
-    var R = 96, cx = 100, cy = 100, p = g.param, h = '<svg viewBox="0 0 200 200" style="width:100%;max-width:380px;display:block;margin:0 auto;" role="img" aria-label="Pivot dividido en piquetes">';
+    var R = 96, cx = 100, cy = 100, p = g.param, h = '<svg viewBox="-12 -12 224 224" style="width:100%;max-width:400px;display:block;margin:0 auto;" role="img" aria-label="Pivot dividido en piquetes, con el norte arriba">';
     var fuente = p.n > 40 ? 5.5 : p.n > 24 ? 7 : 10, textos = '', dSel = '';
     g.lista.forEach(function (s) {
       var an = p.anillos[s.anillo], pasos = Math.max(3, Math.ceil(an.paso / 2.5)), pts = [], k, fi;
@@ -383,7 +383,12 @@
       if (p.n <= 64) textos += '<text x="' + pm[0] + '" y="' + (parseFloat(pm[1]) + fuente * 0.35) + '" font-size="' + fuente + '" text-anchor="middle" fill="#fff" font-weight="600" style="paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:2px;">' + esc(s.piquete) + '</text>';
     });
     if (dSel) h += '<path d="' + dSel + '" fill="rgba(255,255,255,.18)" stroke="#1F2328" stroke-width="3" stroke-linejoin="round" pointer-events="none"/>';
-    h += textos + svgInfra(g, cx, cy, R) + '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2C2C2A"/><text x="' + cx + '" y="8" font-size="7" text-anchor="middle" fill="#8C9196">N</text></svg>';
+    // brújula: los cuatro rumbos alrededor del pivot y la flecha del norte (los grados del pivot se miden desde el norte, sentido horario)
+    var rb = R + 8, brujulaSvg = '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R + 2) + '" fill="none" stroke="#C9CED3" stroke-width="0.8" stroke-dasharray="2 3"/>' +
+      [[0, 'N'], [90, 'E'], [180, 'S'], [270, 'O']].map(function (c) { var q = pt(cx, cy, rb, c[0]).split(' '); return '<text x="' + q[0] + '" y="' + (parseFloat(q[1]) + 3) + '" font-size="9" font-weight="800" text-anchor="middle" fill="' + (c[0] === 0 ? '#B5371C' : '#5B6167') + '">' + c[1] + '</text>'; }).join('') +
+      [45, 135, 225, 315].map(function (a) { var q1 = pt(cx, cy, R + 1, a).split(' '), q2 = pt(cx, cy, R + 5, a).split(' '); return '<line x1="' + q1[0] + '" y1="' + q1[1] + '" x2="' + q2[0] + '" y2="' + q2[1] + '" stroke="#8C9196" stroke-width="1"/>'; }).join('') +
+      '<polygon points="' + (cx - 4) + ',' + (cy - R - 14) + ' ' + (cx + 4) + ',' + (cy - R - 14) + ' ' + cx + ',' + (cy - R - 22) + '" fill="#B5371C"/>';
+    h += textos + svgInfra(g, cx, cy, R) + brujulaSvg + '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2C2C2A"/></svg>';
     return h;
   }
   // Texto corto del modelo: "32 piquetes · 16 adentro (1,5 ha c/u) + 16 afuera (2,1 ha c/u) · alambrado interno recto cada dos potreros"
@@ -482,7 +487,8 @@
     var dato = function (t, val, sub) { return '<div><div style="font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#8C9196;">' + t + '</div><div style="font-size:13px;color:#2E3236;font-weight:600;">' + val + '</div>' + (sub ? '<div style="font-size:11px;color:#5B6167;line-height:1.35;">' + sub + '</div>' : '') + '</div>'; };
     var h = '<div data-piq-ficha="' + esc(piquete) + '" style="border:1px solid #E1E4E7;border-left:4px solid ' + e.color + ';border-radius:8px;padding:8px 10px;margin-top:8px;background:#fff;">';
     h += '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap;"><div><b style="font-size:14px;">Piquete ' + esc(piquete) + '</b> <span style="font-size:11px;color:#8C9196;">' + (s.ha ? String(s.ha).replace('.', ',') + ' ha' : '') + (anillo ? ' · ' + anillo : '') + (acc && acc.texto ? ' · ' + esc(acc.texto) : '') + '</span></div><button type="button" data-piq-cerrar="1" title="Cerrar" style="border:0;background:none;color:#8C9196;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button></div>';
-    h += '<div style="font-size:12.5px;color:' + e.color + ';font-weight:600;margin:2px 0 8px;">' + esc(e.texto) + '</div>';
+    var rotF = ultimoPanel && ultimoPanel.rotacion, viejaF = rotF && rotF.entradaVieja && String(rotF.entradaVieja.piquete) === String(piquete);
+    h += '<div style="font-size:12.5px;color:' + (viejaF ? '#8a5713' : e.color) + ';font-weight:600;margin:2px 0 8px;">' + (viejaF ? 'La entrada cargada el ' + fmtF(rotF.entradaVieja.fecha) + ' ya quedó vieja (' + rotF.entradaVieja.dias + ' días sin salida)' + (rotF.posicionHoy ? ': el satélite ve a los animales en el ' + esc(rotF.posicionHoy.piquete) + '. Cargá la salida de acá.' : '. Cargá la salida.') : esc(e.texto)) + '</div>';
     h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;">';
     h += dato('Satélite', v ? 'NDVI ' + v.ndvi.toFixed(2) + (v.nubes_pct > 30 ? ' *' : '') : 'sin imagen', (ult ? fmtF(ult.fecha) : '') + (tend != null ? ' · ' + (tend > 0 ? '+' : '') + (tend * 100).toFixed(1) + '/100 por día' : '') + (altSat != null ? ' · ~' + altSat + ' cm estimados' : ''));
     h += dato('Regla', e.altura ? e.altura + ' cm' : 'sin lectura', e.altura ? 'el ' + fmtF(e.fechaLectura) + (e.crecimiento != null ? ' · ' + (e.crecimiento > 0 ? '+' : '') + e.crecimiento + ' cm/día' : '') + (ref ? ' · entrar a ' + ref.entrada + ', salir a ' + ref.salida : '') : (ref ? 'meta: entrar a ' + ref.entrada + ' cm, salir a ' + ref.salida : ''));
@@ -546,8 +552,9 @@
     h += '<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' + cab;
     var resto = filas.slice(LIM); filas = filas.slice(0, LIM);
     var filaHtml = function (f) {
-      var etqSat = window.SafiaRotacion && ultimoPanel.rotacion && (f.e.estado === 'sin_datos' || f.e.estado === 'descanso') ? SafiaRotacion.etiquetaTabla(ultimoPanel.rotacion, f.s.piquete) : null;
-      var estadoTxt = f.e.estado === 'ocupado' ? '<span style="color:#2E72C8;font-weight:600;">Animales adentro</span>' : etqSat ? '<span style="color:#8a5713;font-weight:600;">' + esc(etqSat) + '</span>' : (f.e.estado === 'listo' ? '<span style="color:#178029;font-weight:600;">A punto (regla)</span>' : (f.listoSat ? '<span style="color:#178029;font-weight:600;">A punto por satélite (~' + f.altSat + ' cm)</span>' : (f.altSat != null ? '~' + f.altSat + ' cm por satélite' : (f.e.texto ? esc(f.e.texto).slice(0, 60) : '—'))));
+      var rot = ultimoPanel.rotacion, vieja = rot && rot.entradaVieja && f.e.estado === 'ocupado';
+      var etqSat = window.SafiaRotacion && rot && (f.e.estado === 'sin_datos' || f.e.estado === 'descanso' || vieja) ? SafiaRotacion.etiquetaTabla(rot, f.s.piquete) : null;
+      var estadoTxt = vieja ? '<span style="color:#8a5713;font-weight:600;">Entrada del ' + fmtF(rot.entradaVieja.fecha) + ' sin salida (' + rot.entradaVieja.dias + ' d)' + (etqSat ? ' · ' + esc(etqSat) : '') + '</span>' : f.e.estado === 'ocupado' ? '<span style="color:#2E72C8;font-weight:600;">Animales adentro</span>' : etqSat ? '<span style="color:#8a5713;font-weight:600;">' + esc(etqSat) + '</span>' : (f.e.estado === 'listo' ? '<span style="color:#178029;font-weight:600;">A punto (regla)</span>' : (f.listoSat ? '<span style="color:#178029;font-weight:600;">A punto por satélite (~' + f.altSat + ' cm)</span>' : (f.altSat != null ? '~' + f.altSat + ' cm por satélite' : (f.e.texto ? esc(f.e.texto).slice(0, 60) : '—'))));
       var esSel = sel != null && String(f.s.piquete) === String(sel);
       return '<tr data-piquete="' + esc(f.s.piquete) + '" style="border-top:1px solid #EEF0F2;cursor:pointer;' + (esSel ? 'background:#F4FAF5;outline:2px solid #1F2328;outline-offset:-2px;' : '') + '"><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colorNdvi(f.v ? f.v.ndvi : null) + ';vertical-align:-1px;margin-right:4px;"></span><b>' + esc(f.s.piquete) + '</b></td><td>' + (f.v ? f.v.ndvi.toFixed(2) + (f.v.nubes_pct > 30 ? '<span style="color:#8C9196;" title="parte con nubes">*</span>' : '') : '—') + '</td><td style="color:' + (f.tend > 0 ? '#178029' : f.tend < 0 ? '#B5371C' : '#8C9196') + ';">' + (f.tend != null ? (f.tend > 0 ? '+' : '') + (f.tend * 100).toFixed(1) + '/100 por día' : '—') + '</td><td>' + (f.e.altura ? f.e.altura + ' cm <span style="color:#8C9196;">' + fmtF(f.e.fechaLectura) + '</span>' : '—') + '</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + estadoTxt + '</td></tr>';
     };

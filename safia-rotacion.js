@@ -76,7 +76,9 @@
     var ocupPlan = parseFloat(cultivo && cultivo.diasOcupacion) || null, ocup = ocupPlan || ocupObs || null;
     // dónde están hoy: operador > satélite reciente > proyección
     var posicionHoy = null, h = hoy();
-    if (st.ocupado) { var ue = movs.filter(function (mv) { return mv.accion === 'entrada'; }).slice(-1)[0]; posicionHoy = { piquete: String(st.ocupado), fuente: 'operador', desde: ue ? ue.fecha : null, confianza: 'alta', texto: 'cargado por el operador' }; }
+    // la entrada cargada manda mientras sea creíble: si pasaron más de 3 ocupaciones (o 6 días sin dato de ocupación) sin salida, ya quedó vieja y vale lo que ve el satélite
+    var ueOp = st.ocupado ? movs.filter(function (mv) { return mv.accion === 'entrada'; }).slice(-1)[0] : null, diasOp = ueOp ? diasEntre(ueOp.fecha, h) : null, entradaVieja = ueOp && diasOp > Math.max(ocup ? ocup * 3 : 0, DIAS_RECIENTE);
+    if (st.ocupado && !entradaVieja) posicionHoy = { piquete: String(st.ocupado), fuente: 'operador', desde: ueOp ? ueOp.fecha : null, confianza: 'alta', texto: 'cargado por el operador' };
     else {
       var ult = validos.slice().sort(function (a, b) { return a.hasta.localeCompare(b.hasta) || a.orden - b.orden; }).pop();
       if (ult) {
@@ -84,8 +86,11 @@
         if (dd <= DIAS_RECIENTE) posicionHoy = { piquete: ult.piquete, fuente: 'satelite', desde: ult.desde, hasta: ult.hasta, confianza: ult.confianza, texto: 'según satélite, consumo visto entre el ' + fmtF(ult.desde) + ' y el ' + fmtF(ult.hasta) };
         else if (ocup && N) { var pasos = Math.floor(dd / ocup), k = orden.indexOf(ult.piquete); if (k >= 0 && pasos < N) posicionHoy = { piquete: orden[(k + pasos) % N], fuente: 'proyeccion', desde: ult.hasta, confianza: 'baja', texto: 'proyección: último consumo visto en el ' + ult.piquete + ' el ' + fmtF(ult.hasta) + ', a ' + ocup + ' días por piquete' }; }
       }
+      // sin satélite, con la entrada vieja se proyecta desde ella
+      if (!posicionHoy && entradaVieja && ocup && N) { var kk = orden.indexOf(String(st.ocupado)), ps = Math.floor(diasOp / ocup); if (kk >= 0 && ps < N) posicionHoy = { piquete: orden[(kk + ps) % N], fuente: 'proyeccion', desde: ueOp.fecha, confianza: 'baja', texto: 'proyección desde la entrada cargada al ' + st.ocupado + ' el ' + fmtF(ueOp.fecha) + ', a ' + ocup + ' días por piquete' }; }
+      if (posicionHoy && entradaVieja) posicionHoy.entradaVieja = { piquete: String(st.ocupado), fecha: ueOp.fecha, dias: diasOp };
     }
-    return { consumos: consumos, generales: generales, posicionHoy: posicionHoy, ocupacionDias: ocup, ocupacionObservada: ocupObs, ultimaPasada: pasadas[pasadas.length - 1] || null, pasadas: pasadas, regresion: reg, kgCm: kgCm, orden: orden };
+    return { entradaVieja: entradaVieja ? { piquete: String(st.ocupado), fecha: ueOp.fecha, dias: diasOp } : null, consumos: consumos, generales: generales, posicionHoy: posicionHoy, ocupacionDias: ocup, ocupacionObservada: ocupObs, ultimaPasada: pasadas[pasadas.length - 1] || null, pasadas: pasadas, regresion: reg, kgCm: kgCm, orden: orden };
   }
   function consumosDe(an, piquete) { return an ? an.consumos.filter(function (c) { return String(c.piquete) === String(piquete); }).sort(function (a, b) { return b.hasta.localeCompare(a.hasta); }) : []; }
   function ultimoPendiente(an, piquete) { return consumosDe(an, piquete).filter(function (c) { return c.estado === 'pendiente'; })[0] || null; }
@@ -130,12 +135,14 @@
   function textoHoy(an) {
     if (!an || !an.posicionHoy || an.posicionHoy.fuente === 'operador') return null;
     var p = an.posicionHoy;
-    return { piquete: p.piquete, titulo: 'Piquete ' + p.piquete + ' <span style="font-size:11px;font-weight:600;color:' + COLOR_CONF[p.confianza] + ';">' + (p.fuente === 'satelite' ? 'según satélite' : 'proyectado') + '</span>', sub: p.texto + (an.ocupacionObservada ? ' · ocupación observada ~' + an.ocupacionObservada + ' días por piquete' : '') + '. Cargá la entrada con las cabezas para que SAFIA cuente la carga animal.', fuente: p.fuente, confianza: p.confianza };
+    return { piquete: p.piquete, titulo: 'Piquete ' + p.piquete + ' <span style="font-size:11px;font-weight:600;color:' + COLOR_CONF[p.confianza] + ';">' + (p.fuente === 'satelite' ? 'según satélite' : 'proyectado') + '</span>', sub: (p.entradaVieja ? 'La entrada cargada al ' + p.entradaVieja.piquete + ' el ' + fmtF(p.entradaVieja.fecha) + ' ya quedó vieja (' + p.entradaVieja.dias + ' días sin salida). ' : '') + p.texto + (an.ocupacionObservada ? ' · ocupación observada ~' + an.ocupacionObservada + ' días por piquete' : '') + '. Cargá la entrada con las cabezas para que SAFIA cuente la carga animal.', fuente: p.fuente, confianza: p.confianza };
   }
   // etiqueta corta para la tabla de piquetes
   function etiquetaTabla(an, piquete) {
     var c = consumosDe(an, piquete)[0]; if (!c || c.estado === 'descartado') return null;
-    var hace = diasEntre(c.hasta, hoy());
+    var hace = diasEntre(c.hasta, hoy()), ahora = an.ultimaPasada && an.ultimaPasada.por[String(piquete)] ? an.ultimaPasada.por[String(piquete)].ndvi : null;
+    var recuperado = ahora != null && ahora >= Math.min(c.ndviAntes - 0.05, 0.8);
+    if (recuperado || hace > 20) return 'Comido ~' + fmtF(c.fechaEstimada) + (c.estado === 'anotado' ? '' : ' (satélite)') + (recuperado ? ' · recuperado' : '') + (an.ocupacionDias ? ' · descansa ' + hace + ' d' : '');
     return (c.estado === 'anotado' ? 'Comido ' : 'Comido según satélite ') + (hace <= 0 ? 'hoy' : 'hace ' + hace + ' día' + (hace === 1 ? '' : 's')) + (c.kgHaComidos != null ? ' · ~' + fmtN(c.kgHaComidos) + ' kg/ha' : '');
   }
 
