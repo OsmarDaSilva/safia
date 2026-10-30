@@ -84,10 +84,10 @@
       if (ult) {
         var dd = diasEntre(ult.hasta, h);
         if (dd <= DIAS_RECIENTE) posicionHoy = { piquete: ult.piquete, fuente: 'satelite', desde: ult.desde, hasta: ult.hasta, confianza: ult.confianza, texto: 'según satélite, consumo visto entre el ' + fmtF(ult.desde) + ' y el ' + fmtF(ult.hasta) };
-        else if (ocup && N) { var pasos = Math.floor(dd / ocup), k = orden.indexOf(ult.piquete); if (k >= 0 && pasos < N) posicionHoy = { piquete: orden[(k + pasos) % N], fuente: 'proyeccion', desde: ult.hasta, confianza: 'baja', texto: 'proyección: último consumo visto en el ' + ult.piquete + ' el ' + fmtF(ult.hasta) + ', a ' + ocup + ' días por piquete' }; }
+        else if (ocup && N) { var pasos = Math.floor(dd / ocup), k = orden.indexOf(ult.piquete); if (k >= 0 && pasos < N * 3) posicionHoy = { piquete: orden[(k + pasos) % N], fuente: 'proyeccion', desde: ult.hasta, confianza: 'baja', texto: 'proyección: último consumo visto en el ' + ult.piquete + ' el ' + fmtF(ult.hasta) + ', a ' + ocup + ' días por piquete' + (pasos >= N ? ' (ya dieron la vuelta)' : '') }; }
       }
       // sin satélite, con la entrada vieja se proyecta desde ella
-      if (!posicionHoy && entradaVieja && ocup && N) { var kk = orden.indexOf(String(st.ocupado)), ps = Math.floor(diasOp / ocup); if (kk >= 0 && ps < N) posicionHoy = { piquete: orden[(kk + ps) % N], fuente: 'proyeccion', desde: ueOp.fecha, confianza: 'baja', texto: 'proyección desde la entrada cargada al ' + st.ocupado + ' el ' + fmtF(ueOp.fecha) + ', a ' + ocup + ' días por piquete' }; }
+      if (!posicionHoy && entradaVieja && ocup && N) { var kk = orden.indexOf(String(st.ocupado)), ps = Math.floor(diasOp / ocup); if (kk >= 0 && ps < N * 3) posicionHoy = { piquete: orden[(kk + ps) % N], fuente: 'proyeccion', desde: ueOp.fecha, confianza: 'baja', texto: 'proyección desde la entrada cargada al ' + st.ocupado + ' el ' + fmtF(ueOp.fecha) + ', a ' + ocup + ' días por piquete' + (ps >= N ? ' (ya dieron la vuelta)' : '') }; }
       if (posicionHoy && entradaVieja) posicionHoy.entradaVieja = { piquete: String(st.ocupado), fecha: ueOp.fecha, dias: diasOp };
     }
     return { entradaVieja: entradaVieja ? { piquete: String(st.ocupado), fecha: ueOp.fecha, dias: diasOp } : null, consumos: consumos, generales: generales, posicionHoy: posicionHoy, ocupacionDias: ocup, ocupacionObservada: ocupObs, ultimaPasada: pasadas[pasadas.length - 1] || null, pasadas: pasadas, regresion: reg, kgCm: kgCm, orden: orden };
