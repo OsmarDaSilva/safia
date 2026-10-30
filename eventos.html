@@ -226,6 +226,22 @@
             </div>
           </div>
         </div>
+        <div id="editCamposPastoreo" class="full" style="display:none;">
+          <div class="form-grid">
+            <div class="field"><label>Qué pasó</label><select id="editAccion"><option value="entrada">Entraron animales</option><option value="salida">Salieron animales</option><option value="corte">Corte</option></select></div>
+            <div class="field"><label>Piquete</label><input type="text" id="editPiquete"></div>
+            <div class="field"><label>Cabezas</label><input type="number" id="editCabezas" min="0"></div>
+            <div class="field"><label>Peso promedio (kg por animal)</label><input type="number" id="editPesoKg" min="0" step="0.1"></div>
+            <div class="field"><label>Altura del pasto (cm)</label><input type="number" id="editAlturaCm" min="0" step="0.1"></div>
+          </div>
+        </div>
+        <div id="editCamposPesada" class="full" style="display:none;">
+          <div class="form-grid">
+            <div class="field"><label>Qué es</label><select id="editMotivoPes"><option value="control">Pesada de control</option><option value="ingreso">Ingreso de un lote nuevo</option><option value="agregado">Se agregaron animales</option><option value="sacado">Se sacaron algunos animales</option><option value="salida">Salida de todo el lote</option></select></div>
+            <div class="field"><label>Cabezas</label><input type="number" id="editPesCabezas" min="0"></div>
+            <div class="field"><label>Peso promedio (kg por animal)</label><input type="number" id="editPesPeso" min="0" step="0.1"></div>
+          </div>
+        </div>
         <div class="field full"><label>Observaciones</label><textarea id="editObservaciones"></textarea></div>
       </div>
       <div class="modal-actions">
@@ -466,6 +482,9 @@
     }
 
     // ============ EDITAR ============
+    // llegada desde el Operador o la ficha del piquete: ?editar=<id> abre ese evento
+    window.addEventListener('safia:datos', function () { try { var q = new URLSearchParams(location.search).get('editar'); if (q && !window.__editado) { window.__editado = true; setTimeout(function () { editarEvento(parseInt(q, 10)); }, 300); } } catch (err) {} });
+    setTimeout(function () { try { var q = new URLSearchParams(location.search).get('editar'); if (q && !window.__editado) { window.__editado = true; editarEvento(parseInt(q, 10)); } } catch (err) {} }, 1200);
     function editarEvento(id) {
       const eventos = JSON.parse(localStorage.getItem('eventos') || '[]');
       const ev = eventos.find(e => e.id === id);
@@ -489,6 +508,13 @@
         selectEquipo.appendChild(opt);
       });
 
+      document.getElementById('editCamposPastoreo').style.display = ev.tipo === 'pastoreo' ? 'block' : 'none';
+      document.getElementById('editCamposPesada').style.display = ev.tipo === 'pesada' ? 'block' : 'none';
+      if (ev.tipo === 'pastoreo') {   // cabezas y peso se corrigen acá (pedido de Osmar, 30-oct-2026)
+        document.getElementById('editAccion').value = ev.accion || 'entrada'; document.getElementById('editPiquete').value = ev.piquete || '';
+        document.getElementById('editCabezas').value = ev.cabezas || ''; document.getElementById('editPesoKg').value = ev.pesoKg || ''; document.getElementById('editAlturaCm').value = ev.alturaCm || '';
+      }
+      if (ev.tipo === 'pesada') { document.getElementById('editMotivoPes').value = ev.motivo || 'control'; document.getElementById('editPesCabezas').value = ev.cabezas || ''; document.getElementById('editPesPeso').value = ev.pesoKg || ''; }
       if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura' || ev.tipo === 'pesada' || ev.tipo === 'calibracion' || ev.tipo === 'parada') {
         document.getElementById('editCamposRiegoLluvia').style.display = 'none';
         document.getElementById('editCamposAplicacion').style.display = 'none';
@@ -711,8 +737,22 @@
       const ca = campanas.find(c => c.equipoId === equipoId && c.estado === 'Activa');
       ev.campanaId = ca ? ca.id : null;
 
-      if (ev.tipo === 'pastoreo' || ev.tipo === 'lectura' || ev.tipo === 'pesada' || ev.tipo === 'calibracion' || ev.tipo === 'parada') {
-        // fecha, lote y observaciones se editan; el detalle del pastoreo o de la lectura se carga desde el Operador
+      if (ev.tipo === 'pastoreo') {
+        const piq = document.getElementById('editPiquete').value.trim(); if (!piq) { mostrarToast('Cargá el piquete.'); return; }
+        const cab = parseFloat(document.getElementById('editCabezas').value), peso = parseFloat(document.getElementById('editPesoKg').value), alt = parseFloat(document.getElementById('editAlturaCm').value);
+        if (peso > 0 && (peso < 30 || peso > 1200)) { mostrarToast('Revisá el peso promedio: ' + peso + ' kg por animal no parece correcto.'); return; }
+        ev.accion = document.getElementById('editAccion').value; ev.piquete = piq;
+        if (cab > 0) ev.cabezas = cab; else delete ev.cabezas;
+        if (peso > 0) ev.pesoKg = peso; else delete ev.pesoKg;
+        if (alt > 0) ev.alturaCm = alt; else delete ev.alturaCm;
+      } else if (ev.tipo === 'pesada') {
+        const motivo = document.getElementById('editMotivoPes').value, cabP = parseFloat(document.getElementById('editPesCabezas').value), pesoP = parseFloat(document.getElementById('editPesPeso').value);
+        if (!(cabP > 0)) { mostrarToast('Cargá las cabezas.'); return; }
+        if (!(pesoP > 0) && motivo !== 'sacado') { mostrarToast('Cargá el peso promedio en kg.'); return; }
+        if (pesoP > 0 && (pesoP < 30 || pesoP > 1200)) { mostrarToast('Revisá el peso promedio: ' + pesoP + ' kg por animal no parece correcto.'); return; }
+        ev.motivo = motivo; ev.cabezas = cabP; if (pesoP > 0) ev.pesoKg = pesoP; else delete ev.pesoKg;
+      } else if (ev.tipo === 'lectura' || ev.tipo === 'calibracion' || ev.tipo === 'parada') {
+        // fecha, lote y observaciones se editan; el detalle se carga desde el Operador
       } else if (ev.tipo === 'aplicacion') {
         const producto = document.getElementById('editProducto').value.trim();
         const dosis = parseFloat(document.getElementById('editDosis').value);

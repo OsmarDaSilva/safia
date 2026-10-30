@@ -60,7 +60,7 @@
       caidas.forEach(function (c, j) {
         var fe = sumarDias(A.fecha, Math.max(1, Math.round((j + 1) * dias / (m + 1))));
         var conf = (c.caida >= 0.2 && dias <= 10 && !c.nubes) ? 'alta' : (c.nubes || dias > 20 ? 'baja' : 'media');
-        var altA = reg ? reg.estimar(c.antes) : null, altB = reg ? reg.estimar(c.despues) : null;
+        var altA = reg ? Math.max(0, reg.estimar(c.antes)) : null, altB = reg ? Math.max(0, reg.estimar(c.despues)) : null;
         var kg = altA != null && altB != null && kgCm ? Math.max(0, altA - altB) * kgCm : null;
         var anotado = movs.filter(function (mv) { return mv.accion === 'entrada' && String(mv.piquete) === c.piquete && dia(mv.fecha) >= sumarDias(A.fecha, -2) && dia(mv.fecha) <= sumarDias(B.fecha, 2); })[0] || null;
         var estado = anotado ? (anotado.cargadoPor === 'satelite' ? 'confirmado' : 'anotado') : (esDescartado(equipo.id, c.piquete, B.fecha) ? 'descartado' : 'pendiente');
@@ -77,7 +77,7 @@
     // los piquetes con más pasto hoy (adonde el productor manda los animales): NDVI más alto en la última pasada, salvo los comidos en los últimos 10 días
     var h = hoy(), ultPas = pasadas[pasadas.length - 1] || null, comidosRecien = {};
     validos.forEach(function (c) { if (diasEntre(c.hasta, h) <= 10) comidosRecien[c.piquete] = 1; });
-    var masPasto = ultPas ? orden.filter(function (p) { return ultPas.por[p] && !comidosRecien[p]; }).map(function (p) { var e = st.piquetes.filter(function (x) { return String(x.piquete) === p; })[0]; return { piquete: p, ndvi: ultPas.por[p].ndvi, fecha: ultPas.fecha, altura: e && e.altura ? e.altura : null, alt: reg ? reg.estimar(ultPas.por[p].ndvi) : null }; }).sort(function (a, b) { return b.ndvi - a.ndvi || (b.altura || 0) - (a.altura || 0); }) : [];
+    var masPasto = ultPas ? orden.filter(function (p) { return ultPas.por[p] && !comidosRecien[p]; }).map(function (p) { var e = st.piquetes.filter(function (x) { return String(x.piquete) === p; })[0]; return { piquete: p, ndvi: ultPas.por[p].ndvi, fecha: ultPas.fecha, altura: e && e.altura ? e.altura : null, alt: reg ? Math.max(0, reg.estimar(ultPas.por[p].ndvi)) : null }; }).sort(function (a, b) { return b.ndvi - a.ndvi || (b.altura || 0) - (a.altura || 0); }) : [];
     // dónde están hoy: operador > satélite reciente > probable (los de más pasto)
     var posicionHoy = null;
     // la entrada cargada manda mientras sea creíble: si pasaron más de 3 ocupaciones (o 6 días sin dato de ocupación) sin salida, ya quedó vieja y vale lo que ve el satélite
@@ -128,7 +128,7 @@
       });
     }
     // historial satelital del piquete: cada pasada con NDVI y, si hay calibración, altura y kilos
-    var serie = an.pasadas.map(function (p) { var v = p.por[String(piquete)]; return v ? { fecha: p.fecha, ndvi: v.ndvi, alt: an.regresion ? an.regresion.estimar(v.ndvi) : null } : null; }).filter(Boolean).slice(-6).reverse();
+    var serie = an.pasadas.map(function (p) { var v = p.por[String(piquete)]; return v ? { fecha: p.fecha, ndvi: v.ndvi, alt: an.regresion ? Math.max(0, an.regresion.estimar(v.ndvi)) : null } : null; }).filter(Boolean).slice(-6).reverse();
     if (serie.length > 1) {
       h += '<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Historial satelital del piquete (' + serie.length + ' pasadas)</summary><table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px;"><tr style="color:#8C9196;text-align:left;"><th style="font-weight:600;">Fecha</th><th style="font-weight:600;">NDVI</th>' + (an.regresion ? '<th style="font-weight:600;">~cm</th>' + (an.kgCm ? '<th style="font-weight:600;">~kg MS/ha</th>' : '') : '') + '</tr>' +
         serie.map(function (s) { return '<tr style="border-top:1px solid #EEF0F2;"><td style="padding:2px 0;">' + fmtF(s.fecha) + '</td><td>' + s.ndvi.toFixed(2) + '</td>' + (an.regresion ? '<td>' + s.alt + '</td>' + (an.kgCm ? '<td>' + fmtN(s.alt * an.kgCm) + '</td>' : '') : '') + '</tr>'; }).join('') + '</table>' + (an.regresion ? '' : '<div style="font-size:11px;color:#8C9196;margin-top:3px;">Con 3 lecturas de regla a ±3 días de una pasada, acá aparecen también la altura y los kilos estimados.</div>') + '</details>';

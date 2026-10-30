@@ -500,15 +500,16 @@
       h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' + (e.estado === 'ocupado' ? btn('salida', 'Salen los animales de acá', true) : btn('entrada', 'Entran los animales acá', true)) + btn('lectura', 'Cargar lectura de regla') + btn('corte', 'Corte (heno, picado)') + '</div>';
     }
     if (window.SafiaRotacion) h += SafiaRotacion.htmlFicha(equipo, cultivo, piquete, ultimoPanel && ultimoPanel.rotacion);
-    var hist = movs.map(function (m) { return { f: m.fecha, t: (m.accion === 'entrada' ? 'Entrada' : m.accion === 'salida' ? 'Salida' : 'Corte') + (m.cabezas ? ' · ' + m.cabezas + ' cab.' : '') + (m.alturaCm || m.altura ? ' · ' + (m.alturaCm || m.altura) + ' cm' : '') }; })
-      .concat(lects.map(function (l) { return { f: l.fecha, t: 'Regla ' + l.alturaCm + ' cm' }; })).sort(function (a, b) { return String(b.f).localeCompare(String(a.f)); }).slice(0, 6);
-    if (hist.length) h += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Historial del piquete (' + hist.length + ')</summary><div style="font-size:12px;color:#3A3E41;margin-top:4px;">' + hist.map(function (x) { return '<div>' + fmtF(x.f) + ' · ' + esc(x.t) + '</div>'; }).join('') + '</div></details>';
+    var hist = movs.map(function (m) { return { f: m.fecha, id: m.id, t: (m.accion === 'entrada' ? 'Entrada' : m.accion === 'salida' ? 'Salida' : 'Corte') + (m.cabezas ? ' · ' + m.cabezas + ' cab.' : '') + (m.pesoKg ? ' · ' + m.pesoKg + ' kg' : '') + (m.alturaCm || m.altura ? ' · ' + (m.alturaCm || m.altura) + ' cm' : '') }; })
+      .concat(lects.map(function (l) { return { f: l.fecha, id: l.id, t: 'Regla ' + l.alturaCm + ' cm' }; })).sort(function (a, b) { return String(b.f).localeCompare(String(a.f)); }).slice(0, 6);
+    if (hist.length) h += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Historial del piquete (' + hist.length + ')</summary><div style="font-size:12px;color:#3A3E41;margin-top:4px;">' + hist.map(function (x) { return '<div>' + fmtF(x.f) + ' · ' + esc(x.t) + (x.id && window.editarEventoEn ? ' <a href="#" data-piq-editar="' + esc(x.id) + '" style="color:#1565C0;font-size:11px;font-weight:600;text-decoration:none;">editar</a>' : '') + '</div>'; }).join('') + '</div></details>';
     return h + '</div>';
   }
   // tocar un piquete (en la rueda o en la tabla) lo elige y abre su ficha; los botones de la ficha avisan a la pantalla (window.SafiaPiqueteAccion)
   document.addEventListener('click', function (ev) {
     var t = ev.target; if (!t || !t.closest) return;
     var raiz = t.closest('[data-piq-panel]'); if (!raiz || !ultimoPanel) return;
+    var edit = t.closest('[data-piq-editar]'); if (edit) { ev.preventDefault(); ev.stopPropagation(); if (window.editarEventoEn) window.editarEventoEn(edit.getAttribute('data-piq-editar')); return; }
     var accion = t.closest('[data-piq-accion]');
     if (accion) { ev.preventDefault(); ev.stopPropagation(); if (window.SafiaPiqueteAccion) window.SafiaPiqueteAccion(accion.getAttribute('data-piq-accion'), accion.getAttribute('data-piquete'), { desde: accion.getAttribute('data-desde'), hasta: accion.getAttribute('data-hasta') }); return; }
     var eqId = raiz.getAttribute('data-piq-panel');

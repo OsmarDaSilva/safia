@@ -2086,12 +2086,14 @@
               <div class="evento-titulo-evt">${titulo}${origen ? ' <span style="font-size:10px;font-weight:600;color:#8C9196;text-transform:uppercase;letter-spacing:.05em;">' + origen + '</span>' : ''}</div>
               <div class="evento-detalle">${detalle}</div>
             </div>
-            ${automatico ? '<span title="Lo cargó SAFIA desde el clima o la estación; se corrige desde Eventos" style="font-size:11px;color:#8C9196;">auto</span>' : '<button class="evento-borrar" onclick="borrarEvento(' + ev.id + ', this)" title="Borrar">×</button>'}
+            ${automatico ? '<span title="Lo cargó SAFIA desde el clima o la estación; se corrige desde Eventos" style="font-size:11px;color:#8C9196;">auto</span>' : '<button class="evento-borrar" onclick="editarEventoEn(' + ev.id + ')" title="Editar (cabezas, peso, piquete, fecha)" style="width:auto;font-size:11px;padding:0 6px;margin-right:4px;">Editar</button><button class="evento-borrar" onclick="borrarEvento(' + ev.id + ', this)" title="Borrar">×</button>'}
           </div>
         `;
       });
     }
 
+    // editar: la pantalla Eventos abre el evento elegido (fecha, piquete, cabezas, peso, motivo…)
+    window.editarEventoEn = function (id) { try { sessionStorage.setItem('eventos_editar', String(id)); } catch (e) {} window.open('eventos.html?editar=' + id, '_top'); };
     function borrarEvento(id, boton) {
       // Confirmación en pantalla: el primer toque avisa, el segundo borra
       if (boton && !boton.dataset.confirmado) { boton.dataset.confirmado = '1'; boton.textContent = '¿Borrar?'; boton.style.width = 'auto'; boton.style.fontSize = '11px'; mostrarToast('Tocá otra vez para borrar'); setTimeout(() => { delete boton.dataset.confirmado; boton.textContent = '×'; boton.style.width = ''; boton.style.fontSize = ''; }, 4000); return; }
