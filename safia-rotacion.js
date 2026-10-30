@@ -1,318 +1,143 @@
-/* SAFIA — Plan de rotación (Banco Agronómico → pestaña "Plan de rotación")
+/* SAFIA — Rotación leída desde el satélite (pedido de Osmar, 30-oct-2026)
    -------------------------------------------------------------------
-   Planifica 1 a 3 años por lote: qué se siembra en cada temporada
-   (verano, zafriña, invierno) con objetivo de rinde, y compara el plan
-   contra las campañas reales a medida que se cargan (cumplido / cambiado).
-   Avisa cuando el plan rompe las reglas de rotación de la siembra directa.
-
-   Reglas y fuentes (números entre corchetes en los avisos):
-   [1] Embrapa Soja, "Rotação de culturas": no repetir la misma especie en
-       la misma área en un intervalo menor a un año; la sucesión continua
-       soja-trigo o soja-maíz zafriña degrada el suelo y favorece plagas,
-       enfermedades y malezas; la rotación bien hecha rinde ~10 % más.
-   [2] CAPECO / FEPASIDIAS / INBIO (Paraguay): la base de la siembra
-       directa es el suelo siempre cubierto; el maíz es el principal
-       cultivo de rotación; trigo, canola, girasol, avena y coberturas
-       (avena negra, nabo forrajero, lupino, mezclas) completan el sistema.
-   [3] Embrapa Girassol: no repetir girasol en el mismo lote antes de 4
-       años (Sclerotinia, podredumbre blanca); la canola comparte el mismo
-       hongo: intervalo de 3 años y no sucederse con girasol.
-   [4] Embrapa (ILPF / Sistema Santa Fe): brachiaria como cobertura antes
-       de la soja mejora la estructura del suelo y el rinde (+15 %).
-   Datos: colección `planes_rotacion` (un plan por lote), sincronizada en
-   Supabase (tabla safia_planes). Depende de window.SafiaBanco. */
+   Aunque el operador no cargue la entrada de los animales, el satélite deja la huella: el piquete que se comió cae
+   de golpe en NDVI (por ejemplo de 0,90 a 0,55) mientras los vecinos siguen altos. Este módulo:
+   - detecta esos "consumos" entre dos pasadas limpias consecutivas (caída ≥ UMBRAL_CAIDA partiendo de ≥ MIN_ANTES);
+     si cae más de la mitad del pivot a la vez no es pastoreo sino un evento general (helada, seca, corte total);
+   - ordena los consumos de una misma ventana siguiendo el alambrado (el orden de los piquetes) desde la última
+     posición conocida, y reparte las fechas estimadas dentro de la ventana;
+   - cruza con lo que cargó el operador: si él anotó la entrada, su dato manda y el satélite solo confirma; lo que el
+     operador marcó como "no fue así" se descarta; lo demás queda como "según satélite" (pendiente) y se puede confirmar
+     con un toque (crea los eventos de pastoreo reales, cargadoPor 'satelite');
+   - estima dónde están los animales hoy (operador > satélite > proyección por días de ocupación) y los kilos comidos
+     cuando hay calibración regla ↔ NDVI (SafiaPiquetes.regresion) y el factor kg/cm de SafiaForraje.
+   Límites: Sentinel-2 pasa cada 5 días y las nubes alargan la ventana; entre pasadas no se sabe el día exacto ni las
+   cabezas. Sobre 0,85 el NDVI se satura: la caída se ve, el engorde no. Depende de SafiaPiquetes, SafiaPasturas y,
+   para los kilos, SafiaForraje. */
 (function () {
   'use strict';
-  var B = function () { return window.SafiaBanco; };
-  var $ = function (id) { return document.getElementById(id); };
-  var iniciado = false;
+  var UMBRAL_CAIDA = 0.10, MIN_ANTES = 0.45, NUBES_MAX = 40, DIAS_RECIENTE = 6;
+  function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
+  function leerObj(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function hoy() { return window.SafiaBalance ? SafiaBalance.hoyLocal() : new Date().toISOString().slice(0, 10); }
+  function dia(f) { return String(f || '').slice(0, 10); }
+  function diasEntre(a, b) { return Math.round((new Date(dia(b) + 'T12:00:00') - new Date(dia(a) + 'T12:00:00')) / 86400000); }
+  function sumarDias(f, n) { var d = new Date(dia(f) + 'T12:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function fmtF(f) { var p = dia(f).split('-'); return p.length === 3 ? p[2] + '/' + p[1] : String(f || ''); }
+  function fmtN(n) { return n == null || isNaN(n) ? '—' : Math.round(n).toLocaleString('es-PY'); }
+  function claveDescartes(equipoId) { return 'rotacion_descartes_' + String(equipoId); }
+  function descartes(equipoId) { return leerObj(claveDescartes(equipoId)) || []; }
+  function esDescartado(equipoId, piquete, hasta) { return descartes(equipoId).some(function (d) { return String(d.piquete) === String(piquete) && d.hasta === hasta; }); }
 
-  /* ---------- catálogos ---------- */
-  var EPOCAS = [
-    { k: 'verano',   n: 'Verano',   meses: [9, 10, 11, 12], siembra: 'sep–dic', cosecha: 'ene–mar' },
-    { k: 'zafrina',  n: 'Zafriña',  meses: [1, 2, 3],       siembra: 'ene–mar', cosecha: 'may–jul' },
-    { k: 'invierno', n: 'Invierno', meses: [4, 5, 6, 7, 8], siembra: 'abr–jun', cosecha: 'ago–oct' }
-  ];
-  var RENTA = {
-    verano:   ['Soja', 'Maíz', 'Girasol', 'Sorgo', 'Poroto', 'Arroz', 'Algodón', 'Mandioca', 'Caña de azúcar'],
-    zafrina:  ['Maíz', 'Girasol', 'Sorgo', 'Poroto', 'Soja'],
-    invierno: ['Trigo', 'Canola', 'Avena (grano)', 'Cebada', 'Girasol', 'Maíz']
-  };
-  var COBERTURAS = [
-    ['Avena negra', 'invierno'], ['Avena negra + nabo forrajero', 'invierno'], ['Nabo forrajero', 'invierno'], ['Nabo + lupino', 'invierno'],
-    ['Centeno / triticale', 'invierno'], ['Brachiaria ruziziensis', 'todas'], ['Brachiaria brizantha', 'todas'], ['Milheto', 'todas'],
-    ['Sorgo forrajero', 'todas'], ['Crotalaria', 'todas'], ['Mucuna', 'todas'], ['Mezcla de coberturas', 'todas'], ['Pastura (integración)', 'todas']
-  ];
-  var DESCANSO = 'Descanso / rastrojo';
-  var LEGUMINOSAS = ['soja', 'poroto', 'crotalaria', 'mucuna', 'lupino'];
-  var GRAMINEAS = ['maiz', 'trigo', 'sorgo', 'avena', 'cebada', 'centeno', 'triticale', 'arroz', 'brachiaria', 'milheto', 'pastura', 'cana'];
-
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
-  function especie(cultivo) {
-    var n = norm(cultivo);
-    if (!n || n.indexOf('descanso') === 0 || n.indexOf('barbecho') === 0 || n.indexOf('rastrojo') === 0) return 'descanso';
-    var claves = ['soja', 'maiz', 'trigo', 'girasol', 'sorgo', 'canola', 'avena', 'cebada', 'poroto', 'arroz', 'algodon', 'mandioca', 'cana', 'brachiaria', 'brizantha', 'milheto', 'nabo', 'centeno', 'triticale', 'crotalaria', 'mucuna', 'lupino', 'pastura', 'mezcla'];
-    for (var i = 0; i < claves.length; i++) if (n.indexOf(claves[i]) >= 0) return claves[i] === 'brizantha' ? 'brachiaria' : claves[i];
-    return n.split(/[\s(/+]/)[0];
-  }
-  function esCobertura(cultivo) { var n = norm(cultivo); return COBERTURAS.some(function (c) { return norm(c[0]) === n; }) || /cobertura|forrajer|brachiaria|milheto|nabo|crotalaria|mucuna|pastura|mezcla/.test(n); }
-  function familia(cultivo) { var e = especie(cultivo); if (LEGUMINOSAS.indexOf(e) >= 0) return 'leguminosa'; if (GRAMINEAS.indexOf(e) >= 0) return 'graminea'; return 'otra'; }
-  function fmtKg(v) { return v == null || v === '' ? '—' : Math.round(v).toLocaleString('es-PY'); }
-  function fmtF(f) { if (!f) return '—'; var p = String(f).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : f; }
-
-  /* ---------- temporadas ---------- */
-  // Una fecha de siembra cae en una temporada: verano = siembra sep–dic del año Y ("Verano Y/Y+1");
-  // zafriña = siembra ene–mar del año Y; invierno = siembra abr–ago del año Y.
-  function temporadaDe(fechaSiembra) {
-    var f = String(fechaSiembra || '').slice(0, 10); if (f.length < 7) return null;
-    var y = +f.slice(0, 4), m = +f.slice(5, 7);
-    if (m >= 9) return { epoca: 'verano', anio: y };
-    if (m <= 3) return { epoca: 'zafrina', anio: y };
-    return { epoca: 'invierno', anio: y };
-  }
-  function etiqueta(t) { return t.epoca === 'verano' ? 'Verano ' + t.anio + '/' + String(t.anio + 1).slice(2) : (t.epoca === 'zafrina' ? 'Zafriña ' + t.anio : 'Invierno ' + t.anio); }
-  function orden(t) { return t.epoca === 'verano' ? t.anio * 3 + 0 : (t.epoca === 'zafrina' ? (t.anio - 1) * 3 + 1 : (t.anio - 1) * 3 + 2); }
-  function siguiente(t) { return t.epoca === 'verano' ? { epoca: 'zafrina', anio: t.anio + 1 } : (t.epoca === 'zafrina' ? { epoca: 'invierno', anio: t.anio } : { epoca: 'verano', anio: t.anio }); }
-  function temporadaActual() { var d = new Date(); return temporadaDe(d.toISOString().slice(0, 10)); }
-  function mismaTemp(a, b) { return a && b && a.epoca === b.epoca && a.anio === b.anio; }
-
-  /* ---------- historial real del lote ---------- */
-  function historialDelLote(equipoId) {
-    var salida = [];
-    B().leer('campanas').forEach(function (c) {
-      if (String(c.equipoId) !== String(equipoId)) return;
-      (c.cultivos || []).forEach(function (cu, i) {
-        if (!cu || !cu.fechaSiembra) return;
-        var t = temporadaDe(cu.fechaSiembra); if (!t) return;
-        var cos = (c.cosechas && c.cosechas[i] && c.cosechas[i].fecha) || (i === 0 && c.cosecha && c.cosecha.fecha) || null;
-        salida.push({ temporada: t, cultivo: cu.cultivo || '—', siembra: cu.fechaSiembra.slice(0, 10), cosecha: cos ? cos.slice(0, 10) : null, rinde: parseFloat(cu.rendimientoReal) || null, cobertura: cu.cobertura || '', variedad: cu.variedad || '', origen: 'campaña' });
+  /* ---------- el análisis: consumos, eventos generales, posición de hoy ---------- */
+  function analizar(equipo, cultivo, pasadasOpc) {
+    if (!equipo || !window.SafiaPiquetes || !window.SafiaPasturas) return null;
+    var g = SafiaPiquetes.sectores(equipo, cultivo); if (!g) return null;
+    var pasadas = (pasadasOpc || SafiaPiquetes.pasadasValidas(equipo, cultivo)).slice().sort(function (a, b) { return a.fecha.localeCompare(b.fecha); });
+    var orden = g.lista.map(function (s) { return String(s.piquete); }), N = orden.length;
+    var movs = SafiaPasturas.eventosLote(equipo.id), st = SafiaPasturas.estadoPiquetes(equipo.id, cultivo);
+    var reg = SafiaPiquetes.regresion(SafiaPiquetes.pares(equipo, pasadas));
+    var factor = null; try { factor = window.SafiaForraje && SafiaForraje.factorDe ? SafiaForraje.factorDe(equipo.id, cultivo) : null; } catch (e) { factor = null; }
+    var kgCm = factor && factor.kgCm ? factor.kgCm : null;
+    var consumos = [], generales = [], i, ultimoPos = null;   // último piquete donde se vio (o anotó) a los animales
+    var entradaAntes = function (fecha) { var e = null; movs.forEach(function (m) { if (m.accion === 'entrada' && dia(m.fecha) <= fecha) e = m; }); return e ? String(e.piquete) : null; };
+    for (i = 1; i < pasadas.length; i++) {
+      var A = pasadas[i - 1], B = pasadas[i], dias = diasEntre(A.fecha, B.fecha); if (dias <= 0) continue;
+      var caidas = [], conDato = 0;
+      orden.forEach(function (p) {
+        var a = A.por[p], b = B.por[p]; if (!a || !b) return; conDato++;
+        var nub = (a.nubes_pct > NUBES_MAX) || (b.nubes_pct > NUBES_MAX);
+        if (a.ndvi >= MIN_ANTES && (a.ndvi - b.ndvi) >= UMBRAL_CAIDA) caidas.push({ piquete: p, antes: a.ndvi, despues: b.ndvi, caida: a.ndvi - b.ndvi, nubes: nub });
       });
-    });
-    B().leer('ciclos').forEach(function (ci) {
-      if (String(ci.equipoId || '') !== String(equipoId) || !ci.fechaSiembra) return;
-      var t = temporadaDe(ci.fechaSiembra); if (!t) return;
-      salida.push({ temporada: t, cultivo: ci.cultivo || '—', siembra: ci.fechaSiembra.slice(0, 10), cosecha: ci.fechaCosecha || null, rinde: parseFloat(ci.rindeKgHa) || null, cobertura: ci.cobertura || '', variedad: ci.variedad || '', origen: 'histórico' });
-    });
-    return salida.sort(function (a, b) { return orden(a.temporada) - orden(b.temporada) || a.siembra.localeCompare(b.siembra); });
-  }
-
-  /* ---------- plan (datos) ---------- */
-  function planDelLote(equipoId) {
-    return B().leer('planes_rotacion').find(function (p) { return String(p.equipoId) === String(equipoId); }) || null;
-  }
-  function guardarPlan(plan) {
-    var lista = B().leer('planes_rotacion').filter(function (p) { return String(p.equipoId) !== String(plan.equipoId); });
-    plan.modificado = new Date().toISOString();
-    lista.push(plan);
-    B().guardar('planes_rotacion', lista);
-  }
-  // Temporadas del plan: desde la siguiente a la última real (o la actual) hasta N años
-  function temporadasNuevas(equipoId, anios) {
-    var hist = historialDelLote(equipoId);
-    var desde = hist.length ? siguiente(hist[hist.length - 1].temporada) : temporadaActual();
-    var hoy = temporadaActual();
-    if (orden(desde) < orden(hoy)) desde = hoy;
-    var out = [], t = desde;
-    for (var i = 0; i < anios * 3; i++) { out.push({ epoca: t.epoca, anio: t.anio, cultivo: '', objetivoKgHa: null, nota: '' }); t = siguiente(t); }
-    return out;
-  }
-  // Sugerencia de rotación de 3 años para la Región Oriental [1][2][4]
-  function sugerir(equipoId, temporadas, lote) {
-    var hist = historialDelLote(equipoId);
-    // cuántos veranos seguidos de soja trae el lote (para no proponer un tercero)
-    var racha = 0;
-    hist.filter(function (h) { return h.temporada.epoca === 'verano'; }).forEach(function (h) { racha = especie(h.cultivo) === 'soja' ? racha + 1 : 0; });
-    var ultimo = hist.length ? especie(hist[hist.length - 1].cultivo) : '';
-    var anioPlan = 0, veranoCultivo = '';
-    temporadas.forEach(function (t, i) {
-      if (t.epoca === 'verano') {
-        anioPlan++;
-        // soja salvo que ya vengan 2 veranos de soja seguidos (o el lote termina en soja recién sembrada): entonces maíz de primera
-        var maiz = racha >= 2 || (i === 0 && ultimo === 'soja');
-        veranoCultivo = maiz ? 'Maíz' : 'Soja';
-        racha = maiz ? 0 : racha + 1;
-        t.cultivo = veranoCultivo;
-      } else if (t.epoca === 'zafrina') {
-        // tras soja: maíz zafriña (año 1) o libre para trigo (año 2); tras maíz de primera: girasol o descanso
-        if (veranoCultivo === 'Maíz') t.cultivo = anioPlan % 2 === 0 ? DESCANSO : 'Girasol';
-        else t.cultivo = anioPlan % 2 === 0 ? DESCANSO : 'Maíz';
-        if (i === 0 && ultimo === 'soja') t.cultivo = 'Maíz';
-      } else {
-        // invierno: trigo el año que la zafriña quedó libre; si no, cobertura (brachiaria cada 3 años antes de la soja)
-        var prevZaf = temporadas[i - 1] && temporadas[i - 1].epoca === 'zafrina' ? temporadas[i - 1].cultivo : '';
-        t.cultivo = prevZaf === DESCANSO ? 'Trigo' : (anioPlan % 3 === 0 ? 'Brachiaria ruziziensis' : 'Avena negra + nabo forrajero');
+      if (!conDato) continue;
+      if (caidas.length > conDato / 2) { generales.push({ desde: A.fecha, hasta: B.fecha, n: caidas.length, caidaMedia: caidas.reduce(function (s, c) { return s + c.caida; }, 0) / caidas.length }); continue; }
+      if (!caidas.length) continue;
+      // orden por el alambrado desde la última posición conocida (lo anotado por el operador antes de la ventana manda)
+      var ref = entradaAntes(A.fecha) || ultimoPos, k0 = ref ? orden.indexOf(ref) : -1;
+      caidas.sort(function (x, y) { var ix = (orden.indexOf(x.piquete) - k0 - 1 + N * 2) % N, iy = (orden.indexOf(y.piquete) - k0 - 1 + N * 2) % N; return ix - iy; });
+      var m = caidas.length;
+      caidas.forEach(function (c, j) {
+        var fe = sumarDias(A.fecha, Math.max(1, Math.round((j + 1) * dias / (m + 1))));
+        var conf = (c.caida >= 0.2 && dias <= 10 && !c.nubes) ? 'alta' : (c.nubes || dias > 20 ? 'baja' : 'media');
+        var altA = reg ? reg.estimar(c.antes) : null, altB = reg ? reg.estimar(c.despues) : null;
+        var kg = altA != null && altB != null && kgCm ? Math.max(0, altA - altB) * kgCm : null;
+        var anotado = movs.filter(function (mv) { return mv.accion === 'entrada' && String(mv.piquete) === c.piquete && dia(mv.fecha) >= sumarDias(A.fecha, -2) && dia(mv.fecha) <= sumarDias(B.fecha, 2); })[0] || null;
+        var estado = anotado ? (anotado.cargadoPor === 'satelite' ? 'confirmado' : 'anotado') : (esDescartado(equipo.id, c.piquete, B.fecha) ? 'descartado' : 'pendiente');
+        consumos.push({ piquete: c.piquete, desde: A.fecha, hasta: B.fecha, dias: dias, fechaEstimada: fe, orden: j + 1, de: m, ndviAntes: c.antes, ndviDespues: c.despues, caida: c.caida, altAntes: altA, altDespues: altB, kgHaComidos: kg, confianza: conf, estado: estado, anotado: anotado });
+        ultimoPos = c.piquete;
+      });
+    }
+    var validos = consumos.filter(function (c) { return c.estado !== 'descartado'; });
+    // días de ocupación observados: la ventana repartida entre los piquetes que cayeron en ella
+    var ventanas = {}; validos.forEach(function (c) { var k = c.desde + '|' + c.hasta; ventanas[k] = ventanas[k] || { dias: c.dias, n: 0 }; ventanas[k].n++; });
+    var vs = Object.keys(ventanas).map(function (k) { return ventanas[k]; }).filter(function (v) { return v.n > 0 && v.dias <= 20; });
+    var ocupObs = vs.length ? Math.round(vs.reduce(function (s, v) { return s + v.dias / v.n; }, 0) / vs.length * 10) / 10 : null;
+    var ocupPlan = parseFloat(cultivo && cultivo.diasOcupacion) || null, ocup = ocupPlan || ocupObs || null;
+    // dónde están hoy: operador > satélite reciente > proyección
+    var posicionHoy = null, h = hoy();
+    if (st.ocupado) { var ue = movs.filter(function (mv) { return mv.accion === 'entrada'; }).slice(-1)[0]; posicionHoy = { piquete: String(st.ocupado), fuente: 'operador', desde: ue ? ue.fecha : null, confianza: 'alta', texto: 'cargado por el operador' }; }
+    else {
+      var ult = validos.slice().sort(function (a, b) { return a.hasta.localeCompare(b.hasta) || a.orden - b.orden; }).pop();
+      if (ult) {
+        var dd = diasEntre(ult.hasta, h);
+        if (dd <= DIAS_RECIENTE) posicionHoy = { piquete: ult.piquete, fuente: 'satelite', desde: ult.desde, hasta: ult.hasta, confianza: ult.confianza, texto: 'según satélite, consumo visto entre el ' + fmtF(ult.desde) + ' y el ' + fmtF(ult.hasta) };
+        else if (ocup && N) { var pasos = Math.floor(dd / ocup), k = orden.indexOf(ult.piquete); if (k >= 0 && pasos < N) posicionHoy = { piquete: orden[(k + pasos) % N], fuente: 'proyeccion', desde: ult.hasta, confianza: 'baja', texto: 'proyección: último consumo visto en el ' + ult.piquete + ' el ' + fmtF(ult.hasta) + ', a ' + ocup + ' días por piquete' }; }
       }
-      t.objetivoKgHa = objetivoSugerido(equipoId, t.cultivo);
-    });
-    return temporadas;
+    }
+    return { consumos: consumos, generales: generales, posicionHoy: posicionHoy, ocupacionDias: ocup, ocupacionObservada: ocupObs, ultimaPasada: pasadas[pasadas.length - 1] || null, pasadas: pasadas, regresion: reg, kgCm: kgCm, orden: orden };
   }
-  // Objetivo: el mejor de las últimas 3 campañas de ese cultivo en el lote
-  function objetivoSugerido(equipoId, cultivo) {
-    if (!cultivo || esCobertura(cultivo) || cultivo === DESCANSO) return null;
-    var e = especie(cultivo);
-    var r = historialDelLote(equipoId).filter(function (h) { return especie(h.cultivo) === e && h.rinde; }).slice(-3).map(function (h) { return h.rinde; });
-    return r.length ? Math.round(Math.max.apply(null, r) / 100) * 100 : null;
+  function consumosDe(an, piquete) { return an ? an.consumos.filter(function (c) { return String(c.piquete) === String(piquete); }).sort(function (a, b) { return b.hasta.localeCompare(a.hasta); }) : []; }
+  function ultimoPendiente(an, piquete) { return consumosDe(an, piquete).filter(function (c) { return c.estado === 'pendiente'; })[0] || null; }
+
+  /* ---------- lo que decide el operador ---------- */
+  function descartar(equipoId, piquete, hasta) { var d = descartes(equipoId); if (!esDescartado(equipoId, piquete, hasta)) { d.push({ piquete: String(piquete), hasta: hasta, fecha: hoy() }); try { localStorage.setItem(claveDescartes(equipoId), JSON.stringify(d)); } catch (e) {} } }
+  function confirmar(equipoId, campanaId, consumo) {
+    if (!consumo) return null;
+    var eventos = leer('eventos'), base = Date.now(), nota = 'Según satélite: NDVI ' + consumo.ndviAntes.toFixed(2) + ' → ' + consumo.ndviDespues.toFixed(2) + ' entre el ' + fmtF(consumo.desde) + ' y el ' + fmtF(consumo.hasta) + '; confirmado por el operador';
+    var entrada = { id: base, fecha: consumo.fechaEstimada, equipoId: equipoId, campanaId: campanaId || null, tipo: 'pastoreo', accion: 'entrada', piquete: String(consumo.piquete), observaciones: nota, cargadoPor: 'satelite', fechaCreacion: new Date().toISOString() };
+    if (consumo.kgHaComidos != null && consumo.altAntes != null) { entrada.alturaCm = consumo.altAntes; }
+    eventos.push(entrada);
+    // si la ventana ya cerró y no es la posición actual, también la salida (al final de la ventana)
+    if (consumo.hasta && diasEntre(consumo.hasta, hoy()) > DIAS_RECIENTE && consumo.hasta > consumo.fechaEstimada) eventos.push({ id: base + 1, fecha: consumo.hasta, equipoId: equipoId, campanaId: campanaId || null, tipo: 'pastoreo', accion: 'salida', piquete: String(consumo.piquete), observaciones: 'Salida estimada por satélite', cargadoPor: 'satelite', fechaCreacion: new Date().toISOString() });
+    try { localStorage.setItem('eventos', JSON.stringify(eventos)); } catch (e) {}
+    return entrada;
   }
 
-  /* ---------- estado contra lo real ---------- */
-  function estadoDe(t, hist) {
-    var reales = hist.filter(function (h) { return mismaTemp(h.temporada, t); });
-    var hoy = temporadaActual();
-    if (!reales.length) return orden(t) < orden(hoy) ? { k: 'sin', txt: 'Sin registro' } : (mismaTemp(t, hoy) ? { k: 'curso', txt: 'En curso (sin campaña cargada)' } : { k: 'plan', txt: 'Planificado' });
-    var r = reales[reales.length - 1];
-    if (!t.cultivo || t.cultivo === DESCANSO) return { k: 'cambio', txt: 'Se sembró ' + r.cultivo + (r.rinde ? ' · ' + fmtKg(r.rinde) + ' kg/ha' : ''), real: r };
-    if (especie(r.cultivo) === especie(t.cultivo)) {
-      var dif = (r.rinde && t.objetivoKgHa) ? Math.round((r.rinde - t.objetivoKgHa) / t.objetivoKgHa * 100) : null;
-      var varReal = (r.variedad && t.variedad && norm(r.variedad) !== norm(t.variedad)) ? ' · variedad ' + r.variedad : '';
-      return { k: r.rinde ? 'ok' : 'curso', txt: r.rinde ? 'Cumplido · ' + fmtKg(r.rinde) + ' kg/ha' + (dif != null ? ' (' + (dif >= 0 ? '+' : '') + dif + ' % vs objetivo)' : '') + varReal : 'En curso · sembrado ' + fmtF(r.siembra) + varReal, real: r };
+  /* ---------- HTML ---------- */
+  var COLOR_CONF = { alta: '#178029', media: '#B8731A', baja: '#8C9196' };
+  function htmlFicha(equipo, cultivo, piquete, an) {
+    an = an || analizar(equipo, cultivo); if (!an) return '';
+    var lista = consumosDe(an, piquete), h = '';
+    if (lista.length) {
+      h += '<div style="margin-top:10px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#8C9196;">Lo que vio el satélite</div>';
+      lista.slice(0, 3).forEach(function (c) {
+        var tag = c.estado === 'anotado' ? '<span style="color:#2E72C8;font-weight:600;">coincide con lo cargado</span>' : c.estado === 'confirmado' ? '<span style="color:#178029;font-weight:600;">confirmado</span>' : c.estado === 'descartado' ? '<span style="color:#8C9196;">descartado</span>' : '<span style="color:' + COLOR_CONF[c.confianza] + ';font-weight:600;">según satélite · confianza ' + c.confianza + '</span>';
+        h += '<div style="font-size:12px;color:#2E3236;margin-top:4px;line-height:1.4;">Consumo entre el <b>' + fmtF(c.desde) + '</b> y el <b>' + fmtF(c.hasta) + '</b>' + (c.de > 1 ? ' (' + c.orden + '° de ' + c.de + ' piquetes en esa ventana, ~' + fmtF(c.fechaEstimada) + ')' : '') + ': NDVI ' + c.ndviAntes.toFixed(2) + ' → ' + c.ndviDespues.toFixed(2) +
+          (c.altAntes != null ? ' · ~' + c.altAntes + ' → ' + c.altDespues + ' cm' : '') + (c.kgHaComidos != null ? ' · <b>~' + fmtN(c.kgHaComidos) + ' kg MS/ha comidos</b>' : '') + ' · ' + tag + '</div>';
+        if (c.estado === 'pendiente' && window.SafiaPiqueteAccion) h += '<div style="display:flex;gap:6px;margin-top:4px;"><button type="button" data-piq-accion="confirmar-sat" data-piquete="' + esc(piquete) + '" data-desde="' + c.desde + '" data-hasta="' + c.hasta + '" style="font:inherit;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:7px;border:1px solid #178029;background:#fff;color:#178029;cursor:pointer;">Sí, pasaron por acá</button><button type="button" data-piq-accion="descartar-sat" data-piquete="' + esc(piquete) + '" data-hasta="' + c.hasta + '" style="font:inherit;font-size:11.5px;font-weight:600;padding:4px 9px;border-radius:7px;border:1px solid #E1E4E7;background:#fff;color:#5B6167;cursor:pointer;">No fue así</button></div>';
+      });
     }
-    return { k: 'cambio', txt: 'Cambiado: se sembró ' + r.cultivo + (r.rinde ? ' · ' + fmtKg(r.rinde) + ' kg/ha' : ''), real: r };
+    // historial satelital del piquete: cada pasada con NDVI y, si hay calibración, altura y kilos
+    var serie = an.pasadas.map(function (p) { var v = p.por[String(piquete)]; return v ? { fecha: p.fecha, ndvi: v.ndvi, alt: an.regresion ? an.regresion.estimar(v.ndvi) : null } : null; }).filter(Boolean).slice(-6).reverse();
+    if (serie.length > 1) {
+      h += '<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Historial satelital del piquete (' + serie.length + ' pasadas)</summary><table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px;"><tr style="color:#8C9196;text-align:left;"><th style="font-weight:600;">Fecha</th><th style="font-weight:600;">NDVI</th>' + (an.regresion ? '<th style="font-weight:600;">~cm</th>' + (an.kgCm ? '<th style="font-weight:600;">~kg MS/ha</th>' : '') : '') + '</tr>' +
+        serie.map(function (s) { return '<tr style="border-top:1px solid #EEF0F2;"><td style="padding:2px 0;">' + fmtF(s.fecha) + '</td><td>' + s.ndvi.toFixed(2) + '</td>' + (an.regresion ? '<td>' + s.alt + '</td>' + (an.kgCm ? '<td>' + fmtN(s.alt * an.kgCm) + '</td>' : '') : '') + '</tr>'; }).join('') + '</table>' + (an.regresion ? '' : '<div style="font-size:11px;color:#8C9196;margin-top:3px;">Con 3 lecturas de regla a ±3 días de una pasada, acá aparecen también la altura y los kilos estimados.</div>') + '</details>';
+    }
+    return h;
+  }
+  // texto corto para la tarjeta "Animales hoy" cuando el operador no cargó la entrada
+  function textoHoy(an) {
+    if (!an || !an.posicionHoy || an.posicionHoy.fuente === 'operador') return null;
+    var p = an.posicionHoy;
+    return { piquete: p.piquete, titulo: 'Piquete ' + p.piquete + ' <span style="font-size:11px;font-weight:600;color:' + COLOR_CONF[p.confianza] + ';">' + (p.fuente === 'satelite' ? 'según satélite' : 'proyectado') + '</span>', sub: p.texto + (an.ocupacionObservada ? ' · ocupación observada ~' + an.ocupacionObservada + ' días por piquete' : '') + '. Cargá la entrada con las cabezas para que SAFIA cuente la carga animal.', fuente: p.fuente, confianza: p.confianza };
+  }
+  // etiqueta corta para la tabla de piquetes
+  function etiquetaTabla(an, piquete) {
+    var c = consumosDe(an, piquete)[0]; if (!c || c.estado === 'descartado') return null;
+    var hace = diasEntre(c.hasta, hoy());
+    return (c.estado === 'anotado' ? 'Comido ' : 'Comido según satélite ') + (hace <= 0 ? 'hoy' : 'hace ' + hace + ' día' + (hace === 1 ? '' : 's')) + (c.kgHaComidos != null ? ' · ~' + fmtN(c.kgHaComidos) + ' kg/ha' : '');
   }
 
-  /* ---------- reglas de rotación ---------- */
-  // secuencia = historial real + plan, como lista ordenada de {temporada, cultivo}
-  function avisos(secuencia) {
-    var out = [];
-    var s = secuencia.filter(function (x) { return x.cultivo; });
-    function agregar(tipo, texto, t) { out.push({ tipo: tipo, texto: texto, temporada: t ? etiqueta(t) : '' }); }
-    for (var i = 1; i < s.length; i++) {
-      var a = s[i - 1], b = s[i], ea = especie(a.cultivo), eb = especie(b.cultivo);
-      if (!b.plan) continue;   // solo se avisa sobre lo planificado
-      // misma especie en temporadas consecutivas
-      if (eb !== 'descanso' && ea === eb && !esCobertura(b.cultivo)) agregar('alto', b.cultivo + ' sobre ' + a.cultivo + ' en temporadas seguidas: la misma especie no debería repetirse en el lote en menos de un año; se acumulan enfermedades, plagas y malezas específicas [1].', b.temporada);
-      // dos leguminosas de renta seguidas
-      if (familia(a.cultivo) === 'leguminosa' && familia(b.cultivo) === 'leguminosa' && !esCobertura(b.cultivo) && eb !== 'descanso' && ea !== eb) agregar('medio', 'Dos leguminosas seguidas (' + a.cultivo + ' → ' + b.cultivo + '): conviene alternar con una gramínea (maíz, sorgo, trigo) que deje más rastrojo [1].', b.temporada);
-    }
-    // veranos de soja seguidos
-    var veranos = s.filter(function (x) { return x.temporada.epoca === 'verano'; });
-    for (var v = 0; v < veranos.length; v++) {
-      if (!veranos[v].plan) continue;
-      var seg = 0; for (var k = v; k >= 0 && especie(veranos[k].cultivo) === 'soja'; k--) seg++;
-      if (seg >= 3) agregar('medio', etiqueta(veranos[v].temporada) + ': tercer verano seguido con soja. Aunque haya maíz zafriña entre medio, un verano con maíz de primera, girasol o sorgo cada 3 años corta el ciclo de enfermedades y rinde más (~10 %) [1][2].', veranos[v].temporada);
-    }
-    // inviernos sin cobertura ni cultivo, dos seguidos
-    var inv = s.filter(function (x) { return x.temporada.epoca === 'invierno'; });
-    for (var j = 1; j < inv.length; j++) {
-      if (!inv[j].plan) continue;
-      if (especie(inv[j].cultivo) === 'descanso' && especie(inv[j - 1].cultivo) === 'descanso') agregar('medio', etiqueta(inv[j].temporada) + ': segundo invierno sin cobertura ni cultivo. En siembra directa el suelo tiene que estar siempre cubierto: avena negra, nabo, lupino o una mezcla [2].', inv[j].temporada);
-    }
-    // girasol y canola: intervalo mínimo (Sclerotinia)
-    ['girasol', 'canola'].forEach(function (e) {
-      var min = e === 'girasol' ? 4 : 3;
-      var ap = s.filter(function (x) { return especie(x.cultivo) === e || (e === 'canola' && especie(x.cultivo) === 'girasol') || (e === 'girasol' && especie(x.cultivo) === 'canola'); });
-      for (var q = 1; q < ap.length; q++) {
-        if (!ap[q].plan) continue;
-        var anios = (orden(ap[q].temporada) - orden(ap[q - 1].temporada)) / 3;
-        if (anios < min) agregar('alto', etiqueta(ap[q].temporada) + ': ' + ap[q].cultivo + ' vuelve al lote a los ' + Math.round(anios * 10) / 10 + ' años de ' + ap[q - 1].cultivo + '. Girasol y canola comparten la podredumbre blanca (Sclerotinia): esperar ' + min + ' años [3].', ap[q].temporada);
-      }
-    });
-    // positivo: brachiaria antes de soja
-    for (var p = 1; p < s.length; p++) {
-      if (s[p].plan && especie(s[p].cultivo) === 'soja' && especie(s[p - 1].cultivo) === 'brachiaria') agregar('bien', etiqueta(s[p].temporada) + ': soja sobre brachiaria. Buena decisión: la brachiaria mejora la estructura del suelo y la soja siguiente rinde más (Embrapa: hasta +15 %) [4].', s[p].temporada);
-    }
-    return out;
-  }
-  function indiceRotacion(secuencia) {
-    var s = secuencia.filter(function (x) { return x.cultivo && x.plan; });
-    if (!s.length) return null;
-    var distintos = 0, cubiertos = 0, inv = 0, total = 0;
-    for (var i = 0; i < secuencia.length; i++) {
-      var x = secuencia[i]; if (!x.plan || !x.cultivo) continue;
-      total++;
-      var prev = null; for (var k = i - 1; k >= 0; k--) { if (secuencia[k].cultivo && especie(secuencia[k].cultivo) !== 'descanso') { prev = secuencia[k]; break; } }
-      if (!prev || especie(prev.cultivo) !== especie(x.cultivo)) distintos++;
-      if (x.temporada.epoca === 'invierno') { inv++; if (especie(x.cultivo) !== 'descanso') cubiertos++; }
-    }
-    return { diversidad: Math.round(distintos / total * 100), cobertura: inv ? Math.round(cubiertos / inv * 100) : null };
-  }
-
-  /* ---------- pantalla ---------- */
-  var planActual = null;   // copia editable
-  function lotesDelCampo() { var c = B().campoActual(); return c ? B().leer('equipos').filter(function (e) { return String(e.campoId) === String(c.id); }) : []; }
-  function loteActual() { var id = $('rotLote').value; return lotesDelCampo().find(function (e) { return String(e.id) === String(id); }) || null; }
-  function opcionesCultivo(epoca, valor) {
-    var g = function (titulo, lista) { return '<optgroup label="' + titulo + '">' + lista.map(function (c) { return '<option value="' + esc(c) + '"' + (c === valor ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</optgroup>'; };
-    var renta = RENTA[epoca] || [];
-    var otrosRenta = [].concat(RENTA.verano, RENTA.zafrina, RENTA.invierno).filter(function (c, i, a) { return a.indexOf(c) === i && renta.indexOf(c) < 0; });
-    var cob = COBERTURAS.filter(function (c) { return c[1] === 'todas' || c[1] === epoca; }).map(function (c) { return c[0]; });
-    var extra = (valor && renta.indexOf(valor) < 0 && otrosRenta.indexOf(valor) < 0 && cob.indexOf(valor) < 0 && valor !== DESCANSO) ? '<option value="' + esc(valor) + '" selected>' + esc(valor) + '</option>' : '';
-    return '<option value="">— elegir —</option>' + extra + g('Cultivos de renta (' + (EPOCAS.find(function (e) { return e.k === epoca; }) || {}).n + ')', renta) + g('Coberturas', cob) + '<optgroup label="Sin cultivo"><option value="' + DESCANSO + '"' + (valor === DESCANSO ? ' selected' : '') + '>' + DESCANSO + '</option></optgroup>' + g('Otros cultivos', otrosRenta);
-  }
-  var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-  function variedadesOpciones(cultivo) {
-    var lista = (window.SafiaCatalogo && cultivo) ? SafiaCatalogo.variedadesDe(cultivo) : [];
-    return lista.map(function (v) { return '<option value="' + esc(typeof v === 'string' ? v : (v.nombre || v.n || '')) + '">'; }).join('');
-  }
-  function mesesOpciones(epoca, valor) {
-    var ep = EPOCAS.find(function (e) { return e.k === epoca; }) || EPOCAS[0];
-    return '<option value="">— mes —</option>' + ep.meses.map(function (m) { return '<option value="' + m + '"' + (valor === m ? ' selected' : '') + '>' + MESES[m - 1] + '</option>'; }).join('');
-  }
-  function pintar() {
-    var lote = loteActual(), cont = $('rotContenido');
-    if (!lote) { cont.innerHTML = '<div class="muted">Este campo no tiene lotes. Cargalos en Equipos y lotes.</div>'; return; }
-    var hist = historialDelLote(lote.id);
-    var guardado = planDelLote(lote.id);
-    if (!planActual || String(planActual.equipoId) !== String(lote.id)) planActual = guardado ? JSON.parse(JSON.stringify(guardado)) : { id: Date.now(), campoId: B().campoActual().id, equipoId: lote.id, temporadas: temporadasNuevas(lote.id, 3), creado: new Date().toISOString() };
-    var html = '';
-    // historial
-    html += '<div class="muted" style="font-size:12px;margin-bottom:6px;">Lo que ya pasó en el lote (campañas e historial cargados):</div>';
-    html += hist.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">' + hist.slice(-9).map(function (h) {
-      return '<span style="border:1px solid #E1E4E7;border-radius:8px;padding:4px 8px;font-size:12px;background:#fff;"><b>' + esc(etiqueta(h.temporada)) + '</b> · ' + esc(h.cultivo) + (h.rinde ? ' · ' + fmtKg(h.rinde) + ' kg/ha' : ' · en curso') + (h.cobertura && h.cobertura !== 'ninguna' ? ' · cob. ' + esc(h.cobertura) : '') + '</span>';
-    }).join('') + '</div>' : '<div class="note info" style="margin-bottom:12px;">Todavía no hay campañas cargadas en este lote: el plan arranca en la temporada actual. Cuando cargues campañas, SAFIA marca solo cada temporada como cumplida o cambiada.</div>';
-    // tabla del plan
-    html += '<div class="tablewrap"><div class="tablescroll"><table class="tbl" id="rotTabla"><thead><tr><th>Temporada</th><th>Cultivo o cobertura</th><th>Variedad</th><th>Siembra prevista</th><th class="r">Objetivo (kg/ha)</th><th>Nota</th><th>Estado</th><th></th></tr></thead><tbody>';
-    planActual.temporadas.forEach(function (t, i) {
-      var e = estadoDe(t, hist);
-      var color = { ok: '#178029', curso: '#2E72C8', cambio: '#B8731A', sin: '#8C9196', plan: '#6B6356' }[e.k];
-      var ep = EPOCAS.find(function (x) { return x.k === t.epoca; });
-      html += '<tr data-i="' + i + '"><td><b>' + esc(etiqueta(t)) + '</b><div class="muted" style="font-size:11px;">siembra ' + ep.siembra + ' · cosecha ' + ep.cosecha + '</div></td>' +
-        '<td><select class="rotCultivo" data-i="' + i + '" style="min-width:230px;">' + opcionesCultivo(t.epoca, t.cultivo) + '</select></td>' +
-        '<td>' + (esCobertura(t.cultivo) || t.cultivo === DESCANSO || !t.cultivo ? '<span class="muted">—</span>' : '<input type="text" class="rotVariedad" data-i="' + i + '" list="rotVar' + i + '" value="' + esc(t.variedad || '') + '" placeholder="Elegir o escribir" style="min-width:150px;"><datalist id="rotVar' + i + '">' + variedadesOpciones(t.cultivo) + '</datalist>') + '</td>' +
-        '<td><select class="rotMes" data-i="' + i + '">' + mesesOpciones(t.epoca, t.mesSiembra) + '</select></td>' +
-        '<td class="r"><input type="number" class="rotObjetivo" data-i="' + i + '" value="' + (t.objetivoKgHa || '') + '" step="100" min="0" style="width:110px;text-align:right;"' + (esCobertura(t.cultivo) || t.cultivo === DESCANSO ? ' disabled placeholder="—"' : ' placeholder="kg/ha"') + '></td>' +
-        '<td><input type="text" class="rotNota" data-i="' + i + '" value="' + esc(t.nota || '') + '" placeholder="Variedad, fecha, riego…" style="min-width:180px;"></td>' +
-        '<td style="color:' + color + ';font-size:12px;font-weight:600;">' + esc(e.txt) + '</td>' +
-        '<td class="r"><span class="rowact"><button class="del rotQuitar" data-i="' + i + '" title="Quitar temporada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button></span></td></tr>';
-    });
-    html += '</tbody></table></div></div>';
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button class="btn" id="btnRotSugerir">Sugerir rotación (3 años)</button><button class="btn" id="btnRotAnio">+ Agregar un año</button><button class="btn green" id="btnRotGuardar">Guardar plan</button><button class="btn" onclick="window.print()">Imprimir</button><span class="muted" id="rotEstado" style="align-self:center;font-size:12px;">' + (guardado ? 'Guardado ' + fmtF(guardado.modificado || guardado.creado) : 'Sin guardar') + '</span></div>';
-    // avisos
-    var secuencia = hist.map(function (h) { return { temporada: h.temporada, cultivo: h.cultivo, plan: false }; }).concat(planActual.temporadas.map(function (t) { return { temporada: t, cultivo: t.cultivo, plan: true }; }));
-    var av = avisos(secuencia), idx = indiceRotacion(secuencia);
-    html += '<h3 style="font-size:15px;margin:18px 0 8px;">Revisión de la rotación</h3>';
-    if (idx) html += '<div class="stats" style="margin-bottom:10px;"><div class="stat"><div class="sl">Diversidad</div><div class="sv">' + idx.diversidad + ' %</div><div class="ss">temporadas con especie distinta a la anterior</div></div>' + (idx.cobertura != null ? '<div class="stat"><div class="sl">Inviernos cubiertos</div><div class="sv">' + idx.cobertura + ' %</div><div class="ss">con cultivo o cobertura</div></div>' : '') + '</div>';
-    if (!av.length) html += '<div class="note info">' + (planActual.temporadas.some(function (t) { return t.cultivo; }) ? 'El plan respeta las reglas básicas de rotación: sin especie repetida en temporadas seguidas, inviernos cubiertos y girasol/canola con intervalo suficiente.' : 'Elegí los cultivos de cada temporada (o "Sugerir rotación") y SAFIA revisa el plan.') + '</div>';
-    av.forEach(function (a) {
-      var cls = a.tipo === 'alto' ? 'warn' : (a.tipo === 'bien' ? 'info' : 'warn');
-      html += '<div class="note ' + cls + '" style="margin-bottom:6px;' + (a.tipo === 'bien' ? 'border-left-color:#178029;background:#EAF5EC;color:#1e4d25;' : (a.tipo === 'medio' ? 'opacity:.92;' : '')) + '">' + (a.tipo === 'alto' ? '<b>Atención.</b> ' : (a.tipo === 'bien' ? '<b>Bien.</b> ' : '<b>Sugerencia.</b> ')) + esc(a.texto) + '</div>';
-    });
-    html += '<div class="muted" style="font-size:11px;margin-top:8px;">[1] Embrapa Soja, Rotação de culturas · [2] CAPECO, FEPASIDIAS e INBIO (siembra directa en Paraguay) · [3] Embrapa Girassol · [4] Embrapa ILPF / Sistema Santa Fe. SAFIA revisa el plan; la decisión final es del productor con su agrónomo.</div>';
-    cont.innerHTML = html;
-    // eventos
-    cont.querySelectorAll('.rotCultivo').forEach(function (s) { s.addEventListener('change', function () { var t = planActual.temporadas[+s.dataset.i]; var antes = t.cultivo; t.cultivo = s.value; if (especie(antes) !== especie(t.cultivo)) t.variedad = ''; if (esCobertura(t.cultivo) || t.cultivo === DESCANSO) t.objetivoKgHa = null; else if (!t.objetivoKgHa) t.objetivoKgHa = objetivoSugerido(lote.id, t.cultivo); pintar(); }); });
-    cont.querySelectorAll('.rotVariedad').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].variedad = s.value.trim(); }); });
-    cont.querySelectorAll('.rotMes').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].mesSiembra = s.value ? +s.value : null; }); });
-    cont.querySelectorAll('.rotObjetivo').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].objetivoKgHa = s.value ? +s.value : null; }); });
-    cont.querySelectorAll('.rotNota').forEach(function (s) { s.addEventListener('change', function () { planActual.temporadas[+s.dataset.i].nota = s.value.trim(); }); });
-    cont.querySelectorAll('.rotQuitar').forEach(function (b) { b.addEventListener('click', function () { planActual.temporadas.splice(+b.dataset.i, 1); pintar(); }); });
-    $('btnRotSugerir').addEventListener('click', function () { if (!planActual.temporadas.length) planActual.temporadas = temporadasNuevas(lote.id, 3); sugerir(lote.id, planActual.temporadas, lote); pintar(); B().toast('Rotación sugerida para 3 años: revisala y ajustá lo que quieras'); });
-    $('btnRotAnio').addEventListener('click', function () { var ult = planActual.temporadas[planActual.temporadas.length - 1]; var t = ult ? siguiente(ult) : temporadaActual(); for (var i = 0; i < 3; i++) { planActual.temporadas.push({ epoca: t.epoca, anio: t.anio, cultivo: '', objetivoKgHa: null, nota: '' }); t = siguiente(t); } pintar(); });
-    $('btnRotGuardar').addEventListener('click', function () { guardarPlan(planActual); B().toast('Plan de rotación guardado'); pintar(); });
-  }
-  function llenarLotes() {
-    var sel = $('rotLote'), lotes = lotesDelCampo(), v = sel.value;
-    sel.innerHTML = lotes.length ? lotes.map(function (e) { return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + (e.tipo === 'secano' ? ' (secano)' : '') + '</option>'; }).join('') : '<option value="">Sin lotes</option>';
-    if (v && lotes.some(function (e) { return String(e.id) === v; })) sel.value = v;
-  }
-  function activar() {
-    if (!B() || !$('panel-rotacion')) return;
-    if (!iniciado) { iniciado = true; $('rotLote').addEventListener('change', function () { planActual = null; pintar(); }); }
-    llenarLotes(); planActual = null; pintar();
-  }
-  function alCambiarCampo() { planActual = null; if (iniciado && $('panel-rotacion').classList.contains('on')) activar(); }
-
-  // sugerencia de rotación para los próximos N años (la usa el plan por etapas de la Meta de rinde)
-  function sugerirPlan(equipoId, anios) { return sugerir(equipoId, temporadasNuevas(equipoId, anios || 3)); }
-  window.SafiaRotacion = { sugerirPlan: sugerirPlan, activar: activar, alCambiarCampo: alCambiarCampo, temporadaDe: temporadaDe, etiqueta: etiqueta, avisos: avisos, especie: especie, historialDelLote: historialDelLote, planDelLote: planDelLote, indiceRotacion: indiceRotacion, esCobertura: esCobertura, DESCANSO: DESCANSO, _plan: function () { return planActual; } };
+  window.SafiaRotacion = { analizar: analizar, consumosDe: consumosDe, ultimoPendiente: ultimoPendiente, confirmar: confirmar, descartar: descartar, htmlFicha: htmlFicha, textoHoy: textoHoy, etiquetaTabla: etiquetaTabla, UMBRAL_CAIDA: UMBRAL_CAIDA, MIN_ANTES: MIN_ANTES };
 })();

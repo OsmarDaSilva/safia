@@ -260,8 +260,10 @@
   // Con anillos, el pivot riega todo el radio: en esos tramos tampoco se riegan los piquetes del otro anillo ('comparten').
   function sectoresSinRiego(equipo, cultivo, saltar) {
     var g = sectores(equipo, cultivo); if (!g || !window.SafiaPasturas) return null;
-    var st = SafiaPasturas.estadoPiquetes(equipo.id, cultivo); if (!st.ocupado) return { ocupado: null, piquetes: [], grados: [], arcos: [], comparten: [], texto: '' };
-    var k = g.lista.findIndex(function (s) { return s.piquete === String(st.ocupado); }); if (k < 0) return { ocupado: st.ocupado, piquetes: [], grados: [], arcos: [], comparten: [], texto: '' };
+    var st = SafiaPasturas.estadoPiquetes(equipo.id, cultivo), ocupado = st.ocupado, segunSatelite = false;
+    if (!ocupado && window.SafiaRotacion) { var an0 = SafiaRotacion.analizar(equipo, cultivo); if (an0 && an0.posicionHoy && an0.posicionHoy.fuente !== 'operador') { ocupado = an0.posicionHoy.piquete; segunSatelite = an0.posicionHoy.fuente; } }
+    if (!ocupado) return { ocupado: null, piquetes: [], grados: [], arcos: [], comparten: [], texto: '' };
+    var k = g.lista.findIndex(function (s) { return s.piquete === String(ocupado); }); if (k < 0) return { ocupado: ocupado, piquetes: [], grados: [], arcos: [], comparten: [], texto: '' };
     var N = g.param.n, cuantos = Math.min(N - 1, (saltar || 3) + 1), piqs = [], BIN = 720, tapa = [], i, b;
     for (b = 0; b < BIN; b++) tapa.push(false);
     var marcar = function (s, hacer) { var desde = Math.round(s.a1 * 2), largo = Math.round(mod(s.a2 - s.a1, 360) * 2) || BIN; for (var q = 0; q < largo; q++) hacer(mod(desde + q, BIN)); };
@@ -276,7 +278,7 @@
     var comparten = g.lista.filter(function (s2) { if (piqs.indexOf(s2.piquete) !== -1) return false; var toca = false; marcar(s2, function (x2) { if (tapa[x2]) toca = true; }); return toca; }).map(function (s2) { return s2.piquete; });
     var gr = function (v) { return Math.round(v * 10) / 10; };
     var texto = arcos.map(function (a) { return 'del ' + gr(a.de) + '° al ' + gr(a.a) + '°'; }).join(' y ');
-    return { ocupado: st.ocupado, piquetes: piqs, grados: arcos.length ? [gr(arcos[0].de), gr(arcos[0].a)] : [], arcos: arcos, comparten: comparten, texto: texto };
+    return { ocupado: ocupado, segunSatelite: segunSatelite, piquetes: piqs, grados: arcos.length ? [gr(arcos[0].de), gr(arcos[0].a)] : [], arcos: arcos, comparten: comparten, texto: texto };
   }
 
   /* ---------- infraestructura: bebederos, portones diarios, portón de entrada, plazas, área central ----------
@@ -491,6 +493,7 @@
       var btn = function (acc2, txt, verde) { return '<button type="button" data-piq-accion="' + acc2 + '" data-piquete="' + esc(piquete) + '" style="font:inherit;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1px solid ' + (verde ? '#178029' : '#E1E4E7') + ';background:' + (verde ? '#178029' : '#fff') + ';color:' + (verde ? '#fff' : '#2E3236') + ';cursor:pointer;">' + txt + '</button>'; };
       h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' + (e.estado === 'ocupado' ? btn('salida', 'Salen los animales de acá', true) : btn('entrada', 'Entran los animales acá', true)) + btn('lectura', 'Cargar lectura de regla') + btn('corte', 'Corte (heno, picado)') + '</div>';
     }
+    if (window.SafiaRotacion) h += SafiaRotacion.htmlFicha(equipo, cultivo, piquete, ultimoPanel && ultimoPanel.rotacion);
     var hist = movs.map(function (m) { return { f: m.fecha, t: (m.accion === 'entrada' ? 'Entrada' : m.accion === 'salida' ? 'Salida' : 'Corte') + (m.cabezas ? ' · ' + m.cabezas + ' cab.' : '') + (m.alturaCm || m.altura ? ' · ' + (m.alturaCm || m.altura) + ' cm' : '') }; })
       .concat(lects.map(function (l) { return { f: l.fecha, t: 'Regla ' + l.alturaCm + ' cm' }; })).sort(function (a, b) { return String(b.f).localeCompare(String(a.f)); }).slice(0, 6);
     if (hist.length) h += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Historial del piquete (' + hist.length + ')</summary><div style="font-size:12px;color:#3A3E41;margin-top:4px;">' + hist.map(function (x) { return '<div>' + fmtF(x.f) + ' · ' + esc(x.t) + '</div>'; }).join('') + '</div></details>';
@@ -501,7 +504,7 @@
     var t = ev.target; if (!t || !t.closest) return;
     var raiz = t.closest('[data-piq-panel]'); if (!raiz || !ultimoPanel) return;
     var accion = t.closest('[data-piq-accion]');
-    if (accion) { ev.preventDefault(); ev.stopPropagation(); if (window.SafiaPiqueteAccion) window.SafiaPiqueteAccion(accion.getAttribute('data-piq-accion'), accion.getAttribute('data-piquete')); return; }
+    if (accion) { ev.preventDefault(); ev.stopPropagation(); if (window.SafiaPiqueteAccion) window.SafiaPiqueteAccion(accion.getAttribute('data-piq-accion'), accion.getAttribute('data-piquete'), { desde: accion.getAttribute('data-desde'), hasta: accion.getAttribute('data-hasta') }); return; }
     var eqId = raiz.getAttribute('data-piq-panel');
     if (t.closest('[data-piq-cerrar]')) { elegirPiquete(eqId, null); }
     else { var el = t.closest('[data-piquete]'); if (!el || t.closest('[data-piq-ficha]')) return; var piq = el.getAttribute('data-piquete'); elegirPiquete(eqId, piqueteElegido(eqId) === String(piq) ? null : piq); }
@@ -510,19 +513,21 @@
   });
 
   function htmlPanel(equipo, cultivo, datos) {
-    ultimoPanel = { equipo: equipo, cultivo: cultivo, datos: datos };
+    ultimoPanel = { equipo: equipo, cultivo: cultivo, datos: datos, rotacion: null };
     var g = sectores(equipo, cultivo);
+    try { if (g && window.SafiaRotacion) ultimoPanel.rotacion = SafiaRotacion.analizar(equipo, cultivo, ((datos && datos.pasadas) || []).filter(function (x) { return vale(x, g.param); })); } catch (e) { ultimoPanel.rotacion = null; }
     if (!g) return '<div style="font-size:12px;color:#8C9196;">Para dividir el pivot en piquetes hacen falta el polígono del pivot (Equipos y lotes) y la cantidad de piquetes en la campaña.</div>';
     var ref = window.SafiaPasturas ? SafiaPasturas.alturasReferencia((cultivo.variedad || '') + ' ' + (cultivo.cultivo || '')) : null;
     var est = window.SafiaPasturas ? SafiaPasturas.estadoPiquetes(equipo.id, cultivo) : { piquetes: [], ocupado: null };
     var pasadas = ((datos && datos.pasadas) || []).filter(function (x) { return vale(x, g.param); });
     var ult = pasadas[pasadas.length - 1] || null, prev = pasadas.length > 1 ? pasadas[pasadas.length - 2] : null;
     var reg = regresion(pares(equipo, pasadas)), sinR = sectoresSinRiego(equipo, cultivo, 3);
+    var posSat = ultimoPanel.rotacion && ultimoPanel.rotacion.posicionHoy && ultimoPanel.rotacion.posicionHoy.fuente !== 'operador' ? ultimoPanel.rotacion.posicionHoy : null;
     var colorDe = function (s) { var v = ult && ult.por[s.piquete]; return colorNdvi(v ? v.ndvi : null); };
     var etiq = function (s) { var v = ult && ult.por[s.piquete]; return v ? 'NDVI ' + v.ndvi.toFixed(2) : 'sin dato'; };
     var sel = piqueteElegido(equipo.id);
     var h = '<div data-piq-panel="' + esc(equipo.id) + '" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
-    h += '<div style="flex:1 1 300px;min-width:180px;max-width:400px;">' + svgPivot(g, colorDe, etiq, sinR, sel) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + '</div>' +
+    h += '<div style="flex:1 1 300px;min-width:180px;max-width:400px;">' + svgPivot(g, colorDe, etiq, sinR, sel) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy' + (sinR.segunSatelite ? ' (animales en el ' + esc(sinR.ocupado) + ' ' + (sinR.segunSatelite === 'satelite' ? 'según satélite' : 'proyectado') + ')' : '') + '</span>' : '') + (posSat && !(sinR && sinR.piquetes.length) ? ' · animales en el ' + esc(posSat.piquete) + ' según satélite' : '') + '</div>' +
       (sel ? fichaPiquete(equipo, cultivo, datos, g, sel) : '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:6px;">Tocá un piquete (en la rueda o en la tabla) para ver cómo está y cargar lo que pasa ahí.</div>') + fichaHTML(g, null, 'margin-top:6px;') + '</div>';
     h += '<div style="flex:1 1 280px;min-width:0;">';
     if (sinR && sinR.ocupado) h += '<div style="font-size:12px;background:#E7F0FB;border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#234e85;"><b>Riego separado del pastoreo:</b> hoy no regar los piquetes ' + esc(sinR.piquetes.join(', ')) + ' (el ocupado y los 3 siguientes): saltar <b>' + esc(sinR.texto) + '</b> desde el norte, sentido horario.' + (sinR.comparten.length ? ' En ese tramo el pivot tampoco riega los piquetes ' + esc(sinR.comparten.join(', ')) + ', que comparten el ángulo.' : '') + ' Regar el resto según el balance.</div>';
@@ -541,7 +546,8 @@
     h += '<table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' + cab;
     var resto = filas.slice(LIM); filas = filas.slice(0, LIM);
     var filaHtml = function (f) {
-      var estadoTxt = f.e.estado === 'ocupado' ? '<span style="color:#2E72C8;font-weight:600;">Animales adentro</span>' : (f.e.estado === 'listo' ? '<span style="color:#178029;font-weight:600;">A punto (regla)</span>' : (f.listoSat ? '<span style="color:#178029;font-weight:600;">A punto por satélite (~' + f.altSat + ' cm)</span>' : (f.altSat != null ? '~' + f.altSat + ' cm por satélite' : (f.e.texto ? esc(f.e.texto).slice(0, 60) : '—'))));
+      var etqSat = window.SafiaRotacion && ultimoPanel.rotacion && (f.e.estado === 'sin_datos' || f.e.estado === 'descanso') ? SafiaRotacion.etiquetaTabla(ultimoPanel.rotacion, f.s.piquete) : null;
+      var estadoTxt = f.e.estado === 'ocupado' ? '<span style="color:#2E72C8;font-weight:600;">Animales adentro</span>' : etqSat ? '<span style="color:#8a5713;font-weight:600;">' + esc(etqSat) + '</span>' : (f.e.estado === 'listo' ? '<span style="color:#178029;font-weight:600;">A punto (regla)</span>' : (f.listoSat ? '<span style="color:#178029;font-weight:600;">A punto por satélite (~' + f.altSat + ' cm)</span>' : (f.altSat != null ? '~' + f.altSat + ' cm por satélite' : (f.e.texto ? esc(f.e.texto).slice(0, 60) : '—'))));
       var esSel = sel != null && String(f.s.piquete) === String(sel);
       return '<tr data-piquete="' + esc(f.s.piquete) + '" style="border-top:1px solid #EEF0F2;cursor:pointer;' + (esSel ? 'background:#F4FAF5;outline:2px solid #1F2328;outline-offset:-2px;' : '') + '"><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colorNdvi(f.v ? f.v.ndvi : null) + ';vertical-align:-1px;margin-right:4px;"></span><b>' + esc(f.s.piquete) + '</b></td><td>' + (f.v ? f.v.ndvi.toFixed(2) + (f.v.nubes_pct > 30 ? '<span style="color:#8C9196;" title="parte con nubes">*</span>' : '') : '—') + '</td><td style="color:' + (f.tend > 0 ? '#178029' : f.tend < 0 ? '#B5371C' : '#8C9196') + ';">' + (f.tend != null ? (f.tend > 0 ? '+' : '') + (f.tend * 100).toFixed(1) + '/100 por día' : '—') + '</td><td>' + (f.e.altura ? f.e.altura + ' cm <span style="color:#8C9196;">' + fmtF(f.e.fechaLectura) + '</span>' : '—') + '</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + estadoTxt + '</td></tr>';
     };
