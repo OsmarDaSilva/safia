@@ -366,7 +366,7 @@
   function rgb(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
   function pt(cx, cy, r, ang) { var t = ang * RAD; return (Math.round((cx + r * Math.sin(t)) * 10) / 10) + ' ' + (Math.round((cy - r * Math.cos(t)) * 10) / 10); }
   function svgPivot(g, colorDe, etiquetaDe, sinRiego) {
-    var R = 96, cx = 100, cy = 100, p = g.param, h = '<svg viewBox="0 0 200 200" style="width:100%;max-width:260px;display:block;margin:0 auto;" role="img" aria-label="Pivot dividido en piquetes">';
+    var R = 96, cx = 100, cy = 100, p = g.param, h = '<svg viewBox="0 0 200 200" style="width:100%;max-width:380px;display:block;margin:0 auto;" role="img" aria-label="Pivot dividido en piquetes">';
     var fuente = p.n > 40 ? 5.5 : p.n > 24 ? 7 : 10, textos = '';
     g.lista.forEach(function (s) {
       var an = p.anillos[s.anillo], pasos = Math.max(3, Math.ceil(an.paso / 2.5)), pts = [], k, fi;
@@ -470,7 +470,7 @@
     var colorDe = function (s) { var v = ult && ult.por[s.piquete]; return colorNdvi(v ? v.ndvi : null); };
     var etiq = function (s) { var v = ult && ult.por[s.piquete]; return v ? 'NDVI ' + v.ndvi.toFixed(2) : 'sin dato'; };
     var h = '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
-    h += '<div style="flex:0 1 240px;min-width:180px;">' + svgPivot(g, colorDe, etiq, sinR) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + '</div>' + fichaHTML(g, null, 'margin-top:6px;') + '</div>';
+    h += '<div style="flex:1 1 300px;min-width:180px;max-width:400px;">' + svgPivot(g, colorDe, etiq, sinR) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + '</div>' + fichaHTML(g, null, 'margin-top:6px;') + '</div>';
     h += '<div style="flex:1 1 280px;min-width:0;">';
     if (sinR && sinR.ocupado) h += '<div style="font-size:12px;background:#E7F0FB;border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#234e85;"><b>Riego separado del pastoreo:</b> hoy no regar los piquetes ' + esc(sinR.piquetes.join(', ')) + ' (el ocupado y los 3 siguientes): saltar <b>' + esc(sinR.texto) + '</b> desde el norte, sentido horario.' + (sinR.comparten.length ? ' En ese tramo el pivot tampoco riega los piquetes ' + esc(sinR.comparten.join(', ')) + ', que comparten el ángulo.' : '') + ' Regar el resto según el balance.</div>';
     else if (sinR) h += '<div style="font-size:12px;color:#8C9196;margin-bottom:8px;">Cuando cargues la entrada de los animales a un piquete, acá aparecen los grados del pivot que no se riegan.</div>';

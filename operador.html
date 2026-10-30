@@ -680,8 +680,10 @@
       html.embebido #eventosSeccion #listaEventos { max-height: 190px; overflow-y: auto; }
       html.embebido #fichaAguaCard .fa-svg { height: 200px; }
       html.embebido .contenedor { max-width: none !important; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); column-gap: 14px; align-items: start;
-        grid-template-areas: "alerta alerta" "camp agua" "reco agua" "carga agua" "pulv agua" "eventos agua" "eventos mant" !important;
-        grid-template-rows: auto auto auto auto auto 1fr auto; }
+        grid-template-areas: "alerta alerta" "camp agua" "reco agua" "carga agua" "pulv agua" "eventos agua" "eventos mant" "past past" !important;
+        grid-template-rows: auto auto auto auto auto 1fr auto auto; }
+      html.embebido .contenedor > #pasturaPanel { grid-area: past; margin: 0 0 10px !important; }
+      html.embebido .contenedor > #pasturaPanel[style*="display: none"] { display: none !important; }
       html.embebido .contenedor > #pulvCard { grid-area: pulv; margin: 0 0 10px !important; }
       html.embebido .contenedor > #pulvCard[style*="display: none"] { display: none !important; }   /* el espacio que sobra por la columna del agua va abajo, no entre tarjetas */
     }
