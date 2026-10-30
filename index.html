@@ -538,6 +538,7 @@
           <div class="topbar-titulo" id="topbarTitulo">Hola 👋</div>
         </div>
         <div class="topbar-derecha">
+          <select id="topbarVerComo" class="no-print" title="Entrar como un cliente: el tablero y las demás pantallas quedan en sus campos" style="display:none;font:600 13px 'Plus Jakarta Sans',system-ui,sans-serif;color:#2E3236;background:#fff;border:1px solid #E1E4E7;border-radius:100px;padding:7px 12px;max-width:260px;cursor:pointer;"></select>
           <div class="topbar-fecha" id="topbarFecha">—</div>
           <div class="topbar-avatar" id="topbarAvatar">?</div>
         </div>
@@ -568,7 +569,20 @@
        - Campañas en ciclo y campañas que ya terminaron su ciclo (para cerrar).
        ===================================================================== */
     const UMBRALES = SafiaBalance.UMBRALES;
-    const leer = (k) => { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } };
+    const leerCrudo = (k) => { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } };
+    // "Entrar como cliente" (Osmar, 30-oct-2026): con un cliente elegido en el selector de arriba, el Dashboard muestra solo sus campos,
+    // lotes, campañas y eventos (la misma marca 'safia_ver_como' que preselecciona al cliente en las demás pantallas)
+    const verComoDash = () => { try { return JSON.parse(localStorage.getItem('safia_ver_como') || 'null'); } catch (e) { return null; } };
+    const leer = (k) => {
+      const vc = verComoDash(), lista = leerCrudo(k); if (!vc) return lista;
+      if (k === 'clientes') return lista.filter(c => String(c.id) === String(vc.id));
+      const camposIds = new Set(leerCrudo('campos').filter(c => String(c.clienteId) === String(vc.id)).map(c => String(c.id)));
+      if (k === 'campos') return lista.filter(c => camposIds.has(String(c.id)));
+      const eqIds = new Set(leerCrudo('equipos').filter(e => camposIds.has(String(e.campoId))).map(e => String(e.id)));
+      if (k === 'equipos') return lista.filter(e => eqIds.has(String(e.id)));
+      if (k === 'campanas' || k === 'eventos' || k === 'analisis_suelo' || k === 'analisis_agua' || k === 'analisis_foliar' || k === 'evaluaciones') return lista.filter(x => (x.equipoId != null && eqIds.has(String(x.equipoId))) || (x.campoId != null && camposIds.has(String(x.campoId))) || (x.clienteId != null && String(x.clienteId) === String(vc.id)));
+      return lista;
+    };
     const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const fmtF = (f) => { if (!f) return '—'; const p = String(f).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] : f; };
     const fmtN = (n, d) => (n == null || isNaN(n)) ? '—' : Number(n).toLocaleString('es-PY', { maximumFractionDigits: d || 0 });
@@ -912,11 +926,23 @@
     }
     window.addEventListener('safia:usuario', pintarPendientes);
     setTimeout(pintarPendientes, 1500);
+    // selector "Entrar como cliente" (propietario y admin): elige al cliente y recarga con sus campos en todas las pantallas
+    function renderVerComo() {
+      const sel = document.getElementById('topbarVerComo'); if (!sel) return;
+      const alto = window.SafiaSync && SafiaSync.esAdmin && SafiaSync.esAdmin(), todos = leerCrudo('clientes').filter(c => c.estado !== 'prospecto').slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+      if (!alto || !todos.length) { sel.style.display = 'none'; return; }
+      const vc = verComoDash();
+      sel.innerHTML = '<option value="">Entrar como cliente…</option>' + todos.map(c => '<option value="' + esc(c.id) + '"' + (vc && String(vc.id) === String(c.id) ? ' selected' : '') + '>' + esc(c.nombre) + '</option>').join('') + (vc ? '<option value="__salir">← Volver a mi vista (todos)</option>' : '');
+      sel.style.display = '';
+      if (vc) { sel.style.borderColor = '#B8731A'; sel.style.color = '#8a5713'; }
+      if (!sel.dataset.listo) { sel.dataset.listo = '1'; sel.addEventListener('change', () => { if (!window.SafiaCuenta) return; if (sel.value === '__salir' || !sel.value) SafiaCuenta.salirVerComo(); else SafiaCuenta.verComo(sel.value); }); }
+    }
     function renderTopbar() {
       document.getElementById('topbarFecha').textContent = new Date().toLocaleDateString('es-PY', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-      const clientes = leer('clientes'), campos = leer('campos');
+      renderVerComo();
+      const clientes = leer('clientes'), campos = leer('campos'), vcT = verComoDash();
       if (clientes.length || campos.length) {
-        document.getElementById('topbarSaludo').textContent = `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} · ${campos.length} campo${campos.length !== 1 ? 's' : ''}`;
+        document.getElementById('topbarSaludo').textContent = vcT ? ('Viendo como ' + vcT.nombre + ' · ' + campos.length + ' campo' + (campos.length !== 1 ? 's' : '')) : `${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} · ${campos.length} campo${campos.length !== 1 ? 's' : ''}`;
         saludarUsuario();
       } else {
         document.getElementById('topbarSaludo').textContent = 'Bienvenido a SAFIA';
