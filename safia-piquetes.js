@@ -365,20 +365,22 @@
   }
   function rgb(c) { return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')'; }
   function pt(cx, cy, r, ang) { var t = ang * RAD; return (Math.round((cx + r * Math.sin(t)) * 10) / 10) + ' ' + (Math.round((cy - r * Math.cos(t)) * 10) / 10); }
-  function svgPivot(g, colorDe, etiquetaDe, sinRiego) {
+  function svgPivot(g, colorDe, etiquetaDe, sinRiego, seleccionado) {
     var R = 96, cx = 100, cy = 100, p = g.param, h = '<svg viewBox="0 0 200 200" style="width:100%;max-width:380px;display:block;margin:0 auto;" role="img" aria-label="Pivot dividido en piquetes">';
-    var fuente = p.n > 40 ? 5.5 : p.n > 24 ? 7 : 10, textos = '';
+    var fuente = p.n > 40 ? 5.5 : p.n > 24 ? 7 : 10, textos = '', dSel = '';
     g.lista.forEach(function (s) {
       var an = p.anillos[s.anillo], pasos = Math.max(3, Math.ceil(an.paso / 2.5)), pts = [], k, fi;
       for (k = 0; k <= pasos; k++) { fi = s.f1 + (s.f2 - s.f1) * k / pasos; pts.push(pt(cx, cy, R * radioBorde(p, s.anillo, fi), brujula(p, fi))); }
       if (s.anillo === 0) pts.push(cx + ' ' + cy);
       else for (k = pasos; k >= 0; k--) { fi = s.f1 + (s.f2 - s.f1) * k / pasos; pts.push(pt(cx, cy, R * radioInterior(p, s.anillo, fi), brujula(p, fi))); }
       var sr = sinRiego && sinRiego.piquetes && sinRiego.piquetes.indexOf(s.piquete) !== -1;
-      h += '<path d="M' + pts.join(' L') + ' Z" fill="' + colorDe(s) + '" stroke="#fff" stroke-width="1.2"' + (sr ? ' stroke-dasharray="3 2" stroke="#2E72C8" stroke-width="2"' : '') + '><title>Piquete ' + esc(s.piquete) + (s.ha ? ' · ' + String(s.ha).replace('.', ',') + ' ha' : '') + (etiquetaDe ? ': ' + esc(etiquetaDe(s)) : '') + '</title></path>';
+      if (seleccionado != null && String(seleccionado) === String(s.piquete)) dSel = 'M' + pts.join(' L') + ' Z';
+      h += '<path d="M' + pts.join(' L') + ' Z" data-piquete="' + esc(s.piquete) + '" style="cursor:pointer;" fill="' + colorDe(s) + '" stroke="#fff" stroke-width="1.2"' + (sr ? ' stroke-dasharray="3 2" stroke="#2E72C8" stroke-width="2"' : '') + '><title>Piquete ' + esc(s.piquete) + (s.ha ? ' · ' + String(s.ha).replace('.', ',') + ' ha' : '') + (etiquetaDe ? ': ' + esc(etiquetaDe(s)) : '') + '</title></path>';
       var fm = (s.f1 + s.f2) / 2, ro = radioBorde(p, s.anillo, fm), ri = radioInterior(p, s.anillo, fm), rm = s.anillo === 0 ? ro * (p.anillos.length > 1 ? 0.66 : 0.68) : (ro + ri) / 2;
       var pm = pt(cx, cy, R * rm, brujula(p, fm)).split(' ');
       if (p.n <= 64) textos += '<text x="' + pm[0] + '" y="' + (parseFloat(pm[1]) + fuente * 0.35) + '" font-size="' + fuente + '" text-anchor="middle" fill="#fff" font-weight="600" style="paint-order:stroke;stroke:rgba(0,0,0,.35);stroke-width:2px;">' + esc(s.piquete) + '</text>';
     });
+    if (dSel) h += '<path d="' + dSel + '" fill="rgba(255,255,255,.18)" stroke="#1F2328" stroke-width="3" stroke-linejoin="round" pointer-events="none"/>';
     h += textos + svgInfra(g, cx, cy, R) + '<circle cx="' + cx + '" cy="' + cy + '" r="3.5" fill="#2C2C2A"/><text x="' + cx + '" y="8" font-size="7" text-anchor="middle" fill="#8C9196">N</text></svg>';
     return h;
   }
@@ -459,7 +461,56 @@
 
   /* ---------- panel para Operador / Encargado ---------- */
   // Devuelve HTML con: el pivot coloreado por NDVI (última pasada), tabla por piquete (NDVI, tendencia, altura estimada), riego sin pastoreo
+  /* ---------- piquete elegido: ficha con estado, satélite, regla, kilos de pasto, historial y acciones (Osmar, 30-oct-2026) ---------- */
+  var seleccion = {}, ultimoPanel = null;   // piquete elegido por equipo; lo último dibujado, para redibujar al tocar
+  function piqueteElegido(equipoId) { return seleccion[String(equipoId)] || null; }
+  function elegirPiquete(equipoId, piquete) { if (piquete == null) delete seleccion[String(equipoId)]; else seleccion[String(equipoId)] = String(piquete); }
+  function fichaPiquete(equipo, cultivo, datos, g, piquete) {
+    var s = g.lista.filter(function (x) { return String(x.piquete) === String(piquete); })[0]; if (!s) return '';
+    var est = window.SafiaPasturas ? SafiaPasturas.estadoPiquetes(equipo.id, cultivo) : { piquetes: [], ref: null };
+    var e = est.piquetes.filter(function (x) { return String(x.piquete) === String(piquete); })[0] || { estado: 'sin_datos', color: '#8C9196', texto: 'Sin movimientos ni lecturas' };
+    var pasadas = ((datos && datos.pasadas) || []).filter(function (x) { return vale(x, g.param); }), ult = pasadas[pasadas.length - 1] || null, prev = pasadas.length > 1 ? pasadas[pasadas.length - 2] : null;
+    var v = ult && ult.por[piquete], pv = prev && prev.por[piquete], tend = v && pv && diasEntre(prev.fecha, ult.fecha) > 0 ? (v.ndvi - pv.ndvi) / diasEntre(prev.fecha, ult.fecha) : null;
+    var reg = regresion(pares(equipo, pasadas)), altSat = reg && v ? reg.estimar(v.ndvi) : null, ref = est.ref;
+    var acc = accesosDe(g, piquete), anillo = g.param.anillos.length > 1 ? (s.anillo === 0 ? 'adentro' : 'afuera') : '';
+    var movs = window.SafiaPasturas ? SafiaPasturas.eventosLote(equipo.id).filter(function (m) { return String(m.piquete) === String(piquete); }) : [];
+    var lects = window.SafiaPasturas && SafiaPasturas.lecturasLote ? SafiaPasturas.lecturasLote(equipo.id).filter(function (m) { return String(m.piquete) === String(piquete); }) : [];
+    var ultEnt = movs.filter(function (m) { return m.accion === 'entrada'; }).slice(-1)[0], diasOcup = parseFloat(cultivo && cultivo.diasOcupacion) || null;
+    var pasto = null; try { if (window.SafiaForraje && SafiaForraje.pastoPorPiquete) { var pp = SafiaForraje.pastoPorPiquete(equipo, cultivo); pasto = pp.lista.filter(function (x) { return String(x.piquete) === String(piquete); })[0] || null; pasto = pasto ? Object.assign({ factor: pp.factor, kgEntrada: pp.kgEntrada, kgSalida: pp.kgSalida }, pasto) : null; } } catch (err) { pasto = null; }
+    var dato = function (t, val, sub) { return '<div><div style="font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:#8C9196;">' + t + '</div><div style="font-size:13px;color:#2E3236;font-weight:600;">' + val + '</div>' + (sub ? '<div style="font-size:11px;color:#5B6167;line-height:1.35;">' + sub + '</div>' : '') + '</div>'; };
+    var h = '<div data-piq-ficha="' + esc(piquete) + '" style="border:1px solid #E1E4E7;border-left:4px solid ' + e.color + ';border-radius:8px;padding:8px 10px;margin-top:8px;background:#fff;">';
+    h += '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap;"><div><b style="font-size:14px;">Piquete ' + esc(piquete) + '</b> <span style="font-size:11px;color:#8C9196;">' + (s.ha ? String(s.ha).replace('.', ',') + ' ha' : '') + (anillo ? ' · ' + anillo : '') + (acc && acc.texto ? ' · ' + esc(acc.texto) : '') + '</span></div><button type="button" data-piq-cerrar="1" title="Cerrar" style="border:0;background:none;color:#8C9196;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button></div>';
+    h += '<div style="font-size:12.5px;color:' + e.color + ';font-weight:600;margin:2px 0 8px;">' + esc(e.texto) + '</div>';
+    h += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;">';
+    h += dato('Satélite', v ? 'NDVI ' + v.ndvi.toFixed(2) + (v.nubes_pct > 30 ? ' *' : '') : 'sin imagen', (ult ? fmtF(ult.fecha) : '') + (tend != null ? ' · ' + (tend > 0 ? '+' : '') + (tend * 100).toFixed(1) + '/100 por día' : '') + (altSat != null ? ' · ~' + altSat + ' cm estimados' : ''));
+    h += dato('Regla', e.altura ? e.altura + ' cm' : 'sin lectura', e.altura ? 'el ' + fmtF(e.fechaLectura) + (e.crecimiento != null ? ' · ' + (e.crecimiento > 0 ? '+' : '') + e.crecimiento + ' cm/día' : '') + (ref ? ' · entrar a ' + ref.entrada + ', salir a ' + ref.salida : '') : (ref ? 'meta: entrar a ' + ref.entrada + ' cm, salir a ' + ref.salida : ''));
+    h += dato('Pasto', pasto && pasto.kgHa != null ? Math.round(pasto.kgHa).toLocaleString('es-PY') + ' kg MS/ha' : '—', pasto && pasto.kgHa != null ? (pasto.comestibleHa != null ? Math.round(pasto.comestibleHa).toLocaleString('es-PY') + ' kg/ha por encima de la salida' + (pasto.comestibleKg != null ? ' · ' + Math.round(pasto.comestibleKg).toLocaleString('es-PY') + ' kg en el piquete' : '') : '') : (pasto && pasto.factor ? 'cargá una lectura de regla para estimar los kilos' : 'hace falta una lectura de regla y la calibración de kilos'));
+    h += dato(e.estado === 'ocupado' ? 'Animales adentro' : 'Descanso', e.estado === 'ocupado' ? (ultEnt ? 'día ' + (diasEntre(ultEnt.fecha, hoy()) + 1) + (diasOcup ? ' de ' + diasOcup : '') : 'sí') : (e.diasDescanso != null ? e.diasDescanso + ' día' + (e.diasDescanso === 1 ? '' : 's') + (cultivo && cultivo.diasDescanso ? ' de ' + cultivo.diasDescanso : '') : 'sin salida cargada'), e.estado === 'ocupado' && ultEnt ? 'desde el ' + fmtF(ultEnt.fecha) + (ultEnt.cabezas ? ' · ' + ultEnt.cabezas + ' cabezas' : '') : '');
+    h += '</div>';
+    if (window.SafiaPiqueteAccion) {
+      var btn = function (acc2, txt, verde) { return '<button type="button" data-piq-accion="' + acc2 + '" data-piquete="' + esc(piquete) + '" style="font:inherit;font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;border:1px solid ' + (verde ? '#178029' : '#E1E4E7') + ';background:' + (verde ? '#178029' : '#fff') + ';color:' + (verde ? '#fff' : '#2E3236') + ';cursor:pointer;">' + txt + '</button>'; };
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' + (e.estado === 'ocupado' ? btn('salida', 'Salen los animales de acá', true) : btn('entrada', 'Entran los animales acá', true)) + btn('lectura', 'Cargar lectura de regla') + btn('corte', 'Corte (heno, picado)') + '</div>';
+    }
+    var hist = movs.map(function (m) { return { f: m.fecha, t: (m.accion === 'entrada' ? 'Entrada' : m.accion === 'salida' ? 'Salida' : 'Corte') + (m.cabezas ? ' · ' + m.cabezas + ' cab.' : '') + (m.alturaCm || m.altura ? ' · ' + (m.alturaCm || m.altura) + ' cm' : '') }; })
+      .concat(lects.map(function (l) { return { f: l.fecha, t: 'Regla ' + l.alturaCm + ' cm' }; })).sort(function (a, b) { return String(b.f).localeCompare(String(a.f)); }).slice(0, 6);
+    if (hist.length) h += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Historial del piquete (' + hist.length + ')</summary><div style="font-size:12px;color:#3A3E41;margin-top:4px;">' + hist.map(function (x) { return '<div>' + fmtF(x.f) + ' · ' + esc(x.t) + '</div>'; }).join('') + '</div></details>';
+    return h + '</div>';
+  }
+  // tocar un piquete (en la rueda o en la tabla) lo elige y abre su ficha; los botones de la ficha avisan a la pantalla (window.SafiaPiqueteAccion)
+  document.addEventListener('click', function (ev) {
+    var t = ev.target; if (!t || !t.closest) return;
+    var raiz = t.closest('[data-piq-panel]'); if (!raiz || !ultimoPanel) return;
+    var accion = t.closest('[data-piq-accion]');
+    if (accion) { ev.preventDefault(); ev.stopPropagation(); if (window.SafiaPiqueteAccion) window.SafiaPiqueteAccion(accion.getAttribute('data-piq-accion'), accion.getAttribute('data-piquete')); return; }
+    var eqId = raiz.getAttribute('data-piq-panel');
+    if (t.closest('[data-piq-cerrar]')) { elegirPiquete(eqId, null); }
+    else { var el = t.closest('[data-piquete]'); if (!el || t.closest('[data-piq-ficha]')) return; var piq = el.getAttribute('data-piquete'); elegirPiquete(eqId, piqueteElegido(eqId) === String(piq) ? null : piq); }
+    var nuevo = document.createElement('div'); nuevo.innerHTML = htmlPanel(ultimoPanel.equipo, ultimoPanel.cultivo, ultimoPanel.datos);
+    raiz.replaceWith(nuevo.firstChild);
+  });
+
   function htmlPanel(equipo, cultivo, datos) {
+    ultimoPanel = { equipo: equipo, cultivo: cultivo, datos: datos };
     var g = sectores(equipo, cultivo);
     if (!g) return '<div style="font-size:12px;color:#8C9196;">Para dividir el pivot en piquetes hacen falta el polígono del pivot (Equipos y lotes) y la cantidad de piquetes en la campaña.</div>';
     var ref = window.SafiaPasturas ? SafiaPasturas.alturasReferencia((cultivo.variedad || '') + ' ' + (cultivo.cultivo || '')) : null;
@@ -469,8 +520,10 @@
     var reg = regresion(pares(equipo, pasadas)), sinR = sectoresSinRiego(equipo, cultivo, 3);
     var colorDe = function (s) { var v = ult && ult.por[s.piquete]; return colorNdvi(v ? v.ndvi : null); };
     var etiq = function (s) { var v = ult && ult.por[s.piquete]; return v ? 'NDVI ' + v.ndvi.toFixed(2) : 'sin dato'; };
-    var h = '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
-    h += '<div style="flex:1 1 300px;min-width:180px;max-width:400px;">' + svgPivot(g, colorDe, etiq, sinR) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + '</div>' + fichaHTML(g, null, 'margin-top:6px;') + '</div>';
+    var sel = piqueteElegido(equipo.id);
+    var h = '<div data-piq-panel="' + esc(equipo.id) + '" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;">';
+    h += '<div style="flex:1 1 300px;min-width:180px;max-width:400px;">' + svgPivot(g, colorDe, etiq, sinR, sel) + '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:4px;">' + (ult ? 'Vigor Sentinel-2 del ' + fmtF(ult.fecha) + (prev ? ' (anterior ' + fmtF(prev.fecha) + ')' : '') : 'Sin imagen todavía') + (sinR && sinR.piquetes.length ? ' · <span style="color:#2E72C8;">punteado: no regar hoy</span>' : '') + '</div>' +
+      (sel ? fichaPiquete(equipo, cultivo, datos, g, sel) : '<div style="font-size:11px;color:#8C9196;text-align:center;margin-top:6px;">Tocá un piquete (en la rueda o en la tabla) para ver cómo está y cargar lo que pasa ahí.</div>') + fichaHTML(g, null, 'margin-top:6px;') + '</div>';
     h += '<div style="flex:1 1 280px;min-width:0;">';
     if (sinR && sinR.ocupado) h += '<div style="font-size:12px;background:#E7F0FB;border-radius:8px;padding:6px 10px;margin-bottom:8px;color:#234e85;"><b>Riego separado del pastoreo:</b> hoy no regar los piquetes ' + esc(sinR.piquetes.join(', ')) + ' (el ocupado y los 3 siguientes): saltar <b>' + esc(sinR.texto) + '</b> desde el norte, sentido horario.' + (sinR.comparten.length ? ' En ese tramo el pivot tampoco riega los piquetes ' + esc(sinR.comparten.join(', ')) + ', que comparten el ángulo.' : '') + ' Regar el resto según el balance.</div>';
     else if (sinR) h += '<div style="font-size:12px;color:#8C9196;margin-bottom:8px;">Cuando cargues la entrada de los animales a un piquete, acá aparecen los grados del pivot que no se riegan.</div>';
@@ -489,7 +542,8 @@
     var resto = filas.slice(LIM); filas = filas.slice(0, LIM);
     var filaHtml = function (f) {
       var estadoTxt = f.e.estado === 'ocupado' ? '<span style="color:#2E72C8;font-weight:600;">Animales adentro</span>' : (f.e.estado === 'listo' ? '<span style="color:#178029;font-weight:600;">A punto (regla)</span>' : (f.listoSat ? '<span style="color:#178029;font-weight:600;">A punto por satélite (~' + f.altSat + ' cm)</span>' : (f.altSat != null ? '~' + f.altSat + ' cm por satélite' : (f.e.texto ? esc(f.e.texto).slice(0, 60) : '—'))));
-      return '<tr style="border-top:1px solid #EEF0F2;"><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colorNdvi(f.v ? f.v.ndvi : null) + ';vertical-align:-1px;margin-right:4px;"></span><b>' + esc(f.s.piquete) + '</b></td><td>' + (f.v ? f.v.ndvi.toFixed(2) + (f.v.nubes_pct > 30 ? '<span style="color:#8C9196;" title="parte con nubes">*</span>' : '') : '—') + '</td><td style="color:' + (f.tend > 0 ? '#178029' : f.tend < 0 ? '#B5371C' : '#8C9196') + ';">' + (f.tend != null ? (f.tend > 0 ? '+' : '') + (f.tend * 100).toFixed(1) + '/100 por día' : '—') + '</td><td>' + (f.e.altura ? f.e.altura + ' cm <span style="color:#8C9196;">' + fmtF(f.e.fechaLectura) + '</span>' : '—') + '</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + estadoTxt + '</td></tr>';
+      var esSel = sel != null && String(f.s.piquete) === String(sel);
+      return '<tr data-piquete="' + esc(f.s.piquete) + '" style="border-top:1px solid #EEF0F2;cursor:pointer;' + (esSel ? 'background:#F4FAF5;outline:2px solid #1F2328;outline-offset:-2px;' : '') + '"><td style="padding:4px 0;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colorNdvi(f.v ? f.v.ndvi : null) + ';vertical-align:-1px;margin-right:4px;"></span><b>' + esc(f.s.piquete) + '</b></td><td>' + (f.v ? f.v.ndvi.toFixed(2) + (f.v.nubes_pct > 30 ? '<span style="color:#8C9196;" title="parte con nubes">*</span>' : '') : '—') + '</td><td style="color:' + (f.tend > 0 ? '#178029' : f.tend < 0 ? '#B5371C' : '#8C9196') + ';">' + (f.tend != null ? (f.tend > 0 ? '+' : '') + (f.tend * 100).toFixed(1) + '/100 por día' : '—') + '</td><td>' + (f.e.altura ? f.e.altura + ' cm <span style="color:#8C9196;">' + fmtF(f.e.fechaLectura) + '</span>' : '—') + '</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + estadoTxt + '</td></tr>';
     };
     h += filas.map(filaHtml).join('') + '</table>';
     if (resto.length) h += '<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:11px;color:#1565C0;font-weight:600;">Ver los otros ' + resto.length + ' piquetes</summary><table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;">' + cab + resto.map(filaHtml).join('') + '</table></details>';
@@ -497,5 +551,5 @@
     return h;
   }
 
-  window.SafiaPiquetes = { sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, fichaModelo: fichaModelo, fichaHTML: fichaHTML, materiales: materiales, materialesHTML: materialesHTML, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
+  window.SafiaPiquetes = { fichaPiquete: fichaPiquete, piqueteElegido: piqueteElegido, elegirPiquete: elegirPiquete, sectores: sectores, centroRadio: centroRadio, parametros: parametros, total: total, indiceSector: indiceSector, indicePiquete: indicePiquete, promediarImagen: promediarImagen, vigorEnFecha: vigorEnFecha, actualizar: actualizar, serieGuardada: serieGuardada, pasadasValidas: pasadasValidas, pares: pares, regresion: regresion, sectoresSinRiego: sectoresSinRiego, colorNdvi: colorNdvi, svgPivot: svgPivot, describir: describir, infraestructura: infraestructura, fichaModelo: fichaModelo, fichaHTML: fichaHTML, materiales: materiales, materialesHTML: materialesHTML, plazaTamano: plazaTamano, textoPlaza: textoPlaza, piquetesEn: piquetesEn, accesosDe: accesosDe, leyendaInfra: leyendaInfra, gradosTxt: gradosTxt, htmlPanel: htmlPanel };
 })();

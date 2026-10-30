@@ -1812,6 +1812,13 @@
       pintarPiquetesSatelite(camp);
       pintarForraje(camp, eqHoy);
     }
+    // La ficha del piquete (safia-piquetes.js) manda acá: abre el modal que corresponde con el piquete ya cargado
+    window.SafiaPiqueteAccion = function (accion, piquete) {
+      if (accion === 'lectura') { abrirModal('lectura'); const lp = document.getElementById('lecPiquete'); if (lp) { lp.value = piquete; if (typeof resumenLectura === 'function') resumenLectura(); } return; }
+      abrirModal('pastoreo');
+      document.getElementById('modalAccion').value = accion; document.getElementById('modalPiquete').value = piquete;
+      if (typeof avisoAlturaPasto === 'function') avisoAlturaPasto();
+    };
     // Vigor satelital por piquete: primero lo guardado (rápido), después pide las pasadas nuevas
     function pintarPiquetesSatelite(camp) {
       const cont = document.getElementById('piquetesSat'); if (!cont || !window.SafiaPiquetes) return;
