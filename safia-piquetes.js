@@ -75,7 +75,7 @@
     // 10 animales/ha y 4 m² por animal, más el espacio de comederos; todo ajustable), o el lado fijado a mano.
     var donde = dt.piqPlazaDonde || (listaNum(dt.piqPlazas).length ? 'afuera' : (dt.piqCentro === 'no' ? 'ninguna' : 'centro'));
     p.infra = { bebederos: dt.piqBebederos || (modelo === 'anillos' && donde !== 'portones' ? 'vertices' : 'ninguno'), portones: dt.piqPortones || (modelo === 'anillos' ? 'lados' : 'ninguno'),
-      entrada: num(dt.piqPortonEntrada), plazas: listaNum(dt.piqPlazas).map(function (x) { return mod(x, 360); }), centro: donde === 'centro',
+      entrada: num(dt.piqPortonEntrada), plazas: listaNum(dt.piqPlazas).map(function (x) { return mod(x, 360); }), centro: donde === 'centro' || dt.piqCentro === 'si',
       plazaDonde: donde, carga: num(dt.piqCarga) || 10, m2Animal: num(dt.piqPlazaM2Animal) || 4, plazaLado: num(dt.piqPlazaLado),
       // corralón central (radio en m), callejón de acceso (ancho en m) y materiales (cuadro de instalación de Irrigar: 4 hilos normales afuera,
       // postes cada 10 m; hilo eléctrico adentro, postes cada ~14 m; goma conductora de 3 m en cada cruce de rueda)

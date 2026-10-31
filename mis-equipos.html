@@ -615,6 +615,8 @@
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
                       <button type="button" class="btn" onclick="piqPreset('irrigar32')">Modelo Irrigar 32 potreros</button>
                       <button type="button" class="btn" onclick="piqPreset('irrigarPizza')">Modelo Irrigar 30 potreros (pizza con corralón)</button>
+                      <button type="button" class="btn" onclick="piqPreset('pasture12')" title="Proyecto Michi Porã (Pasture): 3 potreros adentro y 9 afuera, todos de la misma superficie, alambrado interno circular al 50 % del radio, plazas afuera">Modelo Pasture 12 potreros (3 + 9)</button>
+                      <button type="button" class="btn" onclick="piqPreset('pasture5')" title="Pivot grande del proyecto Michi Porã: un potrero central con corralón y 4 afuera, misma superficie, plazas afuera">Modelo Pasture 5 potreros (1 + 4)</button>
                       <button type="button" class="btn" onclick="piqPreset('pizza')">Volver a pizza</button>
                     </div>
                   </div>
@@ -1332,6 +1334,10 @@
       const set = (id, val) => { const el = document.getElementById('pivote-' + id); if (el) el.value = val; };
       if (cual === 'irrigar32') { set('piqModelo', 'anillos'); set('piqSectores', '16, 16'); set('piqRadios', '67'); set('piqBorde', 'recto2'); set('piquete1Angulo', '270'); set('piqSentido', ''); set('piqNumeracion', ''); set('piqBebederos', ''); set('piqPortones', ''); set('piqPortonEntrada', '270'); set('piqPlazas', ''); set('piqCentro', ''); set('piqPlazaDonde', 'portones'); }
       else if (cual === 'irrigarPizza') { set('piqModelo', 'pizza'); set('piqSectores', '30'); set('piqRadios', ''); set('piqBorde', 'recto2'); set('piqSentido', 'antihorario'); set('piqNumeracion', ''); set('piqPlazaDonde', 'centro'); set('piqPlazaRadio', ''); set('piqCallejon', '8'); set('piqBebederos', 'ninguno'); set('piqPortones', 'ninguno'); if (!document.getElementById('pivote-piquete1Angulo').value) set('piquete1Angulo', '180'); }
+      // Modelo Pasture (proyecto Michi Porã, 31-oct-2026): potreros de la misma superficie, alambrado interno circular, sin bebederos ni portones
+      // en el alambrado (plazas con agua afuera, en el perímetro); el pivot grande lleva un potrero central con corralón y 4 afuera.
+      else if (cual === 'pasture12') { set('piqModelo', 'anillos'); set('piqSectores', '3, 9'); set('piqRadios', ''); set('piqBorde', 'circulo'); set('piqSentido', ''); set('piqNumeracion', ''); set('piqBebederos', 'ninguno'); set('piqPortones', 'ninguno'); set('piqPortonEntrada', ''); set('piqPlazaDonde', 'afuera'); set('piqPlazas', '60, 180, 300'); set('piqCentro', 'no'); set('piqCallejon', ''); if (!document.getElementById('pivote-piquete1Angulo').value) set('piquete1Angulo', '0'); }
+      else if (cual === 'pasture5') { set('piqModelo', 'anillos'); set('piqSectores', '1, 4'); set('piqRadios', ''); set('piqBorde', 'circulo'); set('piqSentido', ''); set('piqNumeracion', ''); set('piqBebederos', 'ninguno'); set('piqPortones', 'ninguno'); set('piqPortonEntrada', ''); set('piqPlazaDonde', 'afuera'); set('piqPlazas', '45, 135, 225, 315'); set('piqCentro', 'si'); set('piqCallejon', ''); if (!document.getElementById('pivote-piquete1Angulo').value) set('piquete1Angulo', '0'); }
       else { set('piqModelo', ''); set('piqSectores', ''); set('piqRadios', ''); set('piqBorde', 'recto2'); set('piqSentido', ''); set('piqNumeracion', ''); }
       piqVista();
     }
