@@ -111,6 +111,16 @@
     for (var i = 0; i < ALTURAS.length; i++) { var m = n.match(ALTURAS[i].re); if (m && m.index < pos) { pos = m.index; mejor = ALTURAS[i]; } }
     return mejor;
   }
+  /* Parámetros de la pastura cargados a mano en la campaña (Osmar, 31-oct-2026): si el productor puso sus alturas de entrada y
+     salida, mandan sobre la tabla de Embrapa; si no, la tabla por variedad. */
+  function referenciaDe(cultivo) {
+    var c = cultivo || {}, base = alturasReferencia((c.variedad || '') + ' ' + (c.cultivo || ''));
+    var ent = parseFloat(c.alturaEntrada), sal = parseFloat(c.alturaSalida);
+    if (!(ent > 0) && !(sal > 0)) return base;
+    var e = ent > 0 ? ent : (base ? base.entrada : null), s = sal > 0 ? sal : (base ? base.salida : null);
+    if (!(e > 0) || !(s > 0)) return base;
+    return { re: base ? base.re : null, nombre: base ? base.nombre : (c.variedad || c.cultivo || 'pastura'), entrada: e, salida: s, tipo: base ? base.tipo : 'rotativo', fuente: 'parámetros de la pastura cargados a mano' + (base ? ' (la tabla de Embrapa dice ' + base.entrada + '/' + base.salida + ' cm)' : ''), manual: true };
+  }
   // Color de una altura frente a la meta: verde = a punto para entrar, amarillo = creciendo, rojo = en la altura de salida o menos
   function clasificarAltura(ref, alt) {
     if (!ref || !(alt > 0)) return { clase: 'sin', color: '#8C9196', texto: '' };
@@ -147,7 +157,7 @@
   function promedio(lista) { var v = (lista || []).map(parseFloat).filter(function (x) { return x > 0; }); return v.length ? Math.round(v.reduce(function (s, x) { return s + x; }, 0) / v.length * 10) / 10 : null; }
   // Estado de cada piquete: último movimiento, última lectura de altura y qué hacer
   function estadoPiquetes(equipoId, cultivo) {
-    var c = cultivo || {}, n = parseInt(c.piquetes, 10) || 0, ref = alturasReferencia((c.variedad || '') + ' ' + (c.cultivo || ''));
+    var c = cultivo || {}, n = parseInt(c.piquetes, 10) || 0, ref = referenciaDe(c);
     // el alambrado real (modelo de piquetes del equipo) manda sobre el número cargado en la campaña
     if (window.SafiaPiquetes && SafiaPiquetes.total) { var eqM = leer('equipos').find(function (e) { return String(e.id) === String(equipoId); }), nM = eqM ? SafiaPiquetes.total(eqM, c) : null; if (nM) n = nM; }
     var desc = parseFloat(c.diasDescanso) || null, h = hoy();
@@ -319,5 +329,5 @@
     cargarReferencia().then(function (filas) { el.innerHTML = htmlBanco(c, filas); });
   }
 
-  window.SafiaPasturas = { nombreCorto: nombreCorto, nombreCampana: nombreCampana, arreglarNombres: arreglarNombres, alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, clasificarAltura: clasificarAltura, lecturasLote: lecturasLote, promedio: promedio, estadoPiquetes: estadoPiquetes, htmlPiquetes: htmlPiquetes, htmlGuia: htmlGuia, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
+  window.SafiaPasturas = { referenciaDe: referenciaDe, nombreCorto: nombreCorto, nombreCampana: nombreCampana, arreglarNombres: arreglarNombres, alturasReferencia: alturasReferencia, textoAltura: textoAltura, ALTURAS: ALTURAS, clasificarAltura: clasificarAltura, lecturasLote: lecturasLote, promedio: promedio, estadoPiquetes: estadoPiquetes, htmlPiquetes: htmlPiquetes, htmlGuia: htmlGuia, esPastura: esPastura, SISTEMAS: SISTEMAS, nombreSistema: nombreSistema, regionDe: regionDe, eventosLote: eventosLote, resumenLote: resumenLote, produccionMensual: produccionMensual, cargarReferencia: cargarReferencia, referenciaPara: referenciaPara, htmlTemperatura: htmlTemperatura, htmlEncargado: htmlEncargado, htmlOperador: htmlOperador, htmlBanco: htmlBanco, alCambiarCampo: alCambiarCampo, campanasPastura: campanasPastura };
 })();

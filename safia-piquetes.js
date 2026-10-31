@@ -525,7 +525,7 @@
     var g = sectores(equipo, cultivo);
     try { if (g && window.SafiaRotacion) ultimoPanel.rotacion = SafiaRotacion.analizar(equipo, cultivo, ((datos && datos.pasadas) || []).filter(function (x) { return vale(x, g.param); })); } catch (e) { ultimoPanel.rotacion = null; }
     if (!g) return '<div style="font-size:12px;color:#8C9196;">Para dividir el pivot en piquetes hacen falta el polígono del pivot (Equipos y lotes) y la cantidad de piquetes en la campaña.</div>';
-    var ref = window.SafiaPasturas ? SafiaPasturas.alturasReferencia((cultivo.variedad || '') + ' ' + (cultivo.cultivo || '')) : null;
+    var ref = window.SafiaPasturas ? SafiaPasturas.referenciaDe(cultivo) : null;
     var est = window.SafiaPasturas ? SafiaPasturas.estadoPiquetes(equipo.id, cultivo) : { piquetes: [], ocupado: null };
     var pasadas = ((datos && datos.pasadas) || []).filter(function (x) { return vale(x, g.param); });
     var ult = pasadas[pasadas.length - 1] || null, prev = pasadas.length > 1 ? pasadas[pasadas.length - 2] : null;

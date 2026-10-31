@@ -1705,7 +1705,7 @@
     function avisoAlturaPasto() {
       const el = document.getElementById('modalAlturaRef'); if (!el || !window.SafiaPasturas || !SafiaPasturas.alturasReferencia) return;
       const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null;
-      const ref = SafiaPasturas.alturasReferencia(camp ? (camp.variedad || camp.cultivo) : '');
+      const ref = SafiaPasturas.referenciaDe(camp);
       const accion = document.getElementById('modalAccion').value, alt = parseFloat(document.getElementById('modalAltura').value);
       el.innerHTML = SafiaPasturas.textoAltura(ref, accion, alt);
     }
@@ -1718,7 +1718,7 @@
     function resumenLectura() {
       const el = document.getElementById('lecResumen'); if (!el) return;
       const m = medidasLeidas(), prom = SafiaPasturas.promedio(m);
-      const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null, ref = SafiaPasturas.alturasReferencia(camp ? (camp.variedad || '') + ' ' + (camp.cultivo || '') : '');
+      const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null, ref = SafiaPasturas.referenciaDe(camp);
       if (!prom) { el.innerHTML = ref ? 'Meta ' + ref.nombre + ': entrar a ' + ref.entrada + ' cm, sacar a ' + ref.salida + ' cm.' : 'Cargá la variedad de la pastura en la campaña para ver la meta de altura.'; return; }
       const c = SafiaPasturas.clasificarAltura(ref, prom);
       el.innerHTML = m.length + ' medida' + (m.length === 1 ? '' : 's') + ' · promedio <b style="color:' + c.color + ';font-size:15px;">' + prom + ' cm</b>' + (c.texto ? ' · <b style="color:' + c.color + ';">' + c.texto + '</b>' : '') + (ref ? ' <span style="color:#8C9196;">(meta ' + ref.entrada + ' / ' + ref.salida + ' cm)</span>' : '');
@@ -1795,12 +1795,54 @@
       pintar(null);
       SafiaPasturas.cargarReferencia().then(pintar).catch(() => {});
     }
+    /* Parámetros de la pastura (Osmar, 31-oct-2026): lo que hay que definir antes de entrar los animales. Vacío = SAFIA usa la
+       referencia (tabla de Embrapa por variedad, UA del país, consumo 2,2 %, eficiencia 55 %). Se guarda en la campaña (sincroniza). */
+    function abrirParametrosPastura() {
+      const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null; if (!camp) { mostrarToast('No hay campaña activa en este lote.'); return; }
+      const eq = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
+      const campo = eq ? (JSON.parse(localStorage.getItem('campos') || '[]').find(c => String(c.id) === String(eq.campoId)) || null) : null;
+      const base = SafiaPasturas.alturasReferencia((camp.variedad || '') + ' ' + (camp.cultivo || ''));
+      let fTabla = null; try { fTabla = SafiaForraje.factorDe(equipoSeleccionadoId, Object.assign({}, camp, { kgPorCm: '' })); } catch (e) {}
+      const uaPais = SafiaForraje.uaKgDe(campo), nPiq = window.SafiaPiquetes && eq ? SafiaPiquetes.total(eq, camp) : null;
+      let m = document.getElementById('modalParamPast');
+      if (!m) { m = document.createElement('div'); m.id = 'modalParamPast'; m.className = 'modal-overlay'; m.addEventListener('click', ev => { if (ev.target === m) m.classList.remove('visible'); }); document.body.appendChild(m); }
+      const campoHtml = (id, label, val, ph, ayuda, step) => '<div class="campo"><label>' + label + '</label><input type="text" inputmode="decimal" id="' + id + '" value="' + (val != null && val !== '' ? String(val).replace('.', ',') : '') + '" placeholder="' + ph + '"><div class="ayuda" style="margin-top:3px;">' + ayuda + '</div></div>';
+      m.innerHTML = '<div class="modal" style="max-width:560px;max-height:92vh;overflow:auto;"><div class="modal-titulo">Parámetros de la pastura</div>' +
+        '<div class="ayuda" style="margin-bottom:10px;line-height:1.45;">Lo que SAFIA usa para la rotación, los kilos de pasto y la carga animal en <b>' + esc(campanaActivaActual.nombre || '') + '</b>' + (camp.variedad ? ' (' + esc(camp.variedad) + ')' : '') + '. Lo que dejes vacío lo toma de la referencia; lo que escribas manda.</div>' +
+        '<div class="campo"><label>Categoría de los animales</label><input type="text" id="ppCategoria" value="' + esc(camp.categoria || '') + '" placeholder="Ej: novillos de recría, vacas de cría…"></div>' +
+        campoHtml('ppPiquetes', 'Cantidad de piquetes', camp.piquetes, nPiq ? String(nPiq) + ' (del modelo del equipo)' : 'Ej: 32', 'si el equipo tiene el modelo de piquetes cargado, ese manda', '1') +
+        campoHtml('ppOcupacion', 'Días de ocupación por piquete', camp.diasOcupacion, 'Ej: 2', 'cuántos días quedan los animales en cada piquete', '1') +
+        campoHtml('ppDescanso', 'Días de descanso del piquete', camp.diasDescanso, 'Ej: 30', 'cuánto descansa cada piquete antes de volver a entrar', '1') +
+        campoHtml('ppEntrada', 'Altura para entrar (cm)', camp.alturaEntrada, base ? String(base.entrada) + ' (' + base.nombre + ', Embrapa)' : 'Ej: 80', base ? 'referencia Embrapa para ' + esc(base.nombre) + ': entrar a ' + base.entrada + ' cm' : 'sin referencia para esta variedad: cargala') +
+        campoHtml('ppSalida', 'Altura para sacar (cm)', camp.alturaSalida, base ? String(base.salida) + ' (' + base.nombre + ', Embrapa)' : 'Ej: 40', base ? 'referencia Embrapa: sacar a ' + base.salida + ' cm' : '') +
+        campoHtml('ppKgCm', 'Kilos de pasto por cm (kg MS/ha por cm de altura)', camp.kgPorCm, fTabla ? String(fTabla.kgCm) + (fTabla.origen === 'calibrado' ? ' (calibrado en el campo)' : ' (tabla)') : 'Ej: 58', fTabla && fTabla.origen === 'calibrado' ? 'ya hay un corte de muestra calibrado: manda sobre lo que escribas acá' : 'orientativo de tabla; un corte de muestra (Calibrar) lo reemplaza', '0.1') +
+        campoHtml('ppUA', 'Unidad animal (kg de peso vivo)', camp.uaKg, String(uaPais) + ' (' + (uaPais === 400 ? 'Paraguay' : 'Brasil') + ')', 'Paraguay usa 400 kg; Brasil 450', '1') +
+        campoHtml('ppConsumo', 'Consumo (% del peso vivo por día)', camp.consumoPct, '2,2', 'cuánto come un animal por día en materia seca, como % de su peso', '0.1') +
+        campoHtml('ppEficiencia', 'Eficiencia de pastoreo (%)', camp.eficienciaPct, '55', 'parte del pasto que los animales aprovechan de lo que crece', '1') +
+        '<div class="modal-botones" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;"><button type="button" class="btn" onclick="document.getElementById(\'modalParamPast\').classList.remove(\'visible\')">Cancelar</button><button type="button" class="btn green" onclick="guardarParametrosPastura()">Guardar</button></div></div>';
+      m.classList.add('visible');
+    }
+    function guardarParametrosPastura() {
+      const campanas = JSON.parse(localStorage.getItem('campanas') || '[]'), i = campanas.findIndex(c => String(c.id) === String(campanaActivaActual && campanaActivaActual.id));
+      if (i < 0 || !campanas[i].cultivos || !campanas[i].cultivos[0]) { mostrarToast('No encuentro la campaña para guardar.'); return; }
+      const v = id => { const x = parseFloat(String(document.getElementById(id).value).replace(',', '.')); return x > 0 ? x : ''; };
+      const c = campanas[i].cultivos[0];
+      const ent = v('ppEntrada'), sal = v('ppSalida'); if (ent && sal && sal >= ent) { mostrarToast('La altura para sacar tiene que ser menor que la de entrar.'); return; }
+      const ua = v('ppUA'); if (ua && (ua < 200 || ua > 700)) { mostrarToast('Revisá la unidad animal: ' + ua + ' kg no parece correcto.'); return; }
+      c.categoria = document.getElementById('ppCategoria').value.trim(); c.piquetes = v('ppPiquetes'); c.diasOcupacion = v('ppOcupacion'); c.diasDescanso = v('ppDescanso');
+      c.alturaEntrada = ent; c.alturaSalida = sal; c.kgPorCm = v('ppKgCm'); c.uaKg = ua; c.consumoPct = v('ppConsumo'); c.eficienciaPct = v('ppEficiencia');
+      campanas[i].fechaModificacion = new Date().toISOString();
+      localStorage.setItem('campanas', JSON.stringify(campanas)); campanaActivaActual = campanas[i];
+      document.getElementById('modalParamPast').classList.remove('visible');
+      mostrarToast('✓ Parámetros de la pastura guardados'); mostrarCampana(); pintarPanelPastura();
+    }
     function pintarPanelPastura() {
       const panel = document.getElementById('pasturaPanel'); if (!panel) return;
       const camp = campanaActivaActual && campanaActivaActual.cultivos ? campanaActivaActual.cultivos[0] : null;
       const esPast = camp && window.SafiaPasturas && SafiaPasturas.esPastura(camp.cultivo);
       panel.style.display = esPast ? '' : 'none'; if (!esPast) return;
-      const ref = SafiaPasturas.alturasReferencia((camp.variedad || '') + ' ' + (camp.cultivo || ''));
+      const ref = SafiaPasturas.referenciaDe(camp);
       const eqHoy = JSON.parse(localStorage.getItem('equipos') || '[]').find(e => String(e.id) === String(equipoSeleccionadoId));
       const stHoy = SafiaPasturas.estadoPiquetes(equipoSeleccionadoId, camp); let ocup = stHoy.piquetes.find(p => p.estado === 'ocupado');
       const sinR = window.SafiaPiquetes && eqHoy ? SafiaPiquetes.sectoresSinRiego(eqHoy, camp, 3) : null;
@@ -1817,7 +1859,7 @@
         tarjeta('Animales hoy', ocup ? 'Piquete ' + ocup.piquete : (satHoy ? satHoy.titulo : 'Sin entrada cargada'), ocup ? (diasAdentro != null ? 'día ' + (diasAdentro + 1) + (diasOcup ? ' de ' + diasOcup : '') + (diasOcup && diasAdentro + 1 >= diasOcup ? ' · <b style=\'color:#8a5713;\'>hoy toca rotar</b>' : '') : '') + (ocup.altura && stHoy.ref && ocup.altura <= stHoy.ref.salida ? ' · <b style=\'color:#B5371C;\'>en altura de salida: sacarlos</b>' : '') + acceso(ocup.piquete) : (satHoy ? satHoy.sub : 'Cargá la entrada con el botón Pastoreo'), ocup ? '#2E72C8' : (satHoy ? (satHoy.fuente === 'satelite' ? '#8a5713' : '#8C9196') : '#8C9196')) +
         tarjeta('Próximo piquete', proximo ? 'Piquete ' + proximo : (casi ? 'Piquete ' + casi.piquete : (anHoy && anHoy.masPasto && anHoy.masPasto.length ? 'Piquete ' + anHoy.masPasto.slice(0, 2).map(x => x.piquete).join(' o ') : '—')), proximo ? 'a punto por altura' + (stHoy.ref ? ' (meta ' + stHoy.ref.entrada + ' cm)' : '') + acceso(proximo) : (casi ? casi.texto + acceso(casi.piquete) : (anHoy && anHoy.masPasto && anHoy.masPasto.length ? 'los de más pasto por satélite (NDVI ' + anHoy.masPasto[0].ndvi.toFixed(2) + ' el ' + anHoy.masPasto[0].fecha.slice(8, 10) + '/' + anHoy.masPasto[0].fecha.slice(5, 7) + ')' + (anHoy.masPasto[0].alt != null ? ', ~' + anHoy.masPasto[0].alt + ' cm' : '') + '; medí la altura para confirmar' : 'medí la altura de los piquetes que descansaron más')), proximo ? '#178029' : '#B8731A') +
         tarjeta('Riego hoy', sinR && sinR.ocupado ? 'Saltar ' + (sinR.texto || (sinR.grados[0] + '° a ' + sinR.grados[1] + '°')) : 'Todo el pivot', sinR && sinR.ocupado ? 'no regar ' + (sinR.piquetes.length === 1 ? 'el piquete ' : 'los piquetes ') + sinR.piquetes.join(', ') + (sinR.segunSatelite ? ' (consumo visto por satélite hace poco)' : ' (ocupado y 3 siguientes)') + '; el resto según el agua en el suelo' : 'sin posición cierta de los animales: regar según el agua en el suelo', '#2E72C8') + '</div>';
-      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pastura hoy</div>' + hoyHtml + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pasto en kilos y carne</div><div id="forrajePanel" style="margin-bottom:12px;"></div><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">Piquetes' + enlaceModeloPiquetes(eqHoy, camp) + '</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
+      panel.innerHTML = '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">Pastura hoy <a href="#" onclick="abrirParametrosPastura();return false;" style="text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:#1565C0;text-decoration:none;">Parámetros de la pastura</a></div>' + hoyHtml + '<div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;">Pasto en kilos y carne</div><div id="forrajePanel" style="margin-bottom:12px;"></div><div style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:#178029;margin-bottom:6px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;">Piquetes' + enlaceModeloPiquetes(eqHoy, camp) + '</div>' + SafiaPasturas.htmlPiquetes(equipoSeleccionadoId, camp) +
         '<div id="piquetesSat" style="margin-top:10px;border-top:1px solid #EEF0F2;padding-top:8px;"></div>' + SafiaPasturas.htmlGuia(ref);
       pintarPiquetesSatelite(camp);
       pintarForraje(camp, eqHoy);

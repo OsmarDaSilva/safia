@@ -42,7 +42,9 @@
   // Unidad animal según el país (Osmar, 30-oct-2026): en Paraguay la UA es de 400 kg de peso vivo; en Brasil, 450. Se fija por el país del campo.
   var UA_KG = 400, CONSUMO_PCT = 2.2, EFICIENCIA = 0.55, KG_ARROBA = 30;
   function uaKgDe(campo) { var p = norm(campo && campo.pais || 'paraguay'); return /brasil|brazil/.test(p) ? 450 : 400; }
-  function fijarUA(campo) { UA_KG = uaKgDe(campo); return UA_KG; }
+  var CONSUMO_BASE = 2.2, EFICIENCIA_BASE = 0.55;
+  // fija UA, consumo y eficiencia para el cálculo: lo cargado a mano en la campaña manda; si no, el país y los valores base
+  function fijarUA(campo, cultivo) { var c = cultivo || {}; UA_KG = parseFloat(c.uaKg) > 0 ? parseFloat(c.uaKg) : uaKgDe(campo); CONSUMO_PCT = parseFloat(c.consumoPct) > 0 ? parseFloat(c.consumoPct) : CONSUMO_BASE; EFICIENCIA = parseFloat(c.eficienciaPct) > 0 ? parseFloat(c.eficienciaPct) / 100 : EFICIENCIA_BASE; return UA_KG; }
   var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   var NOMBRE_MES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   var FACTORES = [
@@ -75,6 +77,7 @@
       return { kgCm: Math.round(sk / sc * 10) / 10, origen: 'calibrado', n: rec.length, fecha: ult.fecha, viejo: viejo,
         texto: 'calibrado en el campo con ' + rec.length + ' corte' + (rec.length > 1 ? 's' : '') + ' de muestra (último ' + fmtF(ult.fecha) + ')' + (viejo ? '; ya tiene más de 4 meses: conviene recalibrar, cambia con la época' : '') };
     }
+    if (parseFloat(c.kgPorCm) > 0) return { kgCm: parseFloat(c.kgPorCm), origen: 'manual', texto: 'cargado a mano en Parámetros de la pastura: ' + parseFloat(c.kgPorCm) + ' kg MS/ha por cm. Un corte de muestra (Calibrar) lo reemplaza por el valor medido' };
     var n = norm((c.variedad || '') + ' ' + (c.cultivo || '')), mejor = null, pos = Infinity;
     FACTORES.forEach(function (f) { var m = n.match(f.re); if (m && m.index < pos) { pos = m.index; mejor = f; } });
     if (!mejor) return null;
@@ -187,7 +190,7 @@
   function refCache() { try { var c = JSON.parse(localStorage.getItem('ref_forraje') || 'null'); return (c && c.filas) || []; } catch (e) { return []; } }
   function diasDelMes(anio, m) { return new Date(anio, m, 0).getDate(); }
   function cargaMensual(equipo, cultivo, campo, filasRef) {
-    fijarUA(campo);
+    fijarUA(campo, cultivo);
     var filas = filasRef && filasRef.length ? filasRef : refCache(), region = SafiaPasturas.regionDe(campo || {});
     var rR = SafiaPasturas.referenciaPara(filas, region, cultivo, 'regada'), rS = SafiaPasturas.referenciaPara(filas, region, cultivo, 'secano');
     var cr = crecimiento(equipo.id, cultivo), anio = +hoy().slice(0, 4), out = [];
@@ -199,7 +202,7 @@
     return { meses: out, region: region, tipoRef: rR ? rR.tipo_pastura : null, anio: anio };
   }
   function resumen(equipo, cultivo, campo, filasRef) {
-    fijarUA(campo);
+    fijarUA(campo, cultivo);
     var pp = pastoPorPiquete(equipo, cultivo), cr = crecimiento(equipo.id, cultivo), lote = loteActual(equipo.id), cm = cargaMensual(equipo, cultivo, campo, filasRef);
     var mesHoy = cm.meses[+hoy().slice(5, 7) - 1], ha = pp.ha;
     var tasa = cr.ult30 ? { kgDia: cr.ult30.kgDia, origen: 'medido', dias: cr.ult30.dias, cmDia: cr.ult30.cmDia } : (mesHoy && mesHoy.regada != null ? { kgDia: Math.round(mesHoy.regada), origen: 'referencia' } : null);
@@ -255,7 +258,7 @@
       subC = 'el pasto aguanta <b>' + fmt(R.uaCapacidad, 1) + ' UA/ha</b>' + (R.cabezasCapacidad != null ? ' (unas ' + fmt(R.cabezasCapacidad) + ' cabezas de ' + fmt(R.lote.pesoKg) + ' kg)' : '') + (rel > 1.1 ? ' · <b style="color:#B5371C;">hay más animales que pasto: sacar o suplementar</b>' : rel < 0.7 ? ' · <b style="color:#8a5713;">sobra pasto: se pueden sumar animales</b>' : ' · carga ajustada');
     } else if (R.uaCapacidad != null) subC = 'el pasto aguanta <b>' + fmt(R.uaCapacidad, 1) + ' UA/ha</b>' + (R.ha ? ' = ' + fmt(R.uaCapacidad * UA_KG * R.ha) + ' kg de peso vivo en las ' + fmt(R.ha, 1) + ' ha' : '') + '. Cargá una <b>Pesada</b> (cabezas y peso) para comparar con la carga real';
     else subC = 'faltan datos';
-    subC += ' · UA = ' + UA_KG + ' kg de peso vivo' + (UA_KG === 400 ? ' (Paraguay)' : ' (Brasil)');
+    subC += ' · UA = ' + UA_KG + ' kg de peso vivo' + (parseFloat((cultivo || {}).uaKg) > 0 ? ' (cargada a mano)' : (UA_KG === 400 ? ' (Paraguay)' : ' (Brasil)')) + ' · consumo ' + String(CONSUMO_PCT).replace('.', ',') + ' % del peso vivo · eficiencia ' + Math.round(EFICIENCIA * 100) + ' %';
     var t3 = tarjeta('Carga', R.uaReal != null ? fmt(R.uaReal, 1) + ' UA/ha hoy' : (R.lote.cabezas ? fmt(R.lote.cabezas) + ' cabezas, sin peso' : 'Sin pesada'), subC + (R.lote.cabezas && R.lote.pesoKg ? ' · ' + fmt(R.lote.cabezas) + ' cab. de ' + fmt(R.lote.pesoKg) + ' kg (' + fmtF(R.lote.fecha) + ')' : '') + (R.lote.ajustes && R.lote.ajustes.length ? ' · ajustes: ' + R.lote.ajustes.map(function (a) { return (a.cabezas > 0 ? '+' : '') + fmt(a.cabezas) + ' el ' + fmtF(a.fecha); }).join(', ') : ''), colC);
     // carne
     var c = R.carne, t4;
@@ -283,7 +286,7 @@
     return h;
   }
 
-  window.SafiaForraje = { uaKgDe: uaKgDe, fijarUA: fijarUA, get UA_KG() { return UA_KG; }, CONSUMO_PCT: CONSUMO_PCT, EFICIENCIA: EFICIENCIA, KG_ARROBA: KG_ARROBA, FACTORES: FACTORES, REF_CARNE: REF_CARNE,
+  window.SafiaForraje = { uaKgDe: uaKgDe, fijarUA: fijarUA, get UA_KG() { return UA_KG; }, get CONSUMO_PCT() { return CONSUMO_PCT; }, get EFICIENCIA() { return EFICIENCIA; }, CONSUMO_BASE: CONSUMO_BASE, EFICIENCIA_BASE: EFICIENCIA_BASE, KG_ARROBA: KG_ARROBA, FACTORES: FACTORES, REF_CARNE: REF_CARNE,
     factorDe: factorDe, kgMsDeCorte: kgMsDeCorte, calibraciones: calibraciones, pastoPorPiquete: pastoPorPiquete, crecimiento: crecimiento, pesadas: pesadas, loteActual: loteActual,
     carne: carne, uaHaDe: uaHaDe, cargaMensual: cargaMensual, resumen: resumen, svgPiquetes: svgPiquetes, htmlPanel: htmlPanel, equipoDe: equipoDe };
 })();
